@@ -1,1 +1,18 @@
+# Virtual environment
+venv/
 .env
+
+# Cache & pyc
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS files (macOS/Linux)
+.DS_Store
+
+# VS Code config (jika pakai)
+.vscode/
+
+# Log
+*.log
