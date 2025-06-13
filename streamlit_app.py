@@ -25,8 +25,8 @@ def baca_file(path: str) -> str:
     return f"⚠️ File {path} tidak ditemukan."
 
 # === Streamlit UI ===
-st.set_page_config(page_title="AI Sekolah SDN Semper Barat 01", page_icon="🏫")
-st.title("📚 AI Sekolah SDN Semper Barat 01")
+st.set_page_config(page_title="Agent AI SDN Semper Barat 01", page_icon="🏫")
+st.title("📚 Agent AI SDN Semper Barat 01")
 st.caption("Asisten AI resmi sekolah. Silakan ajukan pertanyaan.")
 
 # === Cache vectorstore dari kecerdasan.md
