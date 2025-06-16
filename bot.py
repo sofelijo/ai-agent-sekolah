@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# Handle pesan biasa
+# Handler untuk semua pesan teks
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text.strip().lower()
 
@@ -52,23 +52,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "hari ini" in user_input:
         user_input += f" (hari ini itu hari {hari_ini_id})"
 
-    # Debug log ke console
     print(f"[USER INPUT] {user_input}")
 
     try:
         response = qa_chain.run(user_input)
         cleaned = response.strip().lower()
 
-        # Evaluasi apakah respons terlalu singkat / tidak informatif
-        if (
-            not cleaned
-            or cleaned.startswith("maaf")
-            and len(cleaned.splitlines()) <= 2
-        ):
+        # Evaluasi apakah respons valid dan cukup panjang
+        is_respons_kosong = not cleaned
+        is_respons_hanya_maaf = (
+            cleaned.startswith("maaf") and len(cleaned.splitlines()) <= 2
+        )
+
+        if is_respons_kosong or is_respons_hanya_maaf:
             response = "Maaf, saya belum menemukan jawaban di data sekolah."
 
     except Exception as e:
-        response = f"Maaf, terjadi kesalahan teknis: {e}"
+        print(f"[ERROR] {e}")
+        response = "Maaf, terjadi kesalahan teknis. Silakan coba lagi nanti."
 
     print(f"[BOT RESPONSE] {response}")
     await update.message.reply_text(response)

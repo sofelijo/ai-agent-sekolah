@@ -693,7 +693,7 @@ Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 
 
 ### 📋 Rekap Kuota Sekolah PMB 2025/2026 
 
-| No  | Nama Satuan Pendidikan                | Kategori | NPSN     | Kuota |
+| No  | Nama Satuan Pendidikan                | Kategori | NPSN     | Kuota | 
 | --- | ------------------------------------- | -------- | -------- | ----- |
 | 1   | SMPIT Said Naum                       | ISLAM    | 20100328 | 15    |
 | 2   | SMP Santo Bellarminus                 | KATOLIK  | 20106433 | 5     |
