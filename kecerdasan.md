@@ -346,164 +346,7 @@ Dalam hal daya tampung PMB Tahap Kedua masih tersisa, maka akan dibuka **PMB Tah
 | 4   | Daftar Ulang                      | 9 Juli 2025  | 08.00 – 23.59 WIB |
 |     |                                   | 10 Juli 2025 | 00.00 – 14.00 WIB |
 
-
-
-## Kuota Sekolah Swasta PMB 2025/2026
-
-Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 sekolah tingkat SMP swasta** di DKI Jakarta. Total daya tampung keseluruhan adalah **1626 murid**.
-
-
-
-### 📋 Daftar Sekolah dan Kuota
-
-### 📋 Rekap Kuota Sekolah PMB 2025/2026 
-
-| No  | Nama Satuan Pendidikan                | Kategori | NPSN     | Kuota |
-| --- | ------------------------------------- | -------- | -------- | ----- |
-| 1   | SMPIT Said Naum                       | ISLAM    | 20100328 | 15    |
-| 2   | SMP Santo Bellarminus                 | KATOLIK  | 20106433 | 5     |
-| 3   | SMP YP IPPI Petojo                    | ISLAM    | 20100249 | 25    |
-| 4   | SMP Perguruan Cikini                  | UMUM     | 20106427 | 3     |
-| 5   | SMP Yapermas                          | UMUM     | 20106443 | 20    |
-| 6   | SMP An Nur                            | ISLAM    | 20100293 | 10    |
-| 7   | SMP Haleluyah                         | KRISTEN  | 20106359 | 5     |
-| 8   | SMP Islam Manhalun Nasyiin            | ISLAM    | 20106361 | 17    |
-| 9   | SMP Advent Menteng                    | UMUM     | 20100291 | 5     |
-| 10  | SMP Taman Siswa                       | UMUM     | 20109354 | 15    |
-| 11  | SMP Bethel                            | UMUM     | 20100334 | 5     |
-| 12  | SMP Santo Paulus                      | UMUM     | 20106429 | 10    |
-| 13  | SMP Ksatrya                           | UMUM     | 20100336 | 15    |
-| 14  | SMP Kristen Saint John                | KRISTEN  | 20100319 | 4     |
-| 15  | SMP Muhammadiyah 2 Jakarta            | ISLAM    | 20100311 | 15    |
-| 16  | SMP Advent 1 Jakarta                  | KRISTEN  | 20106349 | 10    |
-| 17  | SMP Islam Al Jihad                    | UMUM     | 20106360 | 14    |
-| 18  | SMP ST. Fransiskus I                  | KATOLIK  | 20106434 | 10    |
-| 19  | SMP Melania II                        | KATOLIK  | 20100323 | 11    |
-| 20  | SMP Muhammadiyah 13                   | ISLAM    | 20106379 | 15    |
-| 21  | SMP Taman Siswa                       | UMUM     | 69863239 | 13    |
-| 22  | SMP Islam Miftahussa'adah Al Khairiah | ISLAM    | 20106363 | 13    |
-| 23  | SMP Muhammadiyah 3                    | ISLAM    | 20106381 | 15    |
-| 24  | SMP Cahaya Sakti                      | UMUM     | 20107070 | 10    |
-| 25  | SMP YP IPPI Cakung                    | ISLAM    | 20107170 | 12    |
-| 26  | SMP Al Ghurabaa                       | ISLAM    | 20107040 | 13    |
-| 27  | SMP Kartini 3                         | UMUM     | 20107102 | 13    |
-| 28  | SMP Tirta Sari Surya                  | UMUM     | 20107158 | 13    |
-| 29  | SMP Imtaq Darurrahim                  | ISLAM    | 20107077 | 13    |
-| 30  | SMP Assyairiyah                       | ISLAM    | 20107052 | 10    |
-| 31  | SMP Cawang Baru                       | UMUM     | 20177802 | 13    |
-| 32  | SMP Bhakti Mulia                      | UMUM     | 20109919 | 12    |
-| 33  | SMP Bahagia                           | UMUM     | 20107056 | 12    |
-| 34  | SMP Muhammadiyah 5                    | UMUM     | 20107120 | 13    |
-| 35  | SMP PGRI 20                           | UMUM     | 20107130 | 12    |
-| 36  | SMP Kartika XI-3                      | UMUM     | 20107101 | 13    |
-| 37  | SMP Corpatarin                        | UMUM     | 20107073 | 13    |
-| 38  | SMP YWKA                              | UMUM     | 20107175 | 12    |
-| 39  | SMP Santa Maria Fatimah               | KATOLIK  | 20107152 | 4     |
-| 40  | SMP PGRI 9                            | UMUM     | 20107133 | 13    |
-| 41  | SMP Bina Dharma                       | UMUM     | 20107061 | 13    |
-| 42  | SMP Ignatius Slamet Riyadi            | KATOLIK  | 20107089 | 4     |
-| 43  | SMP Kartika VIII-1                    | UMUM     | 20107100 | 13    |
-| 44  | SMP PGRI 30                           | UMUM     | 20107131 | 13    |
-| 45  | SMP Uswatun Hasanah                   | UMUM     | 20103490 | 9     |
-| 46  | SMP Trisoko                           | UMUM     | 20107161 | 13    |
-| 47  | SMP Trampil                           | UMUM     | 20109275 | 12    |
-| 48  | SMP Yamas                             | UMUM     | 20103506 | 13    |
-| 49  | SMP Widya Manggala                    | UMUM     | 20107167 | 13    |
-| 50  | SMP Budhi Warman                      | UMUM     | 20107069 | 13    |
-| 51  | SMP Perguruan Advent XV               | KRISTEN  | 20109279 | 11    |
-| 52  | SMP Islam Karya Darma                 | ISLAM    | 20107104 | 12    |
-| 53  | SMP Katolik Nusa Melati               | KATOLIK  | 20107096 | 10    |
-| 54  | SMP Strada Bhakti Utama               | KATOLIK  | 20107003 | 5     |
-| 55  | SMP Islam Al Hikmah                   | ISLAM    | 20106924 | 13    |
-| 56  | SMP Muhammadiyah 35                   | ISLAM    | 20106980 | 5     |
-| 57  | SMP Trimulya                          | ISLAM    | 20107014 | 13    |
-| 58  | SMP YPUI                              | ISLAM    | 20107023 | 12    |
-| 59  | SMP Keluarga Widuri                   | UMUM     | 20102416 | 13    |
-| 60  | SMP Bakti Idhata                      | UMUM     | 20106935 | 13    |
-| 61  | SMP YPI Bintaro                       | ISLAM    | 20107018 | 13    |
-| 62  | SMP PGRI 12                           | UMUM     | 20102430 | 13    |
-| 63  | SMP El Syifa                          | ISLAM    | 20106953 | 13    |
-| 64  | SMP Darul Ma'arif Jakarta             | ISLAM    | 20102408 | 13    |
-| 65  | SMP PGRI 3                            | UMUM     | 20106987 | 13    |
-| 66  | SMP Islam Al-Hidayah                  | ISLAM    | 20106922 | 13    |
-| 67  | SMP Yapenka                           | UMUM     | 20102425 | 13    |
-| 68  | SMP Dewi Sartika                      | UMUM     | 20106948 | 10    |
-| 69  | SMP Makarya                           | UMUM     | 20106977 | 9     |
-| 70  | SMP Pelita Harapan                    | UMUM     | 20106992 | 10    |
-| 71  | SMP Bunda Kandung                     | UMUM     | 69968367 | 15    |
-| 72  | SMP Pasar Minggu                      | UMUM     | 20102431 | 15    |
-| 73  | SMP Islam Assalam                     | ISLAM    | 20106967 | 5     |
-| 74  | SMP Sultan Hasanuddin                 | ISLAM    | 20107004 | 15    |
-| 75  | SMP PGRI 10                           | UMUM     | 20106913 | 14    |
-| 76  | SMP YWKA I                            | UMUM     | 20107024 | 15    |
-| 77  | SMP Muttaqien                         | ISLAM    | 20106984 | 15    |
-| 78  | SMP Purnama                           | UMUM     | 20106998 | 10    |
-| 79  | SMP Palapa                            | UMUM     | 20106989 | 14    |
-| 80  | SMP Islam Andalus                     | UMUM     | 20106966 | 9     |
-| 81  | SMPIT Assa'adah Alchilashiyyah        | ISLAM    | 69979246 | 10    |
-| 82  | SMP Bait Al Rahman                    | ISLAM    | 20108330 | 10    |
-| 83  | SMP 28 Oktober 1928                   | UMUM     | 20106915 | 8     |
-| 84  | SMP Islam As-Syafi'iyah 02            | ISLAM    | 20106932 | 13    |
-| 85  | SMP Strada Marga Mulia                | KATOLIK  | 20102428 | 11    |
-| 86  | SMP Barunawati II                     | UMUM     | 20106473 | 14    |
-| 87  | SMP Al Jihad                          | ISLAM    | 20106460 | 15    |
-| 88  | SMP Wijayakusuma                      | UMUM     | 20106696 | 10    |
-| 89  | SMP Nurul Iman                        | UMUM     | 20106619 | 15    |
-| 90  | SMP Kencana                           | UMUM     | 20106549 | 15    |
-| 91  | SMP Mutiara 2                         | UMUM     | 20100827 | 15    |
-| 92  | SMP Islam Al-Muttaqin                 | ISLAM    | 20106464 | 13    |
-| 93  | SMP Cordova                           | UMUM     | 20109342 | 13    |
-| 94  | SMP Permata Indah                     | UMUM     | 20106630 | 15    |
-| 95  | SMP Yappenda                          | UMUM     | 20106708 | 15    |
-| 96  | SMP Gita Kirtti 2                     | UMUM     | 20106520 | 15    |
-| 97  | SMP Mekar Tanjung                     | UMUM     | 20106560 | 14    |
-| 98  | SMP Nurul Islam                       | ISLAM    | 20106621 | 14    |
-| 99  | SMP Al-Fatah                          | ISLAM    | 20109378 | 14    |
-| 100 | SMP Gunung Jati                       | UMUM     | 20106521 | 14    |
-| 101 | SMP Wiyatamandala                     | UMUM     | 20106697 | 14    |
-| 102 | SMP Mutiara I                         | UMUM     | 20100826 | 14    |
-| 103 | SMP Nusantara                         | UMUM     | 20109401 | 10    |
-| 104 | SMP Hang Tuah 1                       | UMUM     | 20109337 | 12    |
-| 105 | SMP Ar Raudhah                        | ISLAM    | 20100788 | 12    |
-| 106 | SMP Hang Tuah 5                       | UMUM     | 20106471 | 12    |
-| 107 | SMP Sejahtera                         | UMUM     | 20106653 | 12    |
-| 108 | SMP Barunawati 3                      | UMUM     | 20106474 | 12    |
-| 109 | SMP Fikri                             | ISLAM    | 20106514 | 12    |
-| 110 | SMP Tunas Karya                       | UMUM     | 20109350 | 11    |
-| 111 | SMP Tanjung Priok                     | UMUM     | 20106684 | 12    |
-| 112 | SMP Unwanus Saadah                    | UMUM     | 20106693 | 10    |
-| 113 | SMP Muhammadiyah 14                   | ISLAM    | 20100825 | 12    |
-| 114 | SMP Lagoa                             | UMUM     | 20106552 | 11    |
-| 115 | SMP Al Khairiyah II                   | ISLAM    | 20106462 | 13    |
-| 116 | SMP Yadika 2                          | UMUM     | 20108808 | 5     |
-| 117 | SMP Al-Qomar                          | ISLAM    | 20106730 | 13    |
-| 118 | SMP Setia Gama                        | ISLAM    | 20106880 | 13    |
-| 119 | SMP PGRI 39                           | UMUM     | 20106849 | 6     |
-| 120 | SMP Dhammasavana                      | BUDDHA   | 20106768 | 6     |
-| 121 | SMP Galatia 3                         | KRISTEN  | 20106792 | 9     |
-| 122 | SMP Bintang Kejora                    | KATOLIK  | 20106750 | 13    |
-| 123 | SMP Pelita Anugerah                   | KRISTEN  | 20108803 | 6     |
-| 124 | SMP Lamaholot                         | KATOLIK  | 20106831 | 12    |
-| 125 | SMP Islam Terpadu An-Nashr            | ISLAM    | 20112448 | 8     |
-| 126 | SMP Insan Cita                        | UMUM     | 69754417 | 13    |
-| 127 | SMP Citra Utama                       | UMUM     | 69774535 | 13    |
-| 128 | SMP Bina Bangsa                       | UMUM     | 20108796 | 12    |
-| 129 | SMP Yadika 5                          | UMUM     | 20106905 | 5     |
-| 130 | SMP Budi Murni 2                      | UMUM     | 20108797 | 10    |
-| 131 | SMP YP BDN                            | UMUM     | 20106904 | 10    |
-| 132 | SMP Sumpah Pemuda                     | UMUM     | 20106884 | 12    |
-| 133 | SMP Bhara Trikora                     | UMUM     | 20106745 | 13    |
-| 134 | SMP Al Hamidiyah                      | ISLAM    | 20106722 | 13    |
-| 135 | SMP Mitra Reformasi                   | UMUM     | 20109520 | 12    |
-| 136 | SMP Fathachillah                      | ISLAM    | 20109482 | 13    |
-| 137 | SMP Duta Mas                          | UMUM     | 20106770 | 13    |
-| 138 | SMP Muhamadiyah 33                    | ISLAM    | 20106843 | 13    |
-
-
 ---
-
-Data ini berdasarkan **Lampiran V** dari Keputusan Kepala Dinas Pendidikan DKI Jakarta No. 67 Tahun 2025 tentang Petunjuk Teknis PMB Tahun Ajaran 2025/2026.
-
 
 # PPDB atau SPMB jenjang SMP
 
@@ -838,3 +681,160 @@ PMB Tahap Kedua hanya diperuntukkan bagi CMB yang **berdomisili di Provinsi DKI 
 1. **Total pembobotan indeks prestasi akademik**  
 2. **Urutan pilihan sekolah**  
 3. **Waktu pendaftaran**
+
+
+## Kuota Sekolah SMP swasta PMB 2025/2026
+
+Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 sekolah tingkat SMP swasta** di DKI Jakarta. Total daya tampung keseluruhan adalah **1626 murid**.
+
+
+
+### 📋 Daftar Sekolah dan Kuota
+
+### 📋 Rekap Kuota Sekolah PMB 2025/2026 
+
+| No  | Nama Satuan Pendidikan                | Kategori | NPSN     | Kuota |
+| --- | ------------------------------------- | -------- | -------- | ----- |
+| 1   | SMPIT Said Naum                       | ISLAM    | 20100328 | 15    |
+| 2   | SMP Santo Bellarminus                 | KATOLIK  | 20106433 | 5     |
+| 3   | SMP YP IPPI Petojo                    | ISLAM    | 20100249 | 25    |
+| 4   | SMP Perguruan Cikini                  | UMUM     | 20106427 | 3     |
+| 5   | SMP Yapermas                          | UMUM     | 20106443 | 20    |
+| 6   | SMP An Nur                            | ISLAM    | 20100293 | 10    |
+| 7   | SMP Haleluyah                         | KRISTEN  | 20106359 | 5     |
+| 8   | SMP Islam Manhalun Nasyiin            | ISLAM    | 20106361 | 17    |
+| 9   | SMP Advent Menteng                    | UMUM     | 20100291 | 5     |
+| 10  | SMP Taman Siswa                       | UMUM     | 20109354 | 15    |
+| 11  | SMP Bethel                            | UMUM     | 20100334 | 5     |
+| 12  | SMP Santo Paulus                      | UMUM     | 20106429 | 10    |
+| 13  | SMP Ksatrya                           | UMUM     | 20100336 | 15    |
+| 14  | SMP Kristen Saint John                | KRISTEN  | 20100319 | 4     |
+| 15  | SMP Muhammadiyah 2 Jakarta            | ISLAM    | 20100311 | 15    |
+| 16  | SMP Advent 1 Jakarta                  | KRISTEN  | 20106349 | 10    |
+| 17  | SMP Islam Al Jihad                    | UMUM     | 20106360 | 14    |
+| 18  | SMP ST. Fransiskus I                  | KATOLIK  | 20106434 | 10    |
+| 19  | SMP Melania II                        | KATOLIK  | 20100323 | 11    |
+| 20  | SMP Muhammadiyah 13                   | ISLAM    | 20106379 | 15    |
+| 21  | SMP Taman Siswa                       | UMUM     | 69863239 | 13    |
+| 22  | SMP Islam Miftahussa'adah Al Khairiah | ISLAM    | 20106363 | 13    |
+| 23  | SMP Muhammadiyah 3                    | ISLAM    | 20106381 | 15    |
+| 24  | SMP Cahaya Sakti                      | UMUM     | 20107070 | 10    |
+| 25  | SMP YP IPPI Cakung                    | ISLAM    | 20107170 | 12    |
+| 26  | SMP Al Ghurabaa                       | ISLAM    | 20107040 | 13    |
+| 27  | SMP Kartini 3                         | UMUM     | 20107102 | 13    |
+| 28  | SMP Tirta Sari Surya                  | UMUM     | 20107158 | 13    |
+| 29  | SMP Imtaq Darurrahim                  | ISLAM    | 20107077 | 13    |
+| 30  | SMP Assyairiyah                       | ISLAM    | 20107052 | 10    |
+| 31  | SMP Cawang Baru                       | UMUM     | 20177802 | 13    |
+| 32  | SMP Bhakti Mulia                      | UMUM     | 20109919 | 12    |
+| 33  | SMP Bahagia                           | UMUM     | 20107056 | 12    |
+| 34  | SMP Muhammadiyah 5                    | UMUM     | 20107120 | 13    |
+| 35  | SMP PGRI 20                           | UMUM     | 20107130 | 12    |
+| 36  | SMP Kartika XI-3                      | UMUM     | 20107101 | 13    |
+| 37  | SMP Corpatarin                        | UMUM     | 20107073 | 13    |
+| 38  | SMP YWKA                              | UMUM     | 20107175 | 12    |
+| 39  | SMP Santa Maria Fatimah               | KATOLIK  | 20107152 | 4     |
+| 40  | SMP PGRI 9                            | UMUM     | 20107133 | 13    |
+| 41  | SMP Bina Dharma                       | UMUM     | 20107061 | 13    |
+| 42  | SMP Ignatius Slamet Riyadi            | KATOLIK  | 20107089 | 4     |
+| 43  | SMP Kartika VIII-1                    | UMUM     | 20107100 | 13    |
+| 44  | SMP PGRI 30                           | UMUM     | 20107131 | 13    |
+| 45  | SMP Uswatun Hasanah                   | UMUM     | 20103490 | 9     |
+| 46  | SMP Trisoko                           | UMUM     | 20107161 | 13    |
+| 47  | SMP Trampil                           | UMUM     | 20109275 | 12    |
+| 48  | SMP Yamas                             | UMUM     | 20103506 | 13    |
+| 49  | SMP Widya Manggala                    | UMUM     | 20107167 | 13    |
+| 50  | SMP Budhi Warman                      | UMUM     | 20107069 | 13    |
+| 51  | SMP Perguruan Advent XV               | KRISTEN  | 20109279 | 11    |
+| 52  | SMP Islam Karya Darma                 | ISLAM    | 20107104 | 12    |
+| 53  | SMP Katolik Nusa Melati               | KATOLIK  | 20107096 | 10    |
+| 54  | SMP Strada Bhakti Utama               | KATOLIK  | 20107003 | 5     |
+| 55  | SMP Islam Al Hikmah                   | ISLAM    | 20106924 | 13    |
+| 56  | SMP Muhammadiyah 35                   | ISLAM    | 20106980 | 5     |
+| 57  | SMP Trimulya                          | ISLAM    | 20107014 | 13    |
+| 58  | SMP YPUI                              | ISLAM    | 20107023 | 12    |
+| 59  | SMP Keluarga Widuri                   | UMUM     | 20102416 | 13    |
+| 60  | SMP Bakti Idhata                      | UMUM     | 20106935 | 13    |
+| 61  | SMP YPI Bintaro                       | ISLAM    | 20107018 | 13    |
+| 62  | SMP PGRI 12                           | UMUM     | 20102430 | 13    |
+| 63  | SMP El Syifa                          | ISLAM    | 20106953 | 13    |
+| 64  | SMP Darul Ma'arif Jakarta             | ISLAM    | 20102408 | 13    |
+| 65  | SMP PGRI 3                            | UMUM     | 20106987 | 13    |
+| 66  | SMP Islam Al-Hidayah                  | ISLAM    | 20106922 | 13    |
+| 67  | SMP Yapenka                           | UMUM     | 20102425 | 13    |
+| 68  | SMP Dewi Sartika                      | UMUM     | 20106948 | 10    |
+| 69  | SMP Makarya                           | UMUM     | 20106977 | 9     |
+| 70  | SMP Pelita Harapan                    | UMUM     | 20106992 | 10    |
+| 71  | SMP Bunda Kandung                     | UMUM     | 69968367 | 15    |
+| 72  | SMP Pasar Minggu                      | UMUM     | 20102431 | 15    |
+| 73  | SMP Islam Assalam                     | ISLAM    | 20106967 | 5     |
+| 74  | SMP Sultan Hasanuddin                 | ISLAM    | 20107004 | 15    |
+| 75  | SMP PGRI 10                           | UMUM     | 20106913 | 14    |
+| 76  | SMP YWKA I                            | UMUM     | 20107024 | 15    |
+| 77  | SMP Muttaqien                         | ISLAM    | 20106984 | 15    |
+| 78  | SMP Purnama                           | UMUM     | 20106998 | 10    |
+| 79  | SMP Palapa                            | UMUM     | 20106989 | 14    |
+| 80  | SMP Islam Andalus                     | UMUM     | 20106966 | 9     |
+| 81  | SMPIT Assa'adah Alchilashiyyah        | ISLAM    | 69979246 | 10    |
+| 82  | SMP Bait Al Rahman                    | ISLAM    | 20108330 | 10    |
+| 83  | SMP 28 Oktober 1928                   | UMUM     | 20106915 | 8     |
+| 84  | SMP Islam As-Syafi'iyah 02            | ISLAM    | 20106932 | 13    |
+| 85  | SMP Strada Marga Mulia                | KATOLIK  | 20102428 | 11    |
+| 86  | SMP Barunawati II                     | UMUM     | 20106473 | 14    |
+| 87  | SMP Al Jihad                          | ISLAM    | 20106460 | 15    |
+| 88  | SMP Wijayakusuma                      | UMUM     | 20106696 | 10    |
+| 89  | SMP Nurul Iman                        | UMUM     | 20106619 | 15    |
+| 90  | SMP Kencana                           | UMUM     | 20106549 | 15    |
+| 91  | SMP Mutiara 2                         | UMUM     | 20100827 | 15    |
+| 92  | SMP Islam Al-Muttaqin                 | ISLAM    | 20106464 | 13    |
+| 93  | SMP Cordova                           | UMUM     | 20109342 | 13    |
+| 94  | SMP Permata Indah                     | UMUM     | 20106630 | 15    |
+| 95  | SMP Yappenda                          | UMUM     | 20106708 | 15    |
+| 96  | SMP Gita Kirtti 2                     | UMUM     | 20106520 | 15    |
+| 97  | SMP Mekar Tanjung                     | UMUM     | 20106560 | 14    |
+| 98  | SMP Nurul Islam                       | ISLAM    | 20106621 | 14    |
+| 99  | SMP Al-Fatah                          | ISLAM    | 20109378 | 14    |
+| 100 | SMP Gunung Jati                       | UMUM     | 20106521 | 14    |
+| 101 | SMP Wiyatamandala                     | UMUM     | 20106697 | 14    |
+| 102 | SMP Mutiara I                         | UMUM     | 20100826 | 14    |
+| 103 | SMP Nusantara                         | UMUM     | 20109401 | 10    |
+| 104 | SMP Hang Tuah 1                       | UMUM     | 20109337 | 12    |
+| 105 | SMP Ar Raudhah                        | ISLAM    | 20100788 | 12    |
+| 106 | SMP Hang Tuah 5                       | UMUM     | 20106471 | 12    |
+| 107 | SMP Sejahtera                         | UMUM     | 20106653 | 12    |
+| 108 | SMP Barunawati 3                      | UMUM     | 20106474 | 12    |
+| 109 | SMP Fikri                             | ISLAM    | 20106514 | 12    |
+| 110 | SMP Tunas Karya                       | UMUM     | 20109350 | 11    |
+| 111 | SMP Tanjung Priok                     | UMUM     | 20106684 | 12    |
+| 112 | SMP Unwanus Saadah                    | UMUM     | 20106693 | 10    |
+| 113 | SMP Muhammadiyah 14                   | ISLAM    | 20100825 | 12    |
+| 114 | SMP Lagoa                             | UMUM     | 20106552 | 11    |
+| 115 | SMP Al Khairiyah II                   | ISLAM    | 20106462 | 13    |
+| 116 | SMP Yadika 2                          | UMUM     | 20108808 | 5     |
+| 117 | SMP Al-Qomar                          | ISLAM    | 20106730 | 13    |
+| 118 | SMP Setia Gama                        | ISLAM    | 20106880 | 13    |
+| 119 | SMP PGRI 39                           | UMUM     | 20106849 | 6     |
+| 120 | SMP Dhammasavana                      | BUDDHA   | 20106768 | 6     |
+| 121 | SMP Galatia 3                         | KRISTEN  | 20106792 | 9     |
+| 122 | SMP Bintang Kejora                    | KATOLIK  | 20106750 | 13    |
+| 123 | SMP Pelita Anugerah                   | KRISTEN  | 20108803 | 6     |
+| 124 | SMP Lamaholot                         | KATOLIK  | 20106831 | 12    |
+| 125 | SMP Islam Terpadu An-Nashr            | ISLAM    | 20112448 | 8     |
+| 126 | SMP Insan Cita                        | UMUM     | 69754417 | 13    |
+| 127 | SMP Citra Utama                       | UMUM     | 69774535 | 13    |
+| 128 | SMP Bina Bangsa                       | UMUM     | 20108796 | 12    |
+| 129 | SMP Yadika 5                          | UMUM     | 20106905 | 5     |
+| 130 | SMP Budi Murni 2                      | UMUM     | 20108797 | 10    |
+| 131 | SMP YP BDN                            | UMUM     | 20106904 | 10    |
+| 132 | SMP Sumpah Pemuda                     | UMUM     | 20106884 | 12    |
+| 133 | SMP Bhara Trikora                     | UMUM     | 20106745 | 13    |
+| 134 | SMP Al Hamidiyah                      | ISLAM    | 20106722 | 13    |
+| 135 | SMP Mitra Reformasi                   | UMUM     | 20109520 | 12    |
+| 136 | SMP Fathachillah                      | ISLAM    | 20109482 | 13    |
+| 137 | SMP Duta Mas                          | UMUM     | 20106770 | 13    |
+| 138 | SMP Muhamadiyah 33                    | ISLAM    | 20106843 | 13    |
+
+
+---
+
+Data ini berdasarkan **Lampiran V** dari Keputusan Kepala Dinas Pendidikan DKI Jakarta No. 67 Tahun 2025 tentang Petunjuk Teknis PMB Tahun Ajaran 2025/2026.
