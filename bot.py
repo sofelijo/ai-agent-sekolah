@@ -39,9 +39,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Handle pesan biasa
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_input = update.message.text.lower()
+    user_input = update.message.text.strip().lower()
 
-    # Tambahkan info hari jika konteksnya "hari ini" atau "besok"
+    # Tambahkan konteks hari jika disebut
     hari_ini_en = datetime.now().strftime("%A").lower()
     hari_besok_en = (datetime.now() + timedelta(days=1)).strftime("%A").lower()
     hari_ini_id = indonesia_days.get(hari_ini_en, "hari ini")
@@ -52,12 +52,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "hari ini" in user_input:
         user_input += f" (hari ini itu hari {hari_ini_id})"
 
-    # Jalankan QA berdasarkan dokumen kecerdasan.md
-    response = qa_chain.run(user_input)
+    # Debug log ke console
+    print(f"[USER INPUT] {user_input}")
 
-    if not response:
+    try:
+        response = qa_chain.run(user_input)
+    except Exception as e:
+        response = f"Maaf, terjadi kesalahan teknis: {e}"
+
+    # Validasi isi respon
+    if not response or response.strip().lower().startswith("maaf") and len(response.strip().splitlines()) <= 2:
         response = "Maaf, saya belum menemukan jawaban di data sekolah."
 
+    print(f"[BOT RESPONSE] {response}")
     await update.message.reply_text(response)
 
 # Setup bot
