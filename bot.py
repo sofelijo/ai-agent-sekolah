@@ -57,12 +57,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         response = qa_chain.run(user_input)
+        cleaned = response.strip().lower()
+
+        # Evaluasi apakah respons terlalu singkat / tidak informatif
+        if (
+            not cleaned
+            or cleaned.startswith("maaf")
+            and len(cleaned.splitlines()) <= 2
+        ):
+            response = "Maaf, saya belum menemukan jawaban di data sekolah."
+
     except Exception as e:
         response = f"Maaf, terjadi kesalahan teknis: {e}"
-
-    # Validasi isi respon
-    if not response or response.strip().lower().startswith("maaf") and len(response.strip().splitlines()) <= 2:
-        response = "Maaf, saya belum menemukan jawaban di data sekolah."
 
     print(f"[BOT RESPONSE] {response}")
     await update.message.reply_text(response)
