@@ -1,4 +1,4 @@
-<!-- metadata: tipe=profil, sekolah=SDN Semper Barat 01, jenjang=SD, tahun=2025 -->
+
 
 # Profil Sekolah
 
@@ -87,7 +87,7 @@
 
 ---
 
-<!-- metadata: tipe=spmb, sekolah=SDN Semper Barat 01, jenjang=SD, tahun=2025 -->
+
 
 # PPDB atau SPMB jenjang SD
 
