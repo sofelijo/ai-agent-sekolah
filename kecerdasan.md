@@ -1,5 +1,3 @@
-
-
 # Profil Sekolah
 
 ## Detail Sekolah dan Link Sodial Media
@@ -687,11 +685,7 @@ PMB Tahap Kedua hanya diperuntukkan bagi CMB yang **berdomisili di Provinsi DKI 
 
 Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 sekolah tingkat SMP swasta** di DKI Jakarta. Total daya tampung keseluruhan adalah **1626 murid**.
 
-
-
-### 📋 Daftar Sekolah dan Kuota
-
-### 📋 Rekap Kuota Sekolah PMB 2025/2026 
+### Rekap Kuota Sekolah PMB 2025/2026 
 
 | No  | Nama Satuan Pendidikan                | Kategori | NPSN     | Kuota | 
 | --- | ------------------------------------- | -------- | -------- | ----- |
