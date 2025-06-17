@@ -50,6 +50,7 @@
   * Seragam: Putih-Merah
   * Pagi: Upacara Bendera
   * Siang: Membaca Asmaul Husna & Menyanyikan Lagu Wajib
+  * Kegiatan : sholat ashar berjama'ah
 
 * **Selasa:**
 
@@ -57,6 +58,7 @@
   * Pagi: Senam, Membaca Asmaul Husna, Lagu Wajib
   * Siang: Asmaul Husna & Lagu Wajib
   * Ekskul: Seni Tari, PMR
+  * Kegiatan : sholat ashar berjama'ah
 
 * **Rabu:**
 
@@ -64,6 +66,7 @@
   * Pagi: Senam, Membaca Asmaul Husna, Lagu Wajib
   * Siang: Asmaul Husna & Lagu Wajib
   * Ekskul: Pramuka
+  * Kegiatan : sholat ashar berjama'ah
 
 * **Kamis:**
 
@@ -71,12 +74,13 @@
   * Pagi: Senam, Pentas Seni & Literasi, Asmaul Husna, Lagu Wajib
   * Siang: Asmaul Husna & Lagu Wajib
   * Ekskul: Marawis/Hadroh
+  * Kegiatan : sholat ashar berjama'ah, 
 
 * **Jum'at:**
 
   * Seragam: Batik
   * Pagi: Sholat Dhuha & Muhadhoroh, Asmaul Husna, Lagu Wajib
-  * Siang: Sholat Ashar Berjamaah
+  * Siang: Sholat Ashar Berjamaah & Muhadhoroh
   * Kegiatan: Penurunan Bendera
 
 * **Sabtu:**
