@@ -71,7 +71,7 @@ def normalize_input(text: str):
 # ───── SETUP AWAL ─────
 
 load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_TESTING")
 qa_chain = build_qa_chain()
 
 indonesia_days = {
