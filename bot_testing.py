@@ -14,6 +14,16 @@ from ai_core import build_qa_chain
 from data_loader import load_statistik_sd_zonasi, load_statistik_smp_prestasi
 from pendaftar_spmb import cari_urutan_nama
 from staf_guru_parser import cari_info_nama
+from telegram.error import NetworkError
+import httpx  # <── untuk identifikasi error httpx jika perlu retry
+import asyncio
+
+# Fungsi hapus markdown seperti **tebal** atau ### heading
+
+def strip_markdown(text):
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)  # Ubah **bold** jadi plain
+    text = re.sub(r"#+\s*", "", text)             # Hapus ### heading
+    return text
 
 # ───── UTIL PARSING ─────
 
@@ -41,18 +51,21 @@ def parse_umur_to_tuple(umur_str: str):
 def is_umur_kurang_dari(umur: tuple, batas: tuple):
     return umur[0] < batas[0] or (umur[0] == batas[0] and umur[1] < batas[1])
 
-def cari_statistik_sekolah(nama_input: str, statistik_data: list):
-    nama_input = nama_input.lower()
+def cari_statistik_sekolah(nama_input, statistik_data: list):
+    nama_input = str(nama_input).lower()
     for sekolah in statistik_data:
-        if nama_input in sekolah["nama_sekolah"].lower():
+        nama_sekolah = str(sekolah.get("nama_sekolah", "")).lower()
+        if nama_input in nama_sekolah:
             return sekolah
-    semua_nama = [s["nama_sekolah"] for s in statistik_data]
+    semua_nama = [str(s.get("nama_sekolah", "")) for s in statistik_data]
     terbaik = difflib.get_close_matches(nama_input.upper(), semua_nama, n=1)
     if terbaik:
-        return next((s for s in statistik_data if s["nama_sekolah"] == terbaik[0]), None)
+        return next((s for s in statistik_data if str(s.get("nama_sekolah", "")) == terbaik[0]), None)
     return None
 
-def normalize_input(text: str):
+
+def normalize_input(text):
+    text = str(text).lower()  # ⬅️ ini yang penting!
     replacements = {
         "umur pendaftar": "umur",
         "usia pendaftar": "umur",
@@ -67,6 +80,7 @@ def normalize_input(text: str):
     for old, new in replacements.items():
         text = text.replace(old, new)
     return text
+
 
 # ───── SETUP AWAL ─────
 
@@ -102,7 +116,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user = update.effective_user
-        user_input = normalize_input(update.message.text.strip().lower())
+        raw_input = update.message.text
+        user_input = str(raw_input).strip().lower()  # Pastikan string
+        user_input = normalize_input(user_input)
+
         print(f"[FROM] {user.username or user.first_name} : {user_input}")
 
         if not user_input or len(user_input) < 2:
@@ -115,13 +132,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"[BOT RESPONSE] {response}")
             return
 
-       # Deteksi urutan pendaftar (lewati jika mengandung kata "umur" atau "usia")
+        # Deteksi urutan pendaftar
         if any(kata in user_input for kata in ["urutan", "masuk", "terdaftar", "daftar", "spmb"]) and not any(k in user_input for k in ["umur", "usia"]):
             kata_kunci = {"urutan", "berapa", "masuk", "terdaftar", "daftar", "spmb", "apakah", "sudah", "masih", "yang"}
             kandidat_nama = []
             for k in user_input.split():
                 bersih = k.strip(string.punctuation)
-                if bersih not in kata_kunci:
+                if bersih.lower() not in kata_kunci:
                     kandidat_nama.append(bersih)
 
             if kandidat_nama:
@@ -129,8 +146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 response = cari_urutan_nama(nama_dicari)
                 await update.message.reply_text(response)
                 print(f"[BOT RESPONSE] {response}")
-                return   
-
+                return
 
         # Info hari otomatis
         hari_ini_en = datetime.now().strftime("%A").lower()
@@ -166,7 +182,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if "sdn" in user_input:
                 idx = user_input.find("sdn")
                 nama_sekolah = user_input[idx:].strip("?.,! ").upper()
-            if not nama_sekolah:
+            if not isinstance(nama_sekolah, str) or not nama_sekolah:
                 nama_sekolah = "SDN SEMPER BARAT 01"
             sekolah = cari_statistik_sekolah(nama_sekolah, statistik_data)
             if sekolah:
@@ -197,8 +213,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Fallback ke QA
         else:
-            result = qa_chain.invoke(user_input)
+            result = qa_chain.invoke(str(user_input))
             response = result["result"] if isinstance(result, dict) and "result" in result else str(result)
+            response = strip_markdown(response)  # <── ini baris tambahannya
+
             if not response.strip():
                 response = "Maaf, saya belum menemukan jawaban di data sekolah."
 
@@ -216,4 +234,12 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("🤖 BOT TESTING Telegram SDN Semper Barat 01 aktif...")
-app.run_polling()
+
+try:
+    app.run_polling()
+except NetworkError as e:
+    print(f"❌ NetworkError: {e}")
+except httpx.ReadError as e:
+    print(f"❌ HTTPX ReadError: {e}")
+except Exception as e:
+    print(f"🔥 Unhandled Error: {e}")

@@ -90,6 +90,42 @@
 ---
 
 
+# BOT SPMB LIVE SDN Semper Barat 01
+
+Kami menyediakan BOT SPMB LIVE @spmblive_bot (https://t.me/spmblive_bot) yang dapat membantu kamu untuk:
+
+- Mengecek **urutan pendaftar** (berdasarkan nama) pada urutan jalur domisili jenjang SD.
+- Mengetahui **umur pendaftar termuda dan tertua** di sekolah.
+- Melihat **statistika nilai tertinggi atau terendah SMP jalur prestasi**.
+
+### 📌 Cara Menggunakan
+
+Cukup kirim pertanyaan seperti:
+
+- `reza urutan berapa`
+- `berapa umur termuda saat ini`
+- `nilai SMP 85`
+- `siapa yang paling muda di jakut?`
+
+> 💡 Jangan lupa sertakan nama sekolah jika ingin cek selain SDN Semper Barat 01.
+
+### 📍 Catatan Penting
+
+Jika kamu **tidak menyebutkan nama sekolah secara spesifik**, maka bot akan **menggunakan SDN Semper Barat 01** sebagai sekolah default.
+
+Contoh:
+- `reza urutan berapa` → akan dicek di **SDN Semper Barat 01**
+- `umur termuda saat ini` → juga akan dicek di **SDN Semper Barat 01**
+
+Jika kamu ingin mengecek sekolah lain, tambahkan nama sekolahnya dalam pertanyaan. Contoh:
+- `reza urutan berapa di SDN Ancol 01`
+- `umur termuda di SDN Kapuk Muara 03`
+
+---
+
+Untuk mulai menggunakan bot, klik link berikut ini:  
+👉 [@spmblive_bot](https://t.me/spmblive_bot)
+
 
 # PPDB atau SPMB jenjang SD
 
