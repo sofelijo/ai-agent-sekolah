@@ -14,7 +14,8 @@ def build_qa_chain():
         content = f.read()
 
     # Siapkan dokumen
-    doc = Document(page_content=content, metadata={"sumber": "kecerdasan.md"})
+    doc = Document(page_content=str(content), metadata={"sumber": "kecerdasan.md"})
+
 
     # Buat retriever dari FAISS
     embedding = OpenAIEmbeddings()
