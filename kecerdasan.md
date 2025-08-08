@@ -40,6 +40,317 @@
 * **Jurusan:** Pendidikan Ekonomi
 
 ---
+## Daftar Guru & Tenaga Kependidikan SDN Semper Barat 01
+
+### Kartika, S.Pd
+- **Jabatan:** Kepala Sekolah
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Tanjung Karang
+- **Tanggal Lahir:** 17 Oktober 1977
+- **Email:** tikakartika31@gmail.com
+- **NIP:** 197710172008012029
+- **NUPTK:** 8349755657300033
+- **Foto:** /guru/01.jpg
+
+### Ilan Lesdoka, S.Pd
+- **Jabatan:** Wakasek | Guru VI A
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Bandung
+- **Tanggal Lahir:** 24 Maret 1986
+- **Email:** ilanlesdoka@gmail.com
+- **NIP:** 198603242015041002
+- **NUPTK:** 9656764665130142
+- **Foto:** /guru/02.jpg
+
+### Dewi Rahmawati, S.Pd
+- **Jabatan:** Guru V A
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 30 Desember 1983
+- **Email:** dewisembar01@gmail.com
+- **NIP:** 198312302022212025
+- **NUPTK:** 1344761663300005
+- **Foto:** /guru/03.jpg
+
+### Maharani, S.Pd
+- **Jabatan:** Guru IV B
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 18 Maret 1985
+- **Email:** nhiez19@gmail.com
+- **NIP:** 198503182022212023
+- **NUPTK:** 1650763664300092
+- **Foto:** /guru/04.jpg
+
+### Septi Kusumaningrum, S.Pd
+- **Jabatan:** Guru V D
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 24 September 1993
+- **Email:** septiarum24@gmail.com
+- **NIP:** 199309242022212006
+- **NUPTK:** 1255771672230143
+- **Foto:** /guru/05.jpg
+
+### Siti Mawar, S.Pd
+- **Jabatan:** Guru I C
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 22 Oktober 1981
+- **Email:** smawar22.smawar22@gmail.com
+- **NIP:** 198110222022212016
+- **NUPTK:** 3354759660230133
+- **Foto:** /guru/06.jpg
+
+### Hutomo Insani, S.Pd
+- **Jabatan:** Guru VI B
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 18 Desember 1983
+- **Email:** tomosembar01@gmail.com
+- **NIP:** 198312182022211002
+- **NUPTK:** 5550761664200003
+- **Foto:** /guru/07.jpg
+
+### Emi Rusmiati, S.Pd
+- **Jabatan:** Guru III A
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 14 April 1994
+- **Email:** emirusmiati14@gmail.com
+- **NIP:** 199404142022212005
+- **NUPTK:** 6746772673230172
+- **Foto:** /guru/08.jpg
+
+### Yuniyati Rahman, S.Pd
+- **Jabatan:** Guru VI C
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Bekasi
+- **Tanggal Lahir:** 11 Juni 1991
+- **Email:** yunirahman433@gmail.com
+- **NIP:** 199106112022212012
+- **NUPTK:** 8943769670230202
+- **Foto:** /guru/09.jpg
+
+### Lutfiana Rahmawati, S.Pd
+- **Jabatan:** Guru I B
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Blitar
+- **Tanggal Lahir:** 27 Juli 1996
+- **Email:** lutfiana27@gmail.com
+- **NIP:** 199607272022212011
+- **NUPTK:** 9059774675230063
+- **Foto:** /guru/10.jpg
+
+### Masta Wijaya, S.Pd
+- **Jabatan:** Guru IV A
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Bogor
+- **Tanggal Lahir:** 22 Mei 1968
+- **Email:** tatajaya44@gmail.com
+- **NIP:** 196805222022211002
+- **NUPTK:** 3854746648200012
+- **Foto:** /guru/11.jpg
+
+### Puji Dwi Astuti, S.Pd
+- **Jabatan:** Guru VI D
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 15 Februari 1989
+- **Email:** dwituti7@gmail.com
+- **NIP:** 19890215202221023
+- **NUPTK:** 9547767668230212
+- **Foto:** /guru/12.jpg
+
+### Kurniawati Ningsih, S.Ag
+- **Jabatan:** Guru PAI II & V
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 10 Februari 1977
+- **Email:** kurniawatiningsih77@gmail.com
+- **NIP:** 197702102023212012
+- **NUPTK:** 1334755656300003
+- **Foto:** /guru/13.jpg
+
+### Amnah, S.Pd
+- **Jabatan:** Guru PAI III - V
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Cirebon
+- **Tanggal Lahir:** 4 Februari 1969
+- **Email:** buibuamnah@gmail.com
+- **NIP:** 196902042023212002
+- **NUPTK:** 3536747648230132
+- **Foto:** /guru/14.jpg
+
+### Saefurrohman, S.Pd.I
+- **Jabatan:** Guru PAI I - VI
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Cirebon
+- **Tanggal Lahir:** 15 Agustus 1982
+- **Email:** aan_f2@hotmail.co.id
+- **NIP:** 198208152023211016
+- **NUPTK:** 5147760661130193
+- **Foto:** /guru/15.jpg
+
+### Setyo Adi Nugroho, S.Pd
+- **Jabatan:** Guru V B
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Purworejo
+- **Tanggal Lahir:** 3 November 1993
+- **Email:** adynugros23@gmail.com
+- **NIP:** 199311032023211019
+- **NUPTK:** 8435771672130203
+- **Foto:** /guru/16.jpg
+
+### Sarah Sondang, S.Pd
+- **Jabatan:** Guru V C
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 2 Februari 1995
+- **Email:** sarah.sondang@yahoo.com
+- **NIP:** 199502022023212037
+- **NUPTK:** 3534773674130072
+- **Foto:** /guru/17.jpg
+
+### Samidah, S.Pd
+- **Jabatan:** Guru I A
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Riau
+- **Tanggal Lahir:** 15 September 1971
+- **Email:** idasamidah150972@gmail.com
+- **NIP:** 197109152024212003
+- **NUPTK:** 247749650230123
+- **Foto:** /guru/18.jpg
+
+### Ai Rukoyah, S.Pd
+- **Jabatan:** Guru III D
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Subang
+- **Tanggal Lahir:** 24 Oktober 1987
+- **Email:** ai.rukoyah3@gmail.com
+- **NIP:** -
+- **NUPTK:** 5356765667210043
+- **Foto:** /guru/19.jpg
+
+### Syaepudin Rahman, S.Pd
+- **Jabatan:** Guru PJOK
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Bekasi
+- **Tanggal Lahir:** 1 Januari 1990
+- **Email:** syaepudinrahman02@gmail.com
+- **NIP:** -
+- **NUPTK:** 2433768669130522
+- **Foto:** /guru/20.jpg
+
+### Ariyadi Purnomo, S.Pd
+- **Jabatan:** Guru III C
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 13 April 1992
+- **Email:** ariyapurnomo898@gmail.com
+- **NIP:** -
+- **NUPTK:** 1745770671130282
+- **Foto:** /guru/21.jpg
+
+### Nur Amalia Sari, S.Pd
+- **Jabatan:** Guru II B - C
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Serang
+- **Tanggal Lahir:** 16 Maret 1992
+- **Email:** nuramaliarhay@gmail.com
+- **NIP:** -
+- **NUPTK:** 4648770671230252
+- **Foto:** /guru/22.jpg
+
+### Husnun Azhariyah, S.Pd
+- **Jabatan:** Guru II A
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 25 Oktober 1998
+- **Email:** husnunazhara25@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/23.jpg
+
+### Fouzy Eveline Ade Lon, S.PAK
+- **Jabatan:** Guru PAK
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 16 Desember 1970
+- **Email:** fouzyevelin@gmail.com
+- **NIP:** -
+- **NUPTK:** 5548748649300013
+- **Foto:** /guru/24.jpg
+
+### Arief Nurdiantono, S.Pd
+- **Jabatan:** Guru III B
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 24 Agustus 1999
+- **Email:** xvi.ariefn@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/25.jpg
+
+### MH Ainun Fajar, S.Kom
+- **Jabatan:** PKSTI
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Sidoarjo
+- **Tanggal Lahir:** -
+- **Email:** fajarsaa@gmail.com
+- **NIP:** 199806282025061005
+- **NUPTK:** -
+- **Foto:** /guru/26.jpg
+
+### Enda Ratna Dewi
+- **Jabatan:** Tenaga Administrasi
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 24 September 1997
+- **Email:** dewiendaratna@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/27.jpg
+
+### Yuli Miladiah
+- **Jabatan:** Tenaga Administrasi
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Jakarta
+- **Tanggal Lahir:** 22 Juli 1997
+- **Email:** yulimiladiah97@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/28.jpg
+
+### Muhyin
+- **Jabatan:** Tenaga Kebersihan
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Ngawi
+- **Tanggal Lahir:** 25 Januari 1989
+- **Email:** yeyen2990@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/29.jpg
+
+### Doni Mulyanto
+- **Jabatan:** Tenaga Kebersihan
+- **Jenis Kelamin:** Laki-laki
+- **Tempat Lahir:** Purworejo
+- **Tanggal Lahir:** 26 Oktober 1987
+- **Email:** donimulyanto210@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/30.jpg
+
+### Mariyam
+- **Jabatan:** Tenaga Kebersihan
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Bekasi
+- **Tanggal Lahir:** 17 Maret 1968
+- **Email:** mariyam1703@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Foto:** /guru/31.jpg
 
 # Jadwal Harian dan Kegiatan Sekolah
 
@@ -836,3 +1147,5 @@ Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 
 ---
 
 Data ini berdasarkan **Lampiran V** dari Keputusan Kepala Dinas Pendidikan DKI Jakarta No. 67 Tahun 2025 tentang Petunjuk Teknis PMB Tahun Ajaran 2025/2026.
+
+
