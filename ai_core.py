@@ -23,6 +23,6 @@ def build_qa_chain():
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
     # Gunakan ChatOpenAI sebagai LLM
-    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+    llm = ChatOpenAI(temperature=0, model="gpt-4o-mini")
 
     return RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
