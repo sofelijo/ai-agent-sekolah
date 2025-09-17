@@ -1,68 +1,153 @@
-# 🤖 ASKA - AI Agent Sekolah Kita
+# 🤖 ASKA — Agent AI Sekolah Kita (Telegram Bot)
 
-Selamat datang di repositori **ASKA (Agent AI Sekolah Kita)**, sebuah proyek asisten AI cerdas yang dirancang khusus untuk lingkungan SDN Semper Barat 01. ASKA diciptakan untuk menjadi teman belajar yang interaktif, informatif, dan aman bagi siswa, guru, dan orang tua.
+**ASKA** adalah asisten AI berbasis Telegram untuk SDN Semper Barat 01 yang mampu menjawab pertanyaan seputar sekolah berdasarkan file `.md`. Dibangun dengan OpenAI GPT-4o, LangChain, dan FAISS. Bot ini aktif 24 jam di server VPS dengan auto-restart.
 
-## ✨ Tentang Proyek
+---
 
-ASKA adalah chatbot AI yang memiliki kepribadian ramah dan suportif, layaknya seorang teman. Tujuannya adalah untuk menjawab pertanyaan seputar informasi sekolah, membantu siswa dengan materi pelajaran SD, dan memberikan dukungan moral dengan cara yang positif. Proyek ini menggabungkan backend untuk bot Telegram dan antarmuka web untuk interaksi.
+## 📦 Fitur Utama
 
-## 🌟 Fitur Utama
+- Menjawab pertanyaan dari file `kecerdasan.md`
+- Menggunakan gaya bahasa Gen-Z yang santai 😎
+- Bisa jalan di lokal atau server (VPS)
+- Bot Telegram aktif 24 jam via `systemd`
 
-- **Asisten Informasi Sekolah:** Menjawab pertanyaan umum mengenai jadwal, guru, dan kegiatan sekolah berdasarkan basis pengetahuan (knowledge base).
-- **Teman Belajar Interaktif:** Menyajikan materi pelajaran SD kelas 4-6 dengan gaya bahasa yang seru dan mudah dipahami.
-- **Persona Gen Z & Ceria:** Dirancang dengan kepribadian "Yapping" yang antusias dan menggunakan bahasa gaul yang relevan untuk membangun kedekatan dengan siswa.
-- **Dukungan Emosional:** Memberikan respons empatik dan kutipan motivasi dari guru saat pengguna merasa sedih atau mengeluh.
-- **Aman untuk Anak-Anak:** Memiliki filter untuk menolak menjawab pertanyaan yang tidak pantas dan memberikan nasihat edukatif.
-- **Integrasi Telegram:** Dapat diakses dengan mudah melalui aplikasi Telegram, memungkinkan interaksi kapan saja.
+---
 
-## 🛠️ Teknologi yang Digunakan
-
-- **Backend:** Python
-- **Telegram Bot Framework:** `python-telegram-bot`
-- **AI & Machine Learning:** LangChain, Google Gemini (atau model LLM lainnya)
-- **Frontend/Web Interface:** (Berdasarkan struktur folder) Kemungkinan menggunakan JavaScript/TypeScript.
-
-## 🚀 Cara Memulai
-
-Berikut adalah langkah-langkah untuk menjalankan proyek ini di lingkungan lokal Anda.
-
-### Prasyarat
-
-- Python 3.8+
-- Git
-- Akun Bot Telegram (dapatkan Token API dari [BotFather](https://core.telegram.org/bots#botfather))
-- API Key dari platform AI yang Anda gunakan (misalnya, Google AI Studio)
-
-### Instalasi
-
-1.  **Clone repositori ini:**
-    ```bash
-    git clone [https://github.com/sofelijo/ai-agent-sekolah.git](https://github.com/sofelijo/ai-agent-sekolah.git)
-    cd ai-agent-sekolah
-    ```
-
-2.  **Buat dan aktifkan virtual environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # Untuk Windows gunakan: venv\Scripts\activate
-    ```
-
-3.  **Install semua dependensi Python:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Konfigurasi Environment Variables:**
-    - Buat file bernama `.env` di direktori utama proyek.
-    - Isi file tersebut dengan token dan kunci API yang Anda miliki. Contoh:
-        ```env
-        TELEGRAM_BOT_TOKEN="MASUKKAN_TOKEN_TELEGRAM_ANDA_DI_SINI"
-        GEMINI_API_KEY="MASUKKAN_API_KEY_ANDA_DI_SINI"
-        ```
-
-### Menjalankan Bot
-
-Setelah semua konfigurasi selesai, jalankan skrip utama bot:
+## 🧑‍💻 Langkah Instalasi Otomatis (1x Klik Copy untuk Semua Perintah)
 
 ```bash
+# 1. Update dan install dependensi utama
+apt update && apt upgrade -y
+apt install git python3-pip python3-venv -y
+
+# 2. Clone repository
+git clone https://github.com/sofelijo/ai-agent-sekolah.git
+cd ai-agent-sekolah
+
+# 3. Buat virtual environment dan aktifkan
+python3 -m venv venv
+source venv/bin/activate
+
+# 4. Install requirements
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 5. Buat file .env dan isi token Telegram & API OpenAI
+cat > .env <<EOF
+TOKEN=ISI_TOKEN_DARI_BOTFATHER
+OPENAI_API_KEY=ISI_API_KEY_OPENAI
+EOF
+
+# 6. Jalankan bot pertama kali (tes manual)
 python bot_sekolah.py
+```
+
+---
+
+## 🤖 Buat Bot Telegram (1x via BotFather)
+
+1. Buka Telegram, cari `@BotFather`
+2. Kirim `/newbot`
+3. Masukkan nama bot: `ASKA Sekolah`
+4. Masukkan username: `aska_sekolah_bot`
+5. Simpan token yang diberikan (untuk `.env`)
+
+---
+
+## 🔁 Jalankan Bot Otomatis 24/7 di VPS
+
+```bash
+# 1. Buat service systemd
+nano /etc/systemd/system/ai-bots.service
+```
+
+Isi file:
+
+```ini
+[Unit]
+Description=AI Agent Sekolah Bots
+After=network.target
+
+[Service]
+WorkingDirectory=/root/ai-agent-sekolah
+ExecStart=/root/ai-agent-sekolah/venv/bin/python bot_sekolah.py
+Restart=always
+RestartSec=5
+EnvironmentFile=/root/ai-agent-sekolah/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktifkan service:
+
+```bash
+# Reload systemd dan aktifkan bot
+systemctl daemon-reload
+systemctl enable ai-bots.service
+systemctl start ai-bots.service
+systemctl status ai-bots.service
+```
+
+---
+
+## 🧠 Cara Kerja ASKA
+
+ASKA menggunakan:
+- LangChain RetrievalQA
+- GPT-4o (model mini)
+- Dokumen `.md` dari `kecerdasan.md`
+- Prompt bergaya Gen-Z dengan emoji
+
+Contoh prompt sistem (dalam kode):
+
+```python
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "Aku ASKA 🤖✨, Agent AI Sekolah Kita. Jawab pertanyaan dengan gaya Gen-Z yang santai, pakai emoji, dan sebutkan namamu. Gunakan info berikut:\n\n{context}"),
+    ("human", "{question}")
+])
+```
+
+---
+
+## 🛠 Update Proyek (jika ada perubahan)
+
+```bash
+cd /root/ai-agent-sekolah
+git pull origin main
+source venv/bin/activate
+pip install -r requirements.txt
+systemctl restart ai-bots.service
+```
+
+---
+
+## 📈 Cek Status & Log
+
+```bash
+# Cek status bot
+systemctl status ai-bots.service
+
+# Lihat log realtime
+journalctl -u ai-bots.service -f
+```
+
+---
+
+## 🧪 Troubleshooting
+
+| Masalah                         | Solusi                                        |
+|-------------------------------|-----------------------------------------------|
+| Tidak bisa `venv`             | Jalankan `apt install python3-venv -y`        |
+| Gagal install `faiss`         | Jalankan `pip install faiss-cpu`              |
+| Bot tidak merespons           | Cek `.env` dan jalankan `journalctl -u ai-bots.service -f` |
+| OpenAI key error              | Pastikan variabel `OPENAI_API_KEY` benar      |
+
+---
+
+## 🙋 Tentang
+
+- Proyek Latsar CPNS 2025
+- Oleh: **MH. Ainun Fajar**
+- Sekolah: SDN Semper Barat 01
+- GitHub: [@sofelijo](https://github.com/sofelijo)
