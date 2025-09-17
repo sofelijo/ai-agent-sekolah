@@ -14,23 +14,31 @@ def build_qa_chain():
     with open("kecerdasan.md", "r", encoding="utf-8") as f:
         content = f.read()
 
+    # Siapkan dokumen dari isi file
     doc = Document(page_content=str(content), metadata={"sumber": "kecerdasan.md"})
 
-    # Buat retriever dari FAISS
+    # Buat retriever dari FAISS vector store
     embedding = OpenAIEmbeddings()
     vectorstore = FAISS.from_documents([doc], embedding)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    # Gunakan LLM
+    # Gunakan ChatOpenAI model termurah dan cerdas
     llm = ChatOpenAI(temperature=0, model="gpt-4o-mini")
 
-    # ==== Tambahkan personality ASKA ====
+    # Tambahkan personality ASKA
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Kamu adalah ASKA 🤖✨, Agent AI Sekolah Kita. Jawab semua pertanyaan dengan gaya ramah, santai, dan cocok untuk anak SD dan orang tua. Sisipkan emoji agar lebih seru!"),
-        ("human", "{question}")
-    ])
+    (
+        "system",
+        "Nama aku ASKA. Jawab pertanyaan dengan gaya Gen-Z yang santai, ramah, dan pakai emoji. Selalu sebut nama **'ASKA'** secara alami. Gunakan info ini:\n\n{context}"
+    ),
+    (
+        "human",
+        "{question}"
+    )
+])
 
-    # Buat QA Chain dengan prompt custom
+
+    # Bangun QA Chain dengan prompt khusus
     return RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
