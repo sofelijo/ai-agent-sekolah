@@ -1,4 +1,4 @@
-# 🤖 ASKA - AI Agent Sekolah
+# 🤖 ASKA - AI Agent Sekolah Kita
 
 Selamat datang di repositori **ASKA (Agent AI Sekolah Kita)**, sebuah proyek asisten AI cerdas yang dirancang khusus untuk lingkungan SDN Semper Barat 01. ASKA diciptakan untuk menjadi teman belajar yang interaktif, informatif, dan aman bagi siswa, guru, dan orang tua.
 
