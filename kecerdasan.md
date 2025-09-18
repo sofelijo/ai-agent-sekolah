@@ -497,6 +497,680 @@ Untuk mulai menggunakan bot, klik link berikut ini:
 👉 [@spmblive_bot](https://t.me/spmblive_bot)
 
 
+
+# ALUR PROSES PELAKSANAAN SPMB (SISTEM PENERIMAAN MURID BARU) ATAU PMB (PENERIMAAN MURID BARU)  LAMPIRAN I
+Hal ini terkait SPMB atau PMB atau PPDB
+KEPUTUSAN KEPALA DINAS PENDIDIKAN PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA
+NOMOR 66 TAHUN 2025
+TENTANG
+ALUR PROSES PELAKSANAAN PENERIMAAN MURID BARU TAHUN AJARAN 2025/2026
+
+## DASAR HUKUM
+
+A. Peraturan Menteri Pendidikan Dasar dan Menengah Nomor 3 Tahun 2025 tentang Sistem Penerimaan Murid Baru  
+B. Keputusan Gubernur Daerah Khusus Ibukota Jakarta Nomor 414 Tahun 2025 tentang Petunjuk Teknis Penerimaan Murid Baru
+
+## PENGUMUMAN
+
+### A. Persiapan Pendaftaran
+
+1. **Dokumen Pendaftaran**
+   a. Kartu Keluarga Provinsi DKI Jakarta yang dikeluarkan paling lambat 16 Juni 2024.  
+   b. Dalam hal status pada Kartu Keluarga:
+      1) **Status FAMILI** dibuktikan hubungan kakek/nenek atau saudara sekandung dari bapak/ibu CMB, maka dapat disetujui untuk mengikuti PMB.  
+      2) **Status FAMILI yang tidak dapat dibuktikan** hubungan kakek/nenek atau saudara sekandung dari bapak/ibu CMB, atau status LAINNYA, dapat disetujui untuk mengikuti PMB jika:
+         - a) dibuktikan dengan dokumen perwalian anak di bawah umur atau surat putusan/penetapan oleh pengadilan; atau  
+         - b) Surat Keterangan PM1 dari kelurahan domisili yang menjelaskan orang tua kandung CMB:
+           - (1) Meninggal Dunia  
+           - (2) Hilang Ingatan  
+           - (3) Sakit Berkepanjangan  
+   c. Dokumen lainnya sesuai ketentuan pendaftaran masing-masing jenjang dan jalur.
+
+2. **Aplikasi Pendaftaran**  
+   PMB dilaksanakan secara daring melalui laman [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id) sesuai masing-masing jenjang dan jalur.
+
+3. **Pendaftaran Jenjang PAUD**  
+   PMB dilaksanakan secara daring melalui laman [http://spmbpaud.jakarta.go.id](http://spmbpaud.jakarta.go.id) di SPAUDN yang dituju.
+
+4. **Pendaftaran ke SLBN tujuan dengan cara:**
+   - a. secara luring: mendatangi SLBN yang dituju  
+   - b. secara daring: melalui [https://s.id/pmb_slbnegeri_jakarta](https://s.id/pmb_slbnegeri_jakarta)
+
+5. **Pendaftaran ke SKB tujuan dengan cara:**
+   - a. secara luring: mendatangi SKB yang dituju  
+   - b. secara daring: melalui [https://s.id/pmb_skb_jakarta](https://s.id/pmb_skb_jakarta)
+
+### B. Ketentuan Pendaftaran
+
+1. **Daya Tampung Satuan Pendidikan**  
+   Sesuai dengan ketentuan.
+
+2. **Kriteria dan Persyaratan**  
+   Sesuai dengan ketentuan pada Keputusan Gubernur DKI Jakarta Nomor 414 Tahun 2025 tentang Petunjuk Teknis Penerimaan Murid Baru.
+
+3. **Khusus PMB SMK**, harus memenuhi kriteria:
+   -  Memiliki surat keterangan tidak buta warna dari instansi kesehatan pemerintah untuk pilihan konsentrasi keahlian tertentu;
+   -  Menyerahkan Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) tentang Keabsahan Dokumen tidak buta warna dari Orang Tua/Wali CMB bermeterai cukup bagi CMB yang diterima di Satuan Pendidikan sesuai jadwal daftar ulang untuk diverifikasi oleh Satuan Pendidikan.
+   - Tidak memiliki kendala fisik untuk mengikuti kegiatan belajar mengajar sesuai karakteristik konsentrasi keahlian yang dipilih sebagaimana daftar konsentrasi keahlian berikut:
+
+| No | Konsentrasi Keahlian | Persyaratan Khusus |
+|----|------------------------|---------------------|
+| 1 | Agribisnis Ikan Hias | Tidak Buta Warna |
+| 2 | Agribisnis Lanskap dan Pertamanan | Tidak Buta Warna |
+| 3 | Agribisnis Pengolahan Hasil Pertanian | Tidak Buta Warna |
+| 4 | Agribisnis Perbenihan Tanaman | Tidak Buta Warna |
+| 5 | Agribisnis Perikanan Payau dan Laut | Tidak Buta Warna |
+| 6 | Agribisnis Tanaman Pangan dan Hortikultura | Tidak Buta Warna |
+| 7 | *Airframe Powerplant* | Tidak Buta Warna |
+| 8 | Akuntansi | Tidak Buta Warna |
+| 9 | Animasi | Tidak Buta Warna |
+| 10 | Bisnis Digital | - |
+| 11 | Bisnis Retail | - |
+| 12 | Desain dan Produksi Busana | Tidak Buta Warna |
+| 13 | Desain dan Teknik Furnitur | Tidak Buta Warna |
+| 14 | Desain Gambar Mesin | Tidak Buta Warna |
+| 15 | Desain Komunikasi Visual | Tidak Buta Warna |
+| 16 | Desain Pemodelan dan Informasi Bangunan | Tidak Buta Warna |
+| 17 | Elektronika Avionik | Tidak Buta Warna |
+| 18 | Konstruksi Gedung dan Sanitasi | Tidak Buta Warna |
+| 19 | Kriya Kreatif Batik dan Tekstil | Tidak Buta Warna |
+| 20 | Kriya Kreatif Kayu dan Rotan | Tidak Buta Warna |
+| 21 | Kriya Kreatif Logam dan Perhiasan | Tidak Buta Warna |
+| 22 | Kuliner | Tidak Buta Warna |
+| 23 | Layanan Penunjang Keperawatan dan Caregiving | Tidak Buta Warna |
+| 24 | Layanan Perbankan | - |
+| 25 | Layanan Perbankan Syariah | - |
+| 26 | Manajemen Logistik | Tidak Buta Warna |
+| 27 | Manajemen Perkantoran | Tidak Buta Warna |
+| 28 | Nautika Kapal Niaga | Tidak Buta Warna |
+| 29 | Nautika Kapal Penangkap Ikan | Tidak Buta Warna (Diutamakan laki-laki) |
+| 30 | Pekerjaan Sosial | Tidak Buta Warna |
+| 31 | Perhotelan | Tidak Buta Warna |
+| 32 | Produksi dan Siaran Program Radio | Tidak Buta Warna |
+| 33 | Produksi dan Siaran Program Televisi | Tidak Buta Warna |
+| 34 | Produksi Film | Tidak Buta Warna |
+| 35 | Rekayasa Perangkat Lunak | Tidak Buta Warna |
+| 36 | Seni Karawitan | - |
+| 37 | Seni Lukis | Tidak Buta Warna |
+| 38 | Seni Musik | - |
+| 39 | Seni Tari | - |
+| 40 | Seni Teater | - |
+| 41 | Sistem Informasi, Jaringan, dan Aplikasi | Tidak Buta Warna |
+| 42 | Tata Kecantikan Kulit dan Rambut | Tidak Buta Warna |
+| 43 | Teknik Alat Berat | Tidak Buta Warna |
+| 44 | Teknik Audio Video | Tidak Buta Warna |
+| 45 | Teknik Bodi Kendaraan Ringan | Tidak Buta Warna |
+| 46 | Teknik Elektronika Industri | Tidak Buta Warna |
+| 47 | Teknik Elektronika Komunikasi | Tidak Buta Warna |
+| 48 | Teknik Fabrikasi Logam dan Manufaktur | Tidak Buta Warna |
+| 49 | Teknik Grafika | Tidak Buta Warna |
+| 50 | Teknik Instalasi Tenaga Listrik | Tidak Buta Warna |
+| 51 | Teknik Jaringan Tenaga Listrik | Tidak Buta Warna |
+| 52 | Teknik Kendaraan Ringan | Tidak Buta Warna |
+| 53 | Teknik Komputer dan Jaringan | Tidak Buta Warna |
+| 54 | Teknik Konstruksi dan Perumahan | Tidak Buta Warna |
+| 55 | Teknik Mekatronika | Tidak Buta Warna |
+| 56 | Teknik Otomasi Industri | Tidak Buta Warna |
+| 57 | Teknik Ototronik | Tidak Buta Warna |
+| 58 | Teknik Pemanasan, Tata Udara, dan Pendinginan | Tidak Buta Warna |
+| 59 | Teknik Pemesinan | Tidak Buta Warna |
+| 60 | Teknik Pengelasan | Tidak Buta Warna |
+| 61 | Teknik Sepeda Motor | Tidak Buta Warna |
+| 62 | Teknika Kapal Niaga | Tidak Buta Warna (Diutamakan laki-laki) |
+| 63 | Teknika Kapal Penangkap Ikan | Tidak Buta Warna (Diutamakan laki-laki) |
+| 64 | Usaha Layanan Wisata | Tidak Buta Warna |
+ 
+
+
+## III. PRAPENDAFTARAN
+
+### A. Jadwal Prapendaftaran
+Prapendaftaran dilaksanakan tanggal **19 Mei – 12 Juni 2025**.
+
+### B. Ketentuan Prapendaftaran
+
+1. Prapendaftaran dilaksanakan pada PMB Jenjang SMP, SMA, dan SMK.  
+2. Kriteria, mekanisme pendaftaran, dan dokumen prapendaftaran sesuai dengan ketentuan pada Keputusan Gubernur DKI Jakarta Nomor 414 Tahun 2025 tentang Petunjuk Teknis Penerimaan Murid Baru.  
+3. Prapendaftaran dilakukan dengan cara mengakses laman:  
+   [https://sidnarnia.jakarta.go.id/prapendaftaran](https://sidnarnia.jakarta.go.id/prapendaftaran)  
+4. Layanan sistem informasi prapendaftaran dilaksanakan selama 24 jam.  
+5. Proses prapendaftaran dilaksanakan dengan waktu sebagai berikut:  
+   - Hari : Senin – Jumat  
+   - Waktu : 24 Jam  
+6. Hari Sabtu, Minggu dan hari Libur Nasional tidak ada pelayanan Prapendaftaran
+
+### C. Tahapan Prapendaftaran
+
+1. **Pengajuan Permohonan Prapendaftaran**  
+   CMB mengajukan permohonan prapendaftaran, dengan tahapan sebagai berikut:  
+   a. mengakses laman informasi prapendaftaran PMB di [https://sidnarnia.jakarta.go.id/prapendaftaran](https://sidnarnia.jakarta.go.id/prapendaftaran)  
+   b. mengisi formulir prapendaftaran secara daring;  
+   c. mencetak dokumen bukti pengajuan prapendaftaran yang berisi Nomor Peserta; dan  
+   d. CMB melakukan pemantauan hasil verifikasi berkas prapendaftaran yang telah diunggah dalam laman [https://sidnarnia.jakarta.go.id/prapendaftaran](https://sidnarnia.jakarta.go.id/prapendaftaran)  
+
+2. **Verifikasi Berkas Prapendaftaran**  
+   a. Panitia PMB tingkat Provinsi melakukan verifikasi berkas prapendaftaran CMB yang telah diunggah dalam laman [https://sidnarnia.jakarta.go.id/prapendaftaran](https://sidnarnia.jakarta.go.id/prapendaftaran)  
+   b. CMB mendapatkan tanda bukti hasil verifikasi prapendaftaran yang berisi persetujuan pernyataan kebenaran data hasil prapendaftaran.  
+   c. Tanda bukti prapendaftaran digunakan untuk proses pendaftaran PMB pada laman [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)
+
+---
+
+## IV. PENDAFTARAN
+
+### A. Mekanisme Pendaftaran
+Sesuai dengan ketentuan pada Keputusan Gubernur DKI Jakarta Nomor 414 Tahun 2025 tentang Petunjuk Teknis Penerimaan Murid Baru.
+
+### B. Pengajuan Akun dan Verifikasi Kartu Keluarga
+
+1. Pengajuan akun dan verifikasi Kartu Keluarga (KK) dilaksanakan pada PMB Jenjang SMP, SMA, dan SMK.  
+2. Mekanisme pengajuan akun dan verifikasi KK sesuai dengan ketentuan Keputusan Gubernur DKI Jakarta Nomor 414 Tahun 2025.  
+3. **Jadwal Pengajuan Akun dan Verifikasi KK:**
+   - a. PMB SD mulai tanggal 26 Mei 2025.  
+   - b. PMB SMP mulai tanggal 2 Juni 2025.  
+   - c. PMB SMA mulai tanggal 5 Juni 2025.  
+   - d. PMB SMK mulai tanggal 5 Juni 2025.  
+
+4. **Tahapan Pengajuan Akun dan Verifikasi KK:**  
+   a. Verifikasi akun dan KK  
+   CMB melakukan pengajuan akun dan verifikasi KK dengan tahapan sebagai berikut:  
+   1) mengakses laman publik PMB di [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)  
+   2) mengajukan akun dengan cara klik tombol Pengajuan Akun sesuai jenjang  
+   3) mengisi formulir pendaftaran dan data kependudukan CMB sesuai dengan KK asli  
+   4) memilih lokasi satuan pendidikan untuk tempat verifikasi akun dan KK  
+   5) mengunggah hasil pindai/foto dokumen KK asli  
+   6) mengunggah file dokumen yang menunjukkan keterangan dari Dinas Kesehatan untuk pemeriksaan buta warna, rapor/ijazah, akte kelahiran  
+   7) **khusus CMB yatim/piatu**, melampirkan surat perwalian anak di bawah umur atau penetapan/putusan pengadilan  
+   8) **khusus CMB yang diasuh oleh Kakek/Nenek/Saudara Kandung Ayah/Ibu dari CMB**, mengunggah KK sebelumnya  
+   9) mengunggah Surat Pernyataan Tanggung Jawab Mutlak (SPTJM) tentang Keabsahan Dokumen dari Orang Tua/Wali CMB  
+   10) mencetak tanda bukti pengajuan akun yang berisi Nomor Peserta PMB / Token untuk Aktivasi; dan  
+   11) mengunggah PIN / Token untuk aktivasi akun dan KK secara daring di waktu yang telah ditentukan.
+
+   b. **Cek status akun dan KK**  
+   CMB dapat mengecek status verifikasi ajukan akun dan KK dengan cara:  
+   1) mengakses laman publik PMB di [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)  
+   2) mengecek status verifikasi pada menu Cek Status Pengajuan Akun di masing-masing jenjang.
+
+   c. **Aktivasi PIN/Token**  
+   CMB/Orang Tua/Wali yang telah memiliki PIN/Token dan status verifikasi sudah disetujui, dapat melanjutkan ke tahapan aktivasi PIN/Token sebagai berikut:  
+   1) mengakses laman publik di [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id);  
+   2) melakukan aktivasi akun dengan cara klik tombol Aktivasi, lalu masukkan input Nomor Peserta;  
+   3) mengganti PIN/Token dengan *password*; dan  
+   4) setelah melakukan aktivasi PIN/Token dilanjutkan dengan tahapan pemilihan sekolah tujuan.
+
+---
+
+## C. Jadwal Pendaftaran
+
+### 1. Jadwal Pendaftaran PMB SPAUD
+
+#### a. Tahap Pertama
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|-------|
+| 1 | Pendaftaran dan Verifikasi Berkas | 16–17 Juni 2025 | 08.00–16.00 WIB |
+| 2 | Proses Seleksi | 18 Juni 2025 | 08.00–12.00 WIB |
+| 3 | Pengumuman | 19 Juni 2025 | 15.00 WIB |
+| 4 | Daftar Ulang | 20 Juni 2025 | 08.00–16.00 WIB |
+|   |            | 21 Juni 2025 | 08.00–12.00 WIB |
+
+#### b. Tahap Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|-------|
+| 1 | Pendaftaran dan Verifikasi Berkas | 23–24 Juni 2025 | 08.00–16.00 WIB |
+| 2 | Proses Seleksi | 25 Juni 2025 | 08.00–12.00 WIB |
+| 3 | Pengumuman | 26 Juni 2025 | 15.00 WIB |
+| 4 | Daftar Ulang | 28 Juni 2025 | 08.00–12.00 WIB |
+|   |            | 30 Juni 2025 | 08.00–16.00 WIB |
+
+---
+
+### 2. Jadwal Pendaftaran PMB SD
+
+#### a. Jalur Afirmasi
+
+##### 1) Jalur Afirmasi Prioritas Pertama  
+Untuk penerima manfaat Panti Sosial dan Anak Tenaga Kesehatan yang Meninggal Dunia dalam Penanganan Covid-19
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Input ke dalam sistem | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 3 | Daftar Ulang | 4 Juli 2025 | 00.00–14.00 WIB |
+
+##### 2) Jalur Afirmasi Prioritas Pertama bagi Anak Penyandang Disabilitas
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                        | 18 Juni 2025 | 00.00–12.00 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                        | 18 Juni 2025 | 00.00–04.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |                | 20 Juni 2025 | 00.00–14.00 WIB |
+
+##### 3) Jalur Afirmasi Prioritas Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 23–24 Juni 2025 | 08.00–23.59 WIB |
+| 2 | Proses Seleksi | 25 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 25 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 28 Juni 2025 | 00.00–14.00 WIB |
+
+---
+
+#### b. Jalur Domisili
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                        | 18 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |                | 20 Juni 2025 | 00.00–14.00 WIB |
+
+#### c. Jalur Mutasi
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                             | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+#### d. Tahap Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+#### e. Tahap Ketiga
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran | 7 Juli 2025 | 08.00–23.59 WIB |
+|   | Pemilihan Sekolah | 8 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 8 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 8 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 9 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 10 Juli 2025 | 00.00–14.00 WIB |
+
+---
+
+### 3. Jadwal Pendaftaran PMB SMP
+
+#### a. Jalur Prestasi Akademik dan Nonakademik
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 18 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+#### b. Jalur Afirmasi
+
+##### 1) Jalur Afirmasi Prioritas Pertama  
+(Penerima manfaat Panti Sosial, Anak Tenaga Kesehatan yang Meninggal Dunia dalam Penanganan Covid-19)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Input ke dalam sistem | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 3 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+##### 2) Jalur Afirmasi Prioritas Pertama bagi Anak Penyandang Disabilitas
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 18 Juni 2025 | 00.00–12.00 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                                | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+##### 3) Jalur Afirmasi Prioritas Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 23–24 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 25 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 25 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 25 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 25 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 26 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 28 Juni 2025 | 00.00–14.00 WIB |
+
+#### c. Jalur Domisili
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+#### d. Jalur Mutasi (SMP)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+#### e. Tahap Kedua (SMP)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 8 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 8 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 8 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 9 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 10 Juli 2025 | 00.00–14.00 WIB |
+
+---
+
+### 2. Jadwal Pendaftaran PMB SMA
+
+#### a. Jalur Prestasi Akademik dan Nonakademik
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   | Pemilihan Sekolah | 18 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+---
+
+#### b. Jalur Afirmasi
+
+##### 1) Jalur Afirmasi Prioritas Pertama  
+(Penerima manfaat Panti Sosial, Anak Tenaga Kesehatan yang Meninggal Dunia dalam Penanganan *Covid-19*)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Input ke dalam sistem | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+
+##### 2) Jalur Afirmasi Prioritas Pertama bagi Anak Penyandang Disabilitas
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 18 Juni 2025 | 00.00–12.00 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                                | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+##### 3) Jalur Afirmasi Prioritas Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 23–24 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 25 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 25 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 25 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 25 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 26 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 28 Juni 2025 | 00.00–14.00 WIB |
+
+---
+
+##### 4) Jalur Domisili
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 30 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 2 Juli 2025 | 00.00–14.00 WIB |
+
+---
+
+##### 5) Jalur Mutasi
+
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+
+##### 6) Tahap Kedua (SMA)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 8 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 8 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 8 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 9 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 10 Juli 2025 | 00.00–14.00 WIB |
+
+---
+
+### 3. Jadwal Pendaftaran PMB SMK
+
+#### a. Jalur Prestasi Akademik dan Nonakademik
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 18 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+#### b. Jalur Afirmasi
+
+##### 1) Jalur Afirmasi Prioritas Pertama  
+(Penerima manfaat Panti Sosial, Anak Tenaga Kesehatan yang Meninggal Dunia dalam Penanganan Covid-19)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Input ke dalam sistem | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 3 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+##### 2) Jalur Afirmasi Prioritas Pertama bagi Anak Penyandang Disabilitas
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 18 Juni 2025 | 00.00–12.00 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16–17 Juni 2025 | 08.00–23.59 WIB |
+|   |                                                | 18 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 18 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 19 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 20 Juni 2025 | 00.00–14.00 WIB |
+
+##### 3) Jalur Afirmasi Prioritas Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 23–24 Juni 2025 | 08.00–23.59 WIB |
+|   |                                               | 25 Juni 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 25 Juni 2025 | 08.00–23.59 WIB |
+|   |                 | 25 Juni 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 25 Juni 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 26 Juni 2025 | 08.00–23.59 WIB |
+|   |              | 28 Juni 2025 | 00.00–14.00 WIB |
+
+#### c. Jalur Mutasi (SMK)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+| 2 | Verifikasi Dokumen dan Proses Seleksi | 16 Juni – 1 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 2 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 2 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 3 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 4 Juli 2025 | 00.00–14.00 WIB |
+
+#### d. Tahap Kedua (SMK)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Pemilihan Sekolah | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                                               | 8 Juli 2025 | 00.00–14.00 WIB |
+| 2 | Proses Seleksi | 7 Juli 2025 | 08.00–23.59 WIB |
+|   |                 | 8 Juli 2025 | 00.00–14.00 WIB |
+| 3 | Pengumuman | 8 Juli 2025 | 17.00 WIB |
+| 4 | Daftar Ulang | 9 Juli 2025 | 08.00–23.59 WIB |
+|   |              | 10 Juli 2025 | 00.00–14.00 WIB |
+
+---
+
+### 5. Jadwal Pendaftaran PMB SLB
+
+#### a. Tahap Pertama
+
+| No | Kegiatan                         | Tanggal               | Waktu             |
+|----|----------------------------------|------------------------|-------------------|
+| 1  | Pendaftaran dan Verifikasi Berkas | 16 – 20 Juni 2025     | 08.00–16.00 WIB   |
+|    |                                  | 21 Juni 2025          | 08.00–12.00 WIB   |
+| 2  | Proses Seleksi                   | 16 – 20 Juni 2025     | 08.00–16.00 WIB   |
+|    |                                  | 21 Juni 2025          | 08.00–12.00 WIB   |
+| 3  | Pengumuman                       | 23 Juni 2025          | 15.00 WIB         |
+| 4  | Daftar Ulang                     | 24 – 25 Juni 2025     | 08.00–16.00 WIB   |
+
+
+#### b. Tahap Kedua (SLB)
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Verifikasi Berkas | 26 Juni 2025 | 08.00–16.00 WIB |
+|   |                                        | 28 Juni 2025 | 08.00–12.00 WIB |
+| 2 | Proses Seleksi | 26 Juni 2025 | 08.00–16.00 WIB |
+|   |                 | 28 Juni 2025 | 08.00–12.00 WIB |
+| 3 | Pengumuman | 30 Juni 2025 | 15.00 WIB |
+| 4 | Daftar Ulang | 1 – 2 Juli 2025 | 08.00–16.00 WIB |
+
+---
+
+### 6. Jadwal Pendaftaran PMB SKB
+
+#### a. Tahap Pertama
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Verifikasi Berkas | 15 – 18 Juli 2025 | 08.00–16.00 WIB |
+|   |                                        | 19 Juli 2025 | 08.00–12.00 WIB |
+| 2 | Proses Seleksi | 15 – 18 Juli 2025 | 08.00–16.00 WIB |
+| 3 | Pengumuman Hasil Seleksi | 19 Juli 2025 | 15.00 WIB |
+| 4 | Daftar Ulang | 21 – 22 Juli 2025 | 08.00–16.00 WIB |
+
+#### b. Tahap Kedua
+
+| No | Kegiatan | Tanggal | Waktu |
+|----|----------|---------|--------|
+| 1 | Pendaftaran dan Verifikasi Berkas | 24 – 25 Juli 2025 | 08.00–16.00 WIB |
+|   |                                        | 26 Juli 2025 | 08.00–12.00 WIB |
+| 2 | Proses Seleksi | 24 – 25 Juli 2025 | 08.00–16.00 WIB |
+|   |                 | 26 Juli 2025 | 08.00–12.00 WIB |
+| 3 | Pengumuman Hasil Seleksi | 26 Juli 2025 | 15.00 WIB |
+| 4 | Daftar Ulang | 28 – 29 Juli 2025 | 08.00–16.00 WIB |
+
+---
+
+## V. SELEKSI
+
+### A. Ketentuan Seleksi
+
+Mekanisme Seleksi sesuai dengan ketentuan pada **Keputusan Gubernur DKI Jakarta Nomor 414 Tahun 2025** tentang Petunjuk Teknis Penerimaan Murid Baru pada masing-masing jenjang dan jalur.
+
+### B. Tahapan Seleksi
+
+1. **Pemilihan sekolah tujuan**  
+   CMB/Orang Tua/Wali yang telah melakukan aktivasi PIN/Token dapat melanjutkan ke tahapan pemilihan sekolah tujuan dengan:  
+   a. mengakses laman publik PMB di [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)  
+   b. melakukan *login* dengan input Nomor Peserta dan *password*  
+   c. memilih sekolah tujuan; dan  
+   d. mencetak tanda bukti pemilihan sekolah tujuan  
+
+2. **Memantau hasil seleksi**  
+   CMB/Orang Tua/Wali dapat memantau hasil seleksi sekolah tujuan melalui laman PMB sebagai berikut:  
+   a. mengakses laman publik PMB di [https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)  
+   b. memilih jenjang dan jalur yang sesuai  
+   c. klik *menu seleksi* dilanjutkan memilih sekolah pilihan  
+
+### C. Hasil Seleksi
+
+Hasil seleksi PMB dapat dilihat secara daring melalui laman:  
+[https://spmb.jakarta.go.id/](https://spmb.jakarta.go.id/) sesuai jadwal yang telah ditentukan.
+
+---
+
+## VI. PENGUMUMAN PENETAPAN MURID BARU
+
+### A. PMB Jenjang PAUD, SLB, dan SKB
+
+Pengumuman Penetapan Murid Baru berdasarkan hasil seleksi melalui:  
+1. **Jenjang PAUD** : melalui laman [http://spmbpaud.jakarta.go.id](http://spmbpaud.jakarta.go.id)  
+2. **Jenjang SLB dan SKB** : hasil seleksi dilakukan secara luring di satuan pendidikan masing-masing
+
+### B. PMB Jenjang SD, SMP, SMA, dan SMK
+
+Pengumuman Penetapan Murid Baru berdasarkan hasil seleksi melalui laman:  
+[https://spmb.jakarta.go.id](https://spmb.jakarta.go.id)  
+dan dilakukan oleh Satuan Pendidikan.
+
+## VII. DAFTAR ULANG
+
+### A. PMB Jenjang PAUD, SLB, dan SKB
+
+   1. CMB yang telah dinyatakan diterima pada Satuan Pendidikan tujuan harus melakukan daftar ulang secara luring ke Satuan Pendidikan yang diterima.
+   2. CMB yang sudah dinyatakan diterima pada Satuan Pendidikan tujuan tetapi tidak melakukan daftar ulang dinyatakan mengundurkan diri dan tidak dapat mengikuti PMB di Satuan Pendidikan lainnya, maka sisa kuota dimaksud dilimpahkan ke tahap selanjutny
+
+### B. PMB Jenjang SD, SMP, SMA, dan SMK
+   1. CMB yang diterima pada Satuan Pendidikan tujuan harus melakukan daftar ulang secara daring melalui laman https:/ /spmb.jakarta.go.id sesuai jadwal yang telah ditentukan.
+   2. CMB yang sudah melakukan daftar ulang mencetak bukti daftar ulang dan datang ke Satuan Pendidikan untuk melakukan persiapan Masa Pengenalan Lingkungan Sekolah. 
+
+
+  
+   
+
 # PPDB atau SPMB jenjang SD
 
 ## PPDB Wilayah Prioritas
@@ -1244,6 +1918,428 @@ Penerimaan Murid Baru (PMB) Bersama untuk tahun ajaran 2025/2026 mencakup **138 
 Data ini berdasarkan **Lampiran V** dari Keputusan Kepala Dinas Pendidikan DKI Jakarta No. 67 Tahun 2025 tentang Petunjuk Teknis PMB Tahun Ajaran 2025/2026.
 
 
+
+
+
+# PERATURAN GUBERNUR DAERAH KHUSUS IBUKOTA JAKARTA TERKAIT KJP (KARTU JAKARTA PINTAR)
+NOMOR 110 TAHUN 2021  
+
+## TENTANG  
+BANTUAN SOSIAL BIAYA PENDIDIKAN  
+
+---
+
+### Dengan Rahmat Tuhan Yang Maha Esa  
+**Gubernur Daerah Khusus Ibukota Jakarta**,  
+
+### Menimbang  
+a. bahwa dalam rangka mencegah kerentanan sosial dan memberikan layanan mutu pendidikan kepada peserta didik, perlu pemberian dalam bentuk bantuan sosial biaya pendidikan;  
+
+b. bahwa berdasarkan Pasal 39 ayat (5) Peraturan Gubernur Nomor 35 Tahun 2021 tentang Tata Cara Pemberian Hibah dan Bantuan Sosial, persyaratan penerima bantuan sosial diatur dengan Peraturan Gubernur;  
+
+c. bahwa berdasarkan pertimbangan sebagaimana dimaksud dalam huruf a dan huruf b, perlu menetapkan Peraturan Gubernur tentang Bantuan Sosial Biaya Pendidikan;  
+
+### Mengingat  
+1. Undang-Undang Nomor 29 Tahun 2007 tentang Pemerintahan Provinsi Daerah Khusus Ibukota Jakarta sebagai Ibukota Negara Kesatuan Republik Indonesia (Lembaran Negara Republik Indonesia Tahun 2007 Nomor 93, Tambahan Lembaran Negara Republik Indonesia Nomor 4744);  
+
+2. Undang-Undang Nomor 23 Tahun 2014 tentang Pemerintahan Daerah (Lembaran Negara Republik Indonesia Tahun 2014 Nomor 244, Tambahan Lembaran Negara Republik Indonesia Nomor 5587) sebagaimana telah beberapa kali diubah terakhir dengan Undang-Undang Nomor 11 Tahun 2020 tentang Cipta Kerja (Lembaran Negara Republik Indonesia Tahun 2020 Nomor 245, Tambahan Lembaran Negara Republik Indonesia Nomor 6573);  
+
+3. Peraturan Gubernur Nomor 35 Tahun 2021 tentang Tata Cara Pemberian Hibah dan Bantuan Sosial (Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta Tahun 2021 Nomor 71013);  
+
+### Menetapkan  
+**PERATURAN GUBERNUR TENTANG BANTUAN SOSIAL BIAYA PENDIDIKAN.**
+
+## BAB I  
+KETENTUAN UMUM  
+
+### Pasal 1  
+Dalam Peraturan Gubernur ini yang dimaksud dengan:  
+
+1. **Bantuan Sosial Biaya Pendidikan** adalah bantuan sosial dalam bentuk uang yang diberikan kepada Peserta Didik untuk menunjang biaya pendidikan.  
+
+2. **Bantuan Sosial Biaya Personal** adalah biaya yang diberikan kepada Peserta Didik untuk pemenuhan kebutuhan dasar penunjang pendidikan.  
+
+3. **Bantuan Sosial Biaya Penyelenggaraan Pendidikan** adalah biaya sumbangan pembinaan pendidikan dan/atau biaya penyelenggaraan pendidikan lainnya.  
+
+4. **Bantuan Sosial Biaya Pendidikan Masuk Sekolah** adalah biaya yang diberikan kepada Peserta Didik baru pada awal tahun pelajaran di Satuan Pendidikan Swasta.  
+
+5. **Biaya Rutin** adalah Bantuan Sosial Biaya Personal yang diberikan kepada seluruh Peserta Didik sebagai uang saku dan uang transportasi.  
+
+6. **Biaya Berkala** adalah Bantuan Sosial Biaya Personal yang diberikan kepada seluruh Peserta Didik untuk menunjang kegiatan belajar dalam melaksanakan proses belajar.  
+
+7. **Biaya Persiapan Masuk Perguruan Tinggi** adalah Bantuan Sosial Biaya Personal yang diberikan kepada seluruh Peserta Didik di kelas akhir pada jenjang Sekolah Menengah Atas/Madrasah Aliyah, Sekolah Menengah Kejuruan atau sederajat sebagai biaya persiapan masuk perguruan tinggi dan/atau mengikuti ujian seleksi masuk perguruan tinggi.  
+
+8. **Satuan Pendidikan Negeri** adalah Sekolah/Madrasah/Pusat Kegiatan Belajar Masyarakat berstatus negeri yang diselenggarakan oleh Pemerintah Provinsi Daerah Khusus Ibukota Jakarta.  
+
+9. **Satuan Pendidikan Swasta** adalah Sekolah/Madrasah/Pusat Kegiatan Belajar Masyarakat/Lembaga Kursus dan Pelatihan yang diselenggarakan oleh masyarakat di Provinsi Daerah Khusus Ibukota Jakarta.  
+
+10. **Lembaga Kursus dan Pelatihan** adalah satuan pendidikan nonformal yang diselenggarakan bagi masyarakat yang memerlukan bekal pengetahuan, keterampilan, kecakapan hidup, dan sikap untuk mengembangkan diri, mengembangkan profesi, bekerja, usaha mandiri dan/atau melanjutkan pendidikan ke jenjang yang lebih tinggi.  
+
+11. **Pusat Kegiatan Belajar Masyarakat** adalah satuan pendidikan nonformal yang menyelenggarakan berbagai kegiatan belajar sesuai dengan kebutuhan masyarakat atas dasar dari, oleh, dan untuk masyarakat.  
+
+12. **Peserta Didik** adalah warga masyarakat yang berasal dari keluarga miskin, tidak mampu dan rentan terhadap risiko sosial yang sedang mengikuti pendidikan pada jenjang Sekolah Dasar/Madrasah Ibtidaiyah, Sekolah Menengah Pertama/Madrasah Tsanawiyah, Sekolah Menengah Atas/Madrasah Aliyah, Sekolah Menengah Kejuruan, Sekolah Luar Biasa, Pusat Kegiatan Belajar Masyarakat dan Lembaga Kursus dan Pelatihan.  
+
+13. **Penerimaan Peserta Didik Baru Bersama** yang selanjutnya disingkat **PPDB Bersama** adalah penerimaan peserta didik baru pada Sekolah/Madrasah atau Satuan Pendidikan Swasta yang telah menandatangani perjanjian kerja sama dengan Dinas Pendidikan.  
+
+14. **Data Terpadu Kesejahteraan Sosial** adalah sistem data elektronik yang memuat informasi sosial, ekonomi dan demografi dengan status kesejahteraan terendah di Indonesia.  
+
+15. **Data Terpadu Kesejahteraan Sosial Daerah** adalah sistem data elektronik yang memuat informasi sosial, ekonomi dan demografi dengan status kesejahteraan terendah di Provinsi Daerah Khusus Ibukota Jakarta yang ditetapkan dengan Keputusan Gubernur.  
+
+16. **Anak Panti Sosial** adalah anak yang memiliki nomor induk kependudukan dan terdaftar dalam kartu keluarga di dalam panti sosial yang dikelola Pemerintah Provinsi DKI Jakarta.  
+
+17. **Anak Tidak Sekolah** adalah anak yang berusia 6 sampai dengan 21 tahun dan tidak sekolah.  
+
+18. **Penyandang Disabilitas** adalah setiap orang yang mengalami keterbatasan fisik, intelektual, mental, dan/atau sensorik dalam jangka waktu lama yang dalam berinteraksi dengan lingkungan dapat mengalami hambatan dan kesulitan untuk berpartisipasi secara penuh dan efektif dengan warga negara lainnya berdasarkan kesamaan hak.  
+
+19. **Pengemudi JakLingko** adalah pengemudi bus yang terdaftar dalam sistem JakLingko.  
+
+20. **Mikrotrans** adalah bus berukuran panjang maksimum 6 (enam) meter, lebar maksimum 2,1 (dua koma satu) meter, tinggi maksimum 1,7 (satu koma tujuh) meter dan kecepatan kendaraan maksimum tidak lebih dari 60 (enam puluh) km/jam, jumlah tempat duduk 8 (delapan), dan jumlah berdiri 7 (tujuh) yang dioperasikan oleh mitra perusahaan otobus JakLingko.  
+
+21. **Kartu Pekerja Jakarta** adalah kartu bagi pekerja/buruh yang memiliki perusahaan.  
+22. **Kartu Jakarta Pintar Plus** atau KJP Plus adalah kartu sebagai sarana pemberian Bantuan Sosial Biaya Pendidikan yang diberikan kepada Peserta Didik yang memenuhi syarat.  
+
+23. **Provinsi Daerah Khusus Ibukota Jakarta** yang selanjutnya disebut Provinsi DKI Jakarta adalah provinsi yang mempunyai kekhususan dalam penyelenggaraan pemerintahan daerah karena kedudukannya sebagai Ibukota Negara Kesatuan Republik Indonesia.  
+
+24. **Gubernur** adalah Kepala Daerah Provinsi Daerah Khusus Ibukota Jakarta.  
+
+25. **Dinas Pendidikan** adalah Dinas Pendidikan Provinsi Daerah Khusus Ibukota Jakarta.  
+
+26. **Pusat Pelayanan Pendanaan Personal dan Operasional Pendidikan** yang selanjutnya disebut **P4OP** adalah Pusat Pelayanan Pendanaan Personal dan Operasional Pendidikan Provinsi DKI Jakarta.  
+
+27. **Satuan Pelaksana Pendidikan Kecamatan** adalah Satuan Pelaksana Pendidikan Kecamatan di Provinsi Daerah Khusus Ibu Kota Jakarta.  
+
+---
+
+### Pasal 2  
+Peraturan Gubernur ini dimaksudkan sebagai pedoman bagi Pemerintah Provinsi DKI Jakarta dalam melakukan pemberian Bantuan Sosial Biaya Pendidikan.  
+
+---
+
+### Pasal 3  
+Pemberian Bantuan Sosial Biaya Pendidikan bertujuan:  
+
+a. mendukung terselenggaranya program wajib belajar 12 (dua belas) tahun;  
+b. meningkatkan akses layanan pendidikan secara adil dan merata;  
+c. menjamin kepastian mendapatkan layanan pendidikan;  
+d. meningkatkan mutu layanan dan kualitas hasil pendidikan;  
+e. menumbuhkan motivasi bagi Peserta Didik untuk berprestasi dan menuntaskan pendidikan pada jenjang pendidikan yang diikuti; dan  
+f. mendorong Anak Tidak Sekolah agar kembali mendapatkan layanan pendidikan pada satuan pendidikan tertentu.  
+
+---
+
+### Pasal 4  
+Ruang lingkup pelaksanaan pemberian Bantuan Sosial Biaya Pendidikan meliputi:  
+
+a. Bantuan Sosial Biaya Personal dan Biaya Penyelenggaraan Pendidikan bagi Peserta Didik pada Satuan Pendidikan Negeri atau Swasta; dan  
+b. Bantuan Sosial Biaya Pendidikan Masuk Sekolah bagi Peserta Didik pada Satuan Pendidikan Swasta.  
+
+---
+
+## BAB II  
+BANTUAN SOSIAL BIAYA PERSONAL DAN BIAYA PENYELENGGARAAN PENDIDIKAN  
+
+### Pasal 5  
+(1) Persyaratan penerima Bantuan Sosial Biaya Personal dan Biaya Penyelenggaraan Pendidikan meliputi:  
+
+a. Peserta Didik dengan usia 6 (enam) tahun sampai dengan usia 21 (dua puluh satu) tahun;  
+b. terdaftar sebagai Peserta Didik pada Satuan Pendidikan Negeri atau Swasta di Provinsi DKI Jakarta;  
+c. memiliki nomor induk kependudukan sebagai penduduk Provinsi DKI Jakarta dan berdomisili di Provinsi DKI Jakarta; dan  
+d. memenuhi kriteria khusus sebagai penerima bantuan sosial.  
+
+(2) Kriteria khusus sebagaimana dimaksud pada ayat (1) huruf d sebagai berikut:  
+a. terdaftar dalam Data Terpadu Kesejahteraan Sosial atau Data Terpadu Kesejahteraan Sosial Daerah;  
+b. Anak Panti Sosial, anak Penyandang Disabilitas dan anak dari Penyandang Disabilitas;  
+c. Anak dari Pengemudi JakLingko yang mengemudikan Mikrotrans;  
+d. Anak dari penerima Kartu Pekerja Jakarta; atau  
+e. Anak Tidak Sekolah.  
+
+---
+
+### Pasal 6  
+(1) Peserta Didik pada Satuan Pendidikan Negeri menerima komponen Bantuan Sosial Biaya Personal.  
+
+(2) Peserta Didik pada Satuan Pendidikan Swasta menerima komponen Bantuan Sosial Biaya Personal dan Biaya Penyelenggaraan Pendidikan.  
+
+### Pasal 7  
+(1) Bantuan Sosial Biaya Personal yang diberikan kepada Peserta Didik dapat digunakan untuk:  
+a. Biaya Rutin;  
+b. Biaya Berkala; dan/atau  
+c. Biaya Persiapan Masuk Perguruan Tinggi.  
+
+(2) Bantuan Sosial Biaya Penyelenggaraan Pendidikan diberikan kepada Peserta Didik pada Satuan Pendidikan Swasta baik yang mengikuti Penerimaan Peserta Didik Baru Bersama maupun yang tidak mengikuti Penerimaan Peserta Didik Baru Bersama.  
+
+---
+
+### Pasal 8  
+(1) Pemberian Bantuan Sosial Biaya Personal dan Biaya Penyelenggaraan Pendidikan disalurkan melalui Kartu Jakarta Pintar Plus.  
+
+(2) Tata cara pendataan dan pengusulan calon penerima Bantuan Sosial Biaya Personal dan Biaya Penyelenggaraan Pendidikan melalui Kartu Jakarta Pintar Plus ditetapkan dalam Keputusan Kepala Dinas Pendidikan.  
+
+---
+
+### Pasal 9  
+(1) Dalam hal status keadaan darurat bencana diberlakukan di Provinsi DKI Jakarta, Biaya Rutin dan Biaya Berkala sebagaimana dimaksud dalam Pasal 7 ayat (1) huruf a dan huruf b dapat digunakan untuk pemenuhan kebutuhan Peserta Didik.  
+
+(2) Pemenuhan kebutuhan Peserta Didik sebagaimana dimaksud pada ayat (1) meliputi:  
+a. kebutuhan pangan;  
+b. kebutuhan kesehatan; dan  
+c. kebutuhan pendidikan.  
+
+(3) Penggunaan Biaya Rutin dan Biaya Berkala untuk pemenuhan kebutuhan Peserta Didik dapat dilakukan setiap bulan secara tunai dan/atau non tunai.  
+
+---
+
+## BAB III  
+BANTUAN SOSIAL BIAYA PENDIDIKAN MASUK SEKOLAH  
+
+### Pasal 10  
+(1) Persyaratan penerima Bantuan Sosial Biaya Pendidikan Masuk Sekolah meliputi:  
+a. Peserta Didik dengan usia 6 (enam) tahun sampai dengan usia 21 (dua puluh satu) tahun;  
+b. terdaftar sebagai Peserta Didik pada Satuan Pendidikan Swasta di Provinsi DKI Jakarta;  
+c. memiliki nomor induk kependudukan sebagai penduduk Provinsi DKI Jakarta dan berdomisili di Provinsi DKI Jakarta; dan  
+d. memenuhi kriteria khusus sebagai penerima bantuan sosial.  
+
+(2) Kriteria khusus sebagaimana dimaksud pada ayat (1) huruf d sebagai berikut:  
+a. terdaftar dalam Data Terpadu Kesejahteraan Sosial atau Data Terpadu Kesejahteraan Sosial Daerah;  
+b. Anak Panti Sosial, anak Penyandang Disabilitas dan anak dari Penyandang Disabilitas;  
+c. Anak dari Pengemudi JakLingko yang mengemudikan Mikrotrans;  
+d. Anak dari penerima Kartu Pekerja Jakarta; atau  
+e. Anak Tidak Sekolah.  
+
+---
+
+### Pasal 11  
+(1) Bantuan Sosial Biaya Pendidikan Masuk Sekolah digunakan sebagai biaya investasi.  
+
+(2) Bantuan Sosial Biaya Pendidikan Masuk Sekolah diberikan kepada Peserta Didik pada Satuan Pendidikan Swasta baik yang mengikuti Penerimaan Peserta Didik Baru Bersama maupun yang tidak mengikuti Penerimaan Peserta Didik Baru Bersama.  
+
+---
+
+### Pasal 12  
+(1) Bantuan Sosial Biaya Pendidikan Masuk Sekolah dapat diberikan kepada Peserta Didik yang mengalami kesulitan ekonomi terdampak **Corona Virus Disease 2019** dengan persyaratan:  
+a. salah satu atau kedua orang tua mengalami kehilangan pekerjaan karena pemutusan hubungan kerja;  
+b. salah satu atau kedua orang tua kehilangan usaha dan/atau penghasilan yang berkurang secara signifikan;  
+c. salah satu atau kedua orang tua berpenghasilan tidak tetap sebagai dampak **Corona Virus Disease 2019**;  
+d. salah satu atau kedua orang tua dirumahkan tanpa diberikan atau dipotong penghasilannya; dan/atau  
+e. salah satu atau kedua orang tua meninggal dunia akibat terkonfirmasi **Corona Virus Disease 2019**.  
+
+### Pasal 13  
+(1) Pemberian Bantuan Sosial Biaya Pendidikan Masuk Sekolah disalurkan melalui Peserta Didik.  
+
+(2) Tata cara pendataan dan pengusulan calon penerima Bantuan Sosial Biaya Pendidikan Masuk Sekolah ditetapkan dalam Keputusan Kepala Dinas Pendidikan.  
+
+---
+
+## BAB IV  
+TATA CARA PEMBERIAN BANTUAN SOSIAL  
+
+### Pasal 14  
+Pemberian Bantuan Sosial Biaya Pendidikan dilakukan berdasarkan mekanisme pemberian bantuan sosial yang direncanakan sesuai dengan ketentuan peraturan perundang-undangan.  
+
+### Pasal 15  
+Kepala Dinas Pendidikan mengajukan usulan calon penerima Bantuan Sosial Biaya Pendidikan secara tertulis kepada Gubernur.  
+
+### Pasal 16  
+Besaran dan penerima Bantuan Sosial Biaya Pendidikan ditetapkan dalam Keputusan Gubernur berdasarkan usulan dari Kepala Dinas Pendidikan.  
+
+### Pasal 17  
+Petunjuk teknis pemberian Bantuan Sosial Biaya Pendidikan ditetapkan dalam Keputusan Kepala Dinas Pendidikan.  
+
+---
+
+## BAB V  
+PERAN SERTA MASYARAKAT  
+
+### Pasal 18  
+(1) Masyarakat dapat menyampaikan laporan secara tertulis maupun tidak tertulis kepada Kepala Dinas Pendidikan dalam hal terjadi pelanggaran dan/atau penyalahgunaan Bantuan Sosial Biaya Pendidikan.  
+
+(2) Penyampaian laporan hanya akan ditindaklanjuti apabila disertai dengan kelengkapan sebagai berikut:  
+a. identitas pelapor yang jelas;  
+b. kronologis singkat pelanggaran dan/atau penyalahgunaan; dan  
+c. bukti permulaan data, dokumen, foto, dan/atau rekaman yang mendukung/menjelaskan adanya pelanggaran dan/atau penyalahgunaan Bantuan Sosial Biaya Pendidikan.  
+
+(3) Laporan disampaikan kepada Kepala Dinas Pendidikan melalui Satuan Pendidikan, Satuan Pelaksana Pendidikan Kecamatan, Suku Dinas Pendidikan dan/atau P4OP.  
+
+(4) Dalam hal laporan diterima oleh Satuan Pendidikan, Satuan Pelaksana Pendidikan Kecamatan, Suku Dinas Pendidikan, dan/atau P4OP, maka Dinas Pendidikan menindaklanjuti dengan melakukan klarifikasi terhadap laporan dimaksud.  
+
+(5) Dinas Pendidikan dan/atau P4OP akan melakukan konfirmasi laporan sebagaimana dimaksud pada ayat (3) dan ayat (4).  
+
+(6) Dalam hal hasil konfirmasi sebagaimana dimaksud pada ayat (5) terbukti kebenarannya, maka penerima Bantuan Sosial Biaya Pendidikan dapat dijatuhi sanksi sesuai ketentuan peraturan perundang-undangan.  
+
+---
+
+## BAB VI  
+PEMANTAUAN DAN EVALUASI  
+
+### Pasal 19  
+(1) Pemantauan dan evaluasi kebijakan penggunaan Bantuan Sosial Biaya Pendidikan dilaksanakan oleh Asisten Kesejahteraan Rakyat Sekretaris Daerah Pemerintah Provinsi DKI Jakarta.  
+
+(2) Pemantauan dan evaluasi teknis pelaksanaan dan penggunaan Bantuan Sosial Biaya Pendidikan dilakukan oleh Dinas Pendidikan dan berkoordinasi dengan instansi vertikal lainnya.  
+
+### Pasal 20
+(1) Walikota/Bupati selaku pejabat wilayah masing-masing menugaskan Camat dan Lurah untuk melakukan pemantauan atas pelanggaran aturan yang dilakukan oleh penerima Bantuan Sosial Biaya Pendidikan.
+
+(2) Hasil pemantauan Camat dan Lurah disampaikan kepada Walikota/Bupati.
+
+(3) Hasil pemantauan sebagaimana dimaksud pada ayat (2) dikoordinasikan dengan Kepala Dinas Pendidikan.
+
+(4) Hasil pemantauan sebagaimana dimaksud pada ayat (3) dapat dijadikan sebagai bahan pertimbangan dalam menentukan kelanjutan penerima Bantuan Sosial Biaya Pendidikan.
+
+(5) Berdasarkan bahan pertimbangan sebagaimana dimaksud pada ayat (4) dan pengaduan masyarakat, **P4OP** menindaklanjuti dengan memberhentikan Bantuan Sosial Biaya Pendidikan kepada penerima Bantuan Sosial Biaya Pendidikan.
+
+
+### Pasal 21  
+(1) Pemantauan dan evaluasi dilaksanakan paling sedikit 1 (satu) kali dalam 6 (enam) bulan.  
+
+(2) Pemantauan dan evaluasi dilaporkan kepada Gubernur melalui kjp.jakarta.go.id yang terintegrasi dengan sistem pemerintahan berbasis elektronik.  
+
+---
+
+### Pasal 22  
+Hasil pemantauan dan evaluasi sebagaimana dimaksud dalam Pasal 21 dilaporkan kepada Gubernur.  
+
+---
+
+## BAB VII  
+LARANGAN  
+
+### Pasal 23  
+Peserta Didik yang merupakan penerima Bantuan Sosial Biaya Pendidikan dilarang:  
+
+a. membelanjakan Bantuan Sosial Biaya Pendidikan di luar penggunaan yang telah diatur dalam Peraturan Gubernur ini;  
+b. merokok;  
+c. menggunakan dan mengedarkan narkotika dan obat-obatan terlarang;  
+d. melakukan perbuatan asusila/pergaulan bebas/pelecehan seksual;  
+e. terlibat dalam kekerasan/perundungan;  
+f. terlibat tawuran;  
+g. terlibat geng motor/geng sekolah;  
+h. minum minuman keras/minuman beralkohol;  
+i. terlibat pencurian;  
+j. melakukan pemalakan/pemerasan/penjambretan;  
+k. terlibat perkelahian;  
+l. terlibat penipuan;  
+m. terlibat mencontek massal;  
+n. membocorkan soal/kunci jawaban;  
+o. terlibat pornografi/pornografi;  
+p. menyebarluaskan gambar tidak senonoh baik secara konvensional maupun melalui media daring;  
+q. membawa senjata tajam dan peralatan lain yang membahayakan;  
+r. sering bolos sekolah minimal 4 (empat) kali dalam 1 (satu) bulan;  
+s. sering terlambat tiba di sekolah berturut-turut atau tidak berturut-turut paling sedikit 6 (enam) kali dalam 1 (satu) bulan;  
+t. menggadaikan/meminjamkan Bantuan Sosial Biaya Pendidikan dan/atau buku tabungan Bantuan Sosial Biaya Pendidikan kepada pihak manapun dan dalam bentuk apapun;  
+u. menghabiskan Bantuan Sosial Biaya Pendidikan untuk belanja penggunaan yang tidak secara nyata dibutuhkan oleh Peserta Didik yang bersangkutan;  
+v. meminjamkan Bantuan Sosial Biaya Pendidikan kepada pihak manapun; dan  
+w. melakukan perbuatan yang melanggar peraturan tata tertib sekolah/peraturan sekolah.  
+
+---
+
+### Pasal 24  
+Orang tua/wali Peserta Didik penerima Bantuan Sosial Biaya Pendidikan dilarang:  
+
+a. membelanjakan Bantuan Sosial Biaya Pendidikan di luar penggunaan yang telah ditetapkan dalam Keputusan Kepala Dinas Pendidikan;  
+b. mengondisikan pelaksanaan pencairan/pemindahbukuan rekening dana dengan imbalan/jasa tertentu;  
+c. memalsukan bukti belanja penggunaan Bantuan Sosial Biaya Pendidikan;  
+d. mengondisikan bukti penggunaan Bantuan Sosial Biaya Pendidikan sebagai pertanggungjawaban;  
+e. menggunakan jasa pihak ketiga termasuk sekolah/madrasah untuk melakukan pencairan Bantuan Sosial Biaya Pendidikan dengan janji memberikan imbalan tertentu;  
+f. menggadaikan/meminjamkan Bantuan Sosial Biaya Pendidikan dan/atau buku tabungan Bantuan Sosial Biaya Pendidikan kepada pihak manapun dan dalam bentuk apapun;  
+g. menghabiskan Bantuan Sosial Biaya Pendidikan untuk belanja penggunaan yang tidak secara nyata dibutuhkan oleh Peserta Didik yang bersangkutan; dan  
+h. meminjamkan Bantuan Sosial Biaya Pendidikan kepada pihak manapun.  
+
+---
+
+### Pasal 25  
+Satuan Pendidikan dilarang:  
+a. melakukan manipulasi maupun pembiaran terhadap indikasi ketidakbenaran data Peserta Didik calon penerima Bantuan Sosial Biaya Pendidikan;  
+b. memanfaatkan Bantuan Sosial Biaya Pendidikan yang diterima Peserta Didik dengan dalih apapun; dan  
+c. memotong/mengurangi Bantuan Sosial Biaya Pendidikan dan/atau memungut biaya dari orang tua/wali Peserta Didik atau Peserta Didik berkenaan dengan pelaksanaan tugas Satuan Pendidikan terkait pemberian Bantuan Sosial Biaya Pendidikan.  
+
+---
+
+## BAB VII  
+SANKSI DISKUALIFIKASI  
+
+### Pasal 26  
+(1) Peserta Didik dan/atau orang tua/wali Peserta Didik penerima Bantuan Sosial Biaya Pendidikan yang melanggar salah satu atau secara kumulatif larangan sebagaimana dimaksud dalam Pasal 23 dan Pasal 24 diberikan sanksi berupa penarikan dana Bantuan Sosial Biaya Pendidikan dan penghentian Bantuan Sosial Biaya Pendidikan sesuai dengan rekomendasi yang diberikan oleh satuan pendidikan.  
+
+(2) Sanksi sebagaimana dimaksud pada ayat (1) dapat dicabut berdasarkan rekomendasi yang diberikan oleh satuan pendidikan.  
+
+(3) Rekomendasi sebagaimana dimaksud pada ayat (2) dapat digunakan sebagai dasar untuk pengajuan kembali Bantuan Sosial Biaya Pendidikan.  
+
+---
+
+## BAB VIII  
+PEMBIAYAAN  
+
+### Pasal 27  
+(1) Pembiayaan Bantuan Sosial Biaya Pendidikan bersumber dari Anggaran Pendapatan dan Belanja Daerah dan sumber lain yang sah dan tidak mengikat sesuai dengan ketentuan peraturan perundang-undangan.  
+
+(2) Pembiayaan Bantuan Sosial Biaya Pendidikan dicantumkan pada rencana kerja dan anggaran Dinas Pendidikan.  
+
+(3) Pembiayaan Bantuan Sosial Biaya Pendidikan berdasarkan usulan dari Kepala Dinas Pendidikan kepada Gubernur dengan tembusan Kepala Badan Perencanaan dan Pembangunan Daerah Provinsi DKI Jakarta.  
+
+---
+
+## BAB IX  
+KETENTUAN PERALIHAN  
+
+### Pasal 28  
+Penerima Kartu Jakarta Pintar Plus sebelum berlakunya Peraturan Gubernur ini tetap mendapatkan bantuan sosial sepanjang terdaftar dan memenuhi kriteria sebagaimana dimaksud dalam Pasal 5 sebagai Peserta Didik pada Satuan Pendidikan Negeri atau Swasta di Provinsi DKI Jakarta.  
+
+---
+
+## BAB X  
+KETENTUAN PENUTUP  
+
+### Pasal 29  
+Pada saat Peraturan Gubernur ini mulai berlaku:  
+
+a. Peraturan Gubernur Nomor 4 Tahun 2018 tentang Kartu Jakarta Pintar Plus (Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta Tahun 2018 Nomor 75001);  
+
+b. Peraturan Gubernur Nomor 15 Tahun 2019 tentang Perubahan atas Peraturan Gubernur Nomor 4 Tahun 2018 tentang Kartu Jakarta Pintar Plus (Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta Tahun 2019 Nomor 75003);  
+
+c. Peraturan Gubernur Nomor 46 Tahun 2020 tentang Perubahan Kedua atas Peraturan Gubernur Nomor 4 Tahun 2018 tentang Kartu Jakarta Pintar Plus (Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta Tahun 2020 Nomor 75006);  
+
+d. Peraturan Gubernur Nomor 90 Tahun 2020 tentang Perubahan Ketiga atas Peraturan Gubernur Nomor 4 Tahun 2018 tentang Kartu Jakarta Pintar Plus (Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta Tahun 2020 Nomor 75014); dan  
+
+e. Peraturan Gubernur Nomor 114 Tahun 2020 tentang Pemberian Bantuan Sosial Biaya Pendidikan Masuk Sekolah Bagi Peserta Didik Baru di Sekolah/Madrasah Swasta;  
+
+— dicabut dan dinyatakan tidak berlaku lagi.  
+
+### Pasal 30  
+Peraturan Gubernur ini mulai berlaku pada tanggal diundangkan dan berlaku surut sejak tanggal 1 Desember 2021.  
+
+Agar setiap orang mengetahuinya, memerintahkan pengundangan Peraturan Gubernur ini dengan penempatannya dalam Berita Daerah Provinsi Daerah Khusus Ibukota Jakarta.  
+
+---
+
+Ditetapkan di Jakarta  
+pada tanggal 15 Desember 2021  
+
+GUBERNUR DAERAH KHUSUS IBUKOTA JAKARTA,  
+**ttd**  
+**ANIES RASYID BASWEDAN**  
+
+---
+
+Diundangkan di Jakarta  
+pada tanggal 15 Desember 2021  
+
+SEKRETARIS DAERAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA,  
+**ttd**  
+**MARULLAH MATALI**  
+
+---
+
+**BERITA DAERAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA  
+TAHUN 2021 NOMOR 71017**  
+
+Salinan sesuai dengan aslinya  
+KEPALA BIRO HUKUM SEKRETARIAT DAERAH  
+PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA,  
+
+**YAYAN YUHANAH**  
+NIP 196508241994032003  
+
+
 # KJP (KARTU JAKARTA PINTAR)
 
 KARTU JAKARTA PINTAR (KJP) PLUS TAHAP II TAHUN 2025
@@ -1264,8 +2360,9 @@ KARTU JAKARTA PINTAR (KJP) PLUS TAHAP II TAHUN 2025
 3. Anak penyandang disabilitas dan anak dari penyandang disabilitas yang terdaftar dalam DTKS
 
 
-## Besaran Bantuan KJP Plus
+## Besaran Dana KJP Plus
 
+### Sekolah/Madrasah Negeri & Swasta
 | Jenjang                               | Sekolah/Madrasah Negeri (Biaya Personal Per Bulan) | Sekolah/Madrasah Swasta (Biaya Personal Per Bulan) | SPP Sekolah Swasta Per Bulan |
 |---------------------------------------|---------------------------------------------------|---------------------------------------------------|------------------------------|
 | SD/MI/SDLB                            | Rp250.000                                         | Rp250.000                                         | Rp130.000                   |
@@ -1275,8 +2372,27 @@ KARTU JAKARTA PINTAR (KJP) PLUS TAHAP II TAHUN 2025
 | PKBM (Paket A/B/C)                    | Rp300.000                                         | Rp300.000                                         | -                            |
 | LKP (Lembaga Kursus Pelatihan)        | Rp1.800.000 per semester                          | Rp1.800.000 per semester                          | -                            |
 
+---
+
+### Sekolah/Madrasah Swasta Peserta SPMB Bersama
+| Jenjang         | Biaya Personal Per Bulan | SPP Sekolah Swasta Per Bulan |
+|-----------------|---------------------------|-------------------------------|
+| SMP Klaster 1   | Rp300.000                 | Rp225.000                     |
+| SMP Klaster 2   | Rp300.000                 | Rp350.000                     |
+| SMP Klaster 3   | Rp300.000                 | Rp623.705                     |
+| SMA Klaster 1   | Rp420.000                 | Rp620.000                     |
+| SMA Klaster 2   | Rp420.000                 | Rp920.000                     |
+| SMA Klaster 3   | Rp420.000                 | Rp1.100.000                   |
+| SMK Klaster 1   | Rp450.000                 | Rp620.000                     |
+| SMK Klaster 2   | Rp450.000                 | Rp920.000                     |
+| SMK Klaster 3   | Rp450.000                 | Rp1.100.000                   |
+
 **Catatan:**  
-Murid pada **Sekolah Rakyat** dan **Sekolah Gratis** dapat mengajukan KJP Plus, tetapi hanya mendapatkan bantuan **dana personal**. Besaran bantuan dana personal sama dengan sekolah/madrasah negeri.
+Murid pada **Sekolah Rakyat** dan **Sekolah Gratis** dapat mengajukan KJP Plus, tetapi hanya mendapatkan bantuan **dana personal**. Besaran dana personal sama dengan sekolah/madrasah negeri.
+
+---
+
+
 
 ## TATA CARA PENDAFTARAN KJP PLUS TAHAP II TAHUN 2025
 
@@ -1432,50 +2548,36 @@ Pergub No. 110 Tahun 2021 tentang Bantuan Sosial Biaya Pendidikan.
 - **18 Agustus s.d. 30 September 2025**  
   Penetapan penerima melalui Keputusan Gubernur.
 
-## Besaran Dana KJP Plus
+## BESARAN DANA BPMS
 
-### Sekolah/Madrasah Negeri & Swasta
-| Jenjang                               | Sekolah/Madrasah Negeri (Biaya Personal Per Bulan) | Sekolah/Madrasah Swasta (Biaya Personal Per Bulan) | SPP Sekolah Swasta Per Bulan |
-|---------------------------------------|---------------------------------------------------|---------------------------------------------------|------------------------------|
-| SD/MI/SDLB                            | Rp250.000                                         | Rp250.000                                         | Rp130.000                   |
-| SMP/MTs/SMPLB                         | Rp300.000                                         | Rp300.000                                         | Rp170.000                   |
-| SMA/MA/SMALB                          | Rp420.000                                         | Rp420.000                                         | Rp290.000                   |
-| SMK                                   | Rp450.000                                         | Rp450.000                                         | Rp240.000                   |
-| PKBM (Paket A/B/C)                    | Rp300.000                                         | Rp300.000                                         | -                            |
-| LKP (Lembaga Kursus Pelatihan)        | Rp1.800.000 per semester                          | Rp1.800.000 per semester                          | -                            |
+### Sekolah/Madrasah Swasta
 
----
+| Jenjang          | Besaran BPMS Khusus Murid Baru       |
+|------------------|--------------------------------------|
+| SD/MI/SLB        | Maksimum Rp1.000.000                 |
+| SMP/MTs/SMPLB    | Maksimum Rp1.500.000                 |
+| SMA/MA/SMALB     | Maksimum Rp2.500.000                 |
+| SMK              | Maksimum Rp2.500.000                 |
 
-### Sekolah/Madrasah Swasta Peserta SPMB Bersama
-| Jenjang         | Biaya Personal Per Bulan | SPP Sekolah Swasta Per Bulan |
-|-----------------|---------------------------|-------------------------------|
-| SMP Klaster 1   | Rp300.000                 | Rp225.000                     |
-| SMP Klaster 2   | Rp300.000                 | Rp350.000                     |
-| SMP Klaster 3   | Rp300.000                 | Rp623.705                     |
-| SMA Klaster 1   | Rp420.000                 | Rp620.000                     |
-| SMA Klaster 2   | Rp420.000                 | Rp920.000                     |
-| SMA Klaster 3   | Rp420.000                 | Rp1.100.000                   |
-| SMK Klaster 1   | Rp450.000                 | Rp620.000                     |
-| SMK Klaster 2   | Rp450.000                 | Rp920.000                     |
-| SMK Klaster 3   | Rp450.000                 | Rp1.100.000                   |
-
-**Catatan:**  
-Murid pada **Sekolah Rakyat** dan **Sekolah Gratis** dapat mengajukan KJP Plus, tetapi hanya mendapatkan bantuan **dana personal**. Besaran dana personal sama dengan sekolah/madrasah negeri.
+> **Catatan:**  
+> Murid pada **Sekolah Gratis** tidak dapat mengajukan BPMS.
 
 ---
 
-### Sekolah/Madrasah Swasta – SPMB Bersama (Khusus Murid Baru)
-| Jenjang         | Besaran BPMS |
-|-----------------|---------------|
-| SMP Klaster I   | Maksimum Rp1.500.000 |
-| SMP Klaster II  | Maksimum Rp2.000.000 |
-| SMP Klaster III | Maksimum Rp8.000.000 |
-| SMA Klaster I   | Maksimum Rp3.000.000 |
-| SMA Klaster II  | Maksimum Rp7.000.000 |
-| SMA Klaster III | Maksimum Rp10.000.000 |
-| SMK Klaster I   | Maksimum Rp3.000.000 |
-| SMK Klaster II  | Maksimum Rp7.000.000 |
-| SMK Klaster III | Maksimum Rp10.000.000 |
+### Sekolah/Madrasah Swasta SPMB Bersama
+
+| Jenjang          | Besaran BPMS Khusus Murid Baru SPMB Bersama |
+|------------------|---------------------------------------------|
+| SMP Klaster I    | Maksimum Rp1.500.000                        |
+| SMP Klaster II   | Maksimum Rp2.000.000                        |
+| SMP Klaster III  | Maksimum Rp8.000.000                        |
+| SMA Klaster I    | Maksimum Rp3.000.000                        |
+| SMA Klaster II   | Maksimum Rp7.000.000                        |
+| SMA Klaster III  | Maksimum Rp10.000.000                       |
+| SMK Klaster I    | Maksimum Rp3.000.000                        |
+| SMK Klaster II   | Maksimum Rp7.000.000                        |
+| SMK Klaster III  | Maksimum Rp10.000.000                       |
+
 
 # Tambahan Informasi Terkait KJMU
 
@@ -1759,7 +2861,7 @@ _(ttd & stempel)_
 **NAHDIANA**  
 NIP 196908061992012001  
 
-# DAYA TAMPUNG PENERIMAAN MURID BARU TAHUN AJARAN 2025/2026  
+# DAYA TAMPUNG PENERIMAAN MURID BARU (PMB) atau SISTEM PENERIMAAN MURID BARU (SPMB) TAHUN AJARAN 2025/2026  
 **KEPUTUSAN KEPALA DINAS PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA NOMOR 47 TAHUN 2025**  
 **TENTANG**  
 **DAYA TAMPUNG SATUAN PENDIDIKAN NEGERI PADA PENERIMAAN MURID BARU TAHUN AJARAN 2025/2026**
@@ -4267,59 +5369,3 @@ NIP 196908061992012001
 
 
 
-# Tentang ASKA – Agent AI Sekolah Kita 🏫🤖✨
-
-## Apa itu ASKA?
-**ASKA (Agent AI Sekolah Kita)** adalah asisten digital berbasis kecerdasan buatan (AI) yang dibuat khusus untuk mendukung layanan informasi, pembelajaran, dan komunikasi di **SDN Semper Barat 01 Jakarta**.  
-ASKA hadir sebagai **teman belajar, sahabat interaktif, sekaligus pusat informasi sekolah** yang bisa diakses kapan saja (**24/7**) oleh siswa, guru, dan orang tua murid.  
-
-Dengan gaya komunikasi yang ramah, responsif, dan sesuai tren generasi saat ini, ASKA tidak hanya memberikan jawaban, tapi juga menciptakan pengalaman belajar yang lebih **asyik, efisien, dan menyenangkan**.
-
----
-
-## Tujuan Pembuatan
-1. 📚 **Mempermudah akses informasi sekolah**  
-   - Memberikan jawaban cepat terkait **PPDB, KJP, jadwal pelajaran, ekstrakurikuler, dan kegiatan sekolah lainnya**.  
-
-2. ⚡ **Meningkatkan efisiensi layanan**  
-   - Menghemat waktu pencarian informasi (hingga 10x lebih cepat) dibandingkan metode manual.  
-
-3. 🌐 **Mendukung transformasi digital sekolah**  
-   - Selaras dengan kebijakan **SPBE (Sistem Pemerintahan Berbasis Elektronik)**, **Satu Data**, dan digitalisasi pelayanan publik.  
-
-4. 🤝 **Meningkatkan interaksi & partisipasi**  
-   - Menjadi media komunikasi dua arah yang ramah bagi siswa, guru, maupun orang tua.  
-
----
-
-## Manfaat ASKA
-- 🏫 **Untuk Sekolah**: Meningkatkan citra sebagai sekolah digital yang modern, transparan, dan responsif.  
-- 👩‍🏫 **Untuk Guru & Tenaga Kependidikan**: Mengurangi beban pertanyaan berulang, sehingga bisa fokus pada pembelajaran dan pelayanan utama.  
-- 👨‍👩‍👧‍👦 **Untuk Orang Tua**: Mendapatkan informasi resmi sekolah dengan cepat, jelas, dan akurat.  
-- 👦👧 **Untuk Siswa**: Mendapatkan teman belajar yang selalu siap membantu, dengan gaya bahasa yang seru dan mudah dipahami.  
-
----
-
-## Fungsi Utama ASKA
-- 🔎 Menjawab pertanyaan seputar kebijakan sekolah, jadwal, dan administrasi.  
-- 📝 Memberikan ringkasan materi pembelajaran dasar.  
-- 📑 Menyediakan akses cepat ke dokumen penting yang sudah disimpan dalam **Knowledge Base (KB)** sekolah.  
-- 💬 Menjadi sahabat interaktif yang ramah, sesuai persona Gen-Z.  
-
----
-
-## Siapa yang Membuat ASKA?
-ASKA dibuat dan dikembangkan oleh **MH. Ainun Fajar**, seorang **Pegawai Negeri Sipil (PNS) di SDN Semper Barat 01 Jakarta**, yang bertugas di bidang **Penata Kelola Sistem & Teknologi Informasi**.  
-
-Proyek ini lahir sebagai bagian dari **Aktualisasi Latsar CPNS** dan menjadi inovasi nyata untuk mendukung:  
-- 📖 **Program Smart ASN**  
-- 🎯 **Nilai BerAKHLAK** (Berorientasi Pelayanan, Akuntabel, Kompeten, Harmonis, Loyal, Adaptif, Kolaboratif)  
-- 🏛️ **Pergub DKI Jakarta No. 40 Tahun 2024 tentang SPBE**  
-
----
-
-## Visi ASKA
-Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:  
-- Memberikan **informasi cepat, akurat, dan transparan**.  
-- Menjadi **teman belajar yang cerdas, asyik, dan aman**.  
-- Mewujudkan **sekolah digital berbasis AI** yang siap menghadapi era transformasi teknologi.  
