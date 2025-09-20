@@ -43,8 +43,10 @@ def strip_markdown(text):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     name = user.first_name or user.username or "teman"
-    response = (
-        f"Halo, {name}! 👋\nSaya *BOT SEKOLAH*.\nTanya aja apa pun tentang sekolah ya~"
+     response = (
+        f"Yoo, {name}! ✨👋\n"
+        f"Aku *ASKA*, bestie AI kamu 🤖💡\n"
+        f"Mau tanya apa aja soal sekolah? Gaskeun~ 🚀"
     )
     await update.message.reply_text(response, parse_mode="Markdown")
 
@@ -60,9 +62,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = qa_chain.invoke(user_input)
         response = result["result"] if isinstance(result, dict) and "result" in result else str(result)
 
-        if not response.strip():
-            response = "Maaf, saya belum menemukan jawaban di data sekolah."
-
+         if not response.strip():
+            response = (
+                "😅 Maaf nih, *ASKA* belum nemu jawabannya di data sekolah. "
+                "Coba hubungi langsung sekolah ya di ☎️ (021) 4406363."
+            )
         response = strip_markdown(response)
         await update.message.reply_text(response)
         print(f"[BOT RESPONSE] {response}")
