@@ -85,7 +85,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         duration_ms = (end_time - start_time) * 1000  # konversi ke ms
 
         # log jawaban bot dengan waktu + durasi
-        print(f"[{now_str()}] BOT RESPONSE: {response} ⏱️ {duration_ms:.2f} ms")
+        print(f"[{now_str()}] ASKA : {response} ⏱️ {duration_ms:.2f} ms")
 
     except Exception as e:
         print(f"[{now_str()}] [ERROR] {e}")
