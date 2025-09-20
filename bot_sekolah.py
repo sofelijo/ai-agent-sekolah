@@ -36,14 +36,14 @@ def normalize_input(text):
 # Optional: hapus markdown dari hasil
 def strip_markdown(text):
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)  # bold **text**
-    text = re.sub(r"#+\s*", "", text)               # remove ###
+    text = re.sub(r"#+\s*", "", text)             # remove ###
     return text
 
 # ───── HANDLER ─────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    name = user.first_name or user.username or "teman"
-     response = (
+    name = user.first_name or user.username or "bestie"
+    response = (
         f"Yoo, {name}! ✨👋\n"
         f"Aku *ASKA*, bestie AI kamu 🤖💡\n"
         f"Mau tanya apa aja soal sekolah? Gaskeun~ 🚀"
@@ -62,18 +62,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = qa_chain.invoke(user_input)
         response = result["result"] if isinstance(result, dict) and "result" in result else str(result)
 
-         if not response.strip():
+        if not response.strip():
             response = (
                 "😅 Maaf nih, *ASKA* belum nemu jawabannya di data sekolah. "
                 "Coba hubungi langsung sekolah ya di ☎️ (021) 4406363."
             )
+
         response = strip_markdown(response)
         await update.message.reply_text(response)
         print(f"[BOT RESPONSE] {response}")
 
     except Exception as e:
         print(f"[ERROR] {e}")
-        await update.message.reply_text("Maaf, terjadi kesalahan teknis. Silakan coba lagi nanti.")
+        await update.message.reply_text(
+            "⚠️ Maaf, lagi ada gangguan teknis. Coba tanya *ASKA* nanti ya~ 🙏",
+            parse_mode="Markdown"
+        )
 
 # ───── JALANKAN BOT ─────
 app = ApplicationBuilder().token(TOKEN).build()
