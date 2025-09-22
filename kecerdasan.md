@@ -628,6 +628,36 @@ Wali murid : Setyo Adi Nugroho, S.Pd
   * Seragam: Batik
   * Pelajaran: SHOLAT DHUHA, SENI RUPA, B INDONESIA, OLAHRAGA
 
+### Kelas 5A
+Kelas pagi  
+Wali murid : Dewi Rahmawati, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA, PENDIDIKAN AGAMA, MATEMATIKA, B INDONESIA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: SENAM BERSAMA, IPAS, PKN, B INDONESIA
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: PEMBIASAAN, IPAS, MATEMATIKA, PRAMUKA, SENI RUPA, B INDONESIA
+
+* **Kamis:**
+
+  * Seragam: Olahraga
+  * Pelajaran: PEMBIASAAN, PJOK, SENI RUPA, PKN, B INDONESIA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: SHOLAT DHUHA, MATEMATIKA, B INGGRIS, PLBJ
+
+
 ### Kelas 6C
 Kelas pagi  
 Wali murid : Yuniyati Rahman, S.Pd
