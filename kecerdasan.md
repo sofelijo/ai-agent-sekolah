@@ -108,6 +108,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** tikakartika31@gmail.com
 - **NIP:** 197710172008012029
 - **NUPTK:** 8349755657300033
+- **Jurusan:** Pendidikan Ekonomi
+- **Almamater:** Universitas Negeri Padang
 - **Foto:** /guru/01.jpg
 
 ### Ilan Lesdoka, S.Pd
@@ -118,6 +120,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** ilanlesdoka@gmail.com
 - **NIP:** 198603242015041002
 - **NUPTK:** 9656764665130142
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS PENDIDIKAN INDONESIA
 - **Foto:** /guru/02.jpg
 
 ### Dewi Rahmawati, S.Pd
@@ -128,6 +132,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** dewisembar01@gmail.com
 - **NIP:** 198312302022212025
 - **NUPTK:** 1344761663300005
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/03.jpg
 
 ### Maharani, S.Pd
@@ -138,6 +144,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** nhiez19@gmail.com
 - **NIP:** 198503182022212023
 - **NUPTK:** 1650763664300092
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/04.jpg
 
 ### Septi Kusumaningrum, S.Pd
@@ -148,6 +156,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** septiarum24@gmail.com
 - **NIP:** 199309242022212006
 - **NUPTK:** 1255771672230143
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS NEGERI JAKARTA
 - **Foto:** /guru/05.jpg
 
 ### Siti Mawar, S.Pd
@@ -158,6 +168,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** smawar22.smawar22@gmail.com
 - **NIP:** 198110222022212016
 - **NUPTK:** 3354759660230133
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/06.jpg
 
 ### Hutomo Insani, S.Pd
@@ -168,6 +180,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** tomosembar01@gmail.com
 - **NIP:** 198312182022211002
 - **NUPTK:** 5550761664200003
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/07.jpg
 
 ### Emi Rusmiati, S.Pd
@@ -178,9 +192,12 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** emirusmiati14@gmail.com
 - **NIP:** 199404142022212005
 - **NUPTK:** 6746772673230172
+- **Jurusan:** PGSD
+- **Almamater:** UHAMKA
 - **Foto:** /guru/08.jpg
 
 ### Yuniyati Rahman, S.Pd
+Melangitkan Do'a⛅, Membumikan Rasa...!!🌻
 - **Jabatan:** Guru VI C
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Bekasi
@@ -188,6 +205,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** yunirahman433@gmail.com
 - **NIP:** 199106112022212012
 - **NUPTK:** 8943769670230202
+- **Jurusan:** PGSD
+- **Almamater:** UHAMKA
 - **Foto:** /guru/09.jpg
 
 ### Lutfiana Rahmawati, S.Pd
@@ -198,6 +217,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** lutfiana27@gmail.com
 - **NIP:** 199607272022212011
 - **NUPTK:** 9059774675230063
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS PENDIDIKAN INDONESIA
 - **Foto:** /guru/10.jpg
 
 ### Masta Wijaya, S.Pd
@@ -208,6 +229,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** tatajaya44@gmail.com
 - **NIP:** 196805222022211002
 - **NUPTK:** 3854746648200012
+- **Jurusan:** PEND. MTK
+- **Almamater:** UNIVERSITAS INDRAPRASTA
 - **Foto:** /guru/11.jpg
 
 ### Puji Dwi Astuti, S.Pd
@@ -218,6 +241,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** dwituti7@gmail.com
 - **NIP:** 19890215202221023
 - **NUPTK:** 9547767668230212
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/12.jpg
 
 ### Kurniawati Ningsih, S.Ag
@@ -228,6 +253,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** kurniawatiningsih77@gmail.com
 - **NIP:** 197702102023212012
 - **NUPTK:** 1334755656300003
+- **Jurusan:** PAI
+- **Almamater:** UNIVERSITAS ISLAM 45 BEKASI
 - **Foto:** /guru/13.jpg
 
 ### Amnah, S.Pd
@@ -238,6 +265,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** buibuamnah@gmail.com
 - **NIP:** 196902042023212002
 - **NUPTK:** 3536747648230132
+- **Jurusan:** PAI
+- **Almamater:** STAI SHALAHUDDIN AL-AYYUBI JAKARTA
 - **Foto:** /guru/14.jpg
 
 ### Saefurrohman, S.Pd.I
@@ -248,9 +277,13 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** aan_f2@hotmail.co.id
 - **NIP:** 198208152023211016
 - **NUPTK:** 5147760661130193
+- **Jurusan:** KI
+- **Almamater:** STAI QOMARUDIN GRESIK
 - **Foto:** /guru/15.jpg
 
 ### Setyo Adi Nugroho, S.Pd
+Kata2 dari Adi : "Don't be good, be better!"
+- **Alias:** Adi
 - **Jabatan:** Guru V B
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Purworejo
@@ -258,6 +291,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** adynugros23@gmail.com
 - **NIP:** 199311032023211019
 - **NUPTK:** 8435771672130203
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS SANATA DHARMA
 - **Foto:** /guru/16.jpg
 
 ### Sarah Sondang, S.Pd
@@ -268,6 +303,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** sarah.sondang@yahoo.com
 - **NIP:** 199502022023212037
 - **NUPTK:** 3534773674130072
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS NEGERI JAKARTA
 - **Foto:** /guru/17.jpg
 
 ### Samidah, S.Pd
@@ -278,6 +315,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** idasamidah150972@gmail.com
 - **NIP:** 197109152024212003
 - **NUPTK:** 247749650230123
+- **Jurusan:** PENDIDIKAN ISLAM ANAK USIA DINI
+- **Almamater:** STIT TARBIYATUN NISA SENTUL BOGOR
 - **Foto:** /guru/18.jpg
 
 ### Ai Rukoyah, S.Pd
@@ -288,9 +327,13 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** ai.rukoyah3@gmail.com
 - **NIP:** -
 - **NUPTK:** 5356765667210043
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS PENDIDIKAN INDONESIA 
 - **Foto:** /guru/19.jpg
 
-### Syaepudin Rahman, S.Pd
+### Syaepudin Rahman, S.Pd 
+peduli dengan anak-anak untuk berprestasi dalam olahraga
+- **Alias:** Aep
 - **Jabatan:** Guru PJOK
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Bekasi
@@ -298,6 +341,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** syaepudinrahman02@gmail.com
 - **NIP:** -
 - **NUPTK:** 2433768669130522
+- **Jurusan:** PJOK
+- **Almamater:** UNIVERSITAS ISLAM 45 BEKASI
 - **Foto:** /guru/20.jpg
 
 ### Ariyadi Purnomo, S.Pd
@@ -308,6 +353,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** ariyapurnomo898@gmail.com
 - **NIP:** -
 - **NUPTK:** 1745770671130282
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS UHAMKA
 - **Foto:** /guru/21.jpg
 
 ### Nur Amalia Sari, S.Pd
@@ -318,6 +365,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** nuramaliarhay@gmail.com
 - **NIP:** -
 - **NUPTK:** 4648770671230252
+- **Jurusan:** PGSD
+- **Almamater:** UNIVERSITAS TERBUKA
 - **Foto:** /guru/22.jpg
 
 ### Husnun Azhariyah, S.Pd
@@ -328,6 +377,8 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** husnunazhara25@gmail.com
 - **NIP:** -
 - **NUPTK:** -
+- **Jurusan:** PGSD
+- **Almamater:** Universitas Muhammadiyah Prof DR.Hamka
 - **Foto:** /guru/23.jpg
 
 ### Fouzy Eveline Ade Lon, S.PAK
@@ -338,17 +389,35 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Email:** fouzyevelin@gmail.com
 - **NIP:** -
 - **NUPTK:** 5548748649300013
+- **Jurusan:** SPAK
+- **Almamater:** STT NUSANTARA
 - **Foto:** /guru/24.jpg
 
 ### Arief Nurdiantono, S.Pd
-- **Jabatan:** Guru III B
+guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
+- **Jabatan:** Guru III B 
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Jakarta
 - **Tanggal Lahir:** 24 Agustus 1999
 - **Email:** xvi.ariefn@gmail.com
 - **NIP:** -
 - **NUPTK:** -
+- **Jurusan:** Pendidikan Biologi
+- **Almamater:** Universitas Muhammadiyah Prof.Dr.Hamka.
 - **Foto:** /guru/25.jpg
+
+### Rosidah, S.S
+guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
+- **Jabatan:** Guru III C 
+- **Jenis Kelamin:** Perempuan
+- **Tempat Lahir:** Surabaya
+- **Tanggal Lahir:** 24 Agustus 1999
+- **Email:** rossieyuniar@gmail.com
+- **NIP:** -
+- **NUPTK:** -
+- **Jurusan:** Bahasa Inggris / PGSD
+- **Almamater:** Sekolah Tinggi Ilmu Bahasa Dan Sastra Satya Widya & Universitas Terbuka (UT)
+- **Foto:** -
 
 ### MH Ainun Fajar, S.Kom
 dia adalah pencipta agent ai ini, yaitu ASKA
@@ -359,6 +428,8 @@ dia adalah pencipta agent ai ini, yaitu ASKA
 - **Email:** fajarsaa@gmail.com
 - **NIP:** 199806282025061005
 - **NUPTK:** -
+- **Jurusan:** Sistem Informasi
+- **Almamater:** Universitas Islam Negeri Sunan Ampel Surabaya
 - **Foto:** /guru/26.jpg
 
 ### Enda Ratna Dewi
@@ -413,7 +484,7 @@ dia adalah pencipta agent ai ini, yaitu ASKA
 
 # Jadwal Harian dan Kegiatan Sekolah
 
-### Umum
+## Jadwal Umum
 
 * **Senin:**
 
@@ -459,6 +530,161 @@ dia adalah pencipta agent ai ini, yaitu ASKA
 
 ---
 
+## Jadwal harian Kelas
+
+### Kelas 1B
+Kelas pagi  
+Wali murid : Lutfiana Rahmawati
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PENDIDIKAN PANCASILA, MATEMATIKA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PJOK, B INDONESIA
+
+* **Rabu:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PENDIDIKAN AGAMA, SENI RUPA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PLBJ, MATEMATIKA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: B INDONESIA, MATEMATIKA
+
+
+### Kelas 3B 
+Kelas siang
+Wali murid : Arief Nurdiantono, S.Pd
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: MATEMATIKA, B INDONESIA ,PKN
+  * Catatan : BAWA PULPEN PENSIL PENGHAPUS DAN PENGGARIS    
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: P AGAMA, MATEMATIKA, B INDONESIA
+  * Catatan: BAWA PULPEN PENSIL PENGHAPUS DAN PENGGARIS, SERAGAM OLAHRAGA BEBAS (BUKAN SEKOLAH)
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: IPAS, PJOK, PKN, PRAMUKA WAJIB
+  * Catatan : BAWA PULPEN PENSIL PENGHAPUS DAN PENGGARIS, SERAGAM OLAHRAGA (SEKOLAH),SERAGAM PRAMUKA SIAGA LENGKAP ATRIBUTNYA DAN BUKU KHUSUS PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: IPAS, B INDONESIA, SENI RUPA
+  * Catatan : BAWA PULPEN PENSIL PENGHAPUS DAN PENGGARIS, PENSIL WARNA ATAU SEJENISNYA DAN BUKU GAMBAR A4, BUKU BACAAN BEBAS (DOMINAN TULISAN)
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: B INGGRIS, PLBJ
+  * Catatan : BAWA PULPEN PENSIL PENGHAPUS PENGGARIS, PENSIL WARNA ATAU SEJENISNYA DAN BUKU GAMBAR A4, KAMUS B INDO - B INGGRIS, TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
+
+
+
+
+
+### Kelas 5B
+Kelas pagi  
+Wali murid : Setyo Adi Nugroho, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA, MATEMATIKA, BAHASA INGGRIS, PLBJ
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: SENAM BERSAMA, MAKAN SEHAT, AGAMA, IPAS, KERJA BAKTI BERSAMA
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: SENAM BERSAMA, B INDONESIA, PRAMUKA, PKN
+
+* **Kamis:**
+
+  * Seragam: Olahraga
+  * Pelajaran: SENAM BERSAMA, LITERASI, MATEMATIKA, OLAHRAGA, PKN
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: SHOLAT DHUHA, SENI RUPA, B INDONESIA, OLAHRAGA
+
+### Kelas 6C
+Kelas pagi  
+Wali murid : Yuniyati Rahman, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA BENDERA, PENDIDIKAN AGAMA, PENDIDIKAN PANCASILA, MATEMATIKA, B INDONESIA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, B INDONESIA, MATEMATIKA, IPAS, PJOK
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, MATEMATIKA, B INDONESIA, SENI DAN BUDAYA, IPAS, PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, B INGGRIS, PLBJ, SENI DAN BUDAYA, IPAS, PENDIDIKAN PANCASILA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: PEMBIASAAN SHOLAT DHUHA, B INGGRIS, PENDIDIKAN PANCASILA, SENI DAN BUDAYA, KODING
+
+### Kelas 6B
+Kelas pagi  
+Wali murid : Hutomo Insani, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA BENDERA, PJOK, PENDIDIKAN PANCASILA, MATEMATIKA, B INDONESIA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, B INDONESIA, MATEMATIKA, PENDIDIKAN AGAMA
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, MATEMATIKA, B INDONESIA, SENI DAN BUDAYA, IPAS, PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN SENAM BERSAMA, B INGGRIS, PLBJ, SENI DAN BUDAYA, IPAS, PENDIDIKAN PANCASILA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: PEMBIASAAN SHOLAT DHUHA, B INGGRIS, PENDIDIKAN PANCASILA, SENI DAN BUDAYA, KODING
 
 # BOT SPMB LIVE SDN Semper Barat 01
 
