@@ -174,6 +174,7 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 
 ### Hutomo Insani, S.Pd
 Ahli dan jenius dalam bidang bahasa inggirs
+- **Alias:** Tomo
 - **Jabatan:** Guru VI B
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Jakarta
@@ -397,7 +398,7 @@ peduli dengan anak-anak untuk berprestasi dalam olahraga
 - **Foto:** /guru/24.jpg
 
 ### Arief Nurdiantono, S.Pd
-guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
+guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA khusunya biologi, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
 - **Jabatan:** Guru III B 
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Jakarta
@@ -411,6 +412,7 @@ guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA,
 
 ### Rosidah, S.S
 - **bio:** smoga Istiqomah dalam kebaikan dan kesabaran
+- **Alias:** bu rosi  
 - **Jabatan:** Guru III C 
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Surabaya
@@ -598,9 +600,53 @@ Wali murid : Arief Nurdiantono, S.Pd
   * Pelajaran: B INGGRIS, PLBJ
   * Catatan : BAWA PULPEN PENSIL PENGHAPUS PENGGARIS, PENSIL WARNA ATAU SEJENISNYA DAN BUKU GAMBAR A4, KAMUS B INDO - B INGGRIS, TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
 
+### Kelas [Silakan lengkapi nama kelas]
+Kelas pagi  
+Wali murid : Bu Rosi
 
+* **Senin:**
 
+  * Seragam: Olahraga (Sekolah)
+  * Pelajaran: B INDONESIA, PJOK, PKN
+  * Catatan : PULPEN, PENSIL, PENGHAPUS DAN PENGGARIS
 
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: IPAS, MATEMATIKA, B INDONESIA, SENAM BERSAMA (PEMBIASAAN)
+  * Catatan:  
+    - PULPEN, PENSIL, PENGHAPUS DAN PENGGARIS  
+    - SERAGAM PUTIH MERAH LENGKAP ATRIBUTNYA (DARI RUMAH)  
+    - SERAGAM OLAHRAGA BEBAS (BUKAN SEKOLAH), BERGANTI BAJU UNTUK PEMBIASAAN SENAM  
+
+* **Rabu:**
+
+  * Seragam: Pramuka Siaga
+  * Pelajaran: B INDONESIA, AGAMA, PKN, PRAMUKA WAJIB
+  * Catatan :  
+    - PULPEN, PENSIL, PENGHAPUS DAN PENGGARIS  
+    - SERAGAM PRAMUKA SIAGA LENGKAP ATRIBUTNYA  
+    - BUKU KHUSUS PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: IPAS, MATEMATIKA, SENI RUPA, LITERASI (PEMBIASAAN)
+  * Catatan :  
+    - PULPEN, PENSIL, PENGHAPUS DAN PENGGARIS  
+    - PENSIL WARNA ATAU SEJENISNYA  
+    - BUKU GAMBAR A4
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: B INGGRIS, PLBJ, MUHADHOROH (PEMBIASAAN), UPACARA PENURUNAN BENDERA (PEMBIASAAN)
+  * Catatan :  
+    - PULPEN, PENSIL, PENGHAPUS DAN PENGGARIS  
+    - SERAGAM BATIK  
+    - PENSIL WARNA ATAU SEJENISNYA  
+    - BUKU GAMBAR A4  
+    - TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
 
 ### Kelas 5B
 Kelas pagi  
@@ -2869,15 +2915,42 @@ Pergub No. 110 Tahun 2021 tentang Bantuan Sosial Biaya Pendidikan.
 | SMK Klaster III  | Maksimum Rp10.000.000                       |
 
 
-# Tambahan Informasi Terkait KJMU
+# Kartu Jakarta Mahasiswa Unggul (KJMU) — Tahap II Tahun 2025
 
-- Mulai tahun 2025, pendaftaran **Kartu Jakarta Mahasiswa Unggul (KJMU)** dilakukan **satu kali dalam satu tahun**, yaitu pada bulan **Maret**.
+**Status:** Telah dibuka  
+**Proyeksi penerima baru:** 3.466 mahasiswa (untuk mengisi kuota penerima KJMU yang telah lulus)
+link pendafatran : https://p4op.jakarta.go.id/kjmu/login
+inf lebih lengkap : p4op.jakarta.go.id/kjmu
+## Dasar
+Sesuai **Pergub DKI Jakarta No. 101 Tahun 2021**.
 
-- Penyaluran dana KJMU dilakukan **dua kali dalam satu tahun** dengan rincian:
-  1. **Dana KJMU Semester ke-1** (periode Januari s.d. Juni) → disalurkan pada bulan **Mei**.  
-  2. **Dana KJMU Semester ke-2** (periode Juli s.d. Desember) → disalurkan pada bulan **November**.  
+## Persyaratan Umum
+- Berdomisili dan memiliki **KTP** serta **KK DKI Jakarta**.  
+- Terdaftar dalam **DTKS** dan/atau **warga binaan sosial** pada panti sosial Dinas Sosial.  
+- **Tidak** menerima beasiswa/bantuan pendidikan lain yang bersumber dari **APBN** dan/atau **APBD**.
 
-- Pendaftaran KJMU berikutnya direncanakan akan dilaksanakan pada bulan **Maret 2026**.
+## Persyaratan Khusus
+### A. Calon Mahasiswa
+- Dinyatakan **lulus pendidikan menengah** pada satuan pendidikan negeri/swasta di DKI Jakarta **paling lama 3 tahun** sebelumnya.  
+- Dinyatakan **lulus PTN** (jalur reguler) di bawah naungan **Kemendikbudristek** dan **Kemenag**.  
+- Dinyatakan **lulus PTS jalur reguler** **terakreditasi A/unggul** dan **program studi terakreditasi A/unggul** di **DKI Jakarta**.
+
+### B. Mahasiswa (penerima/lanjutan)
+- Dinyatakan **lulus pendidikan menengah** pada satuan pendidikan negeri/swasta di DKI Jakarta **paling lama 3 tahun** sebelumnya.  
+- Dinyatakan **lulus PTN** (jalur reguler) di bawah naungan **Kemendikbudristek** dan **Kemenag**.  
+- Dinyatakan **lulus PTS jalur reguler** **terakreditasi A/unggul** dan **program studi terakreditasi A/unggul** di **DKI Jakarta**.  
+- **Pengajuan paling lama pada semester 4.**
+
+## Timeline Pendaftaran KJMU Tahap II 2025
+1. **18–22 September 2025** — *Pendaftaran KJMU* (**khusus pendaftar baru**)  
+2. **18–24 September 2025** — *Verifikasi & Unggah SPTJM Sekolah* (**khusus pendaftar baru**)  
+3. **18–29 September 2025** — *Verifikasi & Unggah SPTJM Perguruan Tinggi* (**pendaftar baru & penerima lanjutan**)  
+4. **30 September – 6 Oktober 2025** — *Verifikasi Dinas Pendidikan*  
+5. **7–16 Oktober 2025** — *Penetapan Penerima melalui Keputusan Gubernur*
+
+## Kanal Informasi Resmi
+- Instagram: **@upt.p4op**  
+- WhatsApp pengaduan 0852-1124-7089w
 
 
 # KALENDER PENDIDIKAN TAHUN AJARAN 2025/2026   
