@@ -173,6 +173,7 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - **Foto:** /guru/06.jpg
 
 ### Hutomo Insani, S.Pd
+Ahli dan jenius dalam bidang bahasa inggirs
 - **Jabatan:** Guru VI B
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Jakarta
@@ -296,6 +297,8 @@ Kata2 dari Adi : "Don't be good, be better!"
 - **Foto:** /guru/16.jpg
 
 ### Sarah Sondang, S.Pd
+
+- **bio:** Hati yang gembira adalah obat yang manjur, tetapi semangat yang patah mengeringkan tulang.
 - **Jabatan:** Guru V C
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Jakarta
@@ -407,7 +410,7 @@ guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA,
 - **Foto:** /guru/25.jpg
 
 ### Rosidah, S.S
-guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
+- **bio:** smoga Istiqomah dalam kebaikan dan kesabaran
 - **Jabatan:** Guru III C 
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Surabaya
@@ -686,6 +689,37 @@ Wali murid : Yuniyati Rahman, S.Pd
 
   * Seragam: Batik
   * Pelajaran: PEMBIASAAN SHOLAT DHUHA, B INGGRIS, PENDIDIKAN PANCASILA, SENI DAN BUDAYA, KODING
+
+
+### Kelas 5D
+Kelas pagi  
+Wali murid : Septi Kusumaningrum, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA, B INDONESIA, PKN, MATEMATIKA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: SENAM BERSAMA, IPAS, B INDONESIA, PKN
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: PEMBIASAAN, PJOK, MATEMATIKA, PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN, PENDIDIKAN AGAMA, SENI RUPA, B INDONESIA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: SHOLAT DHUHA, MATEMATIKA, B INGGRIS, PLBJ
+
 
 ### Kelas 6B
 Kelas pagi  
