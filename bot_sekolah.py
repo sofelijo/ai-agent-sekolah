@@ -30,6 +30,12 @@ def normalize_input(text):
         "usia paling muda": "umur terendah",
         "usia paling tua": "umur tertinggi",
         "ranking": "urutan",
+
+         # Tambahan alias agar pertanyaan tetap dikenali
+        "anbk untuk sd kapan": "jadwal anbk sd",
+        "kapan anbk sd": "jadwal anbk sd",
+        "anbk sd kapan": "jadwal anbk sd",
+        "jadwal anbk": "jadwal anbk sd"
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
