@@ -6,6 +6,7 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.text_splitter import RecursiveCharacterTextSplitter  # ✅ Tambahan penting
 
 load_dotenv()
 
@@ -14,12 +15,16 @@ def build_qa_chain():
     with open("kecerdasan.md", "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Siapkan dokumen dari isi file
-    doc = Document(page_content=str(content), metadata={"sumber": "kecerdasan.md"})
+    # ✅ Split dokumen per bagian (agar hari tidak tercampur)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,      # bisa disesuaikan tergantung ukuran rata-rata per kelas
+        chunk_overlap=50     # agar koneksi antarbab tidak terputus
+    )
+    docs = text_splitter.create_documents([content])
 
     # Buat retriever dari FAISS vector store
     embedding = OpenAIEmbeddings()
-    vectorstore = FAISS.from_documents([doc], embedding)
+    vectorstore = FAISS.from_documents(docs, embedding)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
     # Gunakan ChatOpenAI model termurah dan cerdas
@@ -27,16 +32,16 @@ def build_qa_chain():
 
     # Tambahkan personality ASKA
     prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "Nama aku ASKA. Jawab pertanyaan dengan gaya Gen-Z yang santai, ramah, dan pakai emoji. Selalu sebut nama **'ASKA'** secara alami. Gunakan info ini:\n\n{context}"
-    ),
-    (
-        "human",
-        "{question}"
-    )
-])
-
+        (
+            "system",
+            "Nama aku ASKA. Jawab pertanyaan dengan gaya Gen-Z yang santai, ramah, dan pakai emoji. "
+            "Selalu sebut nama **'ASKA'** secara alami. Gunakan info ini:\n\n{context}"
+        ),
+        (
+            "human",
+            "{question}"
+        )
+    ])
 
     # Bangun QA Chain dengan prompt khusus
     return RetrievalQA.from_chain_type(
