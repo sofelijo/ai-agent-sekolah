@@ -600,7 +600,7 @@ Wali murid : Arief Nurdiantono, S.Pd
   * Pelajaran: B INGGRIS, PLBJ
   * Catatan : BAWA PULPEN PENSIL PENGHAPUS PENGGARIS, PENSIL WARNA ATAU SEJENISNYA DAN BUKU GAMBAR A4, KAMUS B INDO - B INGGRIS, TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
 
-### Kelas [Silakan lengkapi nama kelas]
+### Kelas 3C
 Kelas pagi  
 Wali murid : Bu Rosi
 
@@ -3223,6 +3223,202 @@ _(ttd & stempel)_
 
 **NAHDIANA**  
 NIP 196908061992012001  
+
+
+# 📚 Jadwal Pelaksanaan Asesmen Nasional 2025
+
+## 1. Linimasa Pelaksanaan Asesmen Nasional
+
+| No | Hari             | Tanggal                         | Kegiatan                                                                 |
+|----|------------------|----------------------------------|--------------------------------------------------------------------------|
+| 1  | Jumat – Minggu   | 18 – 20 Juli 2025                | Sinkronisasi Simulasi AN SMA/MA, SMK, SMP/MTs, SD/MI sederajat           |
+| 2  | Senin – Kamis    | 21 – 24 Juli 2025                | Simulasi AN SMA/MA, SMK, SMP/MTs, SD/MI sederajat                        |
+| 3  | Jumat – Minggu   | 25 – 27 Juli 2025                | Sinkronisasi Gladi Bersih AN SMA/MA, SMK sederajat                       |
+| 4  | Senin – Kamis    | 28 – 31 Juli 2025                | Gladi Bersih AN SMA/MA, SMK sederajat                                    |
+| 5  | Jumat – Minggu   | 1 – 3 Agustus 2025               | Sinkronisasi Pelaksanaan AN SMA/MA, SMK sederajat                        |
+| 6  | Senin – Kamis    | 4 – 7 Agustus 2025               | Pelaksanaan AN SMA/MA, SMK sederajat                                     |
+| 7  | Sabtu – Minggu   | 9 – 10 Agustus 2025              | Pelaksanaan AN Paket C/PKPPS Ulya                                        |
+| 8  | Jumat – Minggu   | 15 – 17 Agustus 2025             | Sinkronisasi Gladi Bersih AN SMP/MTs sederajat                           |
+| 9  | Senin – Kamis    | 18 – 21 Agustus 2025             | Gladi Bersih AN SMP/MTs sederajat                                        |
+| 10 | Jumat – Minggu   | 22 – 24 Agustus 2025             | Sinkronisasi Pelaksanaan AN SMP/MTs sederajat                            |
+| 11 | Senin – Kamis    | 25 – 28 Agustus 2025             | Pelaksanaan AN SMP/MTs sederajat                                         |
+| 12 | Sabtu – Minggu   | 30 – 31 Agustus 2025             | Pelaksanaan AN Paket B/PKPPS Wustha                                      |
+| 13 | Jumat – Minggu   | 5 – 7 September 2025             | Sinkronisasi Gladi Bersih AN SD/MI sederajat Tahap I                     |
+| 14 | Senin – Kamis    | 8 – 11 September 2025            | Gladi Bersih AN SD/MI sederajat Tahap I                                  |
+| 15 | Jumat – Minggu   | 12 – 14 September 2025           | Sinkronisasi Gladi Bersih AN SD/MI sederajat Tahap II                    |
+| 16 | Senin – Kamis    | 15 – 18 September 2025           | Gladi Bersih AN SD/MI sederajat Tahap II                                 |
+| 17 | Jumat – Minggu   | 19 – 21 September 2025           | Sinkronisasi Pelaksanaan AN SD/MI sederajat Tahap I                      |
+| 18 | Senin – Kamis    | 22 – 25 September 2025           | Pelaksanaan AN SD/MI sederajat Tahap I                                   |
+| 19 | Sabtu – Minggu   | 27 – 28 September 2025           | Pelaksanaan AN Paket A/PKPPS Ula Tahap I                                 |
+| 20 | Jumat – Minggu   | 26 – 28 September 2025           | Sinkronisasi Pelaksanaan AN SD/PKPPS Ula sederajat Tahap II              |
+| 21 | Senin – Kamis    | 29 September – 2 Oktober 2025    | Pelaksanaan AN SD/MI sederajat Tahap II                                  |
+| 22 | Sabtu – Minggu   | 4 – 5 Oktober 2025               | Pelaksanaan AN Paket A/PKPPS Ula Tahap II                                |
+
+---
+
+## 2. Jadwal Pelaksanaan Asesmen Nasional 2025 untuk Peserta Didik
+
+### a. Jadwal SMA/MA, SMK, SMALB, MAK dan sederajat  
+**Senin – Kamis, 4 – 7 Agustus 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Literasi Membaca (90 menit) | Hari ke-1   |
+| 2    | 10.40 – 12.50 | Survei Karakter (30 menit)            |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Numerasi (90 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (30 menit) |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+
+---
+
+### b. Jadwal Paket C/PKPPS Ulya dan sederajat  
+**Senin – Kamis, 4 – 7 Agustus 2025**  
+**dan/atau**  
+**Sabtu – Minggu, 9 – 10 Agustus 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Literasi Membaca (90 menit) | Hari ke-1   |
+| 2    | 10.40 – 12.50 | Survei Karakter (30 menit)            |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Numerasi (90 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (30 menit) |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+
+---
+
+### c. Jadwal SMP, MTs, SMPLB dan sederajat  
+**Senin – Kamis, 25 – 28 Agustus 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Literasi Membaca (90 menit) | Hari ke-1   |
+| 2    | 10.40 – 12.50 | Survei Karakter (30 menit)            |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Numerasi (90 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (30 menit) |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+
+### d. Jadwal Paket B/PKPPS Wustha dan yang sederajat
+
+**Senin – Kamis, 25 – 28 Agustus 2025**  
+**dan/atau**  
+**Sabtu – Minggu, 30 – 31 Agustus 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Literasi Membaca (90 menit) | Hari ke-1   |
+| 2    | 10.40 – 12.50 | Survei Karakter (30 menit)            |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (10 menit), Numerasi (90 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (30 menit) |             |
+| 3    | 14.20 – 16.30 | -                                     |             |
+
+---
+
+### e. Jadwal SD, MI, SDLB dan yang sederajat Tahap I (Gelombang 1 dan 2)  
+**Senin – Kamis, 22 – 25 September 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.30 | Latihan (15 menit), Literasi Membaca (75 menit) | Hari ke-1   |
+| 2    | 10.30 – 12.30 | Survei Karakter (30 menit)            |             |
+| 3    | 13.30 – 15.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (15 menit), Numerasi (75 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (40 menit) |             |
+| 3    | 13.50 – 16.00 | -                                     |             |
+
+---
+
+### f. Jadwal Paket A/PKPPS Ula dan yang sederajat Tahap I  
+**Senin – Kamis, 22 – 25 September 2025**  
+**dan/atau**  
+**Sabtu – Minggu, 27 – 28 September 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.30 | Latihan (15 menit), Literasi Membaca (75 menit) | Hari ke-1   |
+| 2    | 10.30 – 12.30 | Survei Karakter (30 menit)            |             |
+| 3    | 13.30 – 15.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (15 menit), Numerasi (75 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (40 menit) |             |
+| 3    | 13.50 – 16.00 | -                                     |             |
+
+---
+
+### g. Jadwal SD, MI, SDLB dan yang sederajat Tahap II (Gelombang 3 dan 4)  
+**29 September – 2 Oktober 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.30 | Latihan (15 menit), Literasi Membaca (75 menit) | Hari ke-1   |
+| 2    | 10.30 – 12.30 | Survei Karakter (30 menit)            |             |
+| 3    | 13.30 – 15.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (15 menit), Numerasi (75 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (40 menit) |             |
+| 3    | 13.50 – 16.00 | -                                     |             |
+
+---
+
+### h. Jadwal Paket A/PKPPS Ula dan yang sederajat Tahap II  
+**29 September – 2 Oktober 2025**  
+**dan/atau**  
+**Sabtu – Minggu, 4 – 5 Oktober 2025**
+
+| Sesi | Waktu         | Jenis Asesmen                         | Pelaksanaan |
+|------|---------------|----------------------------------------|-------------|
+| 1    | 07.30 – 09.30 | Latihan (15 menit), Literasi Membaca (75 menit) | Hari ke-1   |
+| 2    | 10.30 – 12.30 | Survei Karakter (30 menit)            |             |
+| 3    | 13.30 – 15.30 | -                                     |             |
+| 1    | 07.30 – 09.40 | Latihan (15 menit), Numerasi (75 menit)         | Hari ke-2   |
+| 2    | 10.40 – 12.50 | Survei Lingkungan Belajar (40 menit) |             |
+| 3    | 13.50 – 16.00 | -                                     |             |
+
+---
+
+## 3. Jadwal Pelaksanaan Survei Lingkungan Belajar  
+**Untuk Kepala Satuan Pendidikan dan Pendidik pada Pendidikan Dasar dan Menengah**
+
+| No | Hari           | Tanggal                          | Kegiatan                                                                 |
+|----|----------------|-----------------------------------|--------------------------------------------------------------------------|
+| 1  | Senin – Minggu | 15 September – 10 Oktober 2025   | Pelaksanaan Sulingjar (Kepala Sekolah & Guru) untuk SMA/MA/SMK/SMP/MTs/SD/MI sederajat |
+
+
+# Lokasi Pelaksanaan Asesmen Nasional di Luar Negeri
+
+Atase Pendidikan dan Kebudayaan, Konsulat Jenderal Kementerian Luar Negeri, dan/atau Perwakilan Pemerintah Republik Indonesia di Luar Negeri dapat melaksanakan sosialisasi dan penyelenggaraan Asesmen Nasional untuk satuan pendidikan pada wilayah hukum kewenangannya.  
+
+Berikut adalah daftar lokasi pelaksanaan:
+
+| No | Lokasi                               | Alamat                                                                                       | Negara            |
+|----|--------------------------------------|----------------------------------------------------------------------------------------------|-------------------|
+| 1  | S.I. Riyadh                          | Prince Amer Nawaf Ibn Abdul Aziz St., Um-Al Hamam                                            | Saudi Arabia      |
+| 2  | S.I. Jeddah                          | 4873 Ali Mohammad Al-Hamrani Street 299                                                      | Saudi Arabia      |
+| 3  | S.I. Mekkah                          | 3021 Thabir Al Adel Mecca 24244 / 8705 Thabir, Al Adel, Makkah 24244                         | Saudi Arabia      |
+| 4  | S.I. Johor Bahru                     | No. 46, Jln. Taat, 80100, Johor Bahru                                                        | Malaysia          |
+| 5  | S.I. Kuala Lumpur                    | Lorong Tun Ismail 50480 Kuala Lumpur, Malaysia, Telp. 603-292 7682                           | Malaysia          |
+| 6  | S.I. Kinabalu                        | Jalan 3B KKIP Selatan 88450, Kota Kinabalu, Sabah                                            | Malaysia          |
+| 7  | S.I. Singapura                       | Siglap Road Singapura 455859, Telp. 4480722                                                  | Singapura         |
+| 8  | S.I. Cairo                           | 63 Mossadak, Ad Doqi, Dokki, Giza Governorate 3751203                                        | Mesir             |
+| 9  | S.I. Davao                           | Melati St, Ecoland Drive, Matina Davao City 8000                                            | Filipina          |
+| 10 | S.I. Tokyo                           | 4 Chome-6-6 Meguro, Meguro City, Tokyo 153-0063                                              | Jepang            |
+| 11 | S.I. Den Haag                        | Rijksstraatweg 679, 2245 CB Wassenaar                                                       | Belanda           |
+| 12 | S.I. Yangon                          | 100 Lower Kyeemyindating Rd                                                                 | Myanmar           |
+| 13 | S.I. Bangkok                         | 600, 602 Phetchaburi Rd, Thanon Phaya Thai, Ratchathewi, Bangkok 10400                      | Thailand          |
+| 14 | PKBM PPI Taiwan                      | Jln. Rui Guang Rd No.550                                                                    | Taiwan            |
+| 15 | PKBM Bhakti Jaya Indonesia          | 11F, 205 Chang An W Road                                                                    | Taiwan            |
+| 16 | PKBM Muhammadiyah Taiwan            | BlF. No. 88, Alley 76, Lane 600, Wuxing Street                                              | Taiwan            |
+| 17 | PKBM Bintang Nusantara Learning Centre | Room 1C 1st Floor Wing Lok Trade Center 235                                               | Hongkong          |
+| 18 | PKBM Bintang Nusantara Learning Centre | Jln Pasir Beraka, Bandar Seri Begawan, No. AF7 Sim                                       | Brunei Darussalam |
+| 19 | PKBM Peking                         | Beijing 100600 Chaoyang Distric No. 4 Dongzhimen                                            | China             |
+| 20 | PKBM Nishio Darussalam              | Ichigawara 79 5 Tanuki Nishio Aichi                                                         | Jepang            |
+| 21 | PNF-KBRI Kuala Lumpur               | 1, Lorong Tun Ismail, Kuala Lumpur, 50480 Wilayah Persekutuan Kuala Lumpur                 | Malaysia          |
+| 22 | PKBM KJRI Kota Kinabalu             | Lorong Kemajuan, Karamunsing, 88817 Kota Kinabalu, Sabah                                    | Malaysia          |
+| 23 | PKBM Sekolah Indonesia Terbuka (SIT) Johor Bahru | No 46 Jalan Taat 80100, Johor Bahru                                             | Malaysia          |
+| 24 | PKBM Sekolah Indonesia Jeddah       | 5415 Al Zilaq St, Al Rehab Dist 7187, Jeddah K.S.A                                          | Arab Saudi        |
+| 25 | PKBM Sekolah Indonesia Riyadh       | 8561 Abdullah Ibn Muammar, Umm Al Hamam Al Gharbi, 3536, Riyadh 12328                      | Arab Saudi        |
+| 26 | PKBM P3K SI Luar Negeri Singapura   | 20A Siglap Road Singapore 45585                                                             | Singapura         |
 
 # DAYA TAMPUNG PENERIMAAN MURID BARU (PMB) atau SISTEM PENERIMAAN MURID BARU (SPMB) TAHUN AJARAN 2025/2026  
 **KEPUTUSAN KEPALA DINAS PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA NOMOR 47 TAHUN 2025**  
