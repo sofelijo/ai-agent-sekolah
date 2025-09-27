@@ -3225,7 +3225,7 @@ _(ttd & stempel)_
 NIP 196908061992012001  
 
 
-# 📚 Jadwal Pelaksanaan Asesmen Nasional 2025
+# 📚 Jadwal Pelaksanaan Asesmen Nasional atau ANBK 2025
 
 ## 1. Linimasa Pelaksanaan Asesmen Nasional
 
@@ -3385,7 +3385,7 @@ NIP 196908061992012001
 | 1  | Senin – Minggu | 15 September – 10 Oktober 2025   | Pelaksanaan Sulingjar (Kepala Sekolah & Guru) untuk SMA/MA/SMK/SMP/MTs/SD/MI sederajat |
 
 
-# Lokasi Pelaksanaan Asesmen Nasional di Luar Negeri
+## Lokasi Pelaksanaan Asesmen Nasional di Luar Negeri
 
 Atase Pendidikan dan Kebudayaan, Konsulat Jenderal Kementerian Luar Negeri, dan/atau Perwakilan Pemerintah Republik Indonesia di Luar Negeri dapat melaksanakan sosialisasi dan penyelenggaraan Asesmen Nasional untuk satuan pendidikan pada wilayah hukum kewenangannya.  
 
