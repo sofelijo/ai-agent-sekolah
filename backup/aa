@@ -11,30 +11,21 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 def build_qa_chain():
-    llm = ChatOpenAI(
-        temperature=0,
-        model="gpt-4o-mini",
-        max_tokens=300  # ⬅️ batas jawaban agar tidak ngalor ngidul
-    )
-
+    llm = ChatOpenAI(temperature=0, model="gpt-4o-mini")
     embedding = OpenAIEmbeddings()
 
     with open("kecerdasan.md", "r", encoding="utf-8") as f:
         content = f.read()
 
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
-        separators=["\n|", "\n## ", "\n\n", "\n", " ", ""],  # urutkan dari yang paling “kuat”
-        keep_separator=True
+        chunk_size=1000,       # 💡 aman untuk tabel panjang
+        chunk_overlap=100      # supaya konteks antar chunk tetap nyambung
     )
 
     docs = text_splitter.create_documents([content])
     vectorstore = FAISS.from_documents(docs, embedding)
-    retriever = vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={"k": 3, "fetch_k": 25, "lambda_mult": 0.8}
-    )
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
     # TAHAP 1: BUAT RETRIEVER YANG SADAR HISTORY
     # Tujuan: Mengubah pertanyaan user (misal: "kalau untuk SMA?") menjadi pertanyaan mandiri
     # berdasarkan history (misal: "berapa besaran KJP untuk SMA?").

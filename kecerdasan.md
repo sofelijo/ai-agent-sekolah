@@ -386,7 +386,7 @@ peduli dengan anak-anak untuk berprestasi dalam olahraga
 - **Jurusan:** PGSD
 - **Almamater:** Universitas Muhammadiyah Prof DR.Hamka
 
-### Fouzy Eveline Ade Lon, S.PAK
+### Fouzy Eveline Ade Lon, S.PAK atau Guru Agama Kristen
 - **Jabatan:** Guru PAK atau Agama Kristen
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Jakarta
