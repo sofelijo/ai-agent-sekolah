@@ -387,8 +387,7 @@ peduli dengan anak-anak untuk berprestasi dalam olahraga
 - **Almamater:** Universitas Muhammadiyah Prof DR.Hamka
 
 ### Fouzy Eveline Ade Lon, S.PAK
-- **Foto:** https://www.sdnsembar01.sch.id/guru/24.jpg
-- **Jabatan:** Guru PAK
+- **Jabatan:** Guru PAK atau Agama Kristen
 - **Jenis Kelamin:** Perempuan
 - **Tempat Lahir:** Jakarta
 - **Tanggal Lahir:** 16 Desember 1970
@@ -397,6 +396,7 @@ peduli dengan anak-anak untuk berprestasi dalam olahraga
 - **NUPTK:** 5548748649300013
 - **Jurusan:** SPAK
 - **Almamater:** STT NUSANTARA
+- **Foto:** https://www.sdnsembar01.sch.id/guru/24.jpg
 
 ### Arief Nurdiantono, S.Pd
 guru ramah yang gampang akrab; kelasnya santai tapi tetap fokus. Telaten di IPA khusunya biologi, sabar dan sigap membantu, aktif di komunitas pendidikan, suka berbagi—inspiratif, seru, dan gaul ala Gen Z
