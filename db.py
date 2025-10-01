@@ -11,9 +11,9 @@ DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
-DB_SSLMODE = os.getenv("DB_SSLMODE", "require")  # ← Tambahan: default SSL untuk Neon
+DB_SSLMODE = os.getenv("DB_SSLMODE")  # <-- Optional: hanya dipakai jika ada
 
-# ⬇️ Validasi agar semua variabel ada
+# ⬇️ Validasi agar semua variabel penting ada
 required_vars = {
     "DB_NAME": DB_NAME,
     "DB_USER": DB_USER,
@@ -26,15 +26,22 @@ for key, value in required_vars.items():
         raise ValueError(f"Environment variable '{key}' is not set! "
                          f"Silakan isi di file .env Anda.")
 
-# ⬇️ Koneksi ke Neon PostgreSQL (dengan SSL)
-conn = psycopg2.connect(
+# ⬇️ Siapkan argumen koneksi
+conn_args = dict(
     dbname=DB_NAME,
     user=DB_USER,
     password=DB_PASS,
     host=DB_HOST,
-    port=DB_PORT,
-    sslmode=DB_SSLMODE  # Wajib untuk Neon
+    port=DB_PORT
 )
+
+# ⬇️ Tambahkan sslmode jika diset di .env
+if DB_SSLMODE:
+    conn_args["sslmode"] = DB_SSLMODE  # bisa 'require', 'prefer', 'disable', dll
+
+# ⬇️ Koneksi ke PostgreSQL
+conn = psycopg2.connect(**conn_args)
+
 
 def save_chat(user_id, username, message, role, topic=None, response_time_ms=None):
     """
@@ -51,6 +58,7 @@ def save_chat(user_id, username, message, role, topic=None, response_time_ms=Non
             (user_id, username, message, role, response_time_ms),
         )
     conn.commit()
+
 
 def get_chat_history(user_id, limit=3):
     """
