@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 IMG_MD = re.compile(r'!\[[^\]]*\]\((https?://[^\s)]+)\)')
 
 
+
 def normalize_input(text):
     if not isinstance(text, str):
         text = str(text)
@@ -69,3 +70,5 @@ def coerce_to_text(result_obj):
             if key in result_obj and isinstance(result_obj[key], str):
                 return result_obj[key]
     return str(result_obj)
+
+
