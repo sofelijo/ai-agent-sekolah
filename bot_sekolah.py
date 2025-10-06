@@ -16,9 +16,17 @@ from utils import (
 from responses import (
     ASKA_NO_DATA_RESPONSE,
     ASKA_TECHNICAL_ISSUE_RESPONSE,
+    get_acknowledgement_response,
+    get_farewell_response,
     get_greeting_response,
+    get_self_intro_response,
+    get_status_response,
     get_thank_you_response,
+    is_acknowledgement_message,
+    is_farewell_message,
     is_greeting_message,
+    is_self_intro_message,
+    is_status_message,
     is_thank_you_message,
 )
 
@@ -100,6 +108,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_thank_you_response()
             await update.message.reply_text(response, parse_mode="Markdown")
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
+
+        if is_acknowledgement_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_acknowledgement_response()
+            await update.message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
+
+        if is_farewell_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_farewell_response()
+            await update.message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
+
+        if is_self_intro_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_self_intro_response()
+            await update.message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
+
+        if is_status_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_status_response()
+            await update.message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
