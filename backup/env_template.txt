@@ -1,0 +1,24 @@
+# ===============================================
+# Environment Variables Template
+# Copy this file to .env and fill in your values
+# ===============================================
+
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# PostgreSQL Database Configuration
+DB_NAME=ai_agent_sekolah
+DB_USER=your_db_username
+DB_PASS=your_db_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_SSLMODE=prefer
+
+# Optional: Database SSL Configuration
+# DB_SSLMODE can be: disable, allow, prefer, require, verify-ca, verify-full
+
+
+

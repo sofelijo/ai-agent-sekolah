@@ -116,7 +116,7 @@ jumlah tendik = 6
 
 ### Ilan Lesdoka, S.Pd
 - **Foto:** https://www.sdnsembar01.sch.id/guru/02.jpg
-- **Jabatan:** Wakasek | Guru VI A atau 6A
+- **Jabatan:** Wakasek dan Guru kelas VI A atau 6A
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Bandung
 - **Tanggal Lahir:** 24 Maret 1986
@@ -178,7 +178,7 @@ jumlah tendik = 6
 - **Foto:** https://www.sdnsembar01.sch.id/guru/07.jpg
 Ahli dan jenius dalam bidang bahasa inggirs
 - **Alias:** Tomo
-- **Jabatan:** Guru Kelas VI B atau 6D
+- **Jabatan:** Guru Kelas VI B atau 6B
 - **Jenis Kelamin:** Laki-laki
 - **Tempat Lahir:** Jakarta
 - **Tanggal Lahir:** 18 Desember 1983
@@ -238,6 +238,7 @@ Melangitkan Do'a⛅, Membumikan Rasa...!!🌻
 - **Almamater:** UNIVERSITAS INDRAPRASTA
 
 ### Puji Dwi Astuti, S.Pd
+Orangnya CooL & Keep CaLm
 - **Foto:** https://www.sdnsembar01.sch.id/guru/12.jpg
 - **Jabatan:** Guru Kelas VI D atau 6D
 - **Jenis Kelamin:** Perempuan
@@ -537,9 +538,11 @@ dia adalah pencipta agent ai ini, yaitu ASKA
 
 ## Jadwal harian Kelas
 
-### Kelas 1B
+### Jadwal Kelas 1B
 Kelas pagi  
 Wali murid : Lutfiana Rahmawati
+Utamakan mengirim gambar jadwal kelas
+Gambar : https://drive.google.com/uc?export=view&id=1WCj-b73HftsuhWfOephjuJytJhY7ioZ0
 
 * **Senin:**
 
@@ -567,7 +570,7 @@ Wali murid : Lutfiana Rahmawati
   * Pelajaran: B INDONESIA, MATEMATIKA
 
 
-### Kelas 3B 
+### Jadwal Kelas 3B 
 Kelas siang
 Wali murid : Arief Nurdiantono, S.Pd
 * **Senin:**
@@ -600,9 +603,11 @@ Wali murid : Arief Nurdiantono, S.Pd
   * Pelajaran: B INGGRIS, PLBJ
   * Catatan : BAWA PULPEN PENSIL PENGHAPUS PENGGARIS, PENSIL WARNA ATAU SEJENISNYA DAN BUKU GAMBAR A4, KAMUS B INDO - B INGGRIS, TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
 
-### Kelas 3C
+### Jadwal Kelas 3C
 Kelas pagi  
 Wali murid : Bu Rosi
+Utamakan mengirim gambar jadwal kelas
+Gambar : 
 
 * **Senin:**
 
@@ -648,7 +653,7 @@ Wali murid : Bu Rosi
     - BUKU GAMBAR A4  
     - TOPI MERAH PUTIH UNTUK UPACARA PENURUNAN BENDERA
 
-### Kelas 5B
+### Jadwal Kelas 5B
 Kelas pagi  
 Wali murid : Setyo Adi Nugroho, S.Pd
 
@@ -677,7 +682,7 @@ Wali murid : Setyo Adi Nugroho, S.Pd
   * Seragam: Batik
   * Pelajaran: SHOLAT DHUHA, SENI RUPA, B INDONESIA, OLAHRAGA
 
-### Kelas 5A
+### Jadwal Kelas 5A
 Kelas pagi  
 Wali murid : Dewi Rahmawati, S.Pd
 
@@ -706,6 +711,66 @@ Wali murid : Dewi Rahmawati, S.Pd
   * Seragam: Batik
   * Pelajaran: SHOLAT DHUHA, MATEMATIKA, B INGGRIS, PLBJ
 
+
+### Jadwal Kelas 5C  
+Kelas pagi  
+Wali murid : Sarah Sondang
+Utamakan mengirim gambar jadwal kelas
+Gambar : https://drive.google.com/uc?export=view&id=1SyH9BqoWQx7dr0YqcvhZldxAtt3K1unF
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA, MATEMATIKA, PPKN, B INDONESIA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: SENAM BERSAMA, PPKN, B INGGRIS, AGAMA
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: OLAHRAGA, PRAMUKA, SENI RUPA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: IPAS, B INDONESIA, MATEMATIKA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: SHOLAT DHUHA, PLBJ, SENI RUPA
+
+### Jadwal Kelas 5D
+Kelas pagi  
+Wali murid : Septi Kusumaningrum, S.Pd
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: UPACARA, B INDONESIA, PKN, MATEMATIKA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: SENAM BERSAMA, IPAS, B INDONESIA, PKN
+
+* **Rabu:**
+
+  * Seragam: Pramuka
+  * Pelajaran: PEMBIASAAN, PJOK, MATEMATIKA, PRAMUKA
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PEMBIASAAN, PENDIDIKAN AGAMA, SENI RUPA, B INDONESIA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: SHOLAT DHUHA, MATEMATIKA, B INGGRIS, PLBJ
 
 ### Kelas 6C
 Kelas pagi  
@@ -737,37 +802,38 @@ Wali murid : Yuniyati Rahman, S.Pd
   * Pelajaran: PEMBIASAAN SHOLAT DHUHA, B INGGRIS, PENDIDIKAN PANCASILA, SENI DAN BUDAYA, KODING
 
 
-### Kelas 5D
-Kelas pagi  
-Wali murid : Septi Kusumaningrum, S.Pd
+### Jadwal Kelas 6A
+Wali murid : Pak ilan
+Utamakan mengirim gambar jadwal kelas
+Gambar : https://drive.google.com/uc?export=view&id=1qV9HCHNMsP9mE4hcqby_sh-YK5OkLMaB
 
 * **Senin:**
 
   * Seragam: Putih-Merah
-  * Pelajaran: UPACARA, B INDONESIA, PKN, MATEMATIKA
+  * Pelajaran: B INDONESIA, MATEMATIKA, PENDIDIKAN AGAMA
 
 * **Selasa:**
 
   * Seragam: Putih-Merah
-  * Pelajaran: SENAM BERSAMA, IPAS, B INDONESIA, PKN
+  * Pelajaran: IPAS, B INDONESIA, PJOK
 
 * **Rabu:**
 
-  * Seragam: Pramuka
-  * Pelajaran: PEMBIASAAN, PJOK, MATEMATIKA, PRAMUKA
+  * Seragam: Putih-Merah
+  * Pelajaran: MATEMATIKA, B INDONESIA, PENDIDIKAN PANCASILA
 
 * **Kamis:**
 
   * Seragam: Putih-Merah
-  * Pelajaran: PEMBIASAAN, PENDIDIKAN AGAMA, SENI RUPA, B INDONESIA
+  * Pelajaran: MATEMATIKA, IPAS, PENDIDIKAN PANCASILA, SENI RUPA
 
 * **Jum'at:**
 
   * Seragam: Batik
-  * Pelajaran: SHOLAT DHUHA, MATEMATIKA, B INGGRIS, PLBJ
+  * Pelajaran: PLBJ, SENI RUPA, B INGGRIS
 
 
-### Kelas 6B
+### Jadwal Kelas 6B
 Kelas pagi  
 Wali murid : Hutomo Insani, S.Pd
 
@@ -795,6 +861,39 @@ Wali murid : Hutomo Insani, S.Pd
 
   * Seragam: Batik
   * Pelajaran: PEMBIASAAN SHOLAT DHUHA, B INGGRIS, PENDIDIKAN PANCASILA, SENI DAN BUDAYA, KODING
+
+
+### Jadwal Kelas 6D
+
+Wali murid : Bu Puji
+Utamakan mengirim gambar jadwal kelas
+Gambar : https://drive.google.com/uc?export=view&id=1-MC-Si__6137xxzVEaTH4U_5hlkvIfnz
+
+* **Senin:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: PJOK, PENDIDIKAN PANCASILA, MATEMATIKA, B INDONESIA
+
+* **Selasa:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: B INDONESIA, MATEMATIKA, IPAS, PENDIDIKAN PANCASILA
+
+* **Rabu:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: B INDONESIA, SENI & BUDAYA, IPAS
+
+* **Kamis:**
+
+  * Seragam: Putih-Merah
+  * Pelajaran: B INGGRIS, SENI & BUDAYA, PLBJ, PENDIDIKAN AGAMA
+
+* **Jum'at:**
+
+  * Seragam: Batik
+  * Pelajaran: B INGGRIS, SENI & BUDAYA, PLBJ
+
 
 # BOT SPMB LIVE SDN Semper Barat 01
 

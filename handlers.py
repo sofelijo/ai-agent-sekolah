@@ -1,0 +1,354 @@
+# handlers.py
+import asyncio
+import os
+import tempfile
+import time
+from typing import Optional, Set
+
+from telegram import Message, Update
+from telegram.ext import ContextTypes
+
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from ai_core import build_qa_chain
+from db import save_chat, get_chat_history
+from responses import (
+    ASKA_NO_DATA_RESPONSE,
+    ASKA_TECHNICAL_ISSUE_RESPONSE,
+    get_acknowledgement_response,
+    get_farewell_response,
+    get_greeting_response,
+    get_time_based_greeting_response,
+    get_self_intro_response,
+    get_status_response,
+    get_thank_you_response,
+    is_acknowledgement_message,
+    is_farewell_message,
+    is_greeting_message,
+    is_self_intro_message,
+    is_status_message,
+    is_thank_you_message,
+)
+from utils import (
+    IMG_MD,
+    normalize_input,
+    strip_markdown,
+    now_str,
+    format_history_for_chain,
+    coerce_to_text,
+    rewrite_schedule_query,
+    send_typing_once,
+    keep_typing_indicator,
+    send_thinking_bubble,
+    reply_with_markdown,
+    replace_bot_mentions,
+    should_respond,
+    resolve_target_message,
+    prepare_group_query,
+)
+
+load_dotenv()
+qa_chain = build_qa_chain()
+audio_client = OpenAI()
+
+STT_MODELS: list[str] = []
+_env_model = os.getenv("OPENAI_STT_MODEL")
+if _env_model:
+    STT_MODELS.append(_env_model)
+if "gpt-4o-mini-transcribe" not in STT_MODELS:
+    STT_MODELS.append("gpt-4o-mini-transcribe")
+if "whisper-1" not in STT_MODELS:
+    STT_MODELS.append("whisper-1")
+
+
+def transcribe_audio(path: str) -> str:
+    last_error: Optional[Exception] = None
+    for model in STT_MODELS:
+        try:
+            with open(path, "rb") as audio_file:
+                result = audio_client.audio.transcriptions.create(
+                    model=model,
+                    file=audio_file,
+                    response_format="text",
+                )
+            if isinstance(result, str):
+                text = result
+            else:
+                text = getattr(result, "text", None)
+                if text is None and isinstance(result, dict):
+                    text = result.get("text")
+            if text:
+                return text
+        except Exception as exc:  # pragma: no cover - network / API errors
+            last_error = exc
+            continue
+    if last_error:
+        raise last_error
+    return ""
+
+
+async def handle_user_query(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    user_input: str,
+    *,
+    source: str = "text",
+    reply_target: Optional[Message] = None,
+    target_user=None,
+    responded_store: Optional[Set] = None,
+    responded_key=None,
+) -> bool:
+    reply_message = reply_target or update.message
+    if reply_message is None:
+        return False
+
+    try:
+        raw_input = user_input or ""
+        bot_username = getattr(context.bot, "username", None)
+        raw_input = replace_bot_mentions(raw_input, bot_username)
+        normalized_input = normalize_input(raw_input)
+
+        user_obj = target_user or getattr(reply_message, "from_user", None) or update.effective_user
+        user_id = getattr(user_obj, "id", None) or update.effective_user.id
+        username = (
+            getattr(user_obj, "username", None)
+            or getattr(user_obj, "first_name", None)
+            or "anon"
+        )
+
+        print(
+            f"[{now_str()}] HANDLER CALLED ({source.upper()}) - FROM {username}: {normalized_input}"
+        )
+
+        storage_root = context.chat_data.setdefault("processed_messages_by_user", {})
+        storage_key = user_id if user_id is not None else f"anon:{username}"
+        processed_messages = storage_root.setdefault(storage_key, set())
+        if normalized_input in processed_messages:
+            print(f"[{now_str()}] DUPLICATE MESSAGE DETECTED - SKIPPING")
+            return False
+        processed_messages.add(normalized_input)
+
+        print(f"[{now_str()}] SAVING USER MESSAGE")
+        topic = source if source != "text" else None
+        save_chat(user_id, username, normalized_input, role="user", topic=topic)
+
+        def mark_responded():
+            if responded_store is not None and responded_key is not None:
+                responded_store.add(responded_key)
+
+        if is_greeting_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_time_based_greeting_response(normalized_input) or get_greeting_response()
+            await reply_message.reply_text(response, parse_mode="Markdown")
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_thank_you_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_thank_you_response()
+            await reply_message.reply_text(response, parse_mode="Markdown")
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_acknowledgement_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_acknowledgement_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_farewell_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_farewell_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_self_intro_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_self_intro_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_status_message(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_status_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        normalized_input = rewrite_schedule_query(normalized_input)
+
+        await send_typing_once(context.bot, update.effective_chat.id, delay=0)
+        print(f"[{now_str()}] ASKA sedang mengetik...")
+
+        history_from_db = get_chat_history(user_id, limit=5)
+        chat_history = format_history_for_chain(history_from_db)
+
+        start_time = time.perf_counter()
+
+        typing_task = asyncio.create_task(
+            keep_typing_indicator(context.bot, update.effective_chat.id)
+        )
+
+        thinking_message = None
+        try:
+            thinking_message = await send_thinking_bubble(reply_message)
+            await asyncio.sleep(1.0)
+            result = qa_chain.invoke({"input": normalized_input, "chat_history": chat_history})
+        finally:
+            typing_task.cancel()
+
+        print(f"[{now_str()}] ?? ASKA AMBIL {len(result['context'])} KONTEN:")
+        for i, doc in enumerate(result["context"], 1):
+            print(f"  {i}. {doc.page_content[:200]}...")
+
+        response = coerce_to_text(result)
+
+        if not response.strip():
+            response = ASKA_NO_DATA_RESPONSE
+
+        try:
+            if thinking_message:
+                await thinking_message.delete()
+                print(f"[{now_str()}] Thinking bubble deleted")
+        except Exception as e:
+            print(f"[{now_str()}] Failed to delete thinking bubble: {e}")
+
+        match = IMG_MD.search(response)
+        if match:
+            img_url = match.group(1)
+            caption = IMG_MD.sub("", response).strip()[:1024]
+            caption = strip_markdown(caption)
+            await reply_message.reply_photo(photo=img_url, caption=caption)
+        else:
+            await reply_with_markdown(reply_message, response)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        print(f"[{now_str()}] ASKA : {response} ?? {duration_ms:.2f} ms")
+        save_chat(
+            user_id,
+            "ASKA",
+            strip_markdown(response),
+            role="aska",
+            topic=source if source != "text" else None,
+            response_time_ms=int(duration_ms),
+        )
+
+        mark_responded()
+        return True
+
+    except Exception as e:
+        print(f"[{now_str()}] [ERROR] {e}")
+
+        try:
+            if "thinking_message" in locals() and thinking_message:
+                await thinking_message.delete()
+        except Exception:
+            pass
+
+        target_for_error = reply_message or update.message
+        if target_for_error:
+            await target_for_error.reply_text(
+                ASKA_TECHNICAL_ISSUE_RESPONSE,
+                parse_mode="Markdown",
+            )
+
+    return False
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_typing_once(context.bot, update.effective_chat.id)
+
+    user = update.effective_user
+    name = user.first_name or user.username or "bestie"
+    response = (
+        f"Yoo, {name}! ??\n"
+        f"Aku *ASKA*, bestie AI kamu ???\n"
+        f"Mau tanya apa aja soal sekolah? Gaskeun~ ??"
+    )
+    await update.message.reply_text(response, parse_mode="Markdown")
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not should_respond(update, context.bot):
+        return
+
+    trigger_message, target_message = resolve_target_message(update, context.bot)
+    bot_username = getattr(context.bot, "username", None)
+    user_text, reply_target, target_user, responded_key = prepare_group_query(
+        trigger_message, target_message, bot_username
+    )
+
+    if not reply_target or not user_text or not user_text.strip():
+        return
+
+    responded_store = context.chat_data.setdefault("responded_messages", set())
+    dedup_key = responded_key or getattr(reply_target, "message_id", None)
+    if dedup_key is not None and dedup_key in responded_store:
+        return
+
+    await handle_user_query(
+        update,
+        context,
+        user_text,
+        source="text",
+        reply_target=reply_target,
+        target_user=target_user,
+        responded_store=responded_store,
+        responded_key=dedup_key,
+    )
+
+
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    if not message:
+        return
+    if not should_respond(update, context.bot):
+        return
+    voice = message.voice or message.audio
+    if not voice:
+        await message.reply_text("Oops, suaranya belum kebaca. Coba kirim ulang ya! ??")
+        return
+
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp_file:
+        temp_path = tmp_file.name
+
+    try:
+        telegram_file = await context.bot.get_file(voice.file_id)
+        await telegram_file.download_to_drive(custom_path=temp_path)
+        transcription = await asyncio.to_thread(transcribe_audio, temp_path)
+    except Exception as exc:
+        print(f"[{now_str()}] [VOICE ERROR] {exc}")
+        await message.reply_text(
+            "ASKA belum bisa dengerin pesan suara kamu nih. Boleh dicoba lagi atau ketik aja ya!"
+        )
+        return
+    finally:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+
+    if not transcription or not transcription.strip():
+        await message.reply_text(
+            "ASKA nggak nangkep isi pesan suaranya. Coba rekam ulang dengan suara lebih jelas ya!"
+        )
+        return
+
+    await handle_user_query(
+        update,
+        context,
+        transcription.strip(),
+        source="voice",
+        reply_target=message,
+        target_user=getattr(message, "from_user", None),
+    )
