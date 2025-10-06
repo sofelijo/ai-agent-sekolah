@@ -13,6 +13,14 @@ from utils import (
     coerce_to_text,
     IMG_MD,
 )
+from responses import (
+    ASKA_NO_DATA_RESPONSE,
+    ASKA_TECHNICAL_ISSUE_RESPONSE,
+    get_greeting_response,
+    get_thank_you_response,
+    is_greeting_message,
+    is_thank_you_message,
+)
 
 import os
 import time
@@ -40,22 +48,21 @@ async def keep_typing_indicator(bot, chat_id, interval: float = 2.0):
             break
 
 
-async def send_thinking_bubble(update):
+async def send_thinking_bubble(update: Update):
     message_text = get_random_thinking_message()
     message = await update.message.reply_text(message_text)
     print(f"[{now_str()}] {message_text}")
     return message
 
 
-# ───── HANDLER ─────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_typing_once(context.bot, update.effective_chat.id)
 
     user = update.effective_user
     name = user.first_name or user.username or "bestie"
     response = (
-        f"Yoo, {name}! ✨👋\n"
-        f"Aku *ASKA*, bestie AI kamu 🤖💡\n"
+        f"Yoo, {name}! 🫶\n"
+        f"Aku *ASKA*, bestie AI kamu 🤖✨\n"
         f"Mau tanya apa aja soal sekolah? Gaskeun~ 🚀"
     )
     await update.message.reply_text(response, parse_mode="Markdown")
@@ -71,7 +78,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         print(f"[{now_str()}] HANDLER CALLED - FROM {username}: {user_input}")
 
-        if hasattr(context, 'processed_messages'):
+        if hasattr(context, "processed_messages"):
             if user_input in context.processed_messages:
                 print(f"[{now_str()}] DUPLICATE MESSAGE DETECTED - SKIPPING")
                 return
@@ -81,6 +88,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.processed_messages.add(user_input)
         print(f"[{now_str()}] SAVING USER MESSAGE")
         save_chat(user_id, username, user_input, role="user")
+
+        if is_greeting_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_greeting_response()
+            await update.message.reply_text(response, parse_mode="Markdown")
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
+
+        if is_thank_you_message(user_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_thank_you_response()
+            await update.message.reply_text(response, parse_mode="Markdown")
+            save_chat(user_id, "ASKA", response, role="aska")
+            return
 
         await send_typing_once(context.bot, update.effective_chat.id, delay=0)
         print(f"[{now_str()}] ASKA sedang mengetik...")
@@ -108,11 +129,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = coerce_to_text(result)
 
         if not response.strip():
-            response = (
-                "😅 Maaf nih, *ASKA* belum nemu jawabannya di data sekolah.\n"
-                "📞 Coba hubungi langsung sekolah ya di ☎️ (021) 4406363."
-            )
-
+            response = ASKA_NO_DATA_RESPONSE
 
         try:
             await thinking_message.delete()
@@ -138,20 +155,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"[{now_str()}] [ERROR] {e}")
 
         try:
-            if 'thinking_message' in locals():
+            if "thinking_message" in locals():
                 await thinking_message.delete()
         except Exception:
             pass
 
         await update.message.reply_text(
-            "⚠️ Maaf, lagi ada gangguan teknis 🛠️\n"
-            "🤖 Coba tanya *ASKA* nanti ya~ 🙏",
+            ASKA_TECHNICAL_ISSUE_RESPONSE,
             parse_mode="Markdown",
         )
 
 
-
-# �"?�"?�"?�"?�"? JALANKAN BOT �"?�"?�"?�"?�"?
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
