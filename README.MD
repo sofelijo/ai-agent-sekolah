@@ -32,11 +32,30 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# 5. Buat file .env dan isi token Telegram & API OpenAI
-cat > .env <<EOF
-TOKEN=ISI_TOKEN_DARI_BOTFATHER
+# 5. Buat file .env dan isi kredensial produksi
+cat > .env <<'EOF'
+TELEGRAM_BOT_TOKEN=ISI_TOKEN_DARI_BOTFATHER
 OPENAI_API_KEY=ISI_API_KEY_OPENAI
+
+# Koneksi PostgreSQL (bot + dashboard)
+DB_NAME=nama_database
+DB_USER=nama_user
+DB_PASS=password
+DB_HOST=127.0.0.1
+DB_PORT=5432
+# Opsional kalau provider butuh TLS: DB_SSLMODE=require
+
+# Konfigurasi dashboard Flask
+DASHBOARD_SECRET_KEY=ganti-dengan-string-acak-minimal-32-karakter
+DASHBOARD_SESSION_DAYS=14
+DASHBOARD_DB_MAX_CONN=8
 EOF
+
+# Jalankan sekali untuk inisialisasi tabel pengguna dashboard
+python -m dashboard.cli init-db
+
+# Buat akun admin pertama dashboard
+python -m dashboard.cli create-user admin@example.com "Nama Admin"
 
 # 6. Jalankan bot pertama kali (tes manual)
 python bot_sekolah.py
@@ -91,6 +110,106 @@ systemctl status ai-bots.service
 
 ---
 
+## Jalankan Dashboard 24/7 di VPS
+
+Nginx dipakai sebagai reverse proxy supaya gampang pasang HTTPS, bagi statis, dan batasi akses. Kalau mau langsung expose Gunicorn ke publik, boleh saja tapi pastikan port dibuka dengan firewall dan sadar risikonya (tidak ada TLS, rate limit, dll).
+
+```bash
+# 1. Pastikan paket pendukung terpasang
+apt install nginx -y
+
+# 2. Buat service systemd untuk Gunicorn
+nano /etc/systemd/system/aska-dashboard.service
+```
+
+Isi file:
+
+```ini
+[Unit]
+Description=ASKA Dashboard (Gunicorn)
+After=network.target
+
+[Service]
+WorkingDirectory=/root/ai-agent-sekolah
+EnvironmentFile=/root/ai-agent-sekolah/.env
+ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:8001 dashboard.app:app
+Restart=always
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktifkan service dashboard:
+
+```bash
+systemctl daemon-reload
+systemctl enable aska-dashboard.service
+systemctl start aska-dashboard.service
+systemctl status aska-dashboard.service
+```
+
+Konfigurasi Nginx (contoh subdomain `dashboard.domainmu.com`):
+
+```bash
+nano /etc/nginx/sites-available/aska-dashboard
+```
+
+Isi file:
+
+```nginx
+server {
+    listen 80;
+    server_name dashboard.domainmu.com;
+
+    location /static/ {
+        alias /root/ai-agent-sekolah/dashboard/static/;
+        access_log off;
+        expires 30d;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Aktifkan site dan reload Nginx:
+
+```bash
+ln -s /etc/nginx/sites-available/aska-dashboard /etc/nginx/sites-enabled/aska-dashboard
+nginx -t
+systemctl reload nginx
+```
+
+Tambahkan SSL dengan Certbot bila domain sudah aktif:
+
+```bash
+apt install certbot python3-certbot-nginx -y
+certbot --nginx -d dashboard.domainmu.com
+```
+
+Dashboard kini tersedia di `https://dashboard.domainmu.com` dan terhubung ke service bot yang sama.
+
+### Alternatif tanpa Nginx (opsional)
+
+Kalau kamu ingin langsung membuka dashboard lewat IP VPS tanpa reverse proxy:
+
+1. Ubah `ExecStart` di service Gunicorn menjadi `-b 0.0.0.0:5001` atau port lain yang dibuka.
+2. Jalankan `ufw allow 5001/tcp` (atau port pilihan) supaya bisa diakses dari luar.
+3. Akses via `http://IP-VPS:5001`.
+
+Catatan: mode ini tanpa HTTPS, rate limiting, atau header security tambahan. Pastikan password kuat dan pertimbangkan tetap memasang proxy saat butuh TLS.
+
+---
+
+
+
 ## 🧠 Cara Kerja ASKA
 
 ASKA menggunakan:
@@ -118,6 +237,7 @@ git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 systemctl restart ai-bots.service
+systemctl restart aska-dashboard.service
 ```
 
 ---
