@@ -33,12 +33,23 @@ from responses import (
 import os
 import time
 import asyncio
+import tempfile
+from openai import OpenAI
 from dotenv import load_dotenv
 from thinking_messages import get_random_thinking_message
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 qa_chain = build_qa_chain()
+audio_client = OpenAI()
+STT_MODELS = []
+_env_model = os.getenv("OPENAI_STT_MODEL")
+if _env_model:
+    STT_MODELS.append(_env_model)
+if "gpt-4o-mini-transcribe" not in STT_MODELS:
+    STT_MODELS.append("gpt-4o-mini-transcribe")
+if "whisper-1" not in STT_MODELS:
+    STT_MODELS.append("whisper-1")
 
 
 async def send_typing_once(bot, chat_id, delay: float = 0.5):
@@ -63,76 +74,95 @@ async def send_thinking_bubble(update: Update):
     return message
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await send_typing_once(context.bot, update.effective_chat.id)
+def _transcribe_audio(path: str) -> str:
+    last_error = None
+    for model in STT_MODELS:
+        try:
+            with open(path, "rb") as audio_file:
+                result = audio_client.audio.transcriptions.create(
+                    model=model,
+                    file=audio_file,
+                    response_format="text",
+                )
+            if isinstance(result, str):
+                text = result
+            else:
+                text = getattr(result, "text", None)
+                if text is None and isinstance(result, dict):
+                    text = result.get("text")
+            if text:
+                return text
+        except Exception as exc:  # pragma: no cover - network / API errors
+            last_error = exc
+            continue
+    if last_error:
+        raise last_error
+    return ""
 
-    user = update.effective_user
-    name = user.first_name or user.username or "bestie"
-    response = (
-        f"Yoo, {name}! 🫶\n"
-        f"Aku *ASKA*, bestie AI kamu 🤖✨\n"
-        f"Mau tanya apa aja soal sekolah? Gaskeun~ 🚀"
-    )
-    await update.message.reply_text(response, parse_mode="Markdown")
 
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_user_query(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    user_input: str,
+    *,
+    source: str = "text",
+):
     try:
-        user_input = update.message.text or ""
-        user_input = normalize_input(user_input)
+        raw_input = user_input or ""
+        normalized_input = normalize_input(raw_input)
         user_id = update.effective_user.id
-        username = (
-            update.effective_user.username or update.effective_user.first_name or "anon"
+        username = update.effective_user.username or update.effective_user.first_name or "anon"
+
+        print(
+            f"[{now_str()}] HANDLER CALLED ({source.upper()}) - FROM {username}: {normalized_input}"
         )
-        print(f"[{now_str()}] HANDLER CALLED - FROM {username}: {user_input}")
 
-        if hasattr(context, "processed_messages"):
-            if user_input in context.processed_messages:
-                print(f"[{now_str()}] DUPLICATE MESSAGE DETECTED - SKIPPING")
-                return
-        else:
-            context.processed_messages = set()
+        processed_messages = context.user_data.setdefault("processed_messages", set())
+        if normalized_input in processed_messages:
+            print(f"[{now_str()}] DUPLICATE MESSAGE DETECTED - SKIPPING")
+            return
+        processed_messages.add(normalized_input)
 
-        context.processed_messages.add(user_input)
         print(f"[{now_str()}] SAVING USER MESSAGE")
-        save_chat(user_id, username, user_input, role="user")
+        topic = source if source != "text" else None
+        save_chat(user_id, username, normalized_input, role="user", topic=topic)
 
-        if is_greeting_message(user_input):
+        if is_greeting_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_greeting_response()
             await update.message.reply_text(response, parse_mode="Markdown")
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
-        if is_thank_you_message(user_input):
+        if is_thank_you_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_thank_you_response()
             await update.message.reply_text(response, parse_mode="Markdown")
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
-        if is_acknowledgement_message(user_input):
+        if is_acknowledgement_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_acknowledgement_response()
             await update.message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
-        if is_farewell_message(user_input):
+        if is_farewell_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_farewell_response()
             await update.message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
-        if is_self_intro_message(user_input):
+        if is_self_intro_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_self_intro_response()
             await update.message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
             return
 
-        if is_status_message(user_input):
+        if is_status_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_status_response()
             await update.message.reply_text(response)
@@ -154,7 +184,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             thinking_message = await send_thinking_bubble(update)
             await asyncio.sleep(1.0)
-            result = qa_chain.invoke({"input": user_input, "chat_history": chat_history})
+            result = qa_chain.invoke({"input": normalized_input, "chat_history": chat_history})
         finally:
             typing_task.cancel()
 
@@ -180,12 +210,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption = strip_markdown(caption)
             await update.message.reply_photo(photo=img_url, caption=caption)
         else:
-            response = strip_markdown(response)
-            await update.message.reply_text(response)
+            clean_response = strip_markdown(response)
+            await update.message.reply_text(clean_response)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         print(f"[{now_str()}] ASKA : {response} ⏱️ {duration_ms:.2f} ms")
-        save_chat(user_id, "ASKA", response, role="aska", response_time_ms=int(duration_ms))
+        save_chat(
+            user_id,
+            "ASKA",
+            strip_markdown(response),
+            role="aska",
+            topic=source if source != "text" else None,
+            response_time_ms=int(duration_ms),
+        )
 
     except Exception as e:
         print(f"[{now_str()}] [ERROR] {e}")
@@ -202,8 +239,60 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await send_typing_once(context.bot, update.effective_chat.id)
+
+    user = update.effective_user
+    name = user.first_name or user.username or "bestie"
+    response = (
+        f"Yoo, {name}! 🫶\n"
+        f"Aku *ASKA*, bestie AI kamu 🤖✨\n"
+        f"Mau tanya apa aja soal sekolah? Gaskeun~ 🚀"
+    )
+    await update.message.reply_text(response, parse_mode="Markdown")
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await handle_user_query(update, context, update.message.text or "", source="text")
+
+
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    voice = update.message.voice or update.message.audio
+    if not voice:
+        await update.message.reply_text("Oops, suaranya belum kebaca. Coba kirim ulang ya! 🎤")
+        return
+
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp_file:
+        temp_path = tmp_file.name
+
+    try:
+        telegram_file = await context.bot.get_file(voice.file_id)
+        await telegram_file.download_to_drive(custom_path=temp_path)
+        transcription = await asyncio.to_thread(_transcribe_audio, temp_path)
+    except Exception as exc:
+        print(f"[{now_str()}] [VOICE ERROR] {exc}")
+        await update.message.reply_text(
+            "ASKA belum bisa dengerin pesan suara kamu nih. Boleh dicoba lagi atau ketik aja ya!"
+        )
+        return
+    finally:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+
+    if not transcription or not transcription.strip():
+        await update.message.reply_text(
+            "ASKA nggak nangkep isi pesan suaranya. Coba rekam ulang dengan suara lebih jelas ya!"
+        )
+        return
+
+    await handle_user_query(update, context, transcription.strip(), source="voice")
+
+
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("ASKA AKTIF...")

@@ -1,0 +1,102 @@
+﻿body {
+    background-color: #f5f7fb;
+    color: #1f2933;
+}
+
+.stat-card {
+    border-radius: 16px;
+}
+
+.table thead th {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+}
+
+.list-group-timeline {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.chart-container {
+    position: relative;
+    height: 280px;
+    width: 100%;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.timeline {
+    position: relative;
+    margin-left: 1rem;
+    padding-left: 1rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.3rem;
+    top: 0.2rem;
+    bottom: 0.2rem;
+    width: 2px;
+    background: linear-gradient(180deg, #0d6efd 0%, rgba(13,110,253,0.2) 100%);
+}
+
+.timeline-item {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.15rem;
+    top: 0.35rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #f5f7fb;
+    box-shadow: 0 0 0 3px rgba(13,110,253,0.1);
+}
+
+.timeline-item-user::before {
+    background-color: #6c757d;
+}
+
+.timeline-item-aska::before {
+    background-color: #0d6efd;
+}
+
+.timeline-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.25rem;
+    margin-left: -0.5rem;
+}
+
+.timeline-bubble {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.timeline-author {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.toast {
+    opacity: 1;
+}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - ASKA Insights{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 fw-bold">Ringkasan Percakapan</h1>
+            <p class="text-muted mb-0">Pantau performa bot ASKA dan interaksi siswa secara real-time.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge text-bg-light border">Update {{ generated_at.strftime('%d %b %Y %H:%M') }}</span>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-3 col-sm-6">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Total Pesan</span>
+                    <h2 class="display-6 fw-bold mt-2">{{ metrics.total_messages }}</h2>
+                    <p class="mb-0 text-muted">Seluruh pesan yang masuk & keluar.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-sm-6">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Pengguna Unik</span>
+                    <h2 class="display-6 fw-bold mt-2">{{ metrics.unique_users }}</h2>
+                    <p class="mb-0 text-muted">Jumlah siswa yang pernah chat.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-sm-6">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Pesan {{ metrics.window_days }} Hari</span>
+                    <h2 class="display-6 fw-bold mt-2">{{ metrics.messages_window }}</h2>
+                    <p class="mb-0 text-muted">Aktivitas terbaru {{ metrics.window_days }} hari.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-sm-6">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Pengguna Aktif Hari Ini</span>
+                    <h2 class="display-6 fw-bold mt-2">{{ metrics.active_today }}</h2>
+                    <p class="mb-0 text-muted">User yang berinteraksi hari ini.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="row g-3">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h2 class="h5 fw-bold mb-1">Tren Volume Pesan</h2>
+                        <p class="text-muted mb-0">14 hari terakhir</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge text-bg-light border">Avg {{ metrics.avg_response_ms }} ms - P90 {{ metrics.p90_response_ms }} ms</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                <canvas id="activityChart"></canvas>
+            </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h2 class="h6 fw-bold">Pertanyaan Terbaru</h2>
+                <ul class="list-group list-group-flush list-group-timeline">
+                    {% for item in recent_questions %}
+                    <li class="list-group-item px-0">
+                        <div class="small text-muted">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                        <div class="fw-semibold">{{ item.username or 'Anon' }} ({{ item.user_id }})</div>
+                        <div class="text-truncate-2">{{ item.text }}</div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item px-0 text-muted">Belum ada data.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 fw-bold">Top User Aktif</h2>
+                <ul class="list-group list-group-flush">
+                    {% for item in top_users %}
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <div>
+                            <div class="fw-semibold">{{ item.username }}</div>
+                            <small class="text-muted">ID {{ item.user_id }}</small>
+                        </div>
+                        <span class="badge rounded-pill text-bg-primary">{{ item.messages }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item px-0 text-muted">Belum ada data.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const ctx = document.getElementById('activityChart');
+    const labels = {{ chart_labels|tojson }};
+    const values = {{ chart_values|tojson }};
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Jumlah Pesan',
+                data: values,
+                tension: 0.3,
+                fill: true,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                pointBackgroundColor: '#0d6efd',
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Thread {{ user.user_id }} - ASKA Insights{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Thread Pengguna</h1>
+        <p class="text-muted mb-0">ID {{ user.user_id }} - {{ user.username }}</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.chats', user_id=user.user_id) }}">Kembali</a>
+</div>
+
+<div class="timeline">
+    {% for row in messages %}
+    <div class="timeline-item {% if row.role == 'aska' %}timeline-item-aska{% else %}timeline-item-user{% endif %}">
+        <div class="timeline-meta">
+            <span class="badge text-bg-light">{{ row.created_at.strftime('%d %b %Y %H:%M') }}</span>
+            {% if row.response_time_ms %}
+            <span class="badge text-bg-info">{{ row.response_time_ms }} ms</span>
+            {% endif %}
+        </div>
+        <div class="timeline-bubble">
+            <div class="timeline-author">{{ 'ASKA' if row.role == 'aska' else row.username or 'User' }}</div>
+            <div style="white-space: pre-line;">{{ row.text }}</div>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted">Belum ada percakapan.</p>
+    {% endfor %}
+</div>
+{% endblock %}
