@@ -1,13 +1,64 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from psycopg2.extras import DictRow
 
 from .db_access import get_cursor
 
+TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+STOPWORDS = {
+    "dan",
+    "yang",
+    "atau",
+    "untuk",
+    "dengan",
+    "pada",
+    "dari",
+    "kami",
+    "kita",
+    "kamu",
+    "anda",
+    "saya",
+    "aku",
+    "dia",
+    "itu",
+    "ini",
+    "jadi",
+    "apa",
+    "berapa",
+    "bagaimana",
+    "kapan",
+    "dimana",
+    "mengapa",
+    "apakah",
+    "sudah",
+    "belum",
+    "akan",
+    "bisa",
+    "mohon",
+    "tolong",
+    "terima",
+    "kasih",
+    "ya",
+    "tidak",
+    "iya",
+    "oke",
+    "ok",
+    "hai",
+    "halo",
+    "selamat",
+    "malam",
+    "pagi",
+    "siang",
+    "sore",
+    "bot",
+    "aska",
+}
 
 @dataclass
 class ChatFilters:
@@ -16,7 +67,6 @@ class ChatFilters:
     role: Optional[str] = None
     search: Optional[str] = None
     user_id: Optional[int] = None
-
 
 def _apply_filters(conditions: List[str], params: List[Any], filters: ChatFilters) -> None:
     if filters.start:
@@ -34,7 +84,6 @@ def _apply_filters(conditions: List[str], params: List[Any], filters: ChatFilter
     if filters.search:
         conditions.append("text ILIKE %s")
         params.append(f"%{filters.search}%")
-
 
 def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
     """Aggregate key performance indicators for the dashboard landing page."""
@@ -96,7 +145,6 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
         "active_today": int(active_today or 0),
     }
 
-
 def fetch_daily_activity(days: int = 14) -> List[Dict[str, Any]]:
     days = max(1, days)
     with get_cursor() as cur:
@@ -113,7 +161,6 @@ def fetch_daily_activity(days: int = 14) -> List[Dict[str, Any]]:
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
-
 def fetch_recent_questions(limit: int = 10) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         cur.execute(
@@ -128,7 +175,6 @@ def fetch_recent_questions(limit: int = 10) -> List[Dict[str, Any]]:
         )
         rows = cur.fetchall()
     return [dict(row) for row in rows]
-
 
 def fetch_top_users(limit: int = 5) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
@@ -146,6 +192,38 @@ def fetch_top_users(limit: int = 5) -> List[Dict[str, Any]]:
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
+def fetch_top_keywords(limit: int = 10, days: int = 14, min_length: int = 3) -> List[Dict[str, Any]]:
+    """Return most frequent keywords from user messages within the given time window."""
+    days = max(1, days)
+    limit = max(1, limit)
+    min_length = max(1, min_length)
+
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT text
+            FROM chat_logs
+            WHERE role = 'user'
+              AND text IS NOT NULL
+              AND text <> ''
+              AND created_at >= NOW() - %s::interval
+            """,
+            (f"{days} days",),
+        )
+        rows = cur.fetchall()
+
+    counter: Counter[str] = Counter()
+    for row in rows:
+        text_value = (row["text"] or "").lower()
+        for token in TOKEN_PATTERN.findall(text_value):
+            if len(token) < min_length or token.isdigit() or token in STOPWORDS:
+                continue
+            counter[token] += 1
+
+    return [
+        {"keyword": keyword, "count": count}
+        for keyword, count in counter.most_common(limit)
+    ]
 
 def fetch_chat_logs(
     filters: ChatFilters,
@@ -176,7 +254,6 @@ def fetch_chat_logs(
 
     return [dict(row) for row in rows], int(total or 0)
 
-
 def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         cur.execute(
@@ -192,7 +269,6 @@ def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, 
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
-
 def get_user_by_email(email: str) -> Optional[DictRow]:
     with get_cursor() as cur:
         cur.execute(
@@ -207,7 +283,6 @@ def get_user_by_email(email: str) -> Optional[DictRow]:
         row = cur.fetchone()
     return row
 
-
 def list_dashboard_users() -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         cur.execute(
@@ -219,7 +294,6 @@ def list_dashboard_users() -> List[Dict[str, Any]]:
         )
         rows = cur.fetchall()
     return [dict(row) for row in rows]
-
 
 def create_dashboard_user(
     email: str,
@@ -239,11 +313,9 @@ def create_dashboard_user(
         new_id = cur.fetchone()[0]
     return int(new_id)
 
-
 def update_last_login(user_id: int) -> None:
     with get_cursor(commit=True) as cur:
         cur.execute(
             "UPDATE dashboard_users SET last_login_at = NOW() WHERE id = %s",
             (user_id,),
         )
-

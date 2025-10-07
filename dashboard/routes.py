@@ -23,6 +23,7 @@ from .queries import (
     fetch_daily_activity,
     fetch_overview_metrics,
     fetch_recent_questions,
+    fetch_top_keywords,
     fetch_top_users,
 )
 
@@ -48,9 +49,12 @@ def dashboard() -> Response:
     activity = fetch_daily_activity(days=14)
     recent_questions = fetch_recent_questions(limit=8)
     top_users = fetch_top_users(limit=5)
+    top_keywords = fetch_top_keywords(limit=8, days=14)
 
     chart_labels = [row["day"].strftime("%d %b") for row in activity]
     chart_values = [row["messages"] for row in activity]
+    keyword_labels = [item["keyword"] for item in top_keywords]
+    keyword_counts = [item["count"] for item in top_keywords]
 
     return render_template(
         "dashboard.html",
@@ -60,6 +64,8 @@ def dashboard() -> Response:
         top_users=top_users,
         chart_labels=chart_labels,
         chart_values=chart_values,
+        keyword_labels=keyword_labels,
+        keyword_counts=keyword_counts,
     )
 
 
