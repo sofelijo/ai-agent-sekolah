@@ -68,6 +68,11 @@ TIME_GREETING_RESPONSES = {
         "Good morning! Butuh pengumuman terbaru? *ASKA* siap spill 🗞️🤖",
         "Pagi-pagi udah rajin? Mantap! *ASKA* temenin kamu cari info 💪🔎",
         "Halo pagi! Gaskeun aktivitas dengan data akurat dari *ASKA* ⚡️✅",
+        "Pagi, gengs! ☀️ ASKA harap kamu semua siap menjalani hari yang seru! Jangan lupa bawa semua perlengkapan sekolah, ya! Semangat belajar! 💪✨ Ada yang mau ditanyain tentang jadwal kelas atau pelajaran? Let me know! 😊",
+        "Pagi, gengs! ☀️ Semoga harimu cerah dan penuh semangat! Ada yang mau dibahas atau ditanya? ASKA siap bantu! 💖✨",
+        "Pagi! ☀️ Gimana kabarnya? Semoga hari ini seru ya! Kalo ada yang mau ditanya atau butuh info, ASKA siap bantu! 😄✨",
+        "Pagi, gengs! ☀️✨ Gimana kabarnya? Semoga hari ini seru ya! Kalo ada yang mau ditanya atau dibahas, ASKA siap bantu! 😄💖",
+        "Pagi juga bre ☀️, eh ketemu lagi ya kita 💖😊"
     ],
     "siang": [
         "Selamat siang! Jangan lupa makan siang dulu, *ASKA* jagain infonya 🍽️🤖",
@@ -138,6 +143,8 @@ def is_greeting_message(text: str) -> bool:
     lowered = text.lower()
     tokens = tokenize(lowered)
     if any(keyword in tokens for keyword in GREETING_KEYWORDS):
+        return True
+    if _detect_time_greeting(text):
         return True
     return any(phrase in lowered for phrase in GREETING_PHRASES)
 
