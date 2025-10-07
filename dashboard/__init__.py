@@ -9,7 +9,7 @@ from flask import Flask
 from .auth import auth_bp, current_user
 from .routes import main_bp
 from .db_access import shutdown_pool
-from .queries import fetch_pending_bullying_count
+from .queries import fetch_pending_bullying_count, fetch_pending_psych_count
 from .schema import ensure_dashboard_schema
 
 
@@ -37,19 +37,24 @@ def create_app() -> Flask:
     def inject_globals() -> dict:
         user = current_user()
         pending_count = 0
+        pending_psych = 0
 
         if user:
             try:
                 pending_count = fetch_pending_bullying_count()
             except Exception:
                 pending_count = 0
+            try:
+                pending_psych = fetch_pending_psych_count()
+            except Exception:
+                pending_psych = 0
 
         return {
             "current_user": user,
             "pending_bullying_count": pending_count,
+            "pending_psych_count": pending_psych,
         }
 
     atexit.register(shutdown_pool)
 
     return app
-

@@ -19,6 +19,7 @@ from werkzeug.datastructures import MultiDict
 from .auth import current_user, login_required, role_required
 from .queries import (
     BULLYING_STATUSES,
+    PSYCH_STATUSES,
     ChatFilters,
     fetch_bullying_reports,
     fetch_bullying_summary,
@@ -32,6 +33,10 @@ from .queries import (
     fetch_top_keywords,
     fetch_top_users,
     update_bullying_report_status,
+    fetch_psych_reports,
+    fetch_psych_summary,
+    fetch_psych_group_reports,
+    update_psych_report_status,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -250,9 +255,125 @@ def update_bullying_status(report_id: int) -> Response:
     return redirect(next_url)
 
 
-    mark_notification_read(notification_id)
-    target_link = notification.get("link") or url_for("main.dashboard")
-    return redirect(target_link)
+@main_bp.route("/psych-reports")
+@login_required
+def psych_reports() -> Response:
+    args: MultiDict = request.args
+    raw_status = (args.get("status") or "").strip().lower() or None
+    raw_severity = (args.get("severity") or "").strip().lower() or None
+
+    if raw_status and raw_status not in PSYCH_STATUSES:
+        flash("Status filter tidak dikenal.", "warning")
+        return redirect(url_for("main.psych_reports"))
+
+    if raw_severity and raw_severity not in ('general', 'elevated', 'critical'):
+        flash("Severity filter tidak dikenal.", "warning")
+        return redirect(url_for("main.psych_reports"))
+
+    page = max(1, int(args.get("page", 1)))
+    limit = REPORT_PAGE_SIZE
+    offset = (page - 1) * limit
+
+    try:
+        records, total = fetch_psych_reports(
+            status=raw_status,
+            severity=raw_severity,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("main.psych_reports"))
+
+    summary = fetch_psych_summary()
+    total_pages = max(1, ceil(total / limit))
+    severity_counts = summary.get("severity", {})
+
+    return render_template(
+        "psych_reports.html",
+        records=records,
+        summary=summary,
+        severity_counts=severity_counts,
+        filter_status=raw_status,
+        filter_severity=raw_severity,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        per_page=limit,
+    )
+
+
+@main_bp.route("/psych-reports/user/<int:user_id>")
+@login_required
+def psych_report_user_detail(user_id: int) -> Response:
+    records = fetch_psych_group_reports(user_id=user_id)
+    if not records:
+        flash("Tidak ada curhat yang ditemukan untuk siswa ini.", "warning")
+        return redirect(url_for("main.psych_reports"))
+
+    return render_template(
+        "psych_report_detail.html",
+        records=records,
+        user={
+            "user_id": user_id,
+            "username": records[0].get("username") or "Anon",
+        },
+    )
+
+
+@main_bp.route("/psych-reports/report/<int:report_id>")
+@login_required
+def psych_report_single_detail(report_id: int) -> Response:
+    records = fetch_psych_group_reports(report_id=report_id)
+    if not records:
+        flash("Curhat tidak ditemukan atau sudah dihapus.", "warning")
+        return redirect(url_for("main.psych_reports"))
+
+    user_id = records[0].get("user_id")
+    if user_id:
+        return redirect(url_for("main.psych_report_user_detail", user_id=user_id))
+
+    return render_template(
+        "psych_report_detail.html",
+        records=records,
+        user={
+            "user_id": None,
+            "username": records[0].get("username") or "Anon",
+        },
+    )
+
+
+@main_bp.route("/psych-reports/<int:report_id>/status", methods=["POST"])
+@role_required("admin", "editor")
+def update_psych_status(report_id: int) -> Response:
+    status_value = (request.form.get("status") or "").strip().lower()
+    next_url = request.form.get("next") or url_for("main.psych_reports")
+
+    if status_value not in PSYCH_STATUSES:
+        flash("Status curhat tidak dikenal.", "warning")
+        return redirect(next_url)
+
+    user = current_user()
+    updated_by = None
+    if user:
+        updated_by = user.get("full_name") or user.get("email")
+
+    try:
+        updated = update_psych_report_status(
+            report_id,
+            status_value,
+            updated_by=updated_by,
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(next_url)
+
+    if updated:
+        flash("Status curhat berhasil diubah.", "success")
+    else:
+        flash("Curhat tidak ditemukan atau tidak ada perubahan.", "info")
+
+    return redirect(next_url)
 
 
 @main_bp.route("/api/activity")
@@ -302,4 +423,3 @@ def export_chats() -> Response:
     response = Response(buffer.getvalue(), mimetype="text/csv")
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return response
-

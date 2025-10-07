@@ -3,16 +3,17 @@ import asyncio
 import os
 import tempfile
 import time
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from telegram import Message, Update
+from telegram.error import NetworkError
 from telegram.ext import ContextTypes
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from ai_core import build_qa_chain
-from db import save_chat, get_chat_history, record_bullying_report
+from db import save_chat, get_chat_history, record_bullying_report, record_psych_report
 from responses import (
     ASKA_NO_DATA_RESPONSE,
     ASKA_TECHNICAL_ISSUE_RESPONSE,
@@ -37,6 +38,33 @@ from responses import (
     is_self_intro_message,
     is_status_message,
     is_thank_you_message,
+    extract_grade_hint,
+    extract_subject_hint,
+    format_question_intro,
+    grade_response,
+    generate_discussion_reply,
+    is_teacher_discussion_request,
+    is_teacher_next,
+    is_teacher_start,
+    is_teacher_stop,
+    pick_question,
+    SEVERITY_CRITICAL,
+    SEVERITY_ELEVATED,
+    SEVERITY_GENERAL,
+    classify_message_severity,
+    detect_psych_intent,
+    get_psych_closing_message,
+    get_psych_confirmation_prompt,
+    get_psych_critical_message,
+    get_psych_stage_prompt,
+    get_psych_validation,
+    get_psych_support_message,
+    is_psych_negative_confirmation,
+    is_psych_positive_confirmation,
+    is_psych_stop_request,
+    psych_next_stage,
+    psych_stage_exists,
+    summarize_psych_message,
 )
 from utils import (
     IMG_MD,
@@ -68,6 +96,26 @@ if "gpt-4o-mini-transcribe" not in STT_MODELS:
     STT_MODELS.append("gpt-4o-mini-transcribe")
 if "whisper-1" not in STT_MODELS:
     STT_MODELS.append("whisper-1")
+
+TEACHER_CONVERSATION_LIMIT = 10
+TEACHER_TIMEOUT_SECONDS = 600
+PSYCH_TIMEOUT_SECONDS = 600
+
+TEACHER_TIMEOUT_MESSAGE = (
+    "Latihan kita ke-pause lumayan lama nih, ASKA pamit dulu ya. "
+    "Kalau mau lanjut tinggal panggil ASKA lagi. Sampai jumpa! 😄✨"
+)
+
+PSYCH_TIMEOUT_MESSAGE = (
+    "Obrolan curhatnya udah sunyi lama, ASKA pamit sementara ya. "
+    "Kapan pun butuh cerita lagi langsung chat ASKA. Sampai jumpa! 🤗💖"
+)
+
+PSYCH_SEVERITY_RANK = {
+    SEVERITY_GENERAL: 0,
+    SEVERITY_ELEVATED: 1,
+    SEVERITY_CRITICAL: 2,
+}
 
 
 def transcribe_audio(path: str) -> str:
@@ -129,13 +177,19 @@ async def handle_user_query(
             f"[{now_str()}] HANDLER CALLED ({source.upper()}) - FROM {username}: {normalized_input}"
         )
 
-        storage_root = context.chat_data.setdefault("processed_messages_by_user", {})
         storage_key = user_id if user_id is not None else f"anon:{username}"
-        processed_messages = storage_root.setdefault(storage_key, set())
-        if normalized_input in processed_messages:
-            print(f"[{now_str()}] DUPLICATE MESSAGE DETECTED - SKIPPING")
+
+        recent_messages_root = context.chat_data.setdefault("recent_messages_by_user", {})
+        recent_messages = recent_messages_root.setdefault(storage_key, {})
+        now_ts = time.time()
+        for msg_text, ts in list(recent_messages.items()):
+            if (now_ts - ts) > 600:
+                del recent_messages[msg_text]
+        last_ts = recent_messages.get(normalized_input)
+        if last_ts is not None and (now_ts - last_ts) < 60:
+            print(f"[{now_str()}] DUPLICATE MESSAGE RECEIVED WITHIN 60s - SKIPPING")
             return False
-        processed_messages.add(normalized_input)
+        recent_messages[normalized_input] = now_ts
 
         print(f"[{now_str()}] SAVING USER MESSAGE")
         topic = source if source != "text" else None
@@ -170,6 +224,314 @@ async def handle_user_query(
             response = get_bullying_ack_response(bullying_category)
             await reply_message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        psych_sessions = context.chat_data.setdefault("psych_sessions", {})
+        psych_session = psych_sessions.get(storage_key)
+
+        if psych_session:
+            last_bot_time = psych_session.get("last_bot_time")
+            if last_bot_time and (now_ts - last_bot_time) > PSYCH_TIMEOUT_SECONDS:
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(PSYCH_TIMEOUT_MESSAGE)
+                save_chat(user_id, "ASKA", PSYCH_TIMEOUT_MESSAGE, role="aska")
+                psych_sessions.pop(storage_key, None)
+                psych_session = None
+
+        def _persist_psych_report(
+            message_text: str,
+            *,
+            severity_value: str,
+            stage_label: Optional[str],
+            status_value: str = "open",
+            base_chat_log_id: Optional[int] = None,
+        ) -> None:
+            if not message_text:
+                return
+            target_chat_log_id = base_chat_log_id if base_chat_log_id is not None else chat_log_id
+            try:
+                record_psych_report(
+                    target_chat_log_id,
+                    user_id,
+                    username,
+                    message_text,
+                    severity=severity_value,
+                    status=status_value,
+                    summary=summarize_psych_message(message_text),
+                    metadata={
+                        "stage": stage_label,
+                        "source": source,
+                    },
+                )
+            except Exception as exc:
+                print(f"[{now_str()}] [ERROR] Failed to record psych report: {exc}")
+
+        if psych_session and psych_session.get("state") == "awaiting_confirmation":
+            if is_psych_positive_confirmation(raw_input):
+                severity_value = psych_session.get("severity", SEVERITY_GENERAL)
+                first_stage = psych_next_stage(None)
+                psych_session["state"] = "ongoing"
+                psych_session["stage"] = first_stage
+                validation = get_psych_validation()
+                response_parts = [validation]
+                if severity_value == SEVERITY_CRITICAL:
+                    response_parts.append(get_psych_critical_message())
+                if first_stage and psych_stage_exists(first_stage):
+                    support_text = get_psych_support_message(
+                        psych_session.get("initial_message", ""),
+                        stage=first_stage,
+                        severity=severity_value,
+                    )
+                    if support_text:
+                        response_parts.append(support_text)
+                    response_parts.append(get_psych_stage_prompt(first_stage))
+                else:
+                    response_parts.append(get_psych_closing_message())
+                    psych_sessions.pop(storage_key, None)
+                if initial_message := psych_session.get("initial_message"):
+                    initial_chat_log_id = psych_session.get("initial_chat_log_id")
+                    _persist_psych_report(
+                        initial_message,
+                        severity_value=severity_value,
+                        stage_label="initial",
+                        base_chat_log_id=initial_chat_log_id,
+                    )
+                    psych_session.pop("initial_message", None)
+                    psych_session.pop("initial_chat_log_id", None)
+                reply_text = "\n\n".join(response_parts)
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(reply_text)
+                save_chat(user_id, "ASKA", reply_text, role="aska")
+                if storage_key in psych_sessions:
+                    psych_sessions[storage_key]["last_bot_time"] = time.time()
+                mark_responded()
+                return True
+            if is_psych_negative_confirmation(raw_input):
+                severity_value = psych_session.get("severity", SEVERITY_GENERAL)
+                response = (
+                    "Oke, tidak apa-apa. Kalau nanti butuh teman cerita lagi, ASKA siap standby 😊"
+                )
+                if severity_value == SEVERITY_CRITICAL:
+                    response = (
+                        f"{response}\n\n{get_psych_critical_message()}"
+                    )
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(response)
+                save_chat(user_id, "ASKA", response, role="aska")
+                psych_sessions.pop(storage_key, None)
+                mark_responded()
+                return True
+            reminder = "Kalau mau curhat, tinggal jawab 'iya'. Kalau enggak, bilang aja 'nggak' ya."
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(reminder)
+            save_chat(user_id, "ASKA", reminder, role="aska")
+            psych_session["last_bot_time"] = time.time()
+            mark_responded()
+            return True
+
+        if psych_session and psych_session.get("state") == "ongoing":
+            if is_psych_stop_request(raw_input):
+                closing = get_psych_closing_message()
+                if psych_session.get("severity") == SEVERITY_CRITICAL:
+                    closing = f"{closing}\n\n{get_psych_critical_message()}"
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(closing)
+                save_chat(user_id, "ASKA", closing, role="aska")
+                psych_sessions.pop(storage_key, None)
+                mark_responded()
+                return True
+
+            current_severity = psych_session.get("severity", SEVERITY_GENERAL)
+            message_severity = classify_message_severity(raw_input, default=current_severity)
+            if PSYCH_SEVERITY_RANK.get(message_severity, 0) > PSYCH_SEVERITY_RANK.get(current_severity, 0):
+                psych_session["severity"] = message_severity
+                current_severity = message_severity
+
+            current_stage = psych_session.get("stage")
+            if not current_stage or not psych_stage_exists(current_stage):
+                current_stage = psych_next_stage(None)
+                psych_session["stage"] = current_stage
+
+            _persist_psych_report(
+                raw_input,
+                severity_value=current_severity,
+                stage_label=current_stage,
+            )
+
+            response_parts = [get_psych_validation()]
+            if current_severity == SEVERITY_CRITICAL:
+                response_parts.append(get_psych_critical_message())
+
+            support_stage = current_stage
+            support_text = get_psych_support_message(
+                raw_input,
+                stage=support_stage,
+                severity=current_severity,
+            )
+            if support_text:
+                response_parts.append(support_text)
+
+            next_stage_value = psych_next_stage(current_stage) if current_stage else None
+            if next_stage_value and psych_stage_exists(next_stage_value):
+                psych_session["stage"] = next_stage_value
+                response_parts.append(get_psych_stage_prompt(next_stage_value))
+            else:
+                response_parts.append(get_psych_closing_message())
+                psych_sessions.pop(storage_key, None)
+
+            reply_text = "\n\n".join(response_parts)
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(reply_text)
+            save_chat(user_id, "ASKA", reply_text, role="aska")
+            if storage_key in psych_sessions:
+                psych_sessions[storage_key]["last_bot_time"] = time.time()
+            mark_responded()
+            return True
+
+        if not psych_session:
+            psych_severity = detect_psych_intent(raw_input)
+            if psych_severity:
+                confirmation = get_psych_confirmation_prompt(psych_severity)
+                psych_sessions[storage_key] = {
+                    "state": "awaiting_confirmation",
+                    "severity": psych_severity,
+                    "stage": None,
+                    "initial_message": raw_input,
+                    "initial_chat_log_id": chat_log_id,
+                }
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(confirmation)
+                save_chat(user_id, "ASKA", confirmation, role="aska")
+                psych_sessions[storage_key]["last_bot_time"] = time.time()
+                mark_responded()
+                return True
+
+        teacher_sessions = context.chat_data.setdefault("teacher_sessions", {})
+        teacher_session = teacher_sessions.get(storage_key)
+
+        if teacher_session:
+            last_bot_time = teacher_session.get("last_bot_time")
+            if last_bot_time and (now_ts - last_bot_time) > TEACHER_TIMEOUT_SECONDS:
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(TEACHER_TIMEOUT_MESSAGE)
+                save_chat(user_id, "ASKA", TEACHER_TIMEOUT_MESSAGE, role="aska")
+                teacher_sessions.pop(storage_key, None)
+                teacher_session = None
+
+        if is_teacher_stop(normalized_input):
+            if teacher_session:
+                teacher_sessions.pop(storage_key, None)
+                farewell = (
+                    "Sesi belajar bersama ASKA selesai. Kapan pun mau latihan lagi, ketik saja "
+                    "'kasih soal' atau 'mode guru', ya!"
+                )
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(farewell)
+                save_chat(user_id, "ASKA", farewell, role="aska")
+                mark_responded()
+                return True
+
+        if is_teacher_start(normalized_input):
+            grade_hint = extract_grade_hint(raw_input)
+            subject_hint = extract_subject_hint(raw_input)
+            question = pick_question(grade_hint, subject_hint, raw_input)
+            session_data = {
+                "question": question,
+                "grade_hint": grade_hint,
+                "subject_hint": subject_hint or question.subject,
+                "attempt": 1,
+                "conversation": [],
+            }
+            teacher_sessions[storage_key] = session_data
+            intro = format_question_intro(question)
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(intro)
+            save_chat(user_id, "ASKA", intro, role="aska")
+            session_data["conversation"].append({"role": "assistant", "content": intro})
+            session_data["last_bot_time"] = time.time()
+            mark_responded()
+            return True
+
+        if not teacher_session and is_teacher_next(normalized_input):
+            reminder = (
+                "Belum ada sesi guru yang aktif. Ketik 'kasih soal' atau 'mode guru' dulu ya."
+            )
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(reminder)
+            save_chat(user_id, "ASKA", reminder, role="aska")
+            mark_responded()
+            return True
+
+        if teacher_session and is_teacher_next(normalized_input):
+            grade_hint_override = extract_grade_hint(raw_input)
+            if grade_hint_override:
+                teacher_session["grade_hint"] = grade_hint_override
+            subject_hint_override = extract_subject_hint(raw_input) or teacher_session.get("subject_hint")
+            question = pick_question(
+                teacher_session.get("grade_hint"),
+                subject_hint_override,
+                raw_input,
+            )
+            teacher_session["question"] = question
+            teacher_session["attempt"] = 1
+            teacher_session["subject_hint"] = subject_hint_override or question.subject
+            teacher_session["conversation"] = []
+            intro = format_question_intro(question, attempt_number=1)
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(intro)
+            save_chat(user_id, "ASKA", intro, role="aska")
+            teacher_session["conversation"].append({"role": "assistant", "content": intro})
+            teacher_session["last_bot_time"] = time.time()
+            mark_responded()
+            return True
+
+        if teacher_session and teacher_session.get("question"):
+            question = teacher_session["question"]
+            conversation: List[dict[str, str]] = teacher_session.setdefault("conversation", [])
+
+            if is_teacher_discussion_request(raw_input):
+                response_text = generate_discussion_reply(question, conversation, raw_input)
+                conversation.append({"role": "user", "content": raw_input})
+                conversation.append({"role": "assistant", "content": response_text})
+                if len(conversation) > TEACHER_CONVERSATION_LIMIT * 2:
+                    conversation[:] = conversation[-TEACHER_CONVERSATION_LIMIT * 2 :]
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(response_text)
+                save_chat(user_id, "ASKA", response_text, role="aska")
+                mark_responded()
+                return True
+
+            grade_hint = teacher_session.get("grade_hint")
+            subject_hint = teacher_session.get("subject_hint")
+            teacher_session["attempt"] = teacher_session.get("attempt", 1) + 1
+
+            conversation.append({"role": "user", "content": raw_input})
+
+            correct, feedback = grade_response(question, raw_input)
+
+            if correct:
+                next_question = pick_question(grade_hint, subject_hint, raw_input)
+                teacher_session["question"] = next_question
+                teacher_session["attempt"] = 1
+                teacher_session["subject_hint"] = subject_hint or next_question.subject
+                next_intro = format_question_intro(next_question, attempt_number=2)
+                feedback = f"{feedback}\n\nSoal berikutnya:\n{next_intro}"
+            else:
+                feedback = (
+                    f"{feedback}\n\nBoleh coba lagi atau ketik 'lanjut soal' untuk ganti pertanyaan."
+                )
+
+            conversation.append({"role": "assistant", "content": feedback})
+            if len(conversation) > TEACHER_CONVERSATION_LIMIT * 2:
+                conversation[:] = conversation[-TEACHER_CONVERSATION_LIMIT * 2 :]
+            teacher_session["conversation"] = conversation
+
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            await reply_message.reply_text(feedback)
+            save_chat(user_id, "ASKA", feedback, role="aska")
+            if storage_key in teacher_sessions:
+                teacher_sessions[storage_key]["last_bot_time"] = time.time()
             mark_responded()
             return True
 
@@ -309,10 +671,18 @@ async def handle_user_query(
 
         target_for_error = reply_message or update.message
         if target_for_error:
-            await target_for_error.reply_text(
-                ASKA_TECHNICAL_ISSUE_RESPONSE,
-                parse_mode="Markdown",
-            )
+            if isinstance(e, NetworkError):
+                print(f"[{now_str()}] [WARN] Skipping error reply due to network issue: {e}")
+            else:
+                try:
+                    await target_for_error.reply_text(
+                        ASKA_TECHNICAL_ISSUE_RESPONSE,
+                        parse_mode="Markdown",
+                    )
+                except NetworkError as send_exc:
+                    print(f"[{now_str()}] [WARN] Failed to send technical issue notice: {send_exc}")
+                except Exception as send_exc:
+                    print(f"[{now_str()}] [WARN] Unexpected error while sending technical issue notice: {send_exc}")
 
     return False
 

@@ -67,6 +67,19 @@ BULLYING_STATUSES = (
     'spam',
 )
 
+PSYCH_STATUSES = (
+    'open',
+    'in_progress',
+    'resolved',
+    'archived',
+)
+
+PSYCH_SEVERITIES = (
+    'general',
+    'elevated',
+    'critical',
+)
+
 @dataclass
 class ChatFilters:
     start: Optional[datetime] = None
@@ -376,6 +389,64 @@ def fetch_pending_bullying_count() -> int:
     return fetch_bullying_summary().get('pending', 0)
 
 
+def fetch_psych_summary() -> Dict[str, Any]:
+    """Return aggregated counts of psychological reports by status and severity."""
+    summary = {status: 0 for status in PSYCH_STATUSES}
+    severity_counts = {severity: 0 for severity in PSYCH_SEVERITIES}
+    total = 0
+
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM psych_reports
+            GROUP BY status
+            """
+        )
+        status_rows = cur.fetchall()
+
+        cur.execute(
+            """
+            SELECT severity, COUNT(*) AS total
+            FROM psych_reports
+            WHERE status IS NULL OR status <> 'archived'
+            GROUP BY severity
+            """
+        )
+        severity_rows = cur.fetchall()
+
+    for row in status_rows:
+        status = (row.get('status') or '').lower()
+        count = int(row.get('total') or 0)
+        if status in summary:
+            summary[status] = count
+            if status != "archived":
+                total += count
+
+    for row in severity_rows:
+        severity = (row.get('severity') or '').lower()
+        count = int(row.get('total') or 0)
+        if severity in severity_counts:
+            severity_counts[severity] = count
+
+    summary['total'] = total
+    summary['severity'] = severity_counts
+    summary['critical'] = severity_counts.get('critical', 0)
+    summary['elevated'] = severity_counts.get('elevated', 0)
+    summary['general'] = severity_counts.get('general', 0)
+    return summary
+
+
+def fetch_pending_psych_count() -> int:
+    """Return number of open psychological reports."""
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) FROM psych_reports WHERE status = 'open'"
+        )
+        row = cur.fetchone()
+    return int(row[0] if row else 0)
+
+
 def fetch_bullying_reports(
     status: Optional[str] = None,
     limit: int = 50,
@@ -438,6 +509,192 @@ def fetch_bullying_reports(
         total = cur.fetchone()[0]
 
     return [dict(row) for row in rows], int(total or 0)
+
+
+def fetch_psych_reports(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Return paginated psychological reports ordered by severity and recency."""
+    conditions: List[str] = []
+    params: List[Any] = []
+    group_expr = "COALESCE(CAST(pr.user_id AS TEXT), CONCAT('report-', pr.id))"
+
+    if status:
+        normalized_status = status.lower()
+        if normalized_status not in PSYCH_STATUSES:
+            raise ValueError(f"Status laporan psikolog tidak dikenal: {status}")
+        conditions.append("pr.status = %s")
+        params.append(normalized_status)
+
+    if severity:
+        normalized_severity = severity.lower()
+        if normalized_severity not in PSYCH_SEVERITIES:
+            raise ValueError(f"Tingkat keparahan tidak dikenal: {severity}")
+        conditions.append("pr.severity = %s")
+        params.append(normalized_severity)
+
+    where_clause = ""
+    if conditions:
+        where_clause = " WHERE " + " AND ".join(conditions)
+
+    filtered_cte = (
+        """
+        WITH filtered AS (
+            SELECT
+                pr.*,
+                cl.created_at AS chat_created_at,
+                {group_expr} AS group_key,
+                ROW_NUMBER() OVER (
+                    PARTITION BY {group_expr}
+                    ORDER BY pr.created_at DESC
+                ) AS row_no
+            FROM psych_reports pr
+            LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id
+            {where_clause}
+        )
+        """
+    ).format(group_expr=group_expr, where_clause=where_clause)
+
+    query = (
+        filtered_cte
+        + """
+        SELECT
+            id,
+            chat_log_id,
+            user_id,
+            username,
+            message,
+            summary,
+            severity,
+            status,
+            metadata,
+            created_at,
+            updated_at,
+            chat_created_at,
+            group_key
+        FROM filtered
+        WHERE row_no = 1
+        ORDER BY CASE WHEN severity = 'critical' THEN 2 WHEN severity = 'elevated' THEN 1 ELSE 0 END DESC, created_at DESC
+        LIMIT %s OFFSET %s
+        """
+    )
+
+    with get_cursor() as cur:
+        cur.execute(query, (*params, limit, offset))
+        rows = cur.fetchall()
+        count_query = (
+            filtered_cte
+            + "SELECT COUNT(DISTINCT group_key) FROM filtered"
+        )
+        cur.execute(count_query, params)
+        total = cur.fetchone()[0] if cur.rowcount else 0
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def fetch_psych_group_reports(
+    *,
+    user_id: Optional[int] = None,
+    report_id: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Return all reports belonging to a user (or fallback single report)."""
+    if user_id is None and report_id is None:
+        raise ValueError("Either user_id or report_id must be provided")
+
+    with get_cursor() as cur:
+        if user_id is not None:
+            cur.execute(
+                """
+                SELECT
+                    pr.id,
+                    pr.chat_log_id,
+                    pr.user_id,
+                    pr.username,
+                    pr.message,
+                    pr.summary,
+                    pr.severity,
+                    pr.status,
+                    pr.metadata,
+                    pr.created_at,
+                    pr.updated_at,
+                    cl.created_at AS chat_created_at
+                FROM psych_reports pr
+                LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id
+                WHERE pr.user_id = %s
+                ORDER BY pr.created_at DESC
+                """,
+                (user_id,),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT
+                    pr.id,
+                    pr.chat_log_id,
+                    pr.user_id,
+                    pr.username,
+                    pr.message,
+                    pr.summary,
+                    pr.severity,
+                    pr.status,
+                    pr.metadata,
+                    pr.created_at,
+                    pr.updated_at,
+                    cl.created_at AS chat_created_at
+                FROM psych_reports pr
+                LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id
+                WHERE pr.id = %s
+                ORDER BY pr.created_at DESC
+                """,
+                (report_id,),
+            )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_psych_report_status(
+    report_id: int,
+    status: str,
+    *,
+    updated_by: Optional[str] = None,
+) -> bool:
+    """Update status (and optionally last_updated_by inside metadata) for a psych report."""
+    normalized = (status or "").strip().lower()
+    if normalized not in PSYCH_STATUSES:
+        raise ValueError(f"Status curhat tidak dikenal: {status}")
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT metadata FROM psych_reports WHERE id = %s FOR UPDATE",
+            (report_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+        metadata = dict(row["metadata"] or {})
+        metadata_changed = False
+        if updated_by:
+            if metadata.get("last_updated_by") != updated_by:
+                metadata["last_updated_by"] = updated_by
+                metadata_changed = True
+
+        metadata_param = Json(metadata) if metadata_changed else row["metadata"]
+
+        cur.execute(
+            """
+            UPDATE psych_reports
+            SET status = %s,
+                metadata = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (normalized, metadata_param, report_id),
+        )
+        return cur.rowcount > 0
 
 
 def update_bullying_report_status(

@@ -152,6 +152,50 @@ def _ensure_bullying_schema() -> None:
 _ensure_bullying_schema()
 
 
+def _ensure_psych_schema() -> None:
+    """Pastikan tabel curhat psikologis tersedia."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS psych_reports (
+                id SERIAL PRIMARY KEY,
+                chat_log_id INTEGER REFERENCES chat_logs(id) ON DELETE SET NULL,
+                user_id BIGINT,
+                username TEXT,
+                message TEXT NOT NULL,
+                summary TEXT,
+                severity TEXT NOT NULL DEFAULT 'general',
+                status TEXT NOT NULL DEFAULT 'open',
+                metadata JSONB,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CHECK (status IN ('open', 'in_progress', 'resolved', 'archived'))
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_psych_reports_status
+            ON psych_reports (status);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_psych_reports_severity
+            ON psych_reports (severity);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_psych_reports_created_at
+            ON psych_reports (created_at DESC);
+            """
+        )
+    conn.commit()
+
+
+_ensure_psych_schema()
+
 
 def _calculate_due_at(category: str) -> datetime:
     base = datetime.now(timezone.utc)
@@ -172,6 +216,53 @@ def _insert_report_event(cursor, report_id: int, event_type: str, *, actor: Opti
         (report_id, event_type, actor, Json(payload) if payload else None),
     )
 
+
+def record_psych_report(
+    chat_log_id: Optional[int],
+    user_id: Optional[int],
+    username: Optional[str],
+    message: str,
+    *,
+    severity: str = "general",
+    status: str = "open",
+    summary: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> Optional[int]:
+    """Simpan curhat psikologis ke tabel khusus."""
+    if not message:
+        return None
+
+    payload = Json(metadata) if metadata else None
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO psych_reports (
+                chat_log_id,
+                user_id,
+                username,
+                message,
+                summary,
+                severity,
+                status,
+                metadata
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                chat_log_id,
+                user_id,
+                username,
+                message,
+                summary,
+                severity,
+                status,
+                payload,
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    return int(row[0]) if row else None
 
 
 def create_notification(

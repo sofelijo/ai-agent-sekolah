@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Detail Curhat - ASKA Insights{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h1 class="h4 fw-bold mb-1">Detail Curhat Siswa</h1>
+            <p class="text-muted mb-0">
+                Riwayat curhat{{ " " + user.username if user.username }}{% if user.user_id %} ID {{ user.user_id }}{% endif %}.
+            </p>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_reports') }}">Kembali ke daftar</a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            {% for item in records %}
+            <div class="mb-4 pb-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="badge {% if item.severity == 'critical' %}text-bg-danger{% elif item.severity == 'elevated' %}text-bg-warning text-dark{% else %}text-bg-success{% endif %} text-uppercase">
+                            {{ item.severity|default('general') }}
+                        </span>
+                        <span class="badge {% if item.status == 'resolved' %}text-bg-success{% elif item.status == 'in_progress' %}text-bg-warning text-dark{% elif item.status == 'archived' %}text-bg-secondary text-dark{% else %}text-bg-danger{% endif %}">
+                            {{ item.status|default('open')|replace('_', ' ')|title }}
+                        </span>
+                        {% if current_user and current_user.role in ['admin', 'editor'] %}
+                        <form method="post" action="{{ url_for('main.update_psych_status', report_id=item.id) }}" class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                            <input type="hidden" name="next" value="{{ request.full_path }}">
+                            <select name="status" class="form-select form-select-sm" style="max-width: 180px;">
+                                <option value="open" {% if item.status == 'open' %}selected{% endif %}>Open</option>
+                                <option value="in_progress" {% if item.status == 'in_progress' %}selected{% endif %}>Diproses</option>
+                                <option value="resolved" {% if item.status == 'resolved' %}selected{% endif %}>Selesai</option>
+                                <option value="archived" {% if item.status == 'archived' %}selected{% endif %}>Diarsipkan</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary btn-sm">Update status</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted small text-end">
+                        <div>Dibuat: {{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                        {% if item.updated_at %}
+                        <div>Update: {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                        {% endif %}
+                        {% if item.chat_created_at %}
+                        <div>Chat: {{ item.chat_created_at.strftime('%d %b %Y %H:%M') }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h6 class="fw-semibold text-secondary text-uppercase small mb-2">Ringkasan</h6>
+                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.summary or '-' }}</div>
+                </div>
+                <div class="mt-3">
+                    <h6 class="fw-semibold text-secondary text-uppercase small mb-2">Isi Curhat</h6>
+                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.message }}</div>
+                </div>
+                {% if item.metadata %}
+                <div class="mt-3">
+                    <h6 class="fw-semibold text-secondary text-uppercase small mb-2">Metadata</h6>
+                    <pre class="bg-light border rounded p-2 small mb-0">{{ item.metadata | tojson(indent=2) }}</pre>
+                </div>
+                {% endif %}
+                {% if item.chat_log_id %}
+                <div class="mt-3">
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.chat_thread', user_id=item.user_id) }}">Lihat percakapan lengkap</a>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">Tidak ada curhat untuk ditampilkan.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

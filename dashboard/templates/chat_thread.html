@@ -1,31 +1,238 @@
 {% extends 'base.html' %}
-{% block title %}Thread {{ user.user_id }} - ASKA Insights{% endblock %}
+{% block title %}Percakapan {{ user.username }} - ASKA Insights{% endblock %}
+
+{% block head_extra %}
+<style>
+    .chat-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .chat-card {
+        position: relative;
+        height: calc(100vh - 180px);
+        min-height: 70vh;
+        max-height: 85vh;
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-strong);
+    }
+
+    .chat-scroll {
+        height: 100%;
+        overflow-y: auto;
+        padding: 2rem 1.75rem 4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        background: linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg-muted) 100%);
+    }
+
+    html[data-theme="dark"] .chat-scroll {
+        background: linear-gradient(180deg, rgba(23, 35, 59, 0.95) 0%, rgba(15, 23, 42, 0.88) 100%);
+    }
+
+    .chat-message {
+        max-width: 74%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .chat-message.chat-user {
+        align-self: flex-end;
+    }
+
+    .chat-message.chat-aska {
+        align-self: flex-start;
+    }
+
+    .chat-bubble {
+        padding: 1rem 1.15rem 0.85rem;
+        border-radius: 22px;
+        background: var(--bg-surface);
+        position: relative;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid var(--border-soft);
+    }
+
+    .chat-message.chat-user .chat-bubble {
+        border-bottom-right-radius: 6px;
+        background: #2563eb;
+        color: #f8fafc;
+        border-color: rgba(37, 99, 235, 0.45);
+        box-shadow: 0 15px 40px rgba(37, 99, 235, 0.35);
+    }
+
+    .chat-message.chat-aska .chat-bubble {
+        border-bottom-left-radius: 6px;
+        background: var(--bg-surface);
+    }
+
+    .chat-text {
+        white-space: pre-wrap;
+        font-size: 0.98rem;
+        line-height: 1.58rem;
+        letter-spacing: 0.01em;
+        color: var(--text-primary);
+    }
+
+    .chat-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        font-size: 0.74rem;
+        opacity: 0.78;
+    }
+
+    .chat-message.chat-user .chat-meta {
+        color: rgba(241, 245, 249, 0.9);
+        justify-content: flex-end;
+    }
+
+    .chat-message.chat-aska .chat-meta {
+        color: var(--text-muted);
+        justify-content: flex-start;
+    }
+
+    .chat-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .chat-empty {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+    }
+
+    .chat-jump-btn {
+        position: absolute;
+        right: 1.5rem;
+        bottom: 1.5rem;
+        z-index: 10;
+        transition: all 0.2s ease;
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.25);
+    }
+
+    .chat-jump-btn.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(18px);
+        box-shadow: none;
+    }
+
+    @media (max-width: 992px) {
+        .chat-card {
+            height: calc(100vh - 220px);
+            max-height: none;
+        }
+
+        .chat-message {
+            max-width: 87%;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .chat-bubble {
+            padding: 0.85rem 0.9rem 0.75rem;
+        }
+
+        .chat-scroll {
+            padding: 1.4rem 1.05rem 3.5rem;
+        }
+
+        .chat-message {
+            max-width: 92%;
+        }
+    }
+
+    html[data-theme="dark"] .chat-message.chat-user .chat-bubble {
+        box-shadow: 0 15px 40px rgba(37, 99, 235, 0.55);
+    }
+
+    html[data-theme="dark"] .chat-jump-btn {
+        box-shadow: 0 18px 40px rgba(79, 139, 255, 0.35);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 fw-bold mb-1">Thread Pengguna</h1>
-        <p class="text-muted mb-0">ID {{ user.user_id }} - {{ user.username }}</p>
+<div class="chat-layout">
+    <div class="d-flex justify-content-between align-items-center px-1">
+        <div>
+            <h1 class="h4 fw-bold mb-1">Percakapan Pengguna</h1>
+            <p class="text-muted mb-0">User ID {{ user.user_id }} — {{ user.username }}</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.chats', user_id=user.user_id) }}">Kembali</a>
     </div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('main.chats', user_id=user.user_id) }}">Kembali</a>
-</div>
 
-<div class="timeline">
-    {% for row in messages %}
-    <div class="timeline-item {% if row.role == 'aska' %}timeline-item-aska{% else %}timeline-item-user{% endif %}">
-        <div class="timeline-meta">
-            <span class="badge text-bg-light">{{ row.created_at.strftime('%d %b %Y %H:%M') }}</span>
-            {% if row.response_time_ms %}
-            <span class="badge text-bg-info">{{ row.response_time_ms }} ms</span>
-            {% endif %}
+    <div class="card chat-card">
+        <div id="chatContainer" class="chat-scroll">
+            {% for row in messages %}
+            <div class="chat-message {% if row.role == 'aska' %}chat-aska{% else %}chat-user{% endif %}">
+                <div class="chat-bubble">
+                    <div class="chat-text">{{ row.text }}</div>
+                    <div class="chat-meta">
+                        <span>{{ row.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                        {% if row.response_time_ms %}
+                        <span>Resp: {{ row.response_time_ms }}&nbsp;ms</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="chat-empty">Belum ada percakapan untuk pengguna ini.</div>
+            {% endfor %}
         </div>
-        <div class="timeline-bubble">
-            <div class="timeline-author">{{ 'ASKA' if row.role == 'aska' else row.username or 'User' }}</div>
-            <div style="white-space: pre-line;">{{ row.text }}</div>
-        </div>
+        <button id="chatJumpBottom" type="button" class="btn btn-primary btn-sm chat-jump-btn hidden">
+            Ke pesan terbaru
+        </button>
     </div>
-    {% else %}
-    <p class="text-muted">Belum ada percakapan.</p>
-    {% endfor %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const container = document.getElementById("chatContainer");
+        const jumpBtn = document.getElementById("chatJumpBottom");
+
+        if (!container) {
+            return;
+        }
+
+        const scrollToBottom = (smooth = false) => {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: smooth ? "smooth" : "auto"
+            });
+        };
+
+        const toggleJumpButton = () => {
+            const threshold = 160;
+            const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+            if (distanceFromBottom > threshold) {
+                jumpBtn.classList.remove("hidden");
+            } else {
+                jumpBtn.classList.add("hidden");
+            }
+        };
+
+        // Initial scroll
+        scrollToBottom(false);
+        toggleJumpButton();
+
+        container.addEventListener("scroll", toggleJumpButton, { passive: true });
+        jumpBtn.addEventListener("click", () => {
+            scrollToBottom(true);
+        });
+    })();
+</script>
 {% endblock %}

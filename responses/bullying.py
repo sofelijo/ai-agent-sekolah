@@ -103,7 +103,7 @@ _EXCLUSION_PATTERNS: tuple[re.Pattern[str], ...] = (
 _REPORT_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(
         r"\b(?:aku|saya|gue|gw|gua|teman(?:ku)?|temen(?:ku)?|adik(?:ku)?|kakak(?:ku)?|keponakan|adik|teman|temen)\s+"
-        r"(?:lagi\s+|sedang\s+)?di[a-z]*?(bul|bully|buly|buli|tindas|keroyok|ancam|sakiti|peleceh|cabuli|pukul|tampar|tendang)\b"
+        r"(?:lagi\s+|sedang\s+)?di[\s-]*[a-z]*?(bul|bully|buly|buli|tindas|keroyok|ancam|sakiti|peleceh|cabuli|pukul|tampar|tendang)\b"
     ),
     re.compile(r"\bkorban\s+(?:bully|bullying|perundungan|intimidasi|penindasan|pelecehan)\b"),
     re.compile(r"\bada\s+(?:kejadian\s+)?(?:bully|bullying|perundungan|intimidasi|pemalakan|pelecehan|pemukulan)\b"),
