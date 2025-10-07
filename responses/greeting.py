@@ -13,7 +13,7 @@ GREETING_KEYWORDS = (
     "bro", "sis", "gan", "min",
     "permisi", "p",
     "assalamualaikum", "asswrwb", "asswrwb",
-    "morning", "afternoon", "evening",
+    "morning", "afternoon", "evening", "pagi", "siang", "sore", "malam",
 )
 
 GREETING_PHRASES = (
@@ -58,16 +58,16 @@ TIME_GREETING_KEYWORDS = {
 # Respons sapaan bergaya Gen-Z + tetap sopan, 10 per waktu
 TIME_GREETING_RESPONSES = {
     "pagi": [
-        "Selamat pagi! *ASKA* doain harimu sesegar kopi pertama ☀️☕",
-        "Morning squad! *ASKA* siap bikin pagi kamu makin produktif ☀️🚀",
-        "Hai pagi! Yuk mulai hari dengan info valid dari *ASKA* 🌅🧠",
+        "Selamat pagi! ☀️ *ASKA* doain harimu sesegar kopi pertama ☀️☕",
+        "Morning squad! ☀️ *ASKA* siap bikin pagi kamu makin produktif ☀️🚀",
+        "Hai pagi! ☀️ Yuk mulai hari dengan info valid dari *ASKA* 🌅🧠",
         "Pagi, bestie! Biar makin on-track, tanya *ASKA* aja dulu 🌞📋",
-        "Rise and shine! *ASKA* ready bantu urusan sekolah kamu 🌤️📚",
-        "Pagi ceria! Cek jadwal, seragam, atau tugas bareng *ASKA* ☀️🗓️",
-        "Selamat pagi! Semoga nilai dan mood kamu sama-sama naik 📈😊",
-        "Good morning! Butuh pengumuman terbaru? *ASKA* siap spill 🗞️🤖",
+        "Pagi! ☀️ Rise and shine! *ASKA* ready bantu urusan sekolah kamu 🌤️📚",
+        "Pagi ceria! ☀️ Cek jadwal, seragam, atau tugas bareng *ASKA* ☀️🗓️",
+        "Selamat pagi! ☀️ Semoga nilai dan mood kamu sama-sama naik 📈😊",
+        "Good morning! ☀️ Butuh pengumuman terbaru? *ASKA* siap spill 🗞️🤖",
         "Pagi-pagi udah rajin? Mantap! *ASKA* temenin kamu cari info 💪🔎",
-        "Halo pagi! Gaskeun aktivitas dengan data akurat dari *ASKA* ⚡️✅",
+        "Halo pagi! ☀️ Gaskeun aktivitas dengan data akurat dari *ASKA* ⚡️✅",
         "Pagi, gengs! ☀️ ASKA harap kamu semua siap menjalani hari yang seru! Jangan lupa bawa semua perlengkapan sekolah, ya! Semangat belajar! 💪✨ Ada yang mau ditanyain tentang jadwal kelas atau pelajaran? Let me know! 😊",
         "Pagi, gengs! ☀️ Semoga harimu cerah dan penuh semangat! Ada yang mau dibahas atau ditanya? ASKA siap bantu! 💖✨",
         "Pagi! ☀️ Gimana kabarnya? Semoga hari ini seru ya! Kalo ada yang mau ditanya atau butuh info, ASKA siap bantu! 😄✨",
@@ -99,16 +99,17 @@ TIME_GREETING_RESPONSES = {
         "Waktunya wind down. *ASKA* bantu planning to-do besok 🗒️🕟",
     ],
     "malam": [
-        "Selamat malam! Santai dulu, urusan info sekolah biar *ASKA* yang handle 🌙😴",
-        "Malam bestie! Yuk tutup hari dengan data akurat bareng *ASKA* 🌌📊",
-        "Halo malam! Kalau masih ada PR info sekolah, tinggal tanya *ASKA* 🌛💬",
+        "Selamat malam! 🌙 Santai dulu, urusan info sekolah biar *ASKA* yang handle 🌙😴",
+        "Malam bestie! 🌙 Yuk tutup hari dengan data akurat bareng *ASKA* 🌌📊",
+        "Halo malam! 🌙 Kalau masih ada PR info sekolah, tinggal tanya *ASKA* 🌛💬",
         "Good evening! Siapkan seragam & jadwal, *ASKA* siap bantu cek 🧺🗓️",
         "Malam produktif? Boleh juga. *ASKA* siap bantu cari referensi 📚✨",
-        "Selamat malam! Minum hangat, lalu curhat ke *ASKA* soal jadwal besok 🍵🕘",
+        "Selamat malam! 🌙 Minum hangat, lalu curhat ke *ASKA* soal jadwal besok 🍵🕘",
         "Malam-malam kepo pengumuman? *ASKA* bisa spill yang terbaru 🌙🗞️",
         "Time to recharge. Sebelum tidur, cek checklist bareng *ASKA* 🔋📝",
         "Malam hening, info tetap jernih. Tanyain *ASKA* kalau bingung 🌃🔍",
-        "Good night! Semoga mimpinya indah, besok kita gas lagi bareng *ASKA* 🌠🚀",
+        "Good night! 🌙 Semoga mimpinya indah, besok kita gas lagi bareng *ASKA* 🌠🚀",
+        "Malam, sobat! 🌙✨ Gimana harimu? Semoga seru ya! Kalo ada yang mau dibahas atau ditanyain, ASKA siap bantu! 😄💖",
     ],
 }
 
