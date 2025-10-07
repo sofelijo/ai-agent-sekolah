@@ -23,10 +23,23 @@
             </div>
         </div>
         <div class="col-lg-3 col-sm-6">
-            <div class="card stat-card border-0 shadow-sm h-100">
+            <div class="card stat-card border-0 shadow-sm h-100" id="uniqueUsersCard"
+                 data-counts='{{ {"all": metrics.unique_users_all,"today": metrics.unique_users_today,"week": metrics.unique_users_7d,"month": metrics.unique_users_30d,"year": metrics.unique_users_365d} | tojson }}'>
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Pengguna Unik</span>
-                    <h2 class="display-6 fw-bold mt-2">{{ metrics.unique_users }}</h2>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-secondary text-uppercase small fw-semibold">Pengguna Unik</span>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="uniqueUsersDropdown" data-bs-toggle="dropdown" aria-expanded="false">Semua</button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="uniqueUsersDropdown">
+                                <li><a class="dropdown-item js-unique-users-option active" data-range="all" href="#">Semua</a></li>
+                                <li><a class="dropdown-item js-unique-users-option" data-range="today" href="#">Hari Ini</a></li>
+                                <li><a class="dropdown-item js-unique-users-option" data-range="week" href="#">Seminggu</a></li>
+                                <li><a class="dropdown-item js-unique-users-option" data-range="month" href="#">Sebulan</a></li>
+                                <li><a class="dropdown-item js-unique-users-option" data-range="year" href="#">Setahun</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <h2 class="display-6 fw-bold mt-2 mb-1" id="uniqueUsersValue">{{ metrics.unique_users_all }}</h2>
                     <p class="mb-0 text-muted">Jumlah pengguna yang pernah chat.</p>
                 </div>
             </div>
@@ -43,12 +56,32 @@
         <div class="col-lg-3 col-sm-6">
             <div class="card stat-card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Pengguna Aktif Hari Ini</span>
-                    <h2 class="display-6 fw-bold mt-2">{{ metrics.active_today }}</h2>
-                    <p class="mb-0 text-muted">User yang berinteraksi hari ini.</p>
+                    <span class="text-secondary text-uppercase small fw-semibold">Laporan Bullying</span>
+                    <h2 class="display-6 fw-bold mt-2">{{ metrics.bullying_total - metrics.bullying_spam }}</h2>
+                    <p class="mb-0 text-muted">
+                        Pending {{ metrics.bullying_pending }} | Diproses {{ metrics.bullying_in_progress }} | Selesai {{ metrics.bullying_resolved }}
+                    </p>
                 </div>
             </div>
         </div>
+    {% if metrics.bullying_pending %}
+    <div class="alert alert-danger d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <strong>{{ metrics.bullying_pending }} laporan bullying</strong> menunggu tindak lanjut segera.
+            <span class="d-block small mb-0">Pastikan tim sekolah sudah menerima dan menindaklanjuti laporan ini.</span>
+        </div>
+        <a class="btn btn-light btn-sm" href="{{ url_for('main.bullying_reports') }}">Lihat laporan</a>
+    </div>
+    {% elif metrics.bullying_in_progress %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <strong>{{ metrics.bullying_in_progress }} laporan bullying</strong> sedang dalam proses penanganan.
+            <span class="d-block small mb-0">Update statusnya jika sudah ada perkembangan terbaru.</span>
+        </div>
+        <a class="btn btn-outline-warning btn-sm" href="{{ url_for('main.bullying_reports', status='in_progress') }}">Pantau progres</a>
+    </div>
+    {% endif %}
+
     </div>
 </section>
 
@@ -193,5 +226,29 @@
             }
         });
     }
+    const uniqueCard = document.getElementById('uniqueUsersCard');
+    const uniqueValueEl = document.getElementById('uniqueUsersValue');
+    const uniqueDropdown = document.getElementById('uniqueUsersDropdown');
+    if (uniqueCard && uniqueValueEl && uniqueDropdown) {
+        let counts = {};
+        try {
+            counts = JSON.parse(uniqueCard.dataset.counts || '{}');
+        } catch (error) {
+            counts = {};
+        }
+        const options = uniqueCard.querySelectorAll('.js-unique-users-option');
+        options.forEach((option) => {
+            option.addEventListener('click', (event) => {
+                event.preventDefault();
+                const range = option.dataset.range || 'all';
+                const value = counts[range] ?? counts.all ?? 0;
+                uniqueValueEl.textContent = value;
+                uniqueDropdown.textContent = option.textContent.trim();
+                options.forEach((item) => item.classList.remove('active'));
+                option.classList.add('active');
+            });
+        });
+    }
+
 </script>
 {% endblock %}

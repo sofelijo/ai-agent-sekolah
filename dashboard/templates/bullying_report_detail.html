@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Detail Laporan Bullying #{{ report.id }}{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div>
+            <h1 class="h4 fw-bold mb-1">Laporan Bullying #{{ report.id }}</h1>
+            <p class="text-muted mb-0">Ringkasan lengkap laporan dan riwayat tindak lanjut.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.bullying_reports', highlight=report.id) }}">← Kembali ke daftar</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.update_bullying_status', report_id=report.id) }}" onclick="event.preventDefault(); document.getElementById('quick-reopen-form').submit();">Reopen cepat</a>
+            <form id="quick-reopen-form" method="post" action="{{ url_for('main.update_bullying_status', report_id=report.id) }}" class="d-none">
+                <input type="hidden" name="action" value="reopen">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 align-items-stretch">
+        <div class="col-lg-8 d-flex flex-column gap-3" style="max-height: calc(100vh - 180px);">
+            <div class="card shadow-sm border-0 flex-fill">
+                <div class="card-body">
+                    {% set STATUS_LABELS = {'pending': 'Menunggu', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'spam': 'Spam'} %}
+                    {% set status_badge = {
+                        'pending': 'danger',
+                        'in_progress': 'warning text-dark',
+                        'resolved': 'success',
+                        'spam': 'secondary text-dark'
+                    } %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="badge text-bg-{{ status_badge.get(report.status, 'secondary') }}">
+                            Status: {{ STATUS_LABELS.get(report.status, report.status|replace('_',' ')|title) }}
+                        </span>
+                        <span class="badge text-bg-secondary text-uppercase">{{ report.category|replace('_', ' ')|title }}</span>
+                        {% if report.severity %}
+                        <span class="badge text-bg-info text-uppercase">Risiko {{ report.severity|capitalize }}</span>
+                        {% endif %}
+                        {% if report.escalated %}
+                        <span class="badge text-bg-danger text-uppercase">Urgent</span>
+                        {% endif %}
+                    </div>
+                    <dl class="row small">
+                        <dt class="col-sm-3 text-muted">Pelapor</dt>
+                        <dd class="col-sm-9">{{ report.username or 'Anon' }}{% if report.user_id %} (ID {{ report.user_id }}){% endif %}</dd>
+                        <dt class="col-sm-3 text-muted">Masuk</dt>
+                        <dd class="col-sm-9">{{ report.created_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        <dt class="col-sm-3 text-muted">Terakhir update</dt>
+                        <dd class="col-sm-9">{{ report.updated_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        {% if report.last_updated_by %}
+                        <dt class="col-sm-3 text-muted">Diupdate oleh</dt>
+                        <dd class="col-sm-9">{{ report.last_updated_by }}</dd>
+                        {% endif %}
+                        {% if report.assigned_to %}
+                        <dt class="col-sm-3 text-muted">Penanggung jawab</dt>
+                        <dd class="col-sm-9">{{ report.assigned_to }}</dd>
+                        {% endif %}
+                        {% if report.due_at %}
+                        <dt class="col-sm-3 text-muted">Jatuh tempo</dt>
+                        <dd class="col-sm-9">{{ report.due_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        {% endif %}
+                        {% if report.resolved_at %}
+                        <dt class="col-sm-3 text-muted">Diselesaikan</dt>
+                        <dd class="col-sm-9">{{ report.resolved_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        {% endif %}
+                    </dl>
+                    <hr>
+                    <h2 class="h6 fw-bold">Deskripsi laporan</h2>
+                    <p style="white-space: pre-wrap;">{{ report.description }}</p>
+                    {% if report.notes %}
+                    <h3 class="h6 fw-bold mt-4">Catatan tindak lanjut</h3>
+                    <p class="small text-muted" style="white-space: pre-wrap;">{{ report.notes }}</p>
+                    {% endif %}
+                    {% if report.metadata %}
+                    <h3 class="h6 fw-bold mt-4">Metadata tambahan</h3>
+                    <pre class="bg-light rounded p-3 small">{{ report.metadata | tojson(indent=2) }}</pre>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card shadow-sm border-0 flex-fill">
+                <div class="card-body">
+                    <h2 class="h6 fw-bold mb-3">Perbarui Laporan</h2>
+                    <form method="post" action="{{ url_for('main.update_bullying_status', report_id=report.id) }}" class="row g-3">
+                        <input type="hidden" name="next" value="{{ request.full_path }}">
+                        <input type="hidden" name="escalate" value="off">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Status</label>
+                            <select class="form-select form-select-sm" name="status">
+                                <option value="pending" {% if report.status == 'pending' %}selected{% endif %}>Menunggu</option>
+                                <option value="in_progress" {% if report.status == 'in_progress' %}selected{% endif %}>Diproses</option>
+                                <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>Selesai</option>
+                                <option value="spam" {% if report.status == 'spam' %}selected{% endif %}>Spam</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Penanggung jawab</label>
+                            <input type="text" class="form-control form-control-sm" name="assigned_to" placeholder="Nama penanggung jawab" value="{{ report.assigned_to or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Jatuh tempo</label>
+                            <input type="datetime-local" class="form-control form-control-sm" name="due_at" value="{{ report.due_at.strftime('%Y-%m-%dT%H:%M') if report.due_at else '' }}">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="escalate" value="on" id="detail-escalate" {% if report.escalated %}checked{% endif %}>
+                                <label class="form-check-label small" for="detail-escalate">Tandai prioritas</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Catatan tindak lanjut</label>
+                            <textarea class="form-control form-control-sm" name="notes" rows="3" placeholder="Ringkas update terbaru di sini">{{ report.notes or '' }}</textarea>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="save">Simpan perubahan</button>
+                            <button type="submit" class="btn btn-outline-warning btn-sm" name="action" value="reopen" {% if report.status == 'pending' %}disabled{% endif %}>Reopen</button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="const select = this.form.querySelector('select[name=status]'); if (select) { select.value = 'resolved'; } this.form.submit();">Tandai selesai</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="const select = this.form.querySelector('select[name=status]'); if (select) { select.value = 'spam'; } this.form.submit();">Tandai spam</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 d-flex">
+            <div class="card shadow-sm border-0 flex-fill d-flex flex-column" style="max-height: calc(100vh - 180px);">
+                <div class="card-body d-flex flex-column overflow-hidden">
+                    {% set EVENT_TITLES = {
+                        "created": "Laporan dibuat",
+                        "update": "Data diperbarui",
+                        "status_changed": "Status diperbarui",
+                        "resolved": "Laporan selesai",
+                        "reopened": "Laporan dibuka kembali",
+                        "escalated": "Laporan diekalasi"
+                    } %}
+                    {% macro render_value(value) -%}
+                        {%- if value is none -%}
+                            —
+                        {%- elif value is boolean -%}
+                            {{ 'Ya' if value else 'Tidak' }}
+                        {%- elif value is string -%}
+                            {% if value in ['pending', 'in_progress', 'resolved', 'spam'] %}
+                                {{ {'pending': 'Menunggu', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'spam': 'Spam'}[value] }}
+                            {% else %}
+                                {{ value|replace('T', ' ') }}
+                            {% endif %}
+                        {%- else -%}
+                            {{ value }}
+                        {%- endif -%}
+                    {%- endmacro %}
+                    <h2 class="h6 fw-bold mb-3">Timeline Tindak Lanjut</h2>
+                    <div class="timeline-body d-flex flex-column gap-3 overflow-auto flex-grow-1">
+                        {% for event in report.events|sort(attribute='created_at', reverse=True) %}
+                        {% set payload = event.payload or {} %}
+                        {% set changes = payload.get('changes') %}
+                        {% set notes = payload.get('notes') %}
+                        <div class="border rounded p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                    <div class="text-uppercase text-muted small" style="letter-spacing: .08em;">{{ event.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="fw-semibold">{{ EVENT_TITLES.get(event.event_type, event.event_type|replace('_',' ')|title) }}</div>
+                                </div>
+                                {% if event.actor %}
+                                <span class="text-muted small">oleh {{ event.actor }}</span>
+                                {% endif %}
+                            </div>
+                            {% if notes %}
+                            <div class="mt-2">
+                                <strong>Catatan:</strong>
+                                <div class="text-muted" style="white-space: pre-wrap;">{{ notes }}</div>
+                            </div>
+                            {% endif %}
+                            {% if changes %}
+                            <div class="mt-2">
+                                <strong>Perubahan:</strong>
+                                <ul class="list-unstyled ms-3 mt-2">
+                                    {% for key, change in changes.items() %}
+                                    {% if key != 'notes' %}
+                                    {% set old_value = change.get('from') %}
+                                    {% set new_value = change.get('to') %}
+                                    <li class="mb-1">
+                                        <span class="fw-semibold">{{ key|replace('_',' ')|title }}</span>:
+                                        <span class="text-muted">{{ render_value(old_value) }}</span>
+                                        <span class="mx-1">→</span>
+                                        <span class="fw-semibold">{{ render_value(new_value) }}</span>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            {% set extra_items = [] %}
+                            <div class="mt-2">
+                                {% for key, value in payload.items() %}
+                                    {% if key not in ['changes', 'notes'] %}
+                                    <div class="small">
+                                        <span class="fw-semibold">{{ key|replace('_',' ')|title }}:</span>
+                                        <span>{{ render_value(value) }}</span>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted small mb-0">Belum ada catatan tindak lanjut.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

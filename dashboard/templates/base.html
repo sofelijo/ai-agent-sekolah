@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
@@ -24,6 +24,14 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint in ['main.chats', 'main.chat_thread'] %}active{% endif %}" href="{{ url_for('main.chats') }}">Chat Logs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'main.bullying_reports' %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">
+                        Laporan Bullying
+                        {% if pending_bullying_count %}
+                        <span class="badge rounded-pill text-bg-danger ms-2">{{ pending_bullying_count }}</span>
+                        {% endif %}
+                    </a>
                 </li>
                 {% if current_user and current_user.role == 'admin' %}
                 <li class="nav-item">

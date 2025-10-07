@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from psycopg2.extras import DictRow
+from psycopg2.extras import DictRow, Json
 
 from .db_access import get_cursor
 
@@ -60,6 +60,13 @@ STOPWORDS = {
     "aska",
 }
 
+BULLYING_STATUSES = (
+    'pending',
+    'in_progress',
+    'resolved',
+    'spam',
+)
+
 @dataclass
 class ChatFilters:
     start: Optional[datetime] = None
@@ -90,16 +97,60 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
     window_days = max(1, window_days)
     interval = timedelta(days=window_days)
 
+    bullying_rows: List[Dict[str, Any]] = []
+
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS total_messages FROM chat_logs")
         total_messages = cur.fetchone()["total_messages"]
 
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(DISTINCT user_id) AS unique_users
             FROM chat_logs
             WHERE role = 'user'
-        """)
-        unique_users = cur.fetchone()["unique_users"]
+            """
+        )
+        unique_users_all = cur.fetchone()["unique_users"]
+
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT user_id) AS unique_users_today
+            FROM chat_logs
+            WHERE role = 'user'
+              AND DATE(created_at) = CURRENT_DATE
+            """
+        )
+        unique_users_today = cur.fetchone()["unique_users_today"]
+
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT user_id) AS unique_users_7d
+            FROM chat_logs
+            WHERE role = 'user'
+              AND created_at >= NOW() - INTERVAL '7 days'
+            """
+        )
+        unique_users_7d = cur.fetchone()["unique_users_7d"]
+
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT user_id) AS unique_users_30d
+            FROM chat_logs
+            WHERE role = 'user'
+              AND created_at >= NOW() - INTERVAL '30 days'
+            """
+        )
+        unique_users_30d = cur.fetchone()["unique_users_30d"]
+
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT user_id) AS unique_users_365d
+            FROM chat_logs
+            WHERE role = 'user'
+              AND created_at >= NOW() - INTERVAL '365 days'
+            """
+        )
+        unique_users_365d = cur.fetchone()["unique_users_365d"]
 
         cur.execute(
             """
@@ -118,31 +169,51 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
                 percentile_cont(0.9) WITHIN GROUP (ORDER BY response_time_ms) AS p90_response
             FROM chat_logs
             WHERE response_time_ms IS NOT NULL
-        """
+            """
         )
         response_stats = cur.fetchone()
 
+        active_today = unique_users_today
+
         cur.execute(
             """
-            SELECT COUNT(DISTINCT user_id) AS active_today
-            FROM chat_logs
-            WHERE DATE(created_at) = CURRENT_DATE
-              AND role = 'user'
-        """
+            SELECT status, COUNT(*) AS total
+            FROM bullying_reports
+            GROUP BY status
+            """
         )
-        active_today = cur.fetchone()["active_today"]
+        bullying_rows = cur.fetchall()
 
     avg_response = response_stats["avg_response"] or 0.0
     p90_response = response_stats["p90_response"] or 0.0
 
+    bullying_summary = {status: 0 for status in BULLYING_STATUSES}
+    bullying_total = 0
+    for row in bullying_rows:
+        status = (row.get("status") or "").lower()
+        count = int(row.get("total") or 0)
+        if status in bullying_summary:
+            bullying_summary[status] = count
+            bullying_total += count
+
     return {
         "total_messages": int(total_messages or 0),
-        "unique_users": int(unique_users or 0),
+        "unique_users": int(unique_users_all or 0),
+        "unique_users_all": int(unique_users_all or 0),
+        "unique_users_today": int(unique_users_today or 0),
+        "unique_users_7d": int(unique_users_7d or 0),
+        "unique_users_30d": int(unique_users_30d or 0),
+        "unique_users_365d": int(unique_users_365d or 0),
         "messages_window": int(messages_window or 0),
         "window_days": window_days,
         "avg_response_ms": round(avg_response, 2),
         "p90_response_ms": round(p90_response, 2),
         "active_today": int(active_today or 0),
+        "bullying_total": bullying_total,
+        "bullying_pending": bullying_summary['pending'],
+        "bullying_in_progress": bullying_summary['in_progress'],
+        "bullying_resolved": bullying_summary['resolved'],
+        "bullying_spam": bullying_summary['spam'],
     }
 
 def fetch_daily_activity(days: int = 14) -> List[Dict[str, Any]]:
@@ -268,6 +339,294 @@ def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, 
         )
         rows = cur.fetchall()
     return [dict(row) for row in rows]
+
+
+
+def fetch_bullying_summary() -> Dict[str, int]:
+    """Return aggregated counts of bullying reports by status."""
+    summary = {status: 0 for status in BULLYING_STATUSES}
+    total = 0
+    escalated_total = 0
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM bullying_reports
+            GROUP BY status
+            """
+        )
+        rows = cur.fetchall()
+        cur.execute(
+            "SELECT COUNT(*) FROM bullying_reports WHERE escalated = TRUE"
+        )
+        escalated_total = cur.fetchone()[0]
+    for row in rows:
+        status = (row.get('status') or '').lower()
+        count = int(row.get('total') or 0)
+        if status in summary:
+            summary[status] = count
+            total += count
+    summary['total'] = total
+    summary['escalated'] = int(escalated_total or 0)
+    return summary
+
+
+def fetch_pending_bullying_count() -> int:
+    """Shortcut to obtain the number of pending bullying reports."""
+    return fetch_bullying_summary().get('pending', 0)
+
+
+def fetch_bullying_reports(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Return paginated bullying reports ordered by priority and recency."""
+    status_filter = None
+    if status:
+        normalized = status.lower()
+        if normalized not in BULLYING_STATUSES:
+            raise ValueError(f"Status bullying tidak dikenal: {status}")
+        status_filter = normalized
+
+    conditions: List[str] = []
+    params: List[Any] = []
+    if status_filter:
+        conditions.append('br.status = %s')
+        params.append(status_filter)
+
+    where_clause = ''
+    if conditions:
+        where_clause = ' WHERE ' + ' AND '.join(conditions)
+
+    query = (
+        """
+        SELECT
+            br.id,
+            br.chat_log_id,
+            br.user_id,
+            br.username,
+            br.description,
+            br.status,
+            br.priority,
+            br.notes,
+            br.created_at,
+            br.updated_at,
+            br.last_updated_by,
+            br.category,
+            br.severity,
+            br.metadata,
+            br.assigned_to,
+            br.due_at,
+            br.resolved_at,
+            br.escalated,
+            cl.created_at AS chat_created_at
+        FROM bullying_reports br
+        LEFT JOIN chat_logs cl ON cl.id = br.chat_log_id
+        """
+        + where_clause
+        + " ORDER BY br.escalated DESC, br.priority DESC, br.created_at DESC LIMIT %s OFFSET %s"
+    )
+
+    with get_cursor() as cur:
+        cur.execute(query, (*params, limit, offset))
+        rows = cur.fetchall()
+        cur.execute(
+            "SELECT COUNT(*) FROM bullying_reports br" + where_clause,
+            params,
+        )
+        total = cur.fetchone()[0]
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def update_bullying_report_status(
+    report_id: int,
+    status: Optional[str] = None,
+    *,
+    notes: Optional[str] = None,
+    updated_by: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    due_at: Optional[datetime] = None,
+    escalated: Optional[bool] = None,
+) -> bool:
+    """Update bullying report fields and append an audit trail entry."""
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            SELECT status, notes, assigned_to, due_at, escalated
+            FROM bullying_reports
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (report_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+
+        current = dict(row)
+        updates: List[str] = []
+        params: List[Any] = []
+        changes: Dict[str, Any] = {}
+
+        new_status = current.get("status")
+        if status is not None:
+            normalized = status.lower()
+            if normalized not in BULLYING_STATUSES:
+                raise ValueError(f"Status bullying tidak dikenal: {status}")
+            if normalized != current.get("status"):
+                new_status = normalized
+                updates.append("status = %s")
+                params.append(normalized)
+                if normalized == "resolved":
+                    updates.append("resolved_at = NOW()")
+                else:
+                    updates.append("resolved_at = NULL")
+                changes["status"] = {"from": current.get("status"), "to": normalized}
+
+        trimmed_notes = None
+        if notes is not None:
+            trimmed_notes = notes.strip() or None
+            if trimmed_notes != current.get("notes"):
+                updates.append("notes = %s")
+                params.append(trimmed_notes)
+                changes["notes"] = {"from": current.get("notes"), "to": trimmed_notes}
+
+        assigned_clean = (assigned_to or '').strip() or None
+        if assigned_to is not None and assigned_clean != current.get("assigned_to"):
+            updates.append("assigned_to = %s")
+            params.append(assigned_clean)
+            changes["assigned_to"] = {"from": current.get("assigned_to"), "to": assigned_clean}
+
+        due_value = None
+        if due_at is not None:
+            due_value = due_at
+            if isinstance(due_at, str):
+                due_at_str = due_at.strip()
+                due_value = datetime.fromisoformat(due_at_str) if due_at_str else None
+            if due_value != current.get("due_at"):
+                updates.append("due_at = %s")
+                params.append(due_value)
+                changes["due_at"] = {
+                    "from": current.get("due_at").isoformat() if current.get("due_at") else None,
+                    "to": due_value.isoformat() if due_value else None,
+                }
+
+        if escalated is not None:
+            escalated_bool = bool(escalated)
+            if escalated_bool != bool(current.get("escalated")):
+                updates.append("escalated = %s")
+                params.append(escalated_bool)
+                changes["escalated"] = {
+                    "from": bool(current.get("escalated")),
+                    "to": escalated_bool,
+                }
+                if escalated_bool:
+                    updates.append("priority = TRUE")
+
+        if updated_by is not None:
+            updates.append("last_updated_by = %s")
+            params.append(updated_by)
+
+        if not updates:
+            return False
+
+        updates.append("updated_at = NOW()")
+        query = "UPDATE bullying_reports SET " + ", ".join(updates) + " WHERE id = %s"
+        cur.execute(query, (*params, report_id))
+        if cur.rowcount == 0:
+            return False
+
+        event_type = "update"
+        if "status" in changes:
+            new_state = changes["status"]["to"]
+            old_state = changes["status"]["from"]
+            if new_state == "resolved":
+                event_type = "resolved"
+            elif new_state == "pending" and old_state and old_state != "pending":
+                event_type = "reopened"
+            else:
+                event_type = "status_changed"
+        elif "escalated" in changes and changes["escalated"]["to"]:
+            event_type = "escalated"
+
+        payload: Dict[str, Any] = {"changes": changes}
+        if trimmed_notes is not None:
+            payload["notes"] = trimmed_notes
+        _insert_event = """
+            INSERT INTO bullying_report_events (report_id, event_type, actor, payload)
+            VALUES (%s, %s, %s, %s)
+        """
+        cur.execute(_insert_event, (report_id, event_type, updated_by, Json(payload)))
+    return True
+
+
+
+def fetch_bullying_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                br.id,
+                br.chat_log_id,
+                br.user_id,
+                br.username,
+                br.description,
+                br.status,
+                br.priority,
+                br.notes,
+                br.created_at,
+                br.updated_at,
+                br.last_updated_by,
+                br.category,
+                br.severity,
+                br.metadata,
+                br.assigned_to,
+                br.due_at,
+                br.resolved_at,
+                br.escalated,
+                cl.created_at AS chat_created_at
+            FROM bullying_reports br
+            LEFT JOIN chat_logs cl ON cl.id = br.chat_log_id
+            WHERE br.id = %s
+            LIMIT 1
+            """,
+            (report_id,)
+        )
+        report_row = cur.fetchone()
+        if not report_row:
+            return None
+        report = dict(report_row)
+
+        cur.execute(
+            """
+            SELECT id, event_type, actor, payload, created_at
+            FROM bullying_report_events
+            WHERE report_id = %s
+            ORDER BY created_at ASC
+            """,
+            (report_id,)
+        )
+        events = [dict(evt) for evt in cur.fetchall()]
+        report["events"] = events
+    return report
+
+
+def fetch_bullying_report_basic(report_id: int) -> Optional[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, status, notes, assigned_to, due_at, escalated
+            FROM bullying_reports
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (report_id,)
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
 
 def get_user_by_email(email: str) -> Optional[DictRow]:
     with get_cursor() as cur:

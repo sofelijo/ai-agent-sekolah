@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% block title %}Laporan Bullying - ASKA Insights{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h1 class="h4 fw-bold mb-1">Laporan Bullying</h1>
+            <p class="text-muted mb-0">Pantau tindak lanjut laporan perundungan dari siswa dan pastikan setiap kasus ditangani.</p>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">Kembali ke Dashboard</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Menunggu</span>
+                    <h2 class="h3 fw-bold mt-1 text-danger">{{ summary.get('pending', 0) }}</h2>
+                    <p class="small text-muted mb-0">Belum ditindaklanjuti.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Diproses</span>
+                    <h2 class="h3 fw-bold mt-1 text-warning">{{ summary.get('in_progress', 0) }}</h2>
+                    <p class="small text-muted mb-0">Sedang ditindaklanjuti.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Selesai</span>
+                    <h2 class="h3 fw-bold mt-1 text-success">{{ summary.get('resolved', 0) }}</h2>
+                    <p class="small text-muted mb-0">Kasus selesai.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <span class="text-secondary text-uppercase small fw-semibold">Total Laporan</span>
+                    <h2 class="h3 fw-bold mt-1">{{ summary.get('total', 0) - summary.get('spam', 0) }}</h2>
+                    <p class="small text-muted mb-0">Total laporan valid.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not filter_status %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">Semua</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_status == 'pending' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='pending') }}">Menunggu</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_status == 'in_progress' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='in_progress') }}">Diproses</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_status == 'resolved' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='resolved') }}">Selesai</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_status == 'spam' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='spam') }}">Spam</a>
+        </li>
+    </ul>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" style="width: 12%;">Dibuat</th>
+                            <th scope="col" style="width: 16%;">Pelapor</th>
+                            <th scope="col">Deskripsi</th>
+                            <th scope="col" style="width: 12%;">Status</th>
+                            <th scope="col" style="width: 18%;">Catatan</th>
+                            <th scope="col" style="width: 18%;">Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in records %}
+                        <tr class="{% if highlight_id == item.id %}table-warning{% endif %}" id="report-{{ item.id }}">
+                            <td>
+                                <div class="small fw-semibold">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                                {% if item.chat_created_at %}
+                                <div class="text-muted small">Chat: {{ item.chat_created_at.strftime('%d %b %H:%M') }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ item.username or 'Anon' }}</div>
+                                <div class="text-muted small">ID {{ item.user_id or '-' }}</div>
+                                {% if item.chat_log_id and item.user_id %}
+                                <a class="small" href="{{ url_for('main.chat_thread', user_id=item.user_id) }}">Lihat riwayat</a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-wrap" style="white-space: pre-wrap;">{{ item.description }}</div>
+                                {% if item.category %}
+                                <div class="mt-2">
+                                    <span class="badge rounded-pill text-bg-secondary text-uppercase" style="letter-spacing: .05em;">{{ item.category|replace('_', ' ')|title }}</span>
+                                </div>
+                                {% endif %}
+                                {% if item.metadata and item.metadata.source %}
+                                <div class="text-muted small">Sumber: {{ item.metadata.source|capitalize }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set status = item.status or 'pending' %}
+                                {% if status == 'resolved' %}
+                                <span class="badge text-bg-success">Selesai</span>
+                                {% elif status == 'in_progress' %}
+                                <span class="badge text-bg-warning text-dark">Diproses</span>
+                                {% elif status == 'spam' %}
+                                <span class="badge text-bg-secondary text-dark">Spam</span>
+                                {% else %}
+                                <span class="badge text-bg-danger">Menunggu</span>
+                                {% endif %}
+                                {% if item.escalated %}
+                                <div class="mt-1">
+                                    <span class="badge text-bg-danger text-uppercase" style="letter-spacing: .05em;">Prioritas</span>
+                                </div>
+                                {% endif %}
+                                {% if item.assigned_to %}
+                                <div class="text-muted small mt-1">Ditangani: {{ item.assigned_to }}</div>
+                                {% endif %}
+                                {% if item.due_at %}
+                                <div class="text-muted small">Jatuh tempo: {{ item.due_at.strftime('%d %b %Y %H:%M') }}</div>
+                                {% endif %}
+                                {% if item.resolved_at %}
+                                <div class="text-muted small">Selesai: {{ item.resolved_at.strftime('%d %b %Y %H:%M') }}</div>
+                                {% endif %}
+                                <div class="text-muted small">Update: {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                            </td>
+                            <td>
+                                <div class="small text-muted" style="white-space: pre-wrap;">{{ item.notes or '-' }}</div>
+                            </td>
+                            <td>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.bullying_report_detail', report_id=item.id) }}">Kelola</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Belum ada laporan bullying.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+    {% if total_pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=page-1) }}">Prev</a>
+            </li>
+            {% for number in range(1, total_pages + 1) %}
+            <li class="page-item {% if number == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=number) }}">{{ number }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=page+1) }}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+{% if highlight_id %}
+<script>
+    const highlightedRow = document.getElementById('report-{{ highlight_id }}');
+    if (highlightedRow) {
+        highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+</script>
+{% endif %}
+
+</section>
+{% endblock %}

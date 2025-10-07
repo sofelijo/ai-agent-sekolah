@@ -12,10 +12,17 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from ai_core import build_qa_chain
-from db import save_chat, get_chat_history
+from db import save_chat, get_chat_history, record_bullying_report
 from responses import (
     ASKA_NO_DATA_RESPONSE,
     ASKA_TECHNICAL_ISSUE_RESPONSE,
+    contains_inappropriate_language,
+    get_advice_response,
+    CATEGORY_PHYSICAL,
+    CATEGORY_SEXUAL,
+    detect_bullying_category,
+    get_bullying_ack_response,
+    get_relationship_advice_response,
     get_acknowledgement_response,
     get_farewell_response,
     get_greeting_response,
@@ -26,6 +33,7 @@ from responses import (
     is_acknowledgement_message,
     is_farewell_message,
     is_greeting_message,
+    is_relationship_question,
     is_self_intro_message,
     is_status_message,
     is_thank_you_message,
@@ -131,11 +139,55 @@ async def handle_user_query(
 
         print(f"[{now_str()}] SAVING USER MESSAGE")
         topic = source if source != "text" else None
-        save_chat(user_id, username, normalized_input, role="user", topic=topic)
+        chat_log_id = save_chat(user_id, username, normalized_input, role="user", topic=topic)
 
         def mark_responded():
             if responded_store is not None and responded_key is not None:
                 responded_store.add(responded_key)
+
+        bullying_category = detect_bullying_category(normalized_input)
+        if bullying_category:
+            print(f"[{now_str()}] BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
+            severity = "critical" if bullying_category == CATEGORY_SEXUAL else (
+                "high" if bullying_category == CATEGORY_PHYSICAL else "medium"
+            )
+            if chat_log_id is not None:
+                try:
+                    record_bullying_report(
+                        chat_log_id,
+                        user_id,
+                        username,
+                        normalized_input,
+                        category=bullying_category,
+                        severity=severity,
+                        metadata={"source": source},
+                    )
+                except Exception as exc:
+                    print(f"[{now_str()}] [ERROR] Failed to record bullying report: {exc}")
+            else:
+                print(f"[{now_str()}] [WARN] Could not persist bullying report because chat_log_id missing")
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_bullying_ack_response(bullying_category)
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if contains_inappropriate_language(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_advice_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        if is_relationship_question(normalized_input):
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+            response = get_relationship_advice_response()
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
 
         if is_greeting_message(normalized_input):
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
