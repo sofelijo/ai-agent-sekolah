@@ -47,7 +47,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.psych_reports' %}active{% endif %}" href="{{ url_for('main.psych_reports') }}">
-                        Curhat Siswa
+                        Laporan Konseling
                         {% if pending_psych_count %}
                         <span class="badge rounded-pill text-bg-danger ms-2">{{ pending_psych_count }}</span>
                         {% endif %}

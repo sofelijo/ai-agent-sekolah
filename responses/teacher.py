@@ -34,13 +34,13 @@ class PracticeQuestion:
 
 
 _SUBJECT_KEYWORDS: Dict[str, tuple[str, ...]] = {
-    "Matematika": ("matematika", "mtk", "berhitung", "pecahan", "bangun", "geometri", "angka"),
-    "IPA": ("ipa", "sains", "ilmu pengetahuan alam", "tumbuhan", "hewan", "energi", "perubahan wujud"),
-    "IPS": ("ips", "sejarah", "geografi", "ekonomi", "sosial", "kewilayahan"),
-    "Bahasa Indonesia": ("bahasa indonesia", "b indonesia", "bi", "kalimat", "antonim", "sinonim", "tata bahasa"),
-    "PPKN": ("ppkn", "pkn", "pancasila", "semboyan", "hukum", "warga negara"),
-    "Agama": ("agama", "akhlak", "ibadah"),
-    "SBdP": ("seni budaya", "sbdp", "musik", "gambar"),
+    "Matematika": ("matematika", "mtk", "berhitung", "pecahan", "bangun", "geometri", "angka", "mat", "aljabar"),
+    "IPA": ("ipa", "sains", "ilmu pengetahuan alam", "tumbuhan", "hewan", "energi", "perubahan wujud", "biologi", "fisika"),
+    "IPS": ("ips", "sejarah", "geografi", "ekonomi", "sosial", "kewilayahan", "peta", "kerajaan"),
+    "Bahasa Indonesia": ("bahasa indonesia", "b indonesia", "bi", "kalimat", "antonim", "sinonim", "tata bahasa", "puisi", "paragraf"),
+    "PPKN": ("ppkn", "pkn", "pancasila", "semboyan", "hukum", "warga negara", "aturan", "norma"),
+    "Agama": ("agama", "akhlak", "ibadah", "kitab suci", "nabi", "alquran", "quran", "al-quran"),
+    "SBdP": ("seni budaya", "sbdp", "musik", "gambar", "tari", "lagu daerah"),
 }
 
 _DEFAULT_SUBJECT = "Campuran"
@@ -110,6 +110,11 @@ _DISCUSSION_KEYWORDS: tuple[str, ...] = (
     "bingung",
     "contoh lain",
     "langkahnya",
+    ### PENAMBAHAN GEN Z ###
+    "gimana caranya",
+    "maksudnya apa",
+    "jelasin lagi",
+    "kok bisa gitu",
 )
 
 _MAX_CONVERSATION_TURNS = 10
@@ -216,6 +221,11 @@ _START_KEYWORDS: tuple[str, ...] = (
     "kuis dong",
     "beri soal",
     "latihan belajar",
+    ### PENAMBAHAN GEN Z ###
+    "ayo belajar",
+    "ajarin dong",
+    "kasih kuis",
+    "guru mode on",
 )
 
 _STOP_KEYWORDS: tuple[str, ...] = (
@@ -225,6 +235,12 @@ _STOP_KEYWORDS: tuple[str, ...] = (
     "sudah",
     "terima kasih gurunya",
     "keluar mode guru",
+    ### PENAMBAHAN GEN Z ###
+    "udahan",
+    "udah dulu",
+    "makasih guru",
+    "selesai belajar",
+    "done",
 )
 
 _NEXT_KEYWORDS: tuple[str, ...] = (
@@ -234,6 +250,11 @@ _NEXT_KEYWORDS: tuple[str, ...] = (
     "next",
     "skip",
     "ganti soal",
+    ### PENAMBAHAN GEN Z ###
+    "soal lagi",
+    "lagi dong",
+    "ganti",
+    "lanjut",
 )
 
 

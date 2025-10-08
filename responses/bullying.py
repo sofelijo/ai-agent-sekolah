@@ -24,6 +24,18 @@ _BULLYING_KEYWORDS: tuple[str, ...] = (
     "dikeroyok",
     "kekerasan",
     "disakiti",
+      ### PENAMBAHAN GEN Z ###
+    "dijahatin",
+    "dijahilin",
+    "diganggu",
+    "diejek",
+    "dikatain",
+    "dijauhin",
+    "dimusuhin",
+    "dipalak",
+    "diperas",
+    "disindir",
+    "body shaming",
 )
 
 _REPORT_SIGNALS: tuple[str, ...] = (
@@ -37,6 +49,13 @@ _REPORT_SIGNALS: tuple[str, ...] = (
     "laporin",
     "report",
     "lapor dong",
+    ### PENAMBAHAN GEN Z ###
+    "help",
+    "plis",
+    "please",
+    "gimana cara lapor",
+    "mau ngadu",
+    "mau laporin",
 )
 
 _PRONOUN_HINTS: tuple[str, ...] = (
@@ -54,6 +73,11 @@ _PRONOUN_HINTS: tuple[str, ...] = (
     "adikku",
     "temanku",
     "temenku",
+      ### PENAMBAHAN GEN Z ###
+    "doi",
+    "dia",
+    "bestie",
+    "sahabat",
 )
 
 _SEXUAL_KEYWORDS: tuple[str, ...] = (
@@ -73,6 +97,15 @@ _SEXUAL_KEYWORDS: tuple[str, ...] = (
     "aurat",
     "meremas",
     "mesum",
+    ### PENAMBAHAN GEN Z ###
+    "catcalling",
+    "dicatcall",
+    "dilecehin",
+    "digodain",
+    "dikirim foto aneh",
+    "pap aneh", "dimintain pap",
+    "grooming",
+    "digerpe",
 )
 
 _PHYSICAL_KEYWORDS: tuple[str, ...] = (
@@ -92,6 +125,13 @@ _PHYSICAL_KEYWORDS: tuple[str, ...] = (
     "ditusuk",
     "disiksa",
     "kekerasan fisik",
+     ### PENAMBAHAN GEN Z ###
+    "digebukin",
+    "dihajar",
+    "ditonjok",
+    "dijegal",
+    "disundut",
+    "dilempar",
 )
 
 _EXCLUSION_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -175,20 +215,20 @@ def detect_bullying_category(message: str) -> Optional[str]:
 def get_bullying_ack_response(category: str = CATEGORY_GENERAL) -> str:
     """Respons default ketika user mengirim laporan bullying."""
     base = (
-        "Terima kasih sudah cerita ke ASKA. Laporan kamu sudah ASKA teruskan ke tim sekolah. "
-        "Kalau situasinya gawat atau butuh bantuan cepat, segera hubungi guru atau orang dewasa yang kamu percaya, ya."
+        "Makasih banget udah berani speak up ke ASKA 💖. Laporanmu udah ASKA catet dan langsung diterusin ke pihak sekolah. "
+        "Kamu aman sekarang. Kalo situasi darurat atau butuh bantuan cepet, please langsung hubungi guru atau orang dewasa yang kamu percaya ya! 💪"
     )
 
     if category == CATEGORY_SEXUAL:
         return (
-            "ASKA dengerin kamu. Laporan pelecehan seksual ini langsung ASKA tandai sebagai prioritas tinggi. "
-            "Jangan ragu untuk cari bantuan dari guru BK atau orang dewasa terpercaya di sekitarmu sekarang juga. "
-            "Kalau kamu merasa tidak aman, tetap bareng teman atau orang dewasa yang bisa melindungi kamu."
+            "ASKA di sini buat kamu, and I hear you. Ini serius banget, dan laporanmu langsung ASKA jadiin prioritas utama 🚨. "
+            "Please inget, ini BUKAN salah kamu. Cari bantuan guru BK atau orang dewasa yang kamu percaya SEKARANG JUGA. "
+            "Kalo ngerasa ga aman, jangan sendirian ya, tetep bareng temen atau orang dewasa. Kamu kuat banget udah berani ngomong. 🫂"
         )
     if category == CATEGORY_PHYSICAL:
         return (
-            "Kamu nggak sendirian. Laporan kekerasan fisik ini sudah ASKA teruskan supaya cepat ditindaklanjuti. "
-            "Kalau situasinya makin bahaya, segera cari tempat aman dan hubungi guru atau satpam sekolah, ya."
+            "Kamu gak sendirian ngadepin ini. Laporanmu soal kekerasan fisik udah ASKA kirim biar cepet ditangani 🏃‍♂️. "
+            "Kalo situasinya bahaya, please langsung cari tempat yang aman dan lapor ke guru atau satpam sekolah ya. Your safety is number one. 🛡️"
         )
     return base
 

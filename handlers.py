@@ -107,7 +107,7 @@ TEACHER_TIMEOUT_MESSAGE = (
 )
 
 PSYCH_TIMEOUT_MESSAGE = (
-    "Obrolan curhatnya udah sunyi lama, ASKA pamit sementara ya. "
+    "Obrolan laporan konselingnya udah sunyi lama, ASKA pamit sementara ya. "
     "Kapan pun butuh cerita lagi langsung chat ASKA. Sampai jumpa! 🤗💖"
 )
 
@@ -322,7 +322,7 @@ async def handle_user_query(
                 psych_sessions.pop(storage_key, None)
                 mark_responded()
                 return True
-            reminder = "Kalau mau curhat, tinggal jawab 'iya'. Kalau enggak, bilang aja 'nggak' ya."
+            reminder = "Kalau mau lanjut laporan konseling, tinggal jawab 'iya'. Kalau enggak, bilang aja 'nggak' ya."
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(reminder)
             save_chat(user_id, "ASKA", reminder, role="aska")

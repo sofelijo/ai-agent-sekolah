@@ -1,4 +1,4 @@
-"""Deteksi curhat psikologis dan respons pendamping Gen-Z."""
+"""Deteksi laporan konseling psikologis / curhat dan respons pendamping Gen-Z."""
 
 from __future__ import annotations
 
@@ -12,7 +12,16 @@ SEVERITY_ELEVATED = "elevated"
 SEVERITY_CRITICAL = "critical"
 
 _TRIGGER_KEYWORDS: tuple[str, ...] = (
+    "laporan konseling",
+    "mau konseling",
+    "butuh konseling",
+    "layanan konseling",
+    "konseling",
     "curhat",
+    "laporan curhat",
+    "mau curhat",
+    "butuh curhat",
+    "layanan curhat",
     "mau cerita",
     "pengen cerita",
     "butuh teman cerita",
@@ -27,6 +36,17 @@ _TRIGGER_KEYWORDS: tuple[str, ...] = (
     "kesepian",
     "nangis",
     "mental",
+    # --- Penambahan Gaya Gen Z ---
+    "mental health",
+    "gak baik-baik aja",
+    "spill the tea",
+    "butuh temen",
+    "pengen ngobrol",
+    "capek",
+    "sumpek",
+    "butek",
+    "ngerasa aneh",
+    "ada yang mau aku ceritain",
 )
 
 _ELEVATED_KEYWORDS: tuple[str, ...] = (
@@ -45,6 +65,20 @@ _ELEVATED_KEYWORDS: tuple[str, ...] = (
     "cape hidup",
     "cape banget",
     "pusing banget",
+    # --- Penambahan Gaya Gen Z ---
+    "insecure",
+    "insecure parah",
+    "down parah",
+    "ancur banget",
+    "gaada harapan",
+    "putus asa",
+    "ngerasa gagal",
+    "kena mental",
+    "benci diri sendiri",
+    "hampa",
+    "pengen nyerah",
+    "jadi beban",
+    "gaada gunanya",
 )
 
 _CRITICAL_KEYWORDS: tuple[str, ...] = (
@@ -60,19 +94,48 @@ _CRITICAL_KEYWORDS: tuple[str, ...] = (
     "potong tangan",
     "minum obat banyak",
     "gantung diri",
+     # --- Penambahan Gaya Gen Z & Variasi ---
+    "gamau hidup lagi",
+    "gak mau hidup lagi",
+    "ga mau hidup lagi",
+    "lebih baik mati",
+    "mending mati",
+    "pengen hilang",
+    "pengen udahan aja",
+    "silet", # Sering digunakan sebagai kata benda untuk self-harm
+    "cutter", "cuter",
+    "sayat tangan",
+    "sayat nadi",
+    "loncat dari", # Frasa pemicu untuk loncat dari ketinggian
+    "terjun dari",
+    "tabrakin diri",
+    "sh", # Singkatan umum untuk self-harm
 )
 
 _STOP_KEYWORDS: tuple[str, ...] = (
+    "stop laporan konseling",
     "stop curhat",
     "udah cukup",
     "sampai sini",
     "makasih ya",
     "cukup curhat",
     "selesai curhat",
+    "cukup curhatnya",
+    "selesai curhatnya",
+    # --- Penambahan Gaya Gen Z ---
+    "udahan",
+    "udah dulu ya",
+    "ntar lagi",
+    "nanti lagi deh",
+    "segitu dulu",
+    "thanks ya",
+    "oke makasih",
+    "selesai",
+    "stop",
 )
 
 _CONFIRM_YES: tuple[str, ...] = (
-    "iya",
+    "iya", "ya", "yaa", "yaaa",
     "iya mau",
     "iya dong",
     "lanjut",
@@ -84,6 +147,16 @@ _CONFIRM_YES: tuple[str, ...] = (
     "ok",
     "oke",
     "yoi",
+     # --- Penambahan Gaya Gen Z ---
+    "kuy",
+    "lanjutin",
+    "bener",
+    "hooh",
+    "heeh",
+    "sip",
+    "siap",
+    "betul",
+    "yup",
 )
 
 _CONFIRM_NO: tuple[str, ...] = (
@@ -94,6 +167,17 @@ _CONFIRM_NO: tuple[str, ...] = (
     "nggak jadi",
     "nanti aja",
     "udah kok",
+    # --- Penambahan Gaya Gen Z ---
+    "skip dulu",
+    "skip",
+    "gak dulu",
+    "ga dulu",
+    "ngga",
+    "ga",
+    "nope", "no"
+    "jangan dulu",
+    "lain kali aja",
+    "kayaknya engga deh",
 )
 
 _STAGES: tuple[str, ...] = ("feelings", "context", "support")
@@ -117,121 +201,96 @@ _STAGE_PROMPTS: dict[str, tuple[str, ...]] = {
 }
 
 _GEN_Z_VALIDATIONS: tuple[str, ...] = (
-    "Makasih udah percaya curhat ke ASKA, kamu keren banget berani cerita 💖",
-    "Pelan-pelan aja ya, kamu nggak sendirian. ASKA di sini buat nemenin 🤗",
-    "Apa pun yang kamu rasain valid kok. Tarik napas dulu, kita bahas bareng ya 😌",
+    "Makasih udah percaya buat spill ke ASKA. Kamu keren banget udah berani speak up! 💖✨",
+    "Pelan-pelan aja ceritanya, kamu gak sendirian. ASKA bakal di sini nemenin kamu, for real! 🤗",
+    "Apapun yang kamu rasain itu valid, bestie. Tarik napas dulu... kita hadapi bareng-bareng, ya! 😌",
+    "Sending virtual hug! 🤗 Makasih udah mau terbuka, you're so strong! 💪",
 )
 
 _CLOSING_MESSAGES: tuple[str, ...] = (
     "Kalau butuh ngobrol lagi, tinggal panggil ASKA kapan aja. Jangan lupa ajak ngobrol guru BK atau orang dewasa yang kamu percaya ya 💪",
     "Terima kasih sudah cerita. Tetap jaga dirimu dan kalau makin berat, langsung hubungi guru BK atau orang rumah ya 🙏",
     "ASKA bangga sama kamu yang mau cerita. Sering-sering ngobrol sama guru BK/teman terpercaya biar kamu lebih ringan 🤍",
+    "Inget ya, kamu gak sendirian. Kalo butuh temen ngobrol lagi, ASKA always here for you! Jangan ragu juga buat reach out ke guru BK atau orang yang kamu percaya, oke? Stay strong! 💪",
+    "Thanks for sharing! Jaga diri baik-baik ya. Kalau bebannya makin berat, please langsung ngobrol sama guru BK atau keluargamu 🙏",
+    "ASKA bangga banget sama kamu yang udah mau cerita. Sering-sering ngobrol sama support system kamu ya biar hati lebih plong! 🤍",
+    "See you when I see you! Jangan lupa buat self-care ya, kamu pantes buat bahagia. ✨",
 )
 
 _CRITICAL_RESPONSES: tuple[str, ...] = (
     "Ini serius banget ya. Tolong segera hubungi guru BK, wali kelas, atau orang dewasa yang lagi ada di dekatmu sekarang juga 🙏",
     "ASKA bener-bener khawatir. Coba langsung cari bantuan ke guru BK atau orang dewasa yang kamu percaya, atau telepon 119 buat layanan darurat ya 🚨",
     "Kamu berharga banget. Tolong jangan sendirian, segera kontak guru BK, orang tua, atau layanan darurat di 119 supaya kamu dapet bantuan cepat ⚠️",
+    "Bestie, ini serius banget. ASKA khawatir. Please, jangan sendirian ya. Langsung cari guru BK, wali kelas, atau orang dewasa terdekat SEKARANG. Atau call 119 ya, please 🙏🚨",
+    "Hey, kamu berharga banget. Tolong jangan pendem ini sendirian. Segera kontak guru BK, orang tua, atau layanan darurat di 119 biar kamu dapet bantuan secepatnya, okay? ⚠️",
+    "ASKA mohon banget, please cari bantuan sekarang juga. Ngobrol sama guru BK atau orang dewasa yang ada di deketmu. Your life matters! 💖",
 )
 
 _SUPPORT_RULES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
     (
         "lonely",
         (
-            "kesepian",
-            "sendiri",
-            "ga ada teman",
-            "gak ada teman",
-            "nggak ada teman",
-            "merasa sendiri",
-            "tidak ada teman",
+            "kesepian", "sendiri", "ga ada teman", "gak punya temen", "merasa sendiri",
+            "ditinggalin", "ngerasa ditinggalin", "ga punya circle",
         ),
         (
-            "Rasa sepi itu berat, tapi kamu nggak sendirian. Coba ajak ngobrol guru BK atau teman yang kamu percaya ya 🤝",
-            "Kalau merasa sendiri, kamu boleh cari kegiatan bareng temen atau cerita ke keluarga. ASKA juga siap nemenin kapan pun 👭",
+            "Ngerasa sepi itu emang ga enak banget 😔. Tapi inget, kamu ga sendirian kok. Coba deh reach out ke temen deket atau guru BK. ASKA juga di sini nemenin kamu! 🤝",
+            "Feeling lonely sucks. Coba deh join ekskul atau komunitas yang kamu suka, siapa tau nemu temen baru! ASKA is rooting for you! 👭",
         ),
     ),
     (
         "family",
         (
-            "keluarga",
-            "orang tua",
-            "ayah",
-            "ibu",
-            "papa",
-            "mama",
-            "ortu",
-            "rumah",
+            "keluarga", "orang tua", "ortu", "ayah", "ibu", "papa", "mama", "rumah",
+            "berantem sama ortu", "broken home", "suasana rumah",
         ),
         (
-            "Masalah keluarga memang bikin hati campur aduk. Kamu bisa coba bicara pelan-pelan sama orang dewasa yang kamu percaya di rumah atau guru BK 🏠",
-            "Kalau lagi berat di rumah, ambil waktu buat nenangin diri dulu, lalu cerita ke orang dewasa yang paling kamu nyaman. Kamu berhak didengar ❤️",
+            "Duh, masalah keluarga emang complicated 💔. Coba omongin pelan-pelan sama orang dewasa di rumah yang kamu percaya, atau curhat ke guru BK bisa ngebantu banget loh.",
+            "Kalau suasana di rumah lagi panas, coba cari waktu buat nenangin diri dulu. Kamu berhak buat didengerin dan ngerasa aman. ❤️",
         ),
     ),
     (
         "school_pressure",
         (
-            "nilai",
-            "ujian",
-            "ulangan",
-            "pekerjaan rumah",
-            "pr",
-            "tugas",
-            "ranking",
-            "rapor",
+            "nilai", "ujian", "ulangan", "pr", "tugas", "ranking", "rapor", "sekolah",
+            "pelajaran susah", "remedial", "tugas numpuk", "dimarahin guru",
         ),
         (
-            "Belajar boleh capek, tapi kamu nggak harus sempurna. Atur jadwal kecil-kecil dan jangan sungkan minta bantuan guru atau teman 💪",
-            "Coba pecah tugas jadi langkah kecil dan kasih waktu istirahat ke diri sendiri. Kalau butuh, curhat ke guru BK atau teman belajar bareng 📚",
+            "Pressure sekolah emang suka bikin puyeng 🤯. It's okay to not be okay. Coba deh kerjain tugasnya dikit-dikit, jangan lupa istirahat juga. Semangat! 🔥",
+            "Belajar itu maraton, bukan sprint. Coba bikin jadwal yang chill & jangan ragu minta bantuan guru atau temen yang jago. You can do this! 📚",
         ),
     ),
     (
         "relationship",
         (
-            "teman",
-            "bestie",
-            "sahabat",
-            "dibenci",
-            "dimusuhi",
-            "cekcok",
-            "berantem",
-            "toxic",
+            "teman", "bestie", "sahabat", "dibenci", "dimusuhi", "cekcok", "berantem",
+            "toxic", "circle", "dighosting", "musuhan", "pacar", "mantan", "gebetan",
         ),
         (
-            "Drama pertemanan bisa bikin capek. Ambil jeda dulu, lalu ngobrol baik-baik atau ajak guru BK jadi penengah kalau perlu 🤝",
-            "Kalau ada temen yang bikin kamu down, kamu boleh fokus ke lingkungan yang suportif dan cerita ke guru atau keluarga supaya dapat sudut pandang baru 💬",
+            "Friendship drama tuh emang nguras energi banget 😮‍💨. Coba ambil jarak dulu bentar. Kalo udah adem, baru deh diobrolin baik-baik. Kamu pantes dapet circle yang positif! ✨",
+            "Kalau ada temen yang bikin kamu ngerasa down, it's okay to set boundaries. Prioritasin mental health kamu, ya! 💬",
         ),
     ),
     (
         "self_worth",
         (
-            "gak berharga",
-            "tidak berharga",
-            "tidak berguna",
-            "gak berguna",
-            "ga berguna",
-            "low self esteem",
-            "benci diri",
+            "gak berharga", "gak berguna", "insecure", "benci diri", "jelek", "bodoh",
+            "gagal", "ga berguna", "aku beban", "nyusahin", "minder",
         ),
         (
-            "Kamu itu berarti dan berharga. Coba ingat hal-hal kecil yang pernah bikin kamu bangga, dan cerita ke orang yang bisa menguatkan kamu 💖",
-            "Rasa minder wajar kok. Fokus ke hal baik yang kamu punya dan jangan ragu minta support guru BK atau orang terdekat yang positif 🌟",
+            "Hey, you are enough and you matter! 💖 Coba deh list 3 hal kecil yang kamu suka dari diri kamu. Kalo lagi down, ngobrol sama orang yang bisa naikin mood kamu ya!",
+            "Rasa insecure itu wajar, tapi jangan biarin dia ngontrol kamu. Fokus ke progress, bukan kesempurnaan. Kamu itu a masterpiece and a work in progress at the same time! 🌟",
         ),
     ),
     (
         "stress",
         (
-            "stress",
-            "stres",
-            "overthinking",
-            "burnout",
-            "capek banget",
-            "lelah banget",
-            "pusing banget",
+            "stress", "stres", "overthinking", "burnout", "capek banget", "pusing banget",
+            "cemas parah", "panik", "anxious", "khawatir",
         ),
         (
-            "Kalau lagi penat banget, tarik napas dalam-dalam dan kasih jeda buat diri sendiri. Setelah itu cerita ke orang dewasa yang bisa bantu, ya 😌",
-            "Overthinking tuh melelahkan. Kamu bisa coba tulis yang kamu rasain, lalu diskusikan ke guru BK atau orang tua supaya lebih ringan 📝",
+            "Stres & overthinking emang nyebelin banget 😫. Coba deh lakuin hal yang kamu suka buat ngalihin pikiran sejenak. Nulis jurnal juga bisa bantu ngeluarin unek-unek, lho! 📝",
+            "Kalau lagi penat, coba deh tarik napas dalem-dalem. It's okay to take a break. Habis itu, coba cerita ke guru BK atau ortu biar bebannya kebagi, ya! 😌",
         ),
     ),
 )
@@ -240,6 +299,9 @@ _DEFAULT_SUPPORT_RESPONSES: tuple[str, ...] = (
     "Thank you udah spill cerita. Ingat, kamu boleh banget minta bantuan guru BK atau orang dewasa yang kamu percaya supaya makin lega 🤍",
     "Kamu kuat banget bisa cerita. Jangan lupa rawat diri sendiri, istirahat cukup, dan tetap terhubung dengan orang-orang yang sayang sama kamu 🌷",
     "ASKA ada di pihak kamu. Langkah kecil untuk cerita ini udah keren banget. Lanjutkan cari dukungan offline juga ya 🙌",
+    "Makasih udah mau terbuka, you're so strong! 💪 Inget, ngobrol sama guru BK atau orang yang kamu percaya bisa bikin lega lho. Take care, ya! 🤍",
+    "Kamu hebat banget udah bisa lewatin ini semua. Jangan lupa self-care, istirahat yang cukup, dan kelilingi dirimu sama orang-orang yang positif! 🌷",
+    "ASKA ada di pihak kamu, 100%! Cerita ini langkah awal yang keren. Jangan berhenti di sini ya, terus cari support system di dunia nyata juga! 🙌",
 )
 
 
@@ -275,17 +337,16 @@ def classify_message_severity(message: str, default: str = SEVERITY_GENERAL) -> 
 
 def get_confirmation_prompt(severity: str = SEVERITY_GENERAL) -> str:
     base = (
-        "ASKA siap dengerin cerita kamu. Beneran mau curhat sekarang? Tinggal bilang iya atau enggak aja."
+        "ASKA here! Siap jadi kuping buat semua cerita kamu. Mau spill the tea sekarang? Bilang 'kuy' atau 'skip dulu' aja 😉"
     )
     if severity == SEVERITY_CRITICAL:
         base = (
-            "Aku merasa ini penting banget buat dibahas. ASKA siap dengerin full. "
-            "Kamu mau cerita lebih lanjut sekarang?"
+             # Prompt yang lebih serius dan mendesak untuk situasi kritis
+            "Hey, ASKA ngerasa ini penting banget. Please, jangan dipendem sendiri. Kamu mau cerita lebih dalem sekarang? Aku di sini buat kamu. 🙏"
         )
     elif severity == SEVERITY_ELEVATED:
         base = (
-            "Kayaknya kamu lagi berat banget ya. ASKA siap nemenin. "
-            "Mau lanjut curhat sekarang?"
+             "Kayaknya lagi berat banget ya? 🥺 ASKA siap dengerin kok, no judgement. Mau cerita sekarang?"
         )
     return f"{base} 😊"
 
@@ -312,7 +373,7 @@ def pick_validation_message() -> str:
 def pick_stage_prompt(stage: str) -> str:
     prompts = _STAGE_PROMPTS.get(stage)
     if not prompts:
-        return "Kamu mau cerita apa pun, tulis aja di sini ya."
+        return "Kamu mau cerita apa pun, tulis aja di sini ya, ASKA dengerin kok. 😊"
     return random.choice(prompts)
 
 
@@ -345,16 +406,16 @@ def generate_support_message(
 
     if severity == SEVERITY_CRITICAL:
         support_text = (
-            f"{support_text} Jangan tunggu lama, segera cari guru BK atau orang dewasa yang bisa nemenin kamu sekarang juga ya 🙏"
+            f"{support_text} Please, jangan ditunda, segera cari guru BK atau orang dewasa yang bisa nemenin kamu sekarang juga ya 🙏"
         )
     elif severity == SEVERITY_ELEVATED:
         support_text = (
-            f"{support_text} Kalau makin berat, jangan ragu minta pendampingan langsung ke guru BK atau keluarga ya 💛"
+            f"{support_text} Kalau rasanya makin berat, please jangan hadapi sendirian. Reach out ke guru BK atau keluarga-mu ya! 💛"
         )
 
     if stage == "support":
         support_text = (
-            f"{support_text} Kamu juga boleh sebut siapa yang paling kamu percaya buat jadi support system."
+            f"{support_text} Btw, siapa sih orang yang paling kamu percaya buat jadi support system-mu?"
         )
 
     return support_text

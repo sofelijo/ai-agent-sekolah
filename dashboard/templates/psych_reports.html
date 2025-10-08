@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Curhat Siswa - ASKA Insights{% endblock %}
+{% block title %}Laporan Konseling - ASKA Insights{% endblock %}
 
 {% block content %}
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h1 class="h4 fw-bold mb-1">Curhat Siswa</h1>
+            <h1 class="h4 fw-bold mb-1">Laporan Konseling</h1>
             <p class="text-muted mb-0">Pantau cerita sensitif dari siswa supaya guru BK bisa menindaklanjuti dengan cepat.</p>
         </div>
         <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">Kembali ke Dashboard</a>
@@ -35,16 +35,16 @@
                 <div class="card-body">
                     <span class="text-secondary text-uppercase small fw-semibold">Selesai</span>
                     <h2 class="h3 fw-bold mt-1 text-success">{{ summary.get('resolved', 0) }}</h2>
-                    <p class="small text-muted mb-0">Curhat sudah ditutup.</p>
+                    <p class="small text-muted mb-0">Laporan konseling sudah ditutup.</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3 col-sm-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Total Curhat</span>
+                    <span class="text-secondary text-uppercase small fw-semibold">Total Laporan Konseling</span>
                     <h2 class="h3 fw-bold mt-1">{{ summary.get('total', 0) }}</h2>
-                    <p class="small text-muted mb-0">Semua curhat yang tersimpan.</p>
+                    <p class="small text-muted mb-0">Semua laporan konseling yang tersimpan.</p>
                 </div>
             </div>
         </div>
@@ -121,7 +121,7 @@
                         <tr>
                             <th scope="col" style="width: 14%;">Dibuat</th>
                             <th scope="col" style="width: 16%;">Pelapor</th>
-                            <th scope="col">Ringkasan Curhat</th>
+                            <th scope="col">Ringkasan Laporan Konseling</th>
                             <th scope="col" style="width: 12%;">Severity</th>
                             <th scope="col" style="width: 12%;">Status</th>
                             <th scope="col" style="width: 18%;">Aksi</th>
@@ -179,15 +179,15 @@
                             </td>
                             <td>
                                 {% if item.user_id %}
-                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_report_user_detail', user_id=item.user_id) }}">Detail curhat</a>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_report_user_detail', user_id=item.user_id) }}">Detail laporan konseling</a>
                                 {% else %}
-                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_report_single_detail', report_id=item.id) }}">Detail curhat</a>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_report_single_detail', report_id=item.id) }}">Detail laporan konseling</a>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Belum ada catatan curhat.</td>
+                            <td colspan="6" class="text-center text-muted py-4">Belum ada catatan konseling.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

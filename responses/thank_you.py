@@ -22,7 +22,7 @@ THANK_YOU_RESPONSES = [
     "Yeay~ seneng bisa bantu 😁 Kalau butuh apa-apa tinggal panggil *ASKA* ya! 🤖💬",
     "UwU makasiii, kamu juga keren banget! ✨🔥",
     "No problem! Semoga harimu makin sat set bersama *ASKA* 🚀💥",
-    "Love you 3000! Kalau mau curhat info sekolah lagi, *ASKA* siap! 💖📚",
+    "Love you 3000! Kalau mau buat laporan konseling info sekolah lagi, *ASKA* siap! 💖📚",
     "Sama-samaa! Kalau mentok lagi, tinggal tag *ASKA* ya 🔁🤖",
     "Anytime, bestie! *ASKA* standby 24/7 ⏰💪",
     "You’re welcomeee~ semoga urusannya makin ngebut bareng *ASKA* 🏎️💨",

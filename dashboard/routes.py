@@ -308,7 +308,7 @@ def psych_reports() -> Response:
 def psych_report_user_detail(user_id: int) -> Response:
     records = fetch_psych_group_reports(user_id=user_id)
     if not records:
-        flash("Tidak ada curhat yang ditemukan untuk siswa ini.", "warning")
+        flash("Tidak ada laporan konseling yang ditemukan untuk siswa ini.", "warning")
         return redirect(url_for("main.psych_reports"))
 
     return render_template(
@@ -326,7 +326,7 @@ def psych_report_user_detail(user_id: int) -> Response:
 def psych_report_single_detail(report_id: int) -> Response:
     records = fetch_psych_group_reports(report_id=report_id)
     if not records:
-        flash("Curhat tidak ditemukan atau sudah dihapus.", "warning")
+        flash("Laporan konseling tidak ditemukan atau sudah dihapus.", "warning")
         return redirect(url_for("main.psych_reports"))
 
     user_id = records[0].get("user_id")
@@ -350,7 +350,7 @@ def update_psych_status(report_id: int) -> Response:
     next_url = request.form.get("next") or url_for("main.psych_reports")
 
     if status_value not in PSYCH_STATUSES:
-        flash("Status curhat tidak dikenal.", "warning")
+        flash("Status laporan konseling tidak dikenal.", "warning")
         return redirect(next_url)
 
     user = current_user()
@@ -369,9 +369,9 @@ def update_psych_status(report_id: int) -> Response:
         return redirect(next_url)
 
     if updated:
-        flash("Status curhat berhasil diubah.", "success")
+        flash("Status laporan konseling berhasil diubah.", "success")
     else:
-        flash("Curhat tidak ditemukan atau tidak ada perubahan.", "info")
+        flash("Laporan konseling tidak ditemukan atau tidak ada perubahan.", "info")
 
     return redirect(next_url)
 

@@ -106,7 +106,7 @@ TIME_GREETING_RESPONSES = {
         "Halo malam! 🌙 Kalau masih ada PR info sekolah, tinggal tanya *ASKA* 🌛💬",
         "Good evening! Siapkan seragam & jadwal, *ASKA* siap bantu cek 🧺🗓️",
         "Malam produktif? Boleh juga. *ASKA* siap bantu cari referensi 📚✨",
-        "Selamat malam! 🌙 Minum hangat, lalu curhat ke *ASKA* soal jadwal besok 🍵🕘",
+        "Selamat malam! 🌙 Minum hangat, lalu susun laporan konseling bareng *ASKA* soal jadwal besok 🍵🕘",
         "Malam-malam kepo pengumuman? *ASKA* bisa spill yang terbaru 🌙🗞️",
         "Time to recharge. Sebelum tidur, cek checklist bareng *ASKA* 🔋📝",
         "Malam hening, info tetap jernih. Tanyain *ASKA* kalau bingung 🌃🔍",

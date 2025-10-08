@@ -153,7 +153,7 @@ _ensure_bullying_schema()
 
 
 def _ensure_psych_schema() -> None:
-    """Pastikan tabel curhat psikologis tersedia."""
+    """Pastikan tabel laporan konseling psikologis tersedia."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -228,7 +228,7 @@ def record_psych_report(
     summary: Optional[str] = None,
     metadata: Optional[dict] = None,
 ) -> Optional[int]:
-    """Simpan curhat psikologis ke tabel khusus."""
+    """Simpan laporan konseling psikologis ke tabel khusus."""
     if not message:
         return None
 

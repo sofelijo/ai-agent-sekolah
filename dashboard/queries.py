@@ -665,7 +665,7 @@ def update_psych_report_status(
     """Update status (and optionally last_updated_by inside metadata) for a psych report."""
     normalized = (status or "").strip().lower()
     if normalized not in PSYCH_STATUSES:
-        raise ValueError(f"Status curhat tidak dikenal: {status}")
+        raise ValueError(f"Status laporan konseling tidak dikenal: {status}")
 
     with get_cursor(commit=True) as cur:
         cur.execute(

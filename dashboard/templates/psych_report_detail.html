@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Detail Curhat - ASKA Insights{% endblock %}
+{% block title %}Detail Laporan Konseling - ASKA Insights{% endblock %}
 
 {% block content %}
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h1 class="h4 fw-bold mb-1">Detail Curhat Siswa</h1>
+            <h1 class="h4 fw-bold mb-1">Detail Laporan Konseling Siswa</h1>
             <p class="text-muted mb-0">
-                Riwayat curhat{{ " " + user.username if user.username }}{% if user.user_id %} ID {{ user.user_id }}{% endif %}.
+                Riwayat laporan konseling{{ " " + user.username if user.username }}{% if user.user_id %} ID {{ user.user_id }}{% endif %}.
             </p>
         </div>
         <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_reports') }}">Kembali ke daftar</a>
@@ -53,7 +53,7 @@
                     <div class="text-wrap" style="white-space: pre-wrap;">{{ item.summary or '-' }}</div>
                 </div>
                 <div class="mt-3">
-                    <h6 class="fw-semibold text-secondary text-uppercase small mb-2">Isi Curhat</h6>
+                    <h6 class="fw-semibold text-secondary text-uppercase small mb-2">Isi Laporan Konseling</h6>
                     <div class="text-wrap" style="white-space: pre-wrap;">{{ item.message }}</div>
                 </div>
                 {% if item.metadata %}
@@ -69,7 +69,7 @@
                 {% endif %}
             </div>
             {% else %}
-            <div class="text-center text-muted py-4">Tidak ada curhat untuk ditampilkan.</div>
+            <div class="text-center text-muted py-4">Tidak ada laporan konseling untuk ditampilkan.</div>
             {% endfor %}
         </div>
     </div>

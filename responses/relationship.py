@@ -82,7 +82,7 @@ QUESTION_CUES = {
 
 RELATIONSHIP_ADVICE_RESPONSES = (
     "Bestie, ASKA ngerti kamu penasaran soal jodoh ✨ tapi mode wali kelas bilang fokus dulu benahin nilai dan attitude biar pondasi kuat 📚.",
-    "Lagi galau gebetan? ASKA saranin curhat ke ortu atau guru BK, habis itu back to to-do sekolah biar hati dan otak tetap balance 💬📝.",
+    "Lagi galau gebetan? ASKA saranin bikin laporan konseling ke guru BK atau ngobrol sama ortu, habis itu back to to-do sekolah biar hati dan otak tetap balance 💬📝.",
     "ASKA percaya jodoh datang pas kamu siap tanggung jawab; sementara upgrade skill lewat belajar, ekskul, sama karakter kece 💪🎓.",
     "Daripada overthinking pasangan, ASKA ajak kamu salurin energi ke lomba, organisasi, atau project kreatif buat masa depan cerah 🚀🏆.",
     "Guru-guru dan ASKA sepakat batas pertemanan harus dijaga; hormati diri sendiri dan temen supaya vibes kelas tetap sehat 🙌❤️.",
