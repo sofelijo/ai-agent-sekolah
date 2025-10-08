@@ -105,7 +105,8 @@ _SEXUAL_KEYWORDS: tuple[str, ...] = (
     "dikirim foto aneh",
     "pap aneh", "dimintain pap",
     "grooming",
-    "digerpe",
+    "digrepe",
+    "dipeluk"
 )
 
 _PHYSICAL_KEYWORDS: tuple[str, ...] = (
@@ -125,7 +126,7 @@ _PHYSICAL_KEYWORDS: tuple[str, ...] = (
     "ditusuk",
     "disiksa",
     "kekerasan fisik",
-     ### PENAMBAHAN GEN Z ###
+    ### PENAMBAHAN GEN Z ###
     "digebukin",
     "dihajar",
     "ditonjok",

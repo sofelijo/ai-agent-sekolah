@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASKA Web Chat</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .chat-container { width: 100%; max-width: 600px; height: 80vh; background-color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 10px; display: flex; flex-direction: column; }
+        .chat-header { background-color: #4a90e2; color: white; padding: 15px; border-top-left-radius: 10px; border-top-right-radius: 10px; text-align: center; }
+        .chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .chat-message { padding: 10px 15px; border-radius: 20px; max-width: 75%; line-height: 1.5; }
+        .user-message { background-color: #4a90e2; color: white; align-self: flex-end; }
+        .bot-message { background-color: #e5e5ea; color: black; align-self: flex-start; }
+        .chat-input { display: flex; padding: 15px; border-top: 1px solid #ddd; }
+        .chat-input input { flex-grow: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 15px; font-size: 16px; }
+        .chat-input button { background-color: #4a90e2; color: white; border: none; border-radius: 20px; padding: 10px 20px; margin-left: 10px; cursor: pointer; font-size: 16px; }
+        .typing-indicator { align-self: flex-start; color: #999; font-style: italic; margin-left: 20px; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header"><h2>ASKA Chatbot</h2></div>
+        <div class="chat-box" id="chat-box">
+            <div class="chat-message bot-message">Halo! Aku ASKA, asisten AI kamu. Ada yang bisa dibantu?</div>
+        </div>
+        <form class="chat-input" id="chat-form">
+            <input type="text" id="message-input" placeholder="Ketik pesanmu di sini..." autocomplete="off">
+            <button type="submit">Kirim</button>
+        </form>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+
+        // Generate or retrieve a unique user ID
+        let userId = localStorage.getItem('aska_user_id');
+        if (!userId) {
+            // Create a large negative integer to avoid collision with positive Telegram IDs
+            userId = -Math.floor(Date.now() / 1000 + Math.random() * 1000000);
+            localStorage.setItem('aska_user_id', userId);
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            appendMessage(message, 'user');
+            messageInput.value = '';
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        user_id: parseInt(userId) // Ensure it's sent as an integer
+                    })
+                });
+
+                removeTypingIndicator();
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                appendMessage(data.response, 'bot');
+
+            } catch (error) {
+                console.error('Error:', error);
+                removeTypingIndicator();
+                appendMessage('Maaf, terjadi kesalahan. Coba lagi nanti.', 'bot');
+            }
+        });
+
+        function appendMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message', sender + '-message');
+
+            if (sender === 'bot') {
+                // Basic markdown to HTML conversion for bold
+                let html = message.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\*([^\*]+)\*/g, '<strong>$1</strong>');
+                messageElement.innerHTML = html;
+            } else {
+                messageElement.textContent = message;
+            }
+
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingElement = document.createElement('div');
+            typingElement.id = 'typing-indicator';
+            typingElement.classList.add('chat-message', 'bot-message', 'typing-indicator');
+            typingElement.textContent = 'ASKA sedang mengetik...';
+            chatBox.appendChild(typingElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const typingElement = document.getElementById('typing-indicator');
+            if (typingElement) {
+                typingElement.remove();
+            }
+        }
+    </script>
+</body>
+</html>

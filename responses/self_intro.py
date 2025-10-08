@@ -4,7 +4,7 @@ import random
 SELF_INTRO_PATTERNS = (
     "kamu siapa", "kamu itu siapa", "siapa kamu",
     "lu siapa", "loe siapa", "lo siapa", "anda siapa", "situ siapa", "ente siapa",
-    "kamu sapa", "lu sapa", "lo sapa",
+    "kamu sapa", "lu sapa", "lo sapa", "sapa kamu"
     "ini bot apa", "bot apa ini", "bot apa sih",
     "ini bot siapa", "bot siapa ini", "bot siapa sih",
     "kamu bot apa", "kamu itu apa", "kamu apa",
