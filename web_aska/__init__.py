@@ -6,6 +6,7 @@ import asyncio
 
 # Import from within the package
 from .handlers import process_web_request
+from dashboard import create_admin_blueprint
 
 def create_app() -> Flask:
     """Create and configure an instance of the Flask application."""
@@ -16,6 +17,10 @@ def create_app() -> Flask:
     )
 
     app.config["SECRET_KEY"] = os.getenv("APP_SECRET_KEY", "a-default-secret-key-for-web-aska")
+
+    # Create and register the admin blueprint
+    admin_bp = create_admin_blueprint()
+    app.register_blueprint(admin_bp)
 
     @app.route("/")
     def index():
