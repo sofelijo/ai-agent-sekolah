@@ -21,6 +21,7 @@ from .queries import (
     BULLYING_STATUSES,
     PSYCH_STATUSES,
     ChatFilters,
+    fetch_all_chat_users,
     fetch_bullying_reports,
     fetch_bullying_summary,
     fetch_bullying_report_detail,
@@ -33,10 +34,12 @@ from .queries import (
     fetch_top_keywords,
     fetch_top_users,
     update_bullying_report_status,
+    bulk_update_bullying_report_status,
     fetch_psych_reports,
     fetch_psych_summary,
     fetch_psych_group_reports,
     update_psych_report_status,
+    bulk_update_psych_report_status,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -125,18 +128,44 @@ def chats() -> Response:
     )
 
 
-@main_bp.route("/chats/thread/<int:user_id>")
+@main_bp.route("/chats/thread/")
 @login_required
-def chat_thread(user_id: int) -> Response:
-    messages = fetch_conversation_thread(user_id=user_id, limit=400)
+def chat_thread_empty() -> Response:
+    users_list = fetch_all_chat_users()
+    if users_list:
+        return redirect(url_for("main.chat_thread", user_id=users_list[0]["user_id"]))
+    flash("No chats found.", "info")
+    return redirect(url_for("main.chats"))
+
+
+@main_bp.route("/chats/thread/<user_id>")
+@login_required
+def chat_thread(user_id: str) -> Response:
+    try:
+        user_id_int = int(user_id)
+    except ValueError:
+        flash("User ID tidak valid.", "danger")
+        return redirect(url_for("main.chats"))
+
+    messages = fetch_conversation_thread(user_id=user_id_int, limit=400)
+    users_list = fetch_all_chat_users()
+
+    # If user has no messages, but other chats exist, redirect to the first user
+    if not messages and users_list:
+        flash("Pengguna ini belum memiliki riwayat percakapan.", "info")
+        return redirect(url_for("main.chat_thread", user_id=users_list[0]["user_id"]))
+    
+    # If no messages and no other users, redirect to chat list
     if not messages:
         return redirect(url_for("main.chats"))
 
     user = {
-        "user_id": user_id,
+        "user_id": user_id_int,
         "username": messages[0].get("username") or "Unknown",
     }
-    return render_template("chat_thread.html", messages=messages, user=user)
+    return render_template(
+        "chat_thread.html", messages=messages, user=user, users_list=users_list
+    )
 
 
 
@@ -191,6 +220,31 @@ def bullying_report_detail(report_id: int) -> Response:
         flash("Laporan tidak ditemukan.", "warning")
         return redirect(url_for("main.bullying_reports"))
     return render_template("bullying_report_detail.html", report=report)
+
+
+@main_bp.route("/bullying-reports/bulk-status", methods=["POST"])
+@role_required("admin", "staff")
+def bulk_update_bullying_status() -> Response:
+    data = request.get_json()
+    report_ids = data.get("report_ids")
+    status = data.get("status")
+    user = current_user()
+    updated_by = user.get("full_name") or user.get("email") if user else None
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "Invalid report IDs"}), 400
+
+    if status not in BULLYING_STATUSES and status != "undo":
+        return jsonify({"success": False, "message": "Invalid status"}), 400
+
+    try:
+        if status == "undo":
+            bulk_update_bullying_report_status(report_ids, "pending", updated_by)
+        else:
+            bulk_update_bullying_report_status(report_ids, status, updated_by)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @main_bp.route("/bullying-reports/<int:report_id>/status", methods=["POST"])
@@ -341,6 +395,31 @@ def psych_report_single_detail(report_id: int) -> Response:
             "username": records[0].get("username") or "Anon",
         },
     )
+
+
+@main_bp.route("/psych-reports/bulk-status", methods=["POST"])
+@role_required("admin", "editor")
+def bulk_update_psych_status() -> Response:
+    data = request.get_json()
+    report_ids = data.get("report_ids")
+    status = data.get("status")
+    user = current_user()
+    updated_by = user.get("full_name") or user.get("email") if user else None
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "Invalid report IDs"}), 400
+
+    if status not in PSYCH_STATUSES and status != "undo":
+        return jsonify({"success": False, "message": "Invalid status"}), 400
+
+    try:
+        if status == "undo":
+            bulk_update_psych_report_status(report_ids, "open", updated_by)
+        else:
+            bulk_update_psych_report_status(report_ids, status, updated_by)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @main_bp.route("/psych-reports/<int:report_id>/status", methods=["POST"])

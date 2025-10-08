@@ -68,7 +68,11 @@ a {
     align-items: center;
     gap: 0.4rem;
     color: var(--text-primary);
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.theme-toggle-label.rotating {
+    transform: rotate(360deg);
 }
 
 .theme-toggle-label .theme-icon {

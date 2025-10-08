@@ -127,7 +127,7 @@
                 <h2 class="h6 fw-bold">Pertanyaan Terbaru</h2>
                 <ul class="list-group list-group-flush list-group-timeline">
                     {% for item in recent_questions %}
-                    <li class="list-group-item px-0">
+                    <li class="list-group-item px-0 question-item" style="cursor: pointer;" data-question="{{ item.text }}" data-url="{{ url_for('main.chat_thread', user_id=item.user_id) }}">
                         <div class="small text-muted">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
                         <div class="fw-semibold">{{ item.username or 'Anon' }} ({{ item.user_id }})</div>
                         <div class="text-truncate-2">{{ item.text }}</div>
@@ -158,10 +158,65 @@
         </div>
     </div>
 </section>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="chatConfirmationModal" tabindex="-1" aria-labelledby="chatConfirmationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="chatConfirmationModalLabel">Lihat Detail Percakapan</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Anda akan diarahkan ke halaman detail percakapan untuk pertanyaan:</p>
+        <blockquote class="blockquote">
+          <p id="questionText" class="mb-0"></p>
+        </blockquote>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <a href="#" id="confirmChatLink" class="btn btn-primary" target="_blank">Lanjutkan</a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalElement = document.getElementById('chatConfirmationModal');
+        if (!modalElement) return;
+
+        const questionTextElement = document.getElementById('questionText');
+        const confirmChatLink = document.getElementById('confirmChatLink');
+        const chatModal = new bootstrap.Modal(modalElement);
+
+        document.querySelectorAll('.question-item').forEach(item => {
+            item.addEventListener('click', function () {
+                const question = this.dataset.question;
+                const url = this.dataset.url;
+
+                if (questionTextElement) {
+                    questionTextElement.textContent = question;
+                }
+                if (confirmChatLink) {
+                    confirmChatLink.href = url;
+                }
+                chatModal.show();
+            });
+        });
+
+        if (confirmChatLink) {
+            confirmChatLink.addEventListener('click', function(event) {
+                // The link will open in a new tab because of target="_blank"
+                // Now, we just need to hide the modal
+                chatModal.hide();
+            });
+        }
+    });
+</script>
 <script>
     const activityCtx = document.getElementById('activityChart');
     const activityLabels = {{ chart_labels|tojson }};

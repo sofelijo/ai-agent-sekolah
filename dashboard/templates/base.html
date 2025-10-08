@@ -135,12 +135,18 @@
 
         function applyTheme(theme, persist) {
             var nextTheme = theme === 'dark' ? 'dark' : 'light';
+
+            if (label) {
+                label.classList.add('rotating');
+            }
+
             root.setAttribute('data-theme', nextTheme);
             root.setAttribute('data-bs-theme', nextTheme);
             if (toggle) {
                 toggle.checked = nextTheme === 'dark';
             }
             updateLabel(nextTheme);
+
             if (persist) {
                 try {
                     localStorage.setItem(storageKey, nextTheme);
@@ -148,6 +154,12 @@
                 } catch (error) {
                     /* no-op */
                 }
+            }
+
+            if (label) {
+                setTimeout(function() {
+                    label.classList.remove('rotating');
+                }, 400);
             }
         }
 

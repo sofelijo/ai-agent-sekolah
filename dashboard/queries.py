@@ -354,6 +354,25 @@ def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, 
     return [dict(row) for row in rows]
 
 
+def fetch_all_chat_users() -> List[Dict[str, Any]]:
+    """Fetches all users who have sent messages, with their message counts."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                user_id,
+                COALESCE(username, 'Unknown') AS username,
+                COUNT(*) AS message_count
+            FROM chat_logs
+            WHERE role = 'user'
+            GROUP BY user_id, username
+            ORDER BY MAX(created_at) DESC
+            """
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 
 def fetch_bullying_summary() -> Dict[str, int]:
     """Return aggregated counts of bullying reports by status."""
@@ -696,6 +715,54 @@ def update_psych_report_status(
         )
         return cur.rowcount > 0
 
+def bulk_update_psych_report_status(
+    report_ids: List[int],
+    status: str,
+    updated_by: Optional[str] = None,
+) -> bool:
+    """Update the status for a list of psych reports, archiving all reports from the same user if one is archived."""
+    if not report_ids:
+        return False
+
+    normalized_status = status.lower()
+    if normalized_status not in PSYCH_STATUSES and normalized_status != "undo":
+        raise ValueError(f"Invalid psych report status: {status}")
+
+    target_status = "open" if normalized_status == "undo" else normalized_status
+
+    with get_cursor(commit=True) as cur:
+        # Get the user_ids for the given report_ids
+        cur.execute(
+            "SELECT DISTINCT user_id FROM psych_reports WHERE id = ANY(%s::int[]) AND user_id IS NOT NULL",
+            (report_ids,),
+        )
+        user_ids = [row[0] for row in cur.fetchall()]
+
+        if not user_ids:
+            # If no user_ids are found, just update the selected reports
+            cur.execute(
+                """
+                UPDATE psych_reports
+                SET status = %s,
+                    updated_at = NOW()
+                WHERE id = ANY(%s::int[])
+                """,
+                (target_status, report_ids),
+            )
+            return cur.rowcount > 0
+
+        # Update all reports for the found user_ids
+        cur.execute(
+            """
+            UPDATE psych_reports
+            SET status = %s,
+                updated_at = NOW()
+            WHERE user_id = ANY(%s::int[])
+            """,
+            (target_status, user_ids),
+        )
+        return cur.rowcount > 0
+
 
 def update_bullying_report_status(
     report_id: int,
@@ -818,6 +885,33 @@ def update_bullying_report_status(
         cur.execute(_insert_event, (report_id, event_type, updated_by, Json(payload)))
     return True
 
+def bulk_update_bullying_report_status(
+    report_ids: List[int],
+    status: str,
+    updated_by: Optional[str] = None,
+) -> bool:
+    """Update the status for a list of bullying reports."""
+    if not report_ids:
+        return False
+
+    normalized_status = status.lower()
+    if normalized_status not in BULLYING_STATUSES and normalized_status != "undo":
+        raise ValueError(f"Invalid bullying report status: {status}")
+
+    target_status = "pending" if normalized_status == "undo" else normalized_status
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE bullying_reports
+            SET status = %s,
+                last_updated_by = %s,
+                updated_at = NOW()
+            WHERE id = ANY(%s::int[])
+            """,
+            (target_status, updated_by, report_ids),
+        )
+        return cur.rowcount > 0
 
 
 def fetch_bullying_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
