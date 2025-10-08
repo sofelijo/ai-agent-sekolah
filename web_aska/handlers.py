@@ -1,14 +1,9 @@
-# web_handlers.py
+# web_aska/handlers.py
 import asyncio
 import os
 import tempfile
 import time
 from typing import List, Optional, Set
-
-# Remove telegram imports, we will mock them
-# from telegram import Message, Update
-# from telegram.error import NetworkError
-# from telegram.ext import ContextTypes
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -75,14 +70,7 @@ from utils import (
     format_history_for_chain,
     coerce_to_text,
     rewrite_schedule_query,
-    # send_typing_once,
-    # keep_typing_indicator,
-    # send_thinking_bubble,
-    # reply_with_markdown,
     replace_bot_mentions,
-    # should_respond,
-    # resolve_target_message,
-    # prepare_group_query,
 )
 
 # --- Mock Telegram Objects ---
@@ -123,9 +111,6 @@ web_sessions = {}
 load_dotenv()
 qa_chain = build_qa_chain()
 
-# We don't need audio transcription for the web version for now
-# audio_client = OpenAI()
-
 TEACHER_CONVERSATION_LIMIT = 10
 TEACHER_TIMEOUT_SECONDS = 600
 PSYCH_TIMEOUT_SECONDS = 600
@@ -149,16 +134,13 @@ PSYCH_SEVERITY_RANK = {
 async def process_web_request(user_id: str, user_input: str) -> str:
     """Main function to handle a chat request from the web API."""
     
-    # Get or create session for the user
     session_data = web_sessions.setdefault(user_id, {})
 
-    # Create mock Telegram-like objects
     user = MockUser(user_id)
     message = MockMessage(user, user_input)
     update = MockUpdate(message)
     context = MockContext(session_data)
 
-    # This will hold the bot's response
     response_text = ASKA_TECHNICAL_ISSUE_RESPONSE
 
     try:
@@ -193,7 +175,7 @@ async def process_web_request(user_id: str, user_input: str) -> str:
 
         bullying_category = detect_bullying_category(normalized_input)
         if bullying_category:
-            print(f"[{now_str()}] BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
+            print(f"[{now_str()}]BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
             severity = "critical" if bullying_category == CATEGORY_SEXUAL else (
                 "high" if bullying_category == CATEGORY_PHYSICAL else "medium"
             )
@@ -230,7 +212,7 @@ async def process_web_request(user_id: str, user_input: str) -> str:
 
         def _persist_psych_report(
             message_text: str,
-            *,
+            *, 
             severity_value: str,
             stage_label: Optional[str],
             status_value: str = "open",
@@ -549,8 +531,6 @@ async def process_web_request(user_id: str, user_input: str) -> str:
         if not response.strip():
             response = ASKA_NO_DATA_RESPONSE
 
-        # Image response handling is removed for simplicity in web version
-
         duration_ms = (time.perf_counter() - start_time) * 1000
         print(f"[{now_str()}] ASKA : {response} ?? {duration_ms:.2f} ms")
         save_chat(
@@ -566,5 +546,4 @@ async def process_web_request(user_id: str, user_input: str) -> str:
 
     except Exception as e:
         print(f"[{now_str()}] [ERROR] {e}")
-        # In web, we just return the technical issue response
         return ASKA_TECHNICAL_ISSUE_RESPONSE

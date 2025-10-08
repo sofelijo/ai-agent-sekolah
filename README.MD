@@ -205,7 +205,7 @@ After=network.target
 [Service]
 WorkingDirectory=/root/ai-agent-sekolah
 EnvironmentFile=/root/ai-agent-sekolah/.env
-ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:5001 app:app
+ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:5001 web_aska.app:app
 Restart=always
 User=www-data
 Group=www-data
