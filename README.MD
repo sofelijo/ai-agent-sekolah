@@ -10,6 +10,8 @@
 - Menggunakan gaya bahasa Gen-Z yang santai 😎
 - Bisa jalan di lokal atau server (VPS)
 - Bot Telegram aktif 24 jam via `systemd`
+- Web Dashboard untuk administrasi
+- Web App untuk antarmuka chat
 
 ---
 
@@ -18,7 +20,7 @@
 ```bash
 # 1. Update dan install dependensi utama
 apt update && apt upgrade -y
-apt install git python3-pip python3-venv -y
+apt install git python3-pip python3-venv nginx certbot python3-certbot-nginx -y
 
 # 2. Clone repository
 git clone https://github.com/sofelijo/ai-agent-sekolah.git
@@ -77,7 +79,7 @@ python bot_sekolah.py
 
 ```bash
 # 1. Buat service systemd
-nano /etc/systemd/system/ai-bots.service
+sudo nano /etc/systemd/system/ai-bots.service
 ```
 
 Isi file:
@@ -102,27 +104,26 @@ Aktifkan service:
 
 ```bash
 # Reload systemd dan aktifkan bot
-systemctl daemon-reload
-systemctl enable ai-bots.service
-systemctl start ai-bots.service
-systemctl status ai-bots.service
+sudo systemctl daemon-reload
+sudo systemctl enable ai-bots.service
+sudo systemctl start ai-bots.service
+sudo systemctl status ai-bots.service
 ```
 
 ---
 
-## Jalankan Dashboard 24/7 di VPS
+## 🚀 Deploy Aplikasi Web (Dashboard & Web Chat)
 
-Nginx dipakai sebagai reverse proxy supaya gampang pasang HTTPS, bagi statis, dan batasi akses. Kalau mau langsung expose Gunicorn ke publik, boleh saja tapi pastikan port dibuka dengan firewall dan sadar risikonya (tidak ada TLS, rate limit, dll).
+Berikut adalah cara mendeploy kedua aplikasi web (Dashboard Admin dan Web Chat Aska) agar berjalan 24/7 di server VPS Anda.
+
+### 1. Deploy Dashboard Admin (`https://admin.sdnsembar01.sch.id`)
 
 ```bash
-# 1. Pastikan paket pendukung terpasang
-apt install nginx -y
-
-# 2. Buat service systemd untuk Gunicorn
-nano /etc/systemd/system/aska-dashboard.service
+# Buat service systemd untuk Gunicorn Dashboard
+sudo nano /etc/systemd/system/aska-dashboard.service
 ```
 
-Isi file:
+Isi file `aska-dashboard.service`:
 
 ```ini
 [Unit]
@@ -132,7 +133,7 @@ After=network.target
 [Service]
 WorkingDirectory=/root/ai-agent-sekolah
 EnvironmentFile=/root/ai-agent-sekolah/.env
-ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:8001 dashboard.app:app
+ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:8000 dashboard.app:app
 Restart=always
 User=www-data
 Group=www-data
@@ -144,16 +145,15 @@ WantedBy=multi-user.target
 Aktifkan service dashboard:
 
 ```bash
-systemctl daemon-reload
-systemctl enable aska-dashboard.service
-systemctl start aska-dashboard.service
-systemctl status aska-dashboard.service
+sudo systemctl daemon-reload
+sudo systemctl enable aska-dashboard.service
+sudo systemctl start aska-dashboard.service
 ```
 
-Konfigurasi Nginx (contoh subdomain `dashboard.domainmu.com`):
+Konfigurasi Nginx untuk `admin.sdnsembar01.sch.id`:
 
 ```bash
-nano /etc/nginx/sites-available/aska-dashboard
+sudo nano /etc/nginx/sites-available/aska-dashboard
 ```
 
 Isi file:
@@ -161,7 +161,7 @@ Isi file:
 ```nginx
 server {
     listen 80;
-    server_name dashboard.domainmu.com;
+    server_name admin.sdnsembar01.sch.id;
 
     location /static/ {
         alias /root/ai-agent-sekolah/dashboard/static/;
@@ -170,7 +170,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:8001;
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -179,36 +179,82 @@ server {
 }
 ```
 
-Aktifkan site dan reload Nginx:
+Aktifkan site dan amankan dengan SSL:
 
 ```bash
-ln -s /etc/nginx/sites-available/aska-dashboard /etc/nginx/sites-enabled/aska-dashboard
-nginx -t
-systemctl reload nginx
+sudo ln -s /etc/nginx/sites-available/aska-dashboard /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d admin.sdnsembar01.sch.id
 ```
 
-Tambahkan SSL dengan Certbot bila domain sudah aktif:
+### 2. Deploy Web Chat Aska (`https://aska.sdnsembar01.sch.id`)
 
 ```bash
-apt install certbot python3-certbot-nginx -y
-certbot --nginx -d dashboard.domainmu.com
+# Buat service systemd untuk Gunicorn Web Chat
+sudo nano /etc/systemd/system/aska-webapp.service
 ```
 
-Dashboard kini tersedia di `https://dashboard.domainmu.com` dan terhubung ke service bot yang sama.
+Isi file `aska-webapp.service`:
 
-### Alternatif tanpa Nginx (opsional)
+```ini
+[Unit]
+Description=ASKA Web App (Gunicorn)
+After=network.target
 
-Kalau kamu ingin langsung membuka dashboard lewat IP VPS tanpa reverse proxy:
+[Service]
+WorkingDirectory=/root/ai-agent-sekolah
+EnvironmentFile=/root/ai-agent-sekolah/.env
+ExecStart=/root/ai-agent-sekolah/venv/bin/gunicorn -w 2 -k gthread -b 127.0.0.1:5001 app:app
+Restart=always
+User=www-data
+Group=www-data
 
-1. Ubah `ExecStart` di service Gunicorn menjadi `-b 0.0.0.0:5001` atau port lain yang dibuka.
-2. Jalankan `ufw allow 5001/tcp` (atau port pilihan) supaya bisa diakses dari luar.
-3. Akses via `http://IP-VPS:5001`.
+[Install]
+WantedBy=multi-user.target
+```
 
-Catatan: mode ini tanpa HTTPS, rate limiting, atau header security tambahan. Pastikan password kuat dan pertimbangkan tetap memasang proxy saat butuh TLS.
+Aktifkan service web app:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable aska-webapp.service
+sudo systemctl start aska-webapp.service
+```
+
+Konfigurasi Nginx untuk `aska.sdnsembar01.sch.id`:
+
+```bash
+sudo nano /etc/nginx/sites-available/aska-webapp
+```
+
+Isi file:
+
+```nginx
+server {
+    listen 80;
+    server_name aska.sdnsembar01.sch.id;
+
+    location / {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Aktifkan site dan amankan dengan SSL:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/aska-webapp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d aska.sdnsembar01.sch.id
+```
 
 ---
-
-
 
 ## 🧠 Cara Kerja ASKA
 
@@ -236,8 +282,11 @@ cd /root/ai-agent-sekolah
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
-systemctl restart ai-bots.service
-systemctl restart aska-dashboard.service
+
+# Restart semua service
+sudo systemctl restart ai-bots.service
+sudo systemctl restart aska-dashboard.service
+sudo systemctl restart aska-webapp.service
 ```
 
 ---
@@ -246,10 +295,14 @@ systemctl restart aska-dashboard.service
 
 ```bash
 # Cek status bot
-systemctl status ai-bots.service
+sudo systemctl status ai-bots.service
+# Cek status dashboard
+sudo systemctl status aska-dashboard.service
+# Cek status web app
+sudo systemctl status aska-webapp.service
 
-# Lihat log realtime
-journalctl -u ai-bots.service -f
+# Lihat log realtime bot
+sudo journalctl -u ai-bots.service -f
 ```
 
 ---
@@ -262,6 +315,7 @@ journalctl -u ai-bots.service -f
 | Gagal install `faiss`         | Jalankan `pip install faiss-cpu`              |
 | Bot tidak merespons           | Cek `.env` dan jalankan `journalctl -u ai-bots.service -f` |
 | OpenAI key error              | Pastikan variabel `OPENAI_API_KEY` benar      |
+| Web tidak bisa diakses        | Cek status Nginx (`sudo systemctl status nginx`) dan log errornya |
 
 ---
 
