@@ -106,7 +106,7 @@ _SEXUAL_KEYWORDS: tuple[str, ...] = (
     "pap aneh", "dimintain pap",
     "grooming",
     "digrepe",
-    "dipeluk"
+    "dipeluk",
 )
 
 _PHYSICAL_KEYWORDS: tuple[str, ...] = (
@@ -133,6 +133,7 @@ _PHYSICAL_KEYWORDS: tuple[str, ...] = (
     "dijegal",
     "disundut",
     "dilempar",
+    "dibunuh",
 )
 
 _EXCLUSION_PATTERNS: tuple[re.Pattern[str], ...] = (

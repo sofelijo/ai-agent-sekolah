@@ -17,7 +17,7 @@ FAREWELL_PHRASES = (
     "bye bye", "see you", "see u", "see ya",
     "sampai jumpa", "sampai ketemu", "udah ya", "cukup ya",
     "aku pamit", "aku cabut", "aku off dulu",
-    "izin pamit", "izin keluar", "otw off", "udah dulu ya",
+    "izin pamit", "izin keluar", "otw off", "udah dulu ya", "dah dulu ya",
 )
 
 FAREWELL_RESPONSES = [
