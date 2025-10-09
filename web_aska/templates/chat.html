@@ -237,6 +237,22 @@
             .chat-container { height: 100vh; border-radius: 0; box-shadow: none; }
             .chat-header { border-radius: 0; }
         }
+        .loader {
+            width: 15px;
+            height: 15px;
+            border: 2px solid var(--loader-color);
+            border-top-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -255,12 +271,7 @@
             <nav class="navbar navbar-expand w-100">
                 <div class="container-fluid">
                     <div class="d-flex align-items-center">
-                        <lord-icon
-                            src="https://cdn.lordicon.com/wrprwmwt.json"
-                            trigger="hover"
-                            colors="primary:#ffffff"
-                            style="width:40px;height:40px;margin-right:8px;">
-                        </lord-icon>
+                        <span style="font-size: 2rem; margin-right: 8px;">🤖</span>
                         <div>
                             <a class="navbar-brand text-white" href="#">ASKA</a>
                             <div class="text-white" style="font-size: 0.7rem; margin-top: -8px;">Agen AI Sekolah Kita</div>
@@ -357,6 +368,7 @@
         let chatOffset = 10;
         let isLoadingHistory = false;
         let noMoreHistory = false;
+        let typingInterval;
 
         // Function to set the theme
         function setTheme(theme) {
@@ -500,12 +512,21 @@
             const typingElement = document.createElement('div');
             typingElement.id = 'typing-indicator';
             typingElement.classList.add('chat-message', 'bot-message', 'typing-indicator');
-            typingElement.textContent = 'ASKA sedang mengetik...';
+            
+            typingElement.innerHTML = '<span class="loader"></span>ASKA lagi mikir 🤔<span id="dots">.</span>';
             chatBox.appendChild(typingElement);
             chatBox.scrollTop = chatBox.scrollHeight;
+
+            const dots = document.getElementById('dots');
+            let dotCount = 1;
+            typingInterval = setInterval(() => {
+                dotCount = (dotCount % 3) + 1;
+                dots.textContent = '.'.repeat(dotCount);
+            }, 500);
         }
 
         function removeTypingIndicator() {
+            clearInterval(typingInterval);
             const typingElement = document.getElementById('typing-indicator');
             if (typingElement) {
                 typingElement.remove();
