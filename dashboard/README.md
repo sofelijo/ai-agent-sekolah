@@ -156,8 +156,8 @@ Mode ini tidak memberikan HTTPS otomatis maupun proteksi header tambahan, jadi p
 
 ## CLI Manajemen
 
-- `python -m dashboard.cli init-db` — membuat tabel dashboard.
-- `python -m dashboard.cli create-user email@example.com "Nama"` — membuat user baru. Gunakan opsi `--role` (`admin`, `editor`, `viewer`) dan `--password` bila ingin langsung mengisi password di CLI.
+- `python -m dashboard.cli init-db` ï¿½ membuat tabel dashboard.
+- `python -m dashboard.cli create-user email@example.com "Nama"` ï¿½ membuat user baru. Gunakan opsi `--role` (`admin`, `editor`, `viewer`) dan `--password` bila ingin langsung mengisi password di CLI.
 
 ## Struktur Folder
 
@@ -174,9 +174,9 @@ Mode ini tidak memberikan HTTPS otomatis maupun proteksi header tambahan, jadi p
 
 ## Troubleshooting
 
-- **Tidak bisa login** — pastikan user dibuat via CLI dan password benar, cek log `journalctl` untuk error DB.
-- **Grafik kosong** — data `chat_logs` mungkin belum ada dalam 14 hari terakhir.
-- **Ekspor CSV gagal** — periksa koneksi database dan pastikan filter tidak menghasilkan dataset terlalu besar.
-- **Service gagal start** — cek path `WorkingDirectory` dan hak akses user `www-data` (atau ganti ke user lain sesuai setup Anda).
+- **Tidak bisa login** ï¿½ pastikan user dibuat via CLI dan password benar, cek log `journalctl` untuk error DB.
+- **Grafik kosong** ï¿½ data `chat_logs` mungkin belum ada dalam 14 hari terakhir.
+- **Ekspor CSV gagal** ï¿½ periksa koneksi database dan pastikan filter tidak menghasilkan dataset terlalu besar.
+- **Service gagal start** ï¿½ cek path `WorkingDirectory` dan hak akses user `www-data` (atau ganti ke user lain sesuai setup Anda).
 
 Selamat menggunakan ASKA Stakeholder Dashboard!

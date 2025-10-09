@@ -70,7 +70,7 @@
             <strong>{{ metrics.bullying_pending }} laporan bullying</strong> menunggu tindak lanjut segera.
             <span class="d-block small mb-0">Pastikan tim sekolah sudah menerima dan menindaklanjuti laporan ini.</span>
         </div>
-        <a class="btn btn-light btn-sm" href="{{ url_for('admin.main.bullying_reports') }}">Lihat laporan</a>
+        <a class="btn btn-light btn-sm" href="{{ url_for('main.bullying_reports') }}">Lihat laporan</a>
     </div>
     {% elif metrics.bullying_in_progress %}
     <div class="alert alert-warning d-flex justify-content-between align-items-center mt-3">
@@ -78,7 +78,7 @@
             <strong>{{ metrics.bullying_in_progress }} laporan bullying</strong> sedang dalam proses penanganan.
             <span class="d-block small mb-0">Update statusnya jika sudah ada perkembangan terbaru.</span>
         </div>
-        <a class="btn btn-outline-warning btn-sm" href="{{ url_for('admin.main.bullying_reports', status='in_progress') }}">Pantau progres</a>
+        <a class="btn btn-outline-warning btn-sm" href="{{ url_for('main.bullying_reports', status='in_progress') }}">Pantau progres</a>
     </div>
     {% endif %}
 
@@ -127,7 +127,7 @@
                 <h2 class="h6 fw-bold">Pertanyaan Terbaru</h2>
                 <ul class="list-group list-group-flush list-group-timeline">
                     {% for item in recent_questions %}
-                    <li class="list-group-item px-0 question-item" style="cursor: pointer;" data-question="{{ item.text }}" data-url="{{ url_for('admin.main.chat_thread', user_id=item.user_id) }}">
+                    <li class="list-group-item px-0 question-item" style="cursor: pointer;" data-question="{{ item.text }}" data-url="{{ url_for('main.chat_thread', user_id=item.user_id) }}">
                         <div class="small text-muted">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
                         <div class="fw-semibold">{{ item.username or 'Anon' }} ({{ item.user_id }})</div>
                         <div class="text-truncate-2">{{ item.text }}</div>

@@ -10,7 +10,7 @@
                 Riwayat laporan konseling{{ " " + user.username if user.username }}{% if user.user_id %} ID {{ user.user_id }}{% endif %}.
             </p>
         </div>
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.main.psych_reports') }}">Kembali ke daftar</a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.psych_reports') }}">Kembali ke daftar</a>
     </div>
 
     <div class="card shadow-sm border-0">
@@ -26,7 +26,7 @@
                             {{ item.status|default('open')|replace('_', ' ')|title }}
                         </span>
                         {% if current_user and current_user.role in ['admin', 'editor'] %}
-                        <form method="post" action="{{ url_for('admin.main.update_psych_status', report_id=item.id) }}" class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        <form method="post" action="{{ url_for('main.update_psych_status', report_id=item.id) }}" class="d-flex flex-wrap align-items-center gap-2 mt-2">
                             <input type="hidden" name="next" value="{{ request.full_path }}">
                             <select name="status" class="form-select form-select-sm" style="max-width: 180px;">
                                 <option value="open" {% if item.status == 'open' %}selected{% endif %}>Open</option>
@@ -64,7 +64,7 @@
                 {% endif %}
                 {% if item.chat_log_id %}
                 <div class="mt-3">
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.main.chat_thread', user_id=item.user_id) }}">Lihat percakapan lengkap</a>
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.chat_thread', user_id=item.user_id) }}">Lihat percakapan lengkap</a>
                 </div>
                 {% endif %}
             </div>

@@ -182,7 +182,7 @@
         </div>
         <div class="user-list-scroll">
             {% for u in users_list %}
-            <a href="{{ url_for('admin.main.chat_thread', user_id=u.user_id) }}" class="user-list-item {% if u.user_id == user.user_id %}active{% endif %}">
+            <a href="{{ url_for('main.chat_thread', user_id=u.user_id) }}" class="user-list-item {% if u.user_id == user.user_id %}active{% endif %}">
                 <span class="username">{{ u.username }}</span>
                 <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ u.message_count }}</span>
             </a>

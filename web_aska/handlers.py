@@ -131,12 +131,12 @@ PSYCH_SEVERITY_RANK = {
     SEVERITY_CRITICAL: 2,
 }
 
-async def process_web_request(user_id: str, user_input: str) -> str:
+async def process_web_request(user_id: int, user_input: str, username: str = "WebUser") -> str:
     """Main function to handle a chat request from the web API."""
     
     session_data = web_sessions.setdefault(user_id, {})
 
-    user = MockUser(user_id)
+    user = MockUser(user_id, first_name=username)
     message = MockMessage(user, user_input)
     update = MockUpdate(message)
     context = MockContext(session_data)
@@ -150,6 +150,7 @@ async def process_web_request(user_id: str, user_input: str) -> str:
         normalized_input = normalize_input(raw_input)
 
         user_obj = user
+        # This username is now correctly set from the function parameter
         username = user.username
 
         print(
@@ -212,7 +213,7 @@ async def process_web_request(user_id: str, user_input: str) -> str:
 
         def _persist_psych_report(
             message_text: str,
-            *, 
+            *,
             severity_value: str,
             stage_label: Optional[str],
             status_value: str = "open",
@@ -515,7 +516,7 @@ async def process_web_request(user_id: str, user_input: str) -> str:
 
         print(f"[{now_str()}] ASKA sedang berpikir...")
 
-        history_from_db = get_chat_history(user_id, limit=5)
+        history_from_db = get_chat_history(user_id, limit=5, offset=0)
         chat_history = format_history_for_chain(history_from_db)
 
         start_time = time.perf_counter()

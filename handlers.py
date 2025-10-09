@@ -201,7 +201,7 @@ async def handle_user_query(
 
         bullying_category = detect_bullying_category(normalized_input)
         if bullying_category:
-            print(f"[{now_str()}] BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
+            print(f"[{now_str()}]BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
             severity = "critical" if bullying_category == CATEGORY_SEXUAL else (
                 "high" if bullying_category == CATEGORY_PHYSICAL else "medium"
             )
@@ -604,7 +604,7 @@ async def handle_user_query(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0)
         print(f"[{now_str()}] ASKA sedang mengetik...")
 
-        history_from_db = get_chat_history(user_id, limit=5)
+        history_from_db = get_chat_history(user_id, limit=5, offset=0)
         chat_history = format_history_for_chain(history_from_db)
 
         start_time = time.perf_counter()

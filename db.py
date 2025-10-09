@@ -1,9 +1,9 @@
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta, timezone
 
 import psycopg2
-from psycopg2.extras import Json
+from psycopg2.extras import Json, RealDictCursor
 from dotenv import load_dotenv
 
 # Muat variabel dari file .env
@@ -42,11 +42,10 @@ conn_args = dict(
 
 # Tambahkan sslmode jika diset di .env
 if DB_SSLMODE:
-    conn_args["sslmode"] = DB_SSLMODE  # bisa 'require', 'prefer', 'disable', dll
+    conn_args["sslmode"] = DB_SSLMODE
 
 # Koneksi ke PostgreSQL
 conn = psycopg2.connect(**conn_args)
-
 
 def _ensure_bullying_schema() -> None:
     """Pastikan tabel dan kolom pendukung pelaporan bullying tersedia."""
@@ -76,81 +75,7 @@ def _ensure_bullying_schema() -> None:
             );
             """
         )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_bullying_reports_status
-            ON bullying_reports (status);
-            """
-        )
-        cur.execute(
-            "ALTER TABLE bullying_reports DROP CONSTRAINT IF EXISTS bullying_reports_status_check"
-        )
-        cur.execute(
-            "ALTER TABLE bullying_reports ADD CONSTRAINT bullying_reports_status_check CHECK (status IN ('pending', 'in_progress', 'resolved', 'spam'))"
-        )
-        cur.execute(
-            "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'"
-        )
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS severity TEXT")
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS metadata JSONB")
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS assigned_to TEXT")
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS due_at TIMESTAMPTZ")
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ")
-        cur.execute("ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS escalated BOOLEAN NOT NULL DEFAULT FALSE")
-
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS bullying_report_events (
-                id SERIAL PRIMARY KEY,
-                report_id INTEGER REFERENCES bullying_reports(id) ON DELETE CASCADE,
-                event_type TEXT NOT NULL,
-                actor TEXT,
-                payload JSONB,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_bullying_report_events_report
-            ON bullying_report_events (report_id);
-            """
-        )
-
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS notifications (
-                id SERIAL PRIMARY KEY,
-                category TEXT NOT NULL,
-                title TEXT NOT NULL,
-                message TEXT,
-                status TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'read', 'archived')),
-                link TEXT,
-                reference_table TEXT,
-                reference_id INTEGER,
-                metadata JSONB,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                read_at TIMESTAMPTZ
-            );
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_notifications_status
-            ON notifications (status);
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_notifications_created_at
-            ON notifications (created_at DESC);
-            """
-        )
     conn.commit()
-
-
-_ensure_bullying_schema()
-
 
 def _ensure_psych_schema() -> None:
     """Pastikan tabel laporan konseling psikologis tersedia."""
@@ -173,29 +98,23 @@ def _ensure_psych_schema() -> None:
             );
             """
         )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_psych_reports_status
-            ON psych_reports (status);
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_psych_reports_severity
-            ON psych_reports (severity);
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_psych_reports_created_at
-            ON psych_reports (created_at DESC);
-            """
-        )
     conn.commit()
 
 
-_ensure_psych_schema()
-
+def _ensure_user_schema() -> None:
+    """Pastikan tabel untuk pengguna web (web_users) tersedia."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS web_users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                full_name TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """
+        )
+    conn.commit()
 
 def _calculate_due_at(category: str) -> datetime:
     base = datetime.now(timezone.utc)
@@ -205,17 +124,6 @@ def _calculate_due_at(category: str) -> datetime:
     if category == "physical":
         return base + timedelta(hours=24)
     return base + timedelta(hours=48)
-
-
-def _insert_report_event(cursor, report_id: int, event_type: str, *, actor: Optional[str] = None, payload: Optional[dict] = None) -> None:
-    cursor.execute(
-        """
-        INSERT INTO bullying_report_events (report_id, event_type, actor, payload)
-        VALUES (%s, %s, %s, %s)
-        """,
-        (report_id, event_type, actor, Json(payload) if payload else None),
-    )
-
 
 def record_psych_report(
     chat_log_id: Optional[int],
@@ -264,91 +172,6 @@ def record_psych_report(
     conn.commit()
     return int(row[0]) if row else None
 
-
-def create_notification(
-    category: str,
-    title: str,
-    message: Optional[str] = None,
-    *,
-    status: str = "unread",
-    link: Optional[str] = None,
-    reference_table: Optional[str] = None,
-    reference_id: Optional[int] = None,
-    metadata: Optional[dict] = None,
-    cursor=None,
-    commit: bool = True,
-) -> Optional[int]:
-    """Simpan notifikasi baru dan kembalikan id-nya."""
-    payload = Json(metadata) if metadata else None
-    if cursor is not None:
-        cursor.execute(
-            """
-            INSERT INTO notifications (category, title, message, status, link, reference_table, reference_id, metadata)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """,
-            (category, title, message, status, link, reference_table, reference_id, payload),
-        )
-        row = cursor.fetchone()
-        return int(row[0]) if row else None
-
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO notifications (category, title, message, status, link, reference_table, reference_id, metadata)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """,
-            (category, title, message, status, link, reference_table, reference_id, payload),
-        )
-        row = cur.fetchone()
-    if commit:
-        conn.commit()
-    return int(row[0]) if row else None
-
-
-def save_chat(
-    user_id: Optional[int],
-    username: Optional[str],
-    message: Optional[str],
-    role: str,
-    topic: Optional[str] = None,  # dipertahankan untuk kompatibilitas
-    response_time_ms: Optional[int] = None,
-) -> Optional[int]:
-    """Simpan chat ke tabel chat_logs dan kembalikan id baris yang dibuat."""
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO chat_logs (user_id, username, text, role, created_at, response_time_ms)
-            VALUES (%s, %s, %s, %s, NOW(), %s)
-            RETURNING id
-            """,
-            (user_id, username, message, role, response_time_ms),
-        )
-        row = cur.fetchone()
-    conn.commit()
-    return int(row[0]) if row else None
-
-
-def get_chat_history(user_id, limit=3):
-    """
-    Ambil n chat terakhir untuk user_id tertentu.
-    Return dalam urutan lama -> baru.
-    """
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT role, text FROM chat_logs
-            WHERE user_id = %s
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (user_id, limit),
-        )
-        rows = cur.fetchall()
-        return rows[::-1]  # Balik urutan agar kronologis
-
-
 def record_bullying_report(
     chat_log_id: int,
     user_id: Optional[int],
@@ -369,35 +192,11 @@ def record_bullying_report(
     if not cleaned_description:
         return None
 
-    merged_metadata = dict(metadata or {})
-    merged_metadata.setdefault("category", category)
-    if severity:
-        merged_metadata["severity"] = severity
-    merged_metadata["chat_log_id"] = chat_log_id
-
-    due_at = _calculate_due_at(category)
-    merged_metadata.setdefault("due_at", due_at.isoformat())
-
-    effective_priority = priority or category != "general"
-
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO bullying_reports (
-                chat_log_id,
-                user_id,
-                username,
-                description,
-                priority,
-                category,
-                severity,
-                metadata,
-                assigned_to,
-                due_at,
-                resolved_at,
-                escalated
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO bullying_reports (chat_log_id, user_id, username, description, priority, category, severity, metadata, assigned_to, due_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (chat_log_id) DO NOTHING
             RETURNING id
             """,
@@ -406,54 +205,78 @@ def record_bullying_report(
                 user_id,
                 username,
                 cleaned_description,
-                effective_priority,
+                priority,
                 category,
                 severity,
-                Json(merged_metadata) if merged_metadata else None,
+                Json(metadata) if metadata else None,
                 assigned_to,
-                due_at,
-                None,
-                False,
+                _calculate_due_at(category),
             ),
         )
         row = cur.fetchone()
         if not row:
             conn.commit()
             return None
-
         report_id = int(row[0])
-
-        title_map = {
-            "sexual": "Laporan Pelecehan Seksual",
-            "physical": "Laporan Kekerasan Fisik",
-            "general": "Laporan Bullying Baru",
-        }
-        title = title_map.get(category, title_map["general"])
-        snippet = (cleaned_description[:160] + "...") if len(cleaned_description) > 160 else cleaned_description
-        link = f"/bullying-reports?highlight={report_id}"
-        create_notification(
-            category="bullying",
-            title=title,
-            message=snippet,
-            link=link,
-            reference_table="bullying_reports",
-            reference_id=report_id,
-            metadata={"report_id": report_id, "category": category},
-            cursor=cur,
-            commit=False,
-        )
-        _insert_report_event(
-            cur,
-            report_id,
-            "created",
-            actor=username,
-            payload={
-                "category": category,
-                "severity": severity,
-                "due_at": due_at.isoformat(),
-                "assigned_to": assigned_to,
-            },
-        )
-
     conn.commit()
     return report_id
+
+def save_chat(
+    user_id: Optional[int],
+    username: Optional[str],
+    message: Optional[str],
+    role: str,
+    topic: Optional[str] = None,
+    response_time_ms: Optional[int] = None,
+) -> Optional[int]:
+    """Simpan chat ke tabel chat_logs dan kembalikan id baris yang dibuat."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO chat_logs (user_id, username, text, role, created_at, response_time_ms)
+            VALUES (%s, %s, %s, %s, NOW(), %s)
+            RETURNING id
+            """,
+            (user_id, username, message, role, response_time_ms),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    return int(row[0]) if row else None
+
+def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str, Any]]:
+    """
+    Ambil riwayat chat dengan paginasi, mengembalikan list of dictionaries.
+    Urutan: Terbaru di atas (DESC).
+    """
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT role, text, created_at FROM chat_logs
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+            """,
+            (user_id, limit, offset),
+        )
+        return cur.fetchall()
+
+def get_or_create_web_user(email: str, full_name: str) -> dict:
+    """Ambil user berdasarkan email, atau buat jika belum ada."""
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT id, email, full_name FROM web_users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        if user:
+            return user
+
+        cur.execute(
+            "INSERT INTO web_users (email, full_name) VALUES (%s, %s) RETURNING id, email, full_name",
+            (email, full_name),
+        )
+        new_user = cur.fetchone()
+        conn.commit()
+        return new_user
+
+# Call schema functions on startup
+_ensure_bullying_schema()
+_ensure_psych_schema()
+_ensure_user_schema()

@@ -8,7 +8,7 @@
             <h1 class="h4 fw-bold mb-1">Laporan Bullying</h1>
             <p class="text-muted mb-0">Pantau tindak lanjut laporan perundungan dari siswa dan pastikan setiap kasus ditangani.</p>
         </div>
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.main.dashboard') }}">Kembali ke Dashboard</a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">Kembali ke Dashboard</a>
     </div>
 
     <div class="row g-3 mb-3">
@@ -52,19 +52,19 @@
 
     <ul class="nav nav-pills mb-3">
         <li class="nav-item">
-            <a class="nav-link {% if not filter_status %}active{% endif %}" href="{{ url_for('admin.main.bullying_reports') }}">Semua</a>
+            <a class="nav-link {% if not filter_status %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">Semua</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'pending' %}active{% endif %}" href="{{ url_for('admin.main.bullying_reports', status='pending') }}">Menunggu</a>
+            <a class="nav-link {% if filter_status == 'pending' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='pending') }}">Menunggu</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'in_progress' %}active{% endif %}" href="{{ url_for('admin.main.bullying_reports', status='in_progress') }}">Diproses</a>
+            <a class="nav-link {% if filter_status == 'in_progress' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='in_progress') }}">Diproses</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'resolved' %}active{% endif %}" href="{{ url_for('admin.main.bullying_reports', status='resolved') }}">Selesai</a>
+            <a class="nav-link {% if filter_status == 'resolved' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='resolved') }}">Selesai</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'spam' %}active{% endif %}" href="{{ url_for('admin.main.bullying_reports', status='spam') }}">Spam</a>
+            <a class="nav-link {% if filter_status == 'spam' %}active{% endif %}" href="{{ url_for('main.bullying_reports', status='spam') }}">Spam</a>
         </li>
     </ul>
 
@@ -109,7 +109,7 @@
                                     <div class="fw-semibold">{{ item.username or 'Anon' }}</div>
                                     <div class="text-muted small">ID {{ item.user_id or '-' }}</div>
                                     {% if item.chat_log_id and item.user_id %}
-                                    <a class="small" href="{{ url_for('admin.main.chat_thread', user_id=item.user_id) }}">Lihat riwayat</a>
+                                    <a class="small" href="{{ url_for('main.chat_thread', user_id=item.user_id) }}">Lihat riwayat</a>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -154,7 +154,7 @@
                                     <div class="small text-muted" style="white-space: pre-wrap;">{{ item.notes or '-' }}</div>
                                 </td>
                                 <td>
-                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.main.bullying_report_detail', report_id=item.id) }}">Kelola</a>
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.bullying_report_detail', report_id=item.id) }}">Kelola</a>
                                 </td>
                             </tr>
                             {% else %}
@@ -173,15 +173,15 @@
     <nav class="mt-3">
         <ul class="pagination pagination-sm">
             <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.main.bullying_reports', status=filter_status, page=page-1) }}">Prev</a>
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=page-1) }}">Prev</a>
             </li>
             {% for number in range(1, total_pages + 1) %}
             <li class="page-item {% if number == page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.main.bullying_reports', status=filter_status, page=number) }}">{{ number }}</a>
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=number) }}">{{ number }}</a>
             </li>
             {% endfor %}
             <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.main.bullying_reports', status=filter_status, page=page+1) }}">Next</a>
+                <a class="page-link" href="{{ url_for('main.bullying_reports', status=filter_status, page=page+1) }}">Next</a>
             </li>
         </ul>
     </nav>
@@ -225,7 +225,7 @@
                     return;
                 }
 
-                fetch("{{ url_for('admin.main.bulk_update_bullying_status') }}", {
+                fetch("{{ url_for('main.bulk_update_bullying_status') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -269,7 +269,7 @@
                             const undoBtn = document.getElementById('undo-btn');
                             if(undoBtn) {
                                 undoBtn.addEventListener('click', function() {
-                                    fetch("{{ url_for('admin.main.bulk_update_bullying_status') }}", {
+                                    fetch("{{ url_for('main.bulk_update_bullying_status') }}", {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',

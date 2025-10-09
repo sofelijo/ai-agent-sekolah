@@ -32,7 +32,7 @@ def login_required(view: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         if not current_user():
             flash("Silakan login terlebih dahulu.", "warning")
-            return redirect(url_for("admin.auth.login", next=request.path))
+            return redirect(url_for("auth.login", next=request.path))
         return view(*args, **kwargs)
 
     return wrapper
@@ -48,7 +48,7 @@ def role_required(*roles: str) -> Callable:
                 return redirect(url_for("auth.login", next=request.path))
             if user.get("role") not in roles:
                 flash("Anda tidak memiliki akses ke fitur ini.", "danger")
-                return redirect(url_for("admin.main.dashboard"))
+                return redirect(url_for("main.dashboard"))
             return view(*args, **kwargs)
 
         return wrapper
@@ -59,7 +59,7 @@ def role_required(*roles: str) -> Callable:
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login() -> Response:
     if current_user():
-        return redirect(url_for("admin.main.dashboard"))
+        return redirect(url_for("main.dashboard"))
 
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
@@ -80,7 +80,7 @@ def login() -> Response:
         session.permanent = remember
         update_last_login(user["id"])
         flash("Selamat datang kembali!", "success")
-        redirect_target = request.args.get("next") or url_for("admin.main.dashboard")
+        redirect_target = request.args.get("next") or url_for("main.dashboard")
         return redirect(redirect_target)
 
     return render_template("login.html")
@@ -91,7 +91,7 @@ def login() -> Response:
 def logout() -> Response:
     session.clear()
     flash("Anda telah logout.", "info")
-    return redirect(url_for("admin.auth.login"))
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/settings/users", methods=["GET", "POST"])

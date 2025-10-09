@@ -2,7 +2,7 @@
 import asyncio
 import re
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from telegram import Message, Update
 from langchain_core.messages import HumanMessage, AIMessage
@@ -16,7 +16,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 # Regex untuk mendeteksi markdown gambar ![](url)
-IMG_MD = re.compile(r'!\[[^\]]*\]\((https?://[^\s)]+)\)')
+IMG_MD = re.compile(r'!\\\[^\\]*?\\]\((https?://[^\s)]+)\)')
 
 KNOWN_BOT_HANDLES = {"@ss01ju_bot", "@tanyaaska_bot"}
 
@@ -85,16 +85,18 @@ def now_str():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def format_history_for_chain(history):
-    """Ubah (role, text) dari DB menjadi list of LangChain Message."""
+def format_history_for_chain(history: List[Dict[str, Any]]) -> list:
+    """Ubah list of dict dari DB menjadi list of LangChain Message."""
     messages = []
-    for role, text in history:
+    # The new DB function returns newest first, but the chain needs oldest first.
+    for row in reversed(history):
+        role = row.get('role')
+        text = row.get('text')
         if role == "user":
             messages.append(HumanMessage(content=text))
-        else:
+        elif role:
             messages.append(AIMessage(content=text))
     return messages
-
 
 def coerce_to_text(result_obj):
     if result_obj is None:
@@ -118,11 +120,9 @@ def current_jakarta_time() -> datetime:
             pass
     return datetime.now()
 
-
 def format_indonesian_date(dt: datetime) -> str:
     month_name = INDONESIAN_MONTH_NAMES.get(dt.month, dt.strftime("%B"))
     return f"{dt.day} {month_name} {dt.year}"
-
 
 def detect_class_code(text: str) -> Optional[str]:
     if not text:
@@ -130,7 +130,6 @@ def detect_class_code(text: str) -> Optional[str]:
     if re.search(r"(?:kelas\s*)?(?:5|v)[\s-]*a", text):
         return "5a"
     return None
-
 
 def rewrite_schedule_query(text: str) -> str:
     if not text:
@@ -160,7 +159,6 @@ def rewrite_schedule_query(text: str) -> str:
         updated = f"{updated} {note}".strip()
     return updated
 
-
 def iter_message_texts_and_entities(message: Optional[Message]):
     if message is None:
         return
@@ -169,7 +167,6 @@ def iter_message_texts_and_entities(message: Optional[Message]):
     if message.caption:
         yield message.caption, message.caption_entities or []
 
-
 def replace_bot_mentions(text: Optional[str], bot_username: Optional[str] = None) -> Optional[str]:
     if not text:
         return text
@@ -177,7 +174,7 @@ def replace_bot_mentions(text: Optional[str], bot_username: Optional[str] = None
     if bot_username:
         handles.add(f"@{bot_username.lower()}")
 
-    pattern = re.compile(r"@[\w_]+")
+    pattern = re.compile(r"@[\\w_]+")
 
     def repl(match):
         mention = match.group(0)
@@ -186,7 +183,6 @@ def replace_bot_mentions(text: Optional[str], bot_username: Optional[str] = None
         return mention
 
     return pattern.sub(repl, text)
-
 
 def is_substantive_text(text: Optional[str]) -> bool:
     if not text:
@@ -208,16 +204,13 @@ def is_substantive_text(text: Optional[str]) -> bool:
     meaningful_tokens = [tok for tok in tokens if tok not in filler_tokens]
     return len(meaningful_tokens) >= 2
 
-
 def is_group_chat(update: Update) -> bool:
     chat = update.effective_chat
     return chat is not None and chat.type in ("group", "supergroup")
 
-
 def is_reply_to_bot(message: Message, bot_id):
     reply = getattr(message, "reply_to_message", None)
     return bool(reply and reply.from_user and reply.from_user.id == bot_id)
-
 
 def has_bot_mention(message: Optional[Message], bot_username: Optional[str], bot_id):
     if not message:
@@ -239,7 +232,6 @@ def has_bot_mention(message: Optional[Message], bot_username: Optional[str], bot
             return True
     return False
 
-
 def extract_message_text(message: Optional[Message]) -> Optional[str]:
     if message is None:
         return None
@@ -248,7 +240,6 @@ def extract_message_text(message: Optional[Message]) -> Optional[str]:
     if message.caption:
         return message.caption
     return None
-
 
 def should_respond(update: Update, bot) -> bool:
     if not is_group_chat(update):
@@ -259,7 +250,6 @@ def should_respond(update: Update, bot) -> bool:
     bot_id = getattr(bot, "id", None)
     bot_username = getattr(bot, "username", None)
     return is_reply_to_bot(message, bot_id) or has_bot_mention(message, bot_username, bot_id)
-
 
 def resolve_target_message(update: Update, bot):
     message = update.effective_message
@@ -278,7 +268,6 @@ def resolve_target_message(update: Update, bot):
         ):
             target_message = reply
     return message, target_message
-
 
 def prepare_group_query(
     trigger_message: Optional[Message],

@@ -17,5 +17,6 @@ psycopg2-binary>=2.9
 
 # Dashboard (Flask app)
 Flask>=3.0,<4
+Authlib>=1.3.0,<2
 gunicorn>=21.2; platform_system != "Windows"
 

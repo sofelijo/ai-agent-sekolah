@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASKA Web Chat</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Lordicon -->
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -15,6 +19,7 @@
             --text-color-dark: #000;
             --input-border-color: #ccc;
             --input-bg-color: #fff;
+            --loader-color: #888;
         }
 
         body.dark-mode {
@@ -27,20 +32,42 @@
             --text-color-dark: #fff;
             --input-border-color: #444;
             --input-bg-color: #2c3e50;
+            --loader-color: #ccc;
         }
 
         body { 
-            font-family: sans-serif; 
+            font-family: 'Inter', sans-serif; 
             background-color: var(--bg-color); 
             color: var(--text-color-dark);
             margin: 0; 
             padding: 0; 
             display: flex; 
+            flex-direction: column;
             justify-content: center; 
             align-items: center; 
             height: 100vh; 
             transition: background-color 0.3s, color 0.3s;
         }
+        .flash-messages {
+            width: 100%;
+            text-align: center;
+            padding: 0;
+            list-style: none;
+            position: absolute;
+            top: 20px;
+            z-index: 1000;
+        }
+        .flash-info, .flash-error {
+            color: #0c5460;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .flash-info { background-color: #d1ecf1; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
         .chat-container { 
             width: 100%; 
             max-width: 600px; 
@@ -51,29 +78,42 @@
             display: flex; 
             flex-direction: column; 
             animation: fadeInUp 1s ease-in-out;
+            margin-top: 50px;
         }
-        .chat-header { 
-            background-color: var(--header-bg); 
-            color: var(--text-color-light); 
-            padding: 15px; 
-            border-top-left-radius: 10px; 
-            border-top-right-radius: 10px; 
-            text-align: center; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        
+        /* New Header Styles */
+        .chat-header {
+            background-color: var(--header-bg);
+            color: var(--text-color-light);
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
         }
-        .chat-header .title-container {
-            text-align: left;
+        .navbar-brand {
+            font-weight: bold;
         }
-        .chat-header h2 {
-            margin: 0;
+        .user-dropdown .dropdown-toggle::after {
+            display: none; /* Hide default caret */
         }
-        .chat-header .subtitle {
-            font-size: 0.8em;
-            font-weight: normal;
-            display: block;
+        .user-dropdown .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #fff;
         }
+        .user-dropdown .dropdown-menu {
+            min-width: 250px;
+            border-radius: .5rem;
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+        }
+        .user-dropdown .dropdown-item-text {
+            white-space: normal;
+        }
+        .logout-item .logout-icon {
+            width: 24px;
+            height: 24px;
+        }
+
         .chat-box { 
             flex-grow: 1; 
             padding: 20px; 
@@ -82,11 +122,18 @@
             flex-direction: column; 
             gap: 15px; 
         }
+        .history-loader {
+            text-align: center;
+            padding: 10px;
+            color: var(--loader-color);
+            font-style: italic;
+        }
         .chat-message { 
             padding: 10px 15px; 
             border-radius: 20px; 
             max-width: 75%; 
             line-height: 1.5; 
+            word-wrap: break-word;
         }
         .user-message { 
             background-color: var(--user-msg-bg); 
@@ -117,13 +164,24 @@
         }
         .chat-input button { 
             background-color: var(--header-bg); 
-            color: var(--text-color-light); 
+            color: var(--text-color-light);
             border: none; 
             border-radius: 20px; 
-            padding: 10px 20px; 
+            padding: 10px 15px;
             margin-left: 10px; 
             cursor: pointer; 
             font-size: 16px; 
+            transition: background-color 0.2s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-input button:hover {
+            transform: scale(1.05);
+            background-color: #3a7bc8;
+        }
+        .chat-input button:active {
+            transform: scale(0.98);
         }
         .typing-indicator { 
             align-self: flex-start; 
@@ -161,14 +219,8 @@
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .new-message {
@@ -176,72 +228,135 @@
         }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         @media (max-width: 768px) {
-            body {
-                align-items: flex-start;
-                height: 100%;
-            }
-            .chat-container {
-                height: 100vh;
-                border-radius: 0;
-                box-shadow: none;
-            }
-            .chat-header {
-                border-radius: 0;
-            }
+            body { align-items: flex-start; height: 100%; }
+            .chat-container { height: 100vh; border-radius: 0; box-shadow: none; }
+            .chat-header { border-radius: 0; }
         }
     </style>
 </head>
 <body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class=flash-messages>
+        {% for category, message in messages %}
+          <li class="flash-{{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
     <div class="chat-container">
         <div class="chat-header">
-            <div class="title-container">
-                <h2>ASKA</h2>
-                <small class="subtitle">Agen AI Sekolah Kita</small>
-            </div>
-            <button id="theme-toggle">🌙</button>
+            <nav class="navbar navbar-expand w-100">
+                <div class="container-fluid">
+                    <div class="d-flex align-items-center">
+                        <lord-icon
+                            src="https://cdn.lordicon.com/wrprwmwt.json"
+                            trigger="hover"
+                            colors="primary:#ffffff"
+                            style="width:40px;height:40px;margin-right:8px;">
+                        </lord-icon>
+                        <div>
+                            <a class="navbar-brand text-white" href="#">ASKA</a>
+                            <div class="text-white" style="font-size: 0.7rem; margin-top: -8px;">Agen AI Sekolah Kita</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <button id="theme-toggle" class="me-3">🌙</button>
+                        {% if user %}
+                        <div class="dropdown user-dropdown">
+                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="me-2 d-none d-sm-inline">{{ user.full_name.split()[0] }}</span>
+                                <img src="{{ user.picture or 'https://via.placeholder.com/40' }}" alt="mdo" class="profile-pic">
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end text-small" aria-labelledby="dropdownUser">
+                                <li>
+                                    <div class="px-3 py-2 dropdown-item-text">
+                                        <div class="fw-bold">{{ user.full_name }}</div>
+                                        <div class="text-muted small">{{ user.email }}</div>
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center logout-item" href="{{ url_for('logout') }}">
+                                        <lord-icon
+                                            src="https://cdn.lordicon.com/gwvmctbb.json"
+                                            trigger="hover"
+                                            target=".logout-item"
+                                            colors="primary:#e83a30"
+                                            class="logout-icon me-2">
+                                        </lord-icon>
+                                        Sign out
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
         </div>
         <div class="chat-box" id="chat-box">
-            <div class="chat-message bot-message">Wassup! 🤙 Kenalin, aku ASKA 🤖, AI assistant kece di SDN Semper Barat 01. Pengen nanya-nanya? Gas aja, ASKA siap bantu! 🚀✨
-            <br>
-            📝 kasih masukan buat ASKA di 
-            <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form Feedback</a>
-            <br>
-            🤖 Cek juga ASKA di Telegram
-            <a href="https://t.me/tanyaaska_bot" target="_blank" class="modern-link">@tanyaaska_bot</a>
-            <br>
-            📘 Isi Pengetahuan ASKA :
-            <ul class="list-disc pl-5 space-y-1">
-                <li>Profil sekolah 🏫</li>
-                <li>Info SPMB, KJP, & administrasi lainnya 📝</li>
-                <li>Kalender akademik 📅</li>
-                <li>Random questions seputar sekolah 🤪</li>
-            </ul>
-
+            <div id="history-loader" class="history-loader" style="display: none;">Memuat riwayat...</div>
             
-            </div>
+            {% if initial_chats %}
+                {% for chat in initial_chats|reverse %}
+                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}">
+                        {{ chat.text }}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="chat-message bot-message">
+                    Wassup! 🤙 Kenalin, aku ASKA 🤖, AI assistant kece di SDN Semper Barat 01. Pengen nanya-nanya? Gas aja, ASKA siap bantu! 🚀✨
+                    <br>
+                    📝 kasih masukan buat ASKA di 
+                    <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form Feedback</a>
+                    <br>
+                    🤖 Cek juga ASKA di Telegram
+                    <a href="https://t.me/tanyaaska_bot" target="_blank" class="modern-link">@tanyaaska_bot</a>
+                    <br>
+                    📘 Isi Pengetahuan ASKA :
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>Profil sekolah 🏫</li>
+                        <li>Info SPMB, KJP, & administrasi lainnya 📝</li>
+                        <li>Kalender akademik 📅</li>
+                        <li>Random questions seputar sekolah 🤪</li>
+                    </ul>
+                </div>
+            {% endif %}
         </div>
         <form class="chat-input" id="chat-form">
             <input type="text" id="message-input" placeholder="Ketik pesanmu di sini..." autocomplete="off">
-            <button type="submit">Kirim</button>
+            <button type="submit" class="send-button">
+                <lord-icon
+                    src="https://cdn.lordicon.com/gqjpawbc.json"
+                    trigger="hover"
+                    target=".send-button"
+                    colors="primary:#ffffff"
+                    style="width:24px;height:24px;margin-right:8px;">
+                </lord-icon>
+                Kirim
+            </button>
         </form>
     </div>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script>
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
         const messageInput = document.getElementById('message-input');
         const themeToggle = document.getElementById('theme-toggle');
+        const historyLoader = document.getElementById('history-loader');
+
+        let chatOffset = 10;
+        let isLoadingHistory = false;
+        let noMoreHistory = false;
 
         // Function to set the theme
         function setTheme(theme) {
@@ -262,7 +377,6 @@
 
         // Check for saved theme preference on page load
         const savedTheme = localStorage.getItem('theme');
-        // Set initial theme without animation
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
             themeToggle.textContent = '☀️';
@@ -271,7 +385,6 @@
             themeToggle.textContent = '🌙';
         }
 
-
         // Event listener for the theme toggle button
         themeToggle.addEventListener('click', () => {
             const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
@@ -279,13 +392,70 @@
             setTheme(newTheme);
         });
 
-        // Generate or retrieve a unique user ID
-        let userId = localStorage.getItem('aska_user_id');
-        if (!userId) {
-            // Create a large negative integer to avoid collision with positive Telegram IDs
-            userId = -Math.floor(Date.now() / 1000 + Math.random() * 1000000);
-            localStorage.setItem('aska_user_id', userId);
+        function createMessageElement(message, sender) {
+            const messageElement = document.createElement('div');
+            const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
+            messageElement.classList.add('chat-message', messageClass);
+
+            if (sender !== 'user') { // Treat 'aska' and other non-user roles as bot
+                let html = message.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\*([^\*]+)\*/g, '<strong>$1</strong>');
+                messageElement.innerHTML = html;
+            } else {
+                messageElement.textContent = message;
+            }
+            return messageElement;
         }
+
+        function appendMessage(message, sender) {
+            const messageElement = createMessageElement(message, sender);
+            messageElement.classList.add('new-message');
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function prependMessage(message, sender) {
+            const messageElement = createMessageElement(message, sender);
+            chatBox.insertBefore(messageElement, historyLoader.nextSibling);
+        }
+
+        async function loadHistory() {
+            if (isLoadingHistory || noMoreHistory) return;
+
+            isLoadingHistory = true;
+            historyLoader.style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/history?offset=${chatOffset}`);
+                const history = await response.json();
+
+                if (history.length === 0) {
+                    noMoreHistory = true;
+                    historyLoader.textContent = "Tidak ada riwayat lagi";
+                    setTimeout(() => { historyLoader.style.display = 'none'; }, 2000);
+                } else {
+                    const oldScrollHeight = chatBox.scrollHeight;
+                    // API returns newest first, so we don't need to reverse for prepending
+                    history.forEach(chat => {
+                        prependMessage(chat.text, chat.role);
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight - oldScrollHeight;
+                    chatOffset += 10;
+                    historyLoader.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Failed to load chat history:", error);
+                historyLoader.textContent = "Gagal memuat riwayat";
+            } finally {
+                isLoadingHistory = false;
+            }
+        }
+
+        chatBox.addEventListener('scroll', () => {
+            if (chatBox.scrollTop === 0) {
+                loadHistory();
+            }
+        });
 
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -302,13 +472,15 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ 
-                        message: message,
-                        user_id: parseInt(userId) // Ensure it's sent as an integer
-                    })
+                    body: JSON.stringify({ message: message })
                 });
 
                 removeTypingIndicator();
+
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('login_page') }}";
+                    return;
+                }
 
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -323,23 +495,6 @@
                 appendMessage('Maaf, terjadi kesalahan. Coba lagi nanti.', 'bot');
             }
         });
-
-        function appendMessage(message, sender) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('chat-message', sender + '-message', 'new-message');
-
-            if (sender === 'bot') {
-                // Basic markdown to HTML conversion for bold
-                let html = message.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-                html = html.replace(/\*([^\*]+)\*/g, '<strong>$1</strong>');
-                messageElement.innerHTML = html;
-            } else {
-                messageElement.textContent = message;
-            }
-
-            chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
 
         function showTypingIndicator() {
             const typingElement = document.createElement('div');
@@ -356,6 +511,12 @@
                 typingElement.remove();
             }
         }
+
+        // Scroll to the bottom on initial load
+        window.addEventListener('load', () => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
     </script>
 </body>
 </html>

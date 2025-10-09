@@ -115,7 +115,7 @@ def chats() -> Response:
     if user_id:
         export_params["user_id"] = user_id
 
-    export_url = url_for("admin.main.export_chats", **export_params)
+    export_url = url_for("main.export_chats", **export_params)
 
     return render_template(
         "chats.html",
@@ -133,9 +133,9 @@ def chats() -> Response:
 def chat_thread_empty() -> Response:
     users_list = fetch_all_chat_users()
     if users_list:
-        return redirect(url_for("admin.main.chat_thread", user_id=users_list[0]["user_id"]))
+        return redirect(url_for("main.chat_thread", user_id=users_list[0]["user_id"]))
     flash("No chats found.", "info")
-    return redirect(url_for("admin.main.chats"))
+    return redirect(url_for("main.chats"))
 
 
 @main_bp.route("/chats/thread/<user_id>")
@@ -145,7 +145,7 @@ def chat_thread(user_id: str) -> Response:
         user_id_int = int(user_id)
     except ValueError:
         flash("User ID tidak valid.", "danger")
-        return redirect(url_for("admin.main.chats"))
+        return redirect(url_for("main.chats"))
 
     messages = fetch_conversation_thread(user_id=user_id_int, limit=400)
     users_list = fetch_all_chat_users()
@@ -153,11 +153,11 @@ def chat_thread(user_id: str) -> Response:
     # If user has no messages, but other chats exist, redirect to the first user
     if not messages and users_list:
         flash("Pengguna ini belum memiliki riwayat percakapan.", "info")
-        return redirect(url_for("admin.main.chat_thread", user_id=users_list[0]["user_id"]))
+        return redirect(url_for("main.chat_thread", user_id=users_list[0]["user_id"]))
     
     # If no messages and no other users, redirect to chat list
     if not messages:
-        return redirect(url_for("admin.main.chats"))
+        return redirect(url_for("main.chats"))
 
     user = {
         "user_id": user_id_int,
@@ -176,7 +176,7 @@ def bullying_reports() -> Response:
     raw_status = (args.get("status") or "").strip().lower() or None
     if raw_status and raw_status not in BULLYING_STATUSES:
         flash("Status filter tidak dikenal.", "warning")
-        return redirect(url_for("admin.main.bullying_reports"))
+        return redirect(url_for("main.bullying_reports"))
 
     highlight_param = args.get("highlight")
     highlight_id = None
@@ -194,7 +194,7 @@ def bullying_reports() -> Response:
         records, total = fetch_bullying_reports(status=raw_status, limit=limit, offset=offset)
     except ValueError as exc:
         flash(str(exc), "danger")
-        return redirect(url_for("admin.main.bullying_reports"))
+        return redirect(url_for("main.bullying_reports"))
 
     summary = fetch_bullying_summary()
     total_pages = max(1, ceil(total / limit))
@@ -218,7 +218,7 @@ def bullying_report_detail(report_id: int) -> Response:
     report = fetch_bullying_report_detail(report_id)
     if not report:
         flash("Laporan tidak ditemukan.", "warning")
-        return redirect(url_for("admin.main.bullying_reports"))
+        return redirect(url_for("main.bullying_reports"))
     return render_template("bullying_report_detail.html", report=report)
 
 
@@ -256,7 +256,7 @@ def update_bullying_status(report_id: int) -> Response:
     assigned_to = request.form.get("assigned_to")
     due_at_raw = request.form.get("due_at")
     escalate_values = request.form.getlist("escalate")
-    next_url = request.form.get("next") or url_for("admin.main.bullying_reports")
+    next_url = request.form.get("next") or url_for("main.bullying_reports")
 
     user = current_user()
     updated_by = None
@@ -318,11 +318,11 @@ def psych_reports() -> Response:
 
     if raw_status and raw_status not in PSYCH_STATUSES:
         flash("Status filter tidak dikenal.", "warning")
-        return redirect(url_for("admin.main.psych_reports"))
+        return redirect(url_for("main.psych_reports"))
 
     if raw_severity and raw_severity not in ('general', 'elevated', 'critical'):
         flash("Severity filter tidak dikenal.", "warning")
-        return redirect(url_for("admin.main.psych_reports"))
+        return redirect(url_for("main.psych_reports"))
 
     page = max(1, int(args.get("page", 1)))
     limit = REPORT_PAGE_SIZE
@@ -337,7 +337,7 @@ def psych_reports() -> Response:
         )
     except ValueError as exc:
         flash(str(exc), "danger")
-        return redirect(url_for("admin.main.psych_reports"))
+        return redirect(url_for("main.psych_reports"))
 
     summary = fetch_psych_summary()
     total_pages = max(1, ceil(total / limit))
@@ -363,7 +363,7 @@ def psych_report_user_detail(user_id: int) -> Response:
     records = fetch_psych_group_reports(user_id=user_id)
     if not records:
         flash("Tidak ada laporan konseling yang ditemukan untuk siswa ini.", "warning")
-        return redirect(url_for("admin.main.psych_reports"))
+        return redirect(url_for("main.psych_reports"))
 
     return render_template(
         "psych_report_detail.html",
@@ -381,11 +381,11 @@ def psych_report_single_detail(report_id: int) -> Response:
     records = fetch_psych_group_reports(report_id=report_id)
     if not records:
         flash("Laporan konseling tidak ditemukan atau sudah dihapus.", "warning")
-        return redirect(url_for("admin.main.psych_reports"))
+        return redirect(url_for("main.psych_reports"))
 
     user_id = records[0].get("user_id")
     if user_id:
-        return redirect(url_for("admin.main.psych_report_user_detail", user_id=user_id))
+        return redirect(url_for("main.psych_report_user_detail", user_id=user_id))
 
     return render_template(
         "psych_report_detail.html",
@@ -426,7 +426,7 @@ def bulk_update_psych_status() -> Response:
 @role_required("admin", "editor")
 def update_psych_status(report_id: int) -> Response:
     status_value = (request.form.get("status") or "").strip().lower()
-    next_url = request.form.get("next") or url_for("admin.main.psych_reports")
+    next_url = request.form.get("next") or url_for("main.psych_reports")
 
     if status_value not in PSYCH_STATUSES:
         flash("Status laporan konseling tidak dikenal.", "warning")
