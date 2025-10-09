@@ -412,6 +412,7 @@
             if (sender !== 'user') { // Treat 'aska' and other non-user roles as bot
                 let html = message.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
                 html = html.replace(/\*([^\*]+)\*/g, '<strong>$1</strong>');
+                html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 10px; margin-top: 10px;">');
                 messageElement.innerHTML = html;
             } else {
                 messageElement.textContent = message;
