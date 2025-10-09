@@ -14,7 +14,7 @@ def create_app() -> Flask:
     app = Flask(
         __name__,
         template_folder="templates",
-        static_folder=None
+        static_folder="static"
     )
 
     # Secret key for session management
