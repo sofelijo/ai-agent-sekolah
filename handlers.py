@@ -1,6 +1,9 @@
 # handlers.py
+import logging
 import asyncio
 import os
+
+
 import tempfile
 import time
 from typing import List, Optional, Set
@@ -173,6 +176,11 @@ async def handle_user_query(
             or "anon"
         )
 
+        def log_response(module_name: str):
+            logging.info(
+                f'User "{username}" triggered response from "{module_name}" with message: "{normalized_input}"'
+            )
+
         print(
             f"[{now_str()}] HANDLER CALLED ({source.upper()}) - FROM {username}: {normalized_input}"
         )
@@ -201,6 +209,7 @@ async def handle_user_query(
 
         bullying_category = detect_bullying_category(normalized_input)
         if bullying_category:
+            log_response("bullying.py")
             print(f"[{now_str()}]BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
             severity = "critical" if bullying_category == CATEGORY_SEXUAL else (
                 "high" if bullying_category == CATEGORY_PHYSICAL else "medium"
@@ -269,6 +278,7 @@ async def handle_user_query(
 
         if psych_session and psych_session.get("state") == "awaiting_confirmation":
             if is_psych_positive_confirmation(raw_input):
+                log_response("psychologist.py")
                 severity_value = psych_session.get("severity", SEVERITY_GENERAL)
                 first_stage = psych_next_stage(None)
                 psych_session["state"] = "ongoing"
@@ -308,6 +318,7 @@ async def handle_user_query(
                 mark_responded()
                 return True
             if is_psych_negative_confirmation(raw_input):
+                log_response("psychologist.py")
                 severity_value = psych_session.get("severity", SEVERITY_GENERAL)
                 response = (
                     "Oke, tidak apa-apa. Kalau nanti butuh teman cerita lagi, ASKA siap standby 😊"
@@ -332,6 +343,7 @@ async def handle_user_query(
 
         if psych_session and psych_session.get("state") == "ongoing":
             if is_psych_stop_request(raw_input):
+                log_response("psychologist.py")
                 closing = get_psych_closing_message()
                 if psych_session.get("severity") == SEVERITY_CRITICAL:
                     closing = f"{closing}\n\n{get_psych_critical_message()}"
@@ -342,6 +354,7 @@ async def handle_user_query(
                 mark_responded()
                 return True
 
+            log_response("psychologist.py")
             current_severity = psych_session.get("severity", SEVERITY_GENERAL)
             message_severity = classify_message_severity(raw_input, default=current_severity)
             if PSYCH_SEVERITY_RANK.get(message_severity, 0) > PSYCH_SEVERITY_RANK.get(current_severity, 0):
@@ -392,6 +405,7 @@ async def handle_user_query(
         if not psych_session:
             psych_severity = detect_psych_intent(raw_input)
             if psych_severity:
+                log_response("psychologist.py")
                 confirmation = get_psych_confirmation_prompt(psych_severity)
                 psych_sessions[storage_key] = {
                     "state": "awaiting_confirmation",
@@ -421,6 +435,7 @@ async def handle_user_query(
 
         if is_teacher_stop(normalized_input):
             if teacher_session:
+                log_response("teacher.py")
                 teacher_sessions.pop(storage_key, None)
                 farewell = (
                     "Sesi belajar bersama ASKA selesai. Kapan pun mau latihan lagi, ketik saja "
@@ -433,6 +448,7 @@ async def handle_user_query(
                 return True
 
         if is_teacher_start(normalized_input):
+            log_response("teacher.py")
             grade_hint = extract_grade_hint(raw_input)
             subject_hint = extract_subject_hint(raw_input)
             question = pick_question(grade_hint, subject_hint, raw_input)
@@ -454,6 +470,7 @@ async def handle_user_query(
             return True
 
         if not teacher_session and is_teacher_next(normalized_input):
+            log_response("teacher.py")
             reminder = (
                 "Belum ada sesi guru yang aktif. Ketik 'kasih soal' atau 'mode guru' dulu ya."
             )
@@ -464,6 +481,7 @@ async def handle_user_query(
             return True
 
         if teacher_session and is_teacher_next(normalized_input):
+            log_response("teacher.py")
             grade_hint_override = extract_grade_hint(raw_input)
             if grade_hint_override:
                 teacher_session["grade_hint"] = grade_hint_override
@@ -491,6 +509,7 @@ async def handle_user_query(
             conversation: List[dict[str, str]] = teacher_session.setdefault("conversation", [])
 
             if is_teacher_discussion_request(raw_input):
+                log_response("teacher.py")
                 response_text = generate_discussion_reply(question, conversation, raw_input)
                 conversation.append({"role": "user", "content": raw_input})
                 conversation.append({"role": "assistant", "content": response_text})
@@ -502,6 +521,7 @@ async def handle_user_query(
                 mark_responded()
                 return True
 
+            log_response("teacher.py")
             grade_hint = teacher_session.get("grade_hint")
             subject_hint = teacher_session.get("subject_hint")
             teacher_session["attempt"] = teacher_session.get("attempt", 1) + 1
@@ -536,6 +556,7 @@ async def handle_user_query(
             return True
 
         if contains_inappropriate_language(normalized_input):
+            log_response("advice.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_advice_response()
             await reply_message.reply_text(response)
@@ -544,6 +565,7 @@ async def handle_user_query(
             return True
 
         if is_relationship_question(normalized_input):
+            log_response("relationship.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_relationship_advice_response()
             await reply_message.reply_text(response)
@@ -552,6 +574,7 @@ async def handle_user_query(
             return True
 
         if is_greeting_message(normalized_input):
+            log_response("greeting.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_time_based_greeting_response(normalized_input) or get_greeting_response()
             await reply_message.reply_text(response, parse_mode="Markdown")
@@ -560,6 +583,7 @@ async def handle_user_query(
             return True
 
         if is_thank_you_message(normalized_input):
+            log_response("thank_you.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_thank_you_response()
             await reply_message.reply_text(response, parse_mode="Markdown")
@@ -568,6 +592,7 @@ async def handle_user_query(
             return True
 
         if is_acknowledgement_message(normalized_input):
+            log_response("acknowledgement.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_acknowledgement_response()
             await reply_message.reply_text(response)
@@ -576,6 +601,7 @@ async def handle_user_query(
             return True
 
         if is_farewell_message(normalized_input):
+            log_response("farewell.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_farewell_response()
             await reply_message.reply_text(response)
@@ -584,6 +610,7 @@ async def handle_user_query(
             return True
 
         if is_self_intro_message(normalized_input):
+            log_response("self_intro.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_self_intro_response()
             await reply_message.reply_text(response)
@@ -592,6 +619,7 @@ async def handle_user_query(
             return True
 
         if is_status_message(normalized_input):
+            log_response("status.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_status_response()
             await reply_message.reply_text(response)

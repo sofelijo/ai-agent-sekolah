@@ -32,7 +32,6 @@ INAPPROPRIATE_PHRASES = (
     "dasar tolol",
     "dasar goblok",
     "mulut kotor",
-    "kata-kata kotor",
     "bahasa kasar",
     "otak udang",
     "otak kosong",
@@ -93,7 +92,9 @@ def _spaced_regex_from_word(word: str) -> re.Pattern:
         "t": "[t7]",
     }
     parts = [mapping.get(char, re.escape(char)) for char in word]
-    pattern = r"".join(f"{segment}[\\W_]*" for segment in parts)
+    body = r"(?:[\W_]*?)".join(parts)
+    # tambahkan boundary agar tidak match di tengah kata (contoh: 'asu' di 'masuk')
+    pattern = rf"(?<![A-Za-z0-9]){body}(?![A-Za-z0-9])"
     return re.compile(pattern, flags=re.IGNORECASE)
 
 
@@ -110,6 +111,8 @@ def contains_inappropriate(text: str) -> bool:
             return True
 
     tokens = set(normalized.split())
+    # Hapus 'ga' dari token yang akan diperiksa untuk menghindari positif palsu
+ 
     if tokens & INAPPROPRIATE_KEYWORDS:
         return True
 
@@ -127,4 +130,3 @@ def contains_inappropriate_language(text: str) -> bool:
 
 def get_advice_response() -> str:
     return random.choice(ADVICE_RESPONSES)
-
