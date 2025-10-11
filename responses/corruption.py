@@ -24,6 +24,8 @@ _REPORT_SIGNALS: tuple[str, ...] = (
 _EXCLUSION_PATTERNS: tuple[str, ...] = (
     "apa itu korupsi", "definisi korupsi", "contoh korupsi", "cara mencegah korupsi",
 )
+# Keywords to cancel the reporting flow
+_CANCEL_KEYWORDS: tuple[str, ...] = ("batal", "cancel", "batalkan", "stop")
 
 
 def _normalize(text: str) -> str:
@@ -116,18 +118,20 @@ class CorruptionResponse:
         """Menangani respons pengguna berdasarkan state saat ini."""
         normalized_message = _normalize(message)
 
+        # Allow cancellation from any state
+        if normalized_message in _CANCEL_KEYWORDS:
+            self.state = "idle"
+            self.report_data = {}
+            return "Oke, laporan dibatalkan. Gak apa-apa kok, semua info yang tadi kamu kasih udah ASKA hapus demi privasimu. Kalau kamu berubah pikiran atau butuh bantuan lagi, jangan ragu panggil ASKA ya. Semangat terus! 💪"
+
         if self.state == "confirming":
             if normalized_message == "benar":
                 return self.finalize_report()
             elif normalized_message == "edit":
                 self.state = "editing_selection"
                 return "Bagian mana yang mau diubah? (1. Terlibat, 2. Lokasi, 3. Waktu, 4. Kronologi)"
-            elif normalized_message == "batal":
-                self.state = "idle"
-                self.report_data = {}
-                return "Oke, laporan dibatalkan. Gak apa-apa kok, semua info yang tadi kamu kasih udah ASKA hapus demi privasimu. Kalau kamu berubah pikiran atau butuh bantuan lagi, jangan ragu panggil ASKA ya. Semangat terus! 💪"
             else:
-                return "Maaf, ASKA gak ngerti. Ketik 'benar', 'edit', atau 'batal' ya."
+                return "Maaf, ASKA gak ngerti. Ketik 'benar' atau 'edit' ya. Untuk membatalkan, ketik 'batal'."
 
         elif self.state == "editing_selection":
             try:
@@ -181,8 +185,8 @@ class CorruptionResponse:
             record_corruption_report(self.report_data)
             return (
                 f"Keren banget! Laporanmu udah ASKA terima dan amankan! Makasih banyak ya udah jadi pahlawan anti-korupsi! 🦸‍♀️🔥\n\n"
-                f"Ini nomor tiket laporanmu: {ticket_id}. Simpen baik-baik ya, jangan sampe ilang!\n\n"
-                f"Kamu bisa pake nomor ini buat nanyain progres kasusnya ke ASKA nanti. Tenang aja, semua datamu 100% aman dan rahasia sama ASKA. Privasimu nomor satu! 🤫🔐"
+                f"Ini nomor tiket laporanmu:\n**{ticket_id}**\n\n"
+                f"Simpen baik-baik ya, jangan sampe ilang! Kamu bisa pake nomor ini buat nanyain progres kasusnya ke ASKA nanti. Tenang aja, semua datamu 100% aman dan rahasia sama ASKA. Privasimu nomor satu! 🤫🔐"
             )
         except Exception as e:
             print(f"Error saving corruption report: {e}")

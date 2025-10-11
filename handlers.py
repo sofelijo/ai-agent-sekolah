@@ -82,6 +82,7 @@ from utils import (
     send_typing_once,
     keep_typing_indicator,
     send_thinking_bubble,
+    send_and_update_thinking_bubble,
     reply_with_markdown,
     replace_bot_mentions,
     should_respond,
@@ -246,10 +247,24 @@ async def handle_user_query(
             # User is in a corruption reporting flow
             response = corruption_session.handle_response(raw_input)
             if response:
-                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
-                await reply_message.reply_text(response)
-                save_chat(user_id, "ASKA", response, role="aska")
-                # If the report is finalized, clear the session
+                sent_successfully = False
+                for i in range(10):  # Retry up to 3 times
+                    try:
+                        await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                        await reply_message.reply_text(response, parse_mode="Markdown")
+                        save_chat(user_id, "ASKA", strip_markdown(response), role="aska")
+                        sent_successfully = True
+                        print(f"[{now_str()}] Successfully sent corruption flow message on attempt {i+1}.")
+                        break  # Exit loop on success
+                    except NetworkError as e:
+                        print(f"[{now_str()}] Network error sending corruption flow message (attempt {i+1}/10): {e}")
+                        if i < 2:  # Don't sleep on the last attempt
+                            await asyncio.sleep(5)  # Wait 5 seconds
+                
+                if not sent_successfully:
+                    print(f"[{now_str()}] Failed to send corruption flow message after 3 attempts.")
+
+                # If the report is finalized or cancelled, clear the session
                 if corruption_session.state == "idle":
                     corruption_sessions.pop(storage_key, None)
                 mark_responded()
@@ -257,9 +272,24 @@ async def handle_user_query(
 
         if is_corruption_report_intent(normalized_input):
             print(f"[{now_str()}] CORRUPTION REPORT INTENT DETECTED - STARTING FLOW")
+
+            stop_thinking_event = asyncio.Event()
+            thinking_task = asyncio.create_task(
+                send_and_update_thinking_bubble(reply_message, stop_thinking_event)
+            )
+
             session = CorruptionResponse(user_id)
             response = session.start_report()
             corruption_sessions[storage_key] = session
+
+            stop_thinking_event.set()
+            try:
+                thinking_message = await thinking_task
+                if thinking_message:
+                    await thinking_message.delete()
+            except Exception as e:
+                print(f"[{now_str()}] Error managing thinking bubble: {e}")
+
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
@@ -606,7 +636,7 @@ async def handle_user_query(
         if is_greeting_message(normalized_input):
             log_response("greeting.py")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
-            response = get_time_based_greeting_response(normalized_input) or get_greeting_response()
+            response = get_time_based_greeting_response(normalized_input, user_name=username) or get_greeting_response(user_name=username)
             await reply_message.reply_text(response, parse_mode="Markdown")
             save_chat(user_id, "ASKA", response, role="aska")
             mark_responded()

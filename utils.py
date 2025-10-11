@@ -16,7 +16,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 # Regex untuk mendeteksi markdown gambar ![](url)
-IMG_MD = re.compile(r'!\\\[^\\]*?\\]\((https?://[^\s)]+)\)')
+IMG_MD = re.compile(r'!\\\\[^\\]*?\\]\((https?://[^\s)]+)\)')
 
 KNOWN_BOT_HANDLES = {"@ss01ju_bot", "@tanyaaska_bot"}
 
@@ -75,7 +75,7 @@ def strip_markdown(text):
         text = str(text or "")
     try:
         text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
-        text = re.sub(r"#+\s*", "", text)
+        text = re.sub(r"#+\\s*", "", text)
         return text
     except Exception:
         return str(text)
@@ -127,7 +127,7 @@ def format_indonesian_date(dt: datetime) -> str:
 def detect_class_code(text: str) -> Optional[str]:
     if not text:
         return None
-    if re.search(r"(?:kelas\s*)?(?:5|v)[\s-]*a", text):
+    if re.search(r"(?:kelas\\s*)?(?:5|v)[\\s-]*a", text):
         return "5a"
     return None
 
@@ -153,7 +153,7 @@ def rewrite_schedule_query(text: str) -> str:
     }
     updated = text
     for key, value in replacements.items():
-        updated = re.sub(rf"\b{key}\b", value, updated)
+        updated = re.sub(rf"\\b{key}\\b", value, updated)
     note = f"(menanyakan jadwal kelas {class_code.upper()} hari {day_name} {date_label})"
     if note not in updated:
         updated = f"{updated} {note}".strip()
@@ -194,7 +194,7 @@ def is_substantive_text(text: Optional[str]) -> bool:
     trivial_phrases = {"aska", "hai aska", "halo aska", "jawab aska", "tolong aska"}
     if lowered in trivial_phrases:
         return False
-    tokens = re.findall(r"\w+", lowered)
+    tokens = re.findall(r"\\w+", lowered)
     if not tokens:
         return False
     question_words = {"apa", "siapa", "mengapa", "kenapa", "bagaimana", "dimana", "kapan", "kok"}
@@ -330,6 +330,35 @@ async def send_thinking_bubble(target_message: Optional[Message]):
     message_text = get_random_thinking_message()
     message = await target_message.reply_text(message_text)
     print(f"[{now_str()}] {message_text}")
+    return message
+
+
+async def send_and_update_thinking_bubble(target_message: Optional[Message], stop_event: asyncio.Event):
+    if target_message is None:
+        return None
+    
+    message = None
+    loop_count = 0
+    try:
+        while not stop_event.is_set() and loop_count < 3: # Limit to 3 updates (15 seconds)
+            thinking_message = get_random_thinking_message()
+            if message is None:
+                message = await target_message.reply_text(thinking_message)
+                print(f"[{now_str()}] {thinking_message}")
+            else:
+                await message.edit_text(thinking_message)
+                print(f"[{now_str()}] {thinking_message}")
+            
+            loop_count += 1
+            
+            try:
+                # Wait for 5 seconds or until the stop event is set
+                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                pass # Continue the loop
+    except Exception as e:
+        print(f"[{now_str()}] Error in thinking bubble: {e}")
+    
     return message
 
 

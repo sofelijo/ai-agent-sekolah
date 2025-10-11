@@ -1,10 +1,11 @@
-﻿# responses/greeting.py
+# responses/greeting.py
 from __future__ import annotations
 
 import random
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from typing import Optional
 
 from ._shared import tokenize
 
@@ -43,21 +44,37 @@ GREETING_PHRASES = (
 )
 
 GREETING_RESPONSES = [
-    "Haii! *ASKA* hadir, siap bantu kamu hari ini ✨👋",
-    "Hello bestie! Ada yang bisa *ASKA* bantu? 😁🚀",
-    "Yo yo! *ASKA* udah online, spill aja pertanyaannya 😉💬",
-    "Hai sunshine! Semoga harimu vibes positif—ASKA standby ya ☀️🤖",
-    "Halo! Jangan sungkan, langsung aja tanya soal sekolah 🔍📚",
-    "Wassup! *ASKA* on duty—tanya aja biar cepet kelar 💼⚡",
-    "Hola! *ASKA* nongol nih, kabarin aja kebutuhanmu 😉📲",
-    "Pagi/siang/sore! *ASKA* ready mode ON—spill masalahnya ✍️🤖",
-    "Yo, squad! Info sekolah? *ASKA* bantuin dari A sampai Z 🔤🧩",
-    "Hey there! *ASKA* hadir dengan good vibes, gaskeun pertanyaannya 🌈✨",
-    "Hai tim sukses! *ASKA* siap jadi co-pilotmu hari ini 🛫🧭",
-    "Halloo! Mau data, jadwal, atau aturan? *ASKA* siap nyariin 🔎🗂️",
-    "Good day! *ASKA* online—kamu santai aja, biar *ASKA* yang mikir 😌🧠",
-    "Cek cek! *ASKA* connected—ketik aja, langsung kita urai bareng 🔗💬",
-    "Welcome back! *ASKA* kangen nih, siap bantu lagi 💖🤖",
+    # 30 sapaan baru - Edisi Gen Z Final Form 💥💅✨
+    "Yo, {user_name}! 🤙✨ Kenalin, aku ASKA, bestie virtual kamu di sekolah.\n\nButuh info, mau curhat, atau gabut? 🤪 Langsung spill aja, aku siap dengerin 24/7! 🎧🔥",
+    "Wassup, {user_name}! 🤘😎 ASKA in the house!\n\nSiap ngebantu kamu kapan aja, di mana aja. 🚀\n\nInfo KJP, SPMB, atau cuma pengen gibah? Chat ASKA aja, gaskeun! 😉🔥",
+    "Heyo, {user_name}! 🥳 Welcome to the hub SDN Semper Barat 01! 🏫\n\nAku ASKA, AI paling up-to-date di sini. 🤖\n\nJangan malu-malu, tanya apa aja, pasti aku jawab! ✨💯",
+    "Bestie {user_name}! ✨ Bingung sendirian itu canon event, mending tanya ASKA. 🍵\n\nInfo sekolah, jadwal, sampe akun sosmed, semua ada di sini! Spill the tea! 💅",
+    "Oiii!!, {user_name}! 👋\n\nLagi pusing sama alur SPMB 2025, {user_name}? 🤯💥\n\nTenang, woles... Tanya ASKA aja soal jadwal, jalur, atau syaratnya. Aku bantu biar prosesnya lancar jaya! 💅✨",
+    "Haiii!!, {user_name}! 👋\n\nKamu atau kenalan kamu mau daftar SD, {user_name}? 👶 Pas banget! 💯\n\nASKA punya semua info SPMB paling update. Coba ketik 'info SPMB', aku kasih tau A-Z. 🚀",
+    "Wassup, {user_name}! 👋\n\nBingung cara bikin akun SPMB atau verifikasi KK, {user_name}? 🤔\n\nSini aku bisikin caranya, no ribet-ribet club! 🙅‍♀️ Aku pandu step-by-step, gampang pol! 📝✅",
+    "Eh, {user_name}, lagi mantau seleksi, ygy? 👀\n\nKepo sama ranking kamu? Cek di sohib aku `@spmblive_bot` di Telegram. Biar nggak overthinking! 🫣🤫",
+    "Hai sunshine! Semoga harimu vibes positif—ASKA standby ya ☀️🤖\n\nBiar nggak saltum atau telat, {user_name}, cusss cek jadwal pelajaran hari ini ke ASKA! 🏃💨\n\nTinggal ketik 'jadwal kelasku', auto muncul. Sat set sat set! 💅✨",
+    "Cek cek! *ASKA* connected—ketik aja!💬\n\nKepo minggu ini ada ekskul apa aja, {user_name}? 🧐 Atau jadwal upacara? 🇮🇩\n\nTanya ASKA aja! Semua jadwal kegiatan sekolah ada di genggaman kamu. Praktis abis! 🤳💯",
+    "'Hari ini pake seragam apa, woy?!' 👕👖\n\nNah, daripada galau, {user_name}, mending tanya ASKA. Aku punya info seragam harian lengkap! ✨ Biar nggak salah kostum! 😉",
+    "Good day! *ASKA* online—kamu santai aja😌 \n\nKamu ngerasa nggak aman atau liat ada perundungan, {user_name}? 😥\n\nPlis, jangan diem aja. 🤫 Lapor ke ASKA, 100% rahasia. 🤐\n\nSpill ceritanya, kita cari solusinya bareng. Kamu nggak sendirian. 🫂❤️",
+    "Hola! *ASKA* nongol nih, kabarin aja kebutuhanmu 😉📲\n\nKalo kamu jadi korban atau saksi bullying, {user_name}, kamu itu kuat & berani. 💪\n\nLaporin ke ASKA ya, identitas kamu aman. You are not alone in this. ❤️‍🩹🫂",
+    "Liat ada yang aneh soal dana atau fasilitas sekolah, {user_name}? 🧐🤨\n\nYuk, jadi hero kejujuran! 🦸 Laporin ke ASKA, identitas kamu dijamin aman. Bikin sekolah kita makin proper & transparan! ✨Transparency check! ✨",
+    "Jangan takut buat speak up, {user_name}! 🗣️\n\nKalo ada indikasi korupsi, sekecil apa pun, laporan dari kamu berharga banget. ASKA siap jaga kerahasiaannya. ✊🔒 Integrity check!",
+    "Ngerasa overthinking atau butuh temen ngobrol, {user_name}? 😵‍💫\n\nIt's okay not to be okay. Di ASKA ada fitur curhat sama psikolog. Aman, nyaman, dan no judge. ❤️‍🩹🧘",
+    "Halooo!!!, {user_name}! 👋\n\nKadang, kita cuma butuh didengerin, {user_name}. 👂\n\nKalo lagi ngerasa berat, coba deh ngobrol sama ASKA atau pake fitur konsultasi psikolog. *You are not alone*. 🤗🫂",
+    "Lagi cemas atau sedih, {user_name}? 😥 Wajar banget, kok.\n\nASKA di sini buat dengerin. 🎧 Kalo butuh bantuan pro, aku bisa arahin ke fitur psikolog. Peluk jauh! 🤗🫂",
+    "Curhat, yuk {user_name}! 💬\n\nSoal apa aja, dari pertemanan, keluarga, sampe tugas numpuk. 📚 ASKA siap jadi pendengar setia kamu. Siapa tau abis ini jadi lebih plong. 😮‍💨✨",
+    "Yo, squad! Info sekolah? *ASKA* bantuin dari A sampai Z 🔤🧩\n\nGalau milih ekskul atau bingung ngatur waktu belajar, {user_name}? 🤔\n\nCoba deh tanya ASKA. Siapa tau saran dari aku bisa jadi life hack buat kamu. 💡✨",
+    "Haii! *ASKA* hadir, siap bantu kamu hari ini ✨👋\n\n  Butuh saran soal pertemanan atau cara ngadepin guru, {user_name}? 🧑‍🤝‍🧑\n\nSini, ngobrol sama ASKA. Aku punya beberapa tips jitu buat kamu! 😉📝",
+    "'Aku harus gimana, ya?' 🤷‍♀️\n\nKalo pertanyaan itu lagi muter-muter di kepala kamu, {user_name}, coba ceritain masalahnya ke ASKA. Kita cari jalan keluarnya bareng. 🧠💪",
+    "Yo yo! *ASKA* udah online, spill aja pertanyaannya 😉💬\n\nKepo sama guru baru atau mau kirim email ke wali kelas, {user_name}? 🤪\n\nTanya ASKA aja profil lengkap guru-guru di sekolah kita. Siapa tau dapet fun fact-nya juga! 🤫🎉",
+    "Hey there! *ASKA* hadir dengan good vibes, gaskeun pertanyaannya 🌈\n\nMau kenalan lebih deket sama guru-guru kamu, {user_name}? 👩‍🏫👨‍🏫\n\nCoba ketik nama guru yang pengen kamu tau, nanti ASKA kasih infonya. Stalking for science! 🧑‍🔬🔬",
+    "Hai {user_name}! 👋\n\nMau tau jadwal pelajaran, curhat, atau laporin sesuatu yang ngeganjel? 🤔 Bisa banget!\n\nKamu mau mulai dari mana, nih? 😊 ASKA siap bantu! 🚀",
+    "Yo, {user_name}! ☀️ Butuh info SPMB atau sekadar pengen ngobrol biar semangat? 🔥\n\nASKA di sini buat kamu. *Just a text away!* 🚀📲",
+    "Woy, {user_name}! 👋 Jangan lupa istirahat & makan, ya. 🍔\n\nSambil chill, kalo ada yang mau kamu tanyain soal sekolah atau butuh temen curhat, ASKA siap sedia. 🍽️💬",
+    "Hey {user_name}, jangan sungkan sama ASKA, ya. 🙅‍♀️\n\nMau laporin hal serius kayak bullying atau cuma nanya info receh, semuanya penting buat aku. Your voice matters! 🤝❤️",
+    "Hai tim sukses! *ASKA* siap jadi co-pilotmu hari ini 🛫🧭\n\nApapun kebutuhan kamu, {user_name}—info akademis 📚, mental support ❤️‍🩹, atau sekadar iseng nanya 🤔—aku, ASKA, siap bantu.\n\nKamu itu prioritas! 🌟👑",
+    "Welcome, {user_name}! 🎉 Aku ASKA, sobat digital kamu. 🤖\n\nDari A sampai Z soal sekolah, dari info SPMB sampe butuh nasihat, *I got your back!* Kasih tau aja apa yang kamu butuhin. 🚀💯",
 ]
 
 
@@ -68,7 +85,7 @@ TIME_GREETING_PATTERNS = {
     "siang": ("selamat siang", "good afternoon", "met siang"),
     "sore": ("selamat sore", "met sore"),
     # Konsisten: "good evening" → malam
-    "malam": ("selamat malam", "good evening", "good night", "met malam"),
+    "malam": ("selamat malam", "good evening", "good night", "met malam"),  
 }
 
 TIME_GREETING_KEYWORDS = {
@@ -81,52 +98,52 @@ TIME_GREETING_KEYWORDS = {
 # Respons sapaan bergaya Gen-Z + sopan (≤10/slot waktu)
 TIME_GREETING_RESPONSES = {
     "pagi": [
-        "Selamat pagi! ☀️ *ASKA* doain harimu sesegar kopi pertama ☕",
-        "Morning squad! ☀️ *ASKA* siap bikin pagi kamu makin produktif 🚀",
-        "Hai pagi! Yuk mulai hari dengan info valid dari *ASKA* 🌅🧠",
-        "Pagi, bestie! Biar makin on-track, tanya *ASKA* dulu 🌞📋",
-        "Rise and shine! *ASKA* ready bantu urusan sekolah kamu 🌤️📚",
-        "Pagi ceria! Cek jadwal/seragam/tugas bareng *ASKA* 🗓️✅",
-        "Semoga nilai & mood kamu sama-sama naik hari ini 📈😊",
-        "Good morning! Butuh pengumuman terbaru? *ASKA* siap spill 🗞️🤖",
-        "Pagi-pagi udah rajin? Mantap! *ASKA* temenin cari info 💪🔎",
-        "Gaskeun aktivitas dengan data akurat dari *ASKA* ⚡️✅",
+        "Selamat pagi, {user_name}! ☀️ *ASKA* doain harimu sesegar kopi pertama ☕",
+        "Morning {user_name}! ☀️ *ASKA* siap bikin pagi kamu makin produktif 🚀",
+        "Hai pagi, {user_name}! Yuk mulai hari dengan info valid dari *ASKA* 🌅🧠",
+        "Pagi, {user_name}! Biar makin on-track, tanya *ASKA* dulu 🌞📋",
+        "Rise and shine, {user_name}! *ASKA* ready bantu urusan sekolah kamu 🌤️📚",
+        "Pagi ceria, {user_name}! Cek jadwal/seragam/tugas bareng *ASKA* 🗓️✅",
+        "Semoga nilai & mood kamu sama-sama naik hari ini, {user_name} 📈😊",
+        "Good morning, {user_name}! Butuh pengumuman terbaru? *ASKA* siap spill 🗞️🤖",
+        "Pagi-pagi udah rajin, {user_name}? Mantap! *ASKA* temenin cari info 💪🔎",
+        "Gaskeun aktivitas dengan data akurat dari *ASKA*, {user_name} ⚡️✅",
     ],
     "siang": [
-        "Selamat siang! Jangan lupa makan dulu, *ASKA* jagain infonya 🍽️🤖",
-        "Siang bestie! *ASKA* standby kalau butuh update sekolah 🌤️📚",
-        "Halo siang! Mau lanjut urusan sekolah? Spill ke *ASKA* ☀️💬",
-        "Siang gini enaknya ngerapiin agenda. *ASKA* bantuin ya 🗂️🕑",
-        "Good afternoon! Cek pengumuman atau jadwal bareng *ASKA* 🗓️📰",
-        "Siang produktif! *ASKA* siap jawab yang bikin bingung 💡🙌",
-        "Minum air dulu, lanjut tanya *ASKA* biar fokus 💧🧠",
-        "Lagi di sekolah? *ASKA* bisa cek info cepat untukmu 🏫⚡️",
-        "Siang cerah, info juga harus terang. Tanya *ASKA* ya 🌞🔍",
-        "Mau kirim izin/agenda? *ASKA* kasih panduan singkat ✉️📌",
+        "Selamat siang, {user_name}! Jangan lupa makan dulu, *ASKA* jagain infonya 🍽️🤖",
+        "Siang {user_name}! *ASKA* standby kalau butuh update sekolah 🌤️📚",
+        "Halo siang, {user_name}! Mau lanjut urusan sekolah? Spill ke *ASKA* ☀️💬",
+        "Siang gini enaknya ngerapiin agenda, {user_name}. *ASKA* bantuin ya 🗂️🕑",
+        "Good afternoon, {user_name}! Cek pengumuman atau jadwal bareng *ASKA* 🗓️📰",
+        "Siang produktif, {user_name}! *ASKA* siap jawab yang bikin bingung 💡🙌",
+        "Minum air dulu, {user_name}, lanjut tanya *ASKA* biar fokus 💧🧠",
+        "Lagi di sekolah, {user_name}? *ASKA* bisa cek info cepat untukmu 🏫⚡️",
+        "Siang cerah, info juga harus terang. Tanya *ASKA* ya, {user_name} 🌞🔍",
+        "Mau kirim izin/agenda, {user_name}? *ASKA* kasih panduan singkat ✉️📌",
     ],
     "sore": [
-        "Selamat sore! Saatnya wrap-up bareng *ASKA* 🌇📋",
-        "Sore vibes! *ASKA* siap bantu beresin agenda hari ini 🌆🤖",
-        "Hai sore! Butuh rekap info sekolah? *ASKA* bantu 🌄📝",
-        "Sore-sore waktunya cek tugas besok. *ASKA* temenin 🌤️✅",
-        "Sore chill, info tetap clear. Tanyain ke *ASKA* aja ✨🔎",
-        "Ada ekskul? *ASKA* bisa cekin detailnya 🏀🎶",
-        "Biar pulang tenang, pastiin infonya valid via *ASKA* 🏠✅",
-        "Perlu ringkas pengumuman hari ini? *ASKA* ringkasin 🗞️✂️",
-        "Waktunya wind down. *ASKA* bantu planning to-do besok 🗒️🕟",
-        "Sebelum magrib, cek checklist bareng *ASKA* 🌇📝",
+        "Selamat sore, {user_name}! Saatnya wrap-up bareng *ASKA* 🌇📋",
+        "Sore vibes, {user_name}! *ASKA* siap bantu beresin agenda hari ini 🌆🤖",
+        "Hai sore, {user_name}! Butuh rekap info sekolah? *ASKA* bantu 🌄📝",
+        "Sore-sore waktunya cek tugas besok, {user_name}. *ASKA* temenin 🌤️✅",
+        "Sore chill, {user_name}, info tetap clear. Tanyain ke *ASKA* aja ✨🔎",
+        "Ada ekskul, {user_name}? *ASKA* bisa cekin detailnya 🏀🎶",
+        "Biar pulang tenang, {user_name}, pastiin infonya valid via *ASKA* 🏠✅",
+        "Perlu ringkas pengumuman hari ini, {user_name}? *ASKA* ringkasin 🗞️✂️",
+        "Waktunya wind down, {user_name}. *ASKA* bantu planning to-do besok 🗒️🕟",
+        "Sebelum magrib, {user_name}, cek checklist bareng *ASKA* 🌇📝",
     ],
     "malam": [
-        "Selamat malam! 🌙 Urusan info sekolah biar *ASKA* yang handle 😴",
-        "Malam bestie! Yuk tutup hari dengan data akurat *ASKA* 🌌📊",
-        "Halo malam! Kalau masih ada PR info sekolah, tanya *ASKA* 🌛💬",
-        "Good evening! Siapkan seragam & jadwal, *ASKA* bantu cek 🧺🗓️",
-        "Malam produktif? Boleh. *ASKA* siap cari referensi 📚✨",
-        "Minum hangat, lalu cek checklist besok bareng *ASKA* 🍵🕘",
-        "Malam-malam kepo pengumuman? *ASKA* bisa spill terbaru 🌙🗞️",
-        "Time to recharge. Sebelum tidur, cek to-do bareng *ASKA* 🔋📝",
-        "Malam hening, info tetap jernih. Tanyain *ASKA* 🌃🔍",
-        "Good night! Semoga mimpi indah, besok kita gas lagi 🌠🚀",
+        "Selamat malam, {user_name}! 🌙 Urusan info sekolah biar *ASKA* yang handle 😴",
+        "Malam {user_name}! Yuk tutup hari dengan data akurat *ASKA* 🌌📊",
+        "Halo malam, {user_name}! Kalau masih ada PR info sekolah, tanya *ASKA* 🌛💬",
+        "Good evening, {user_name}! Siapkan seragam & jadwal, *ASKA* bantu cek 🧺🗓️",
+        "Malam produktif, {user_name}? Boleh. *ASKA* siap cari referensi 📚✨",
+        "Minum hangat, {user_name}, lalu cek checklist besok bareng *ASKA* 🍵🕘",
+        "Malam-malam kepo pengumuman, {user_name}? *ASKA* bisa spill terbaru 🌙🗞️",
+        "Time to recharge, {user_name}. Sebelum tidur, cek to-do bareng *ASKA* 🔋📝",
+        "Malam hening, info tetap jernih. Tanyain *ASKA*, {user_name} 🌃🔍",
+        "Good night, {user_name}! Semoga mimpi indah, besok kita gas lagi 🌠🚀",
     ],
 }
 
@@ -187,31 +204,33 @@ def _detect_time_greeting(text: str) -> str | None:
     return None
 
 
-def get_time_based_greeting_response(text: str) -> str | None:
+def get_time_based_greeting_response(text: str, user_name: Optional[str] = None) -> str | None:
     period = _detect_time_greeting(text)
     if not period:
         return None
     options = TIME_GREETING_RESPONSES.get(period)
     if not options:
         return None
-    return random.choice(options)
+    response = random.choice(options)
+    return response.format(user_name=user_name or 'bestie')
 
 
-def get_contextual_greeting_response(text: str | None = None, now: datetime | None = None) -> str:
+def get_contextual_greeting_response(text: str | None = None, now: datetime | None = None, user_name: Optional[str] = None) -> str:
     """
     Gunakan ini kalau ingin sapaan terasa kontekstual:
     - Jika teks berisi salam waktu → pakai respons waktu.
     - Jika tidak → fallback ke waktu jam lokal Asia/Jakarta.
     """
     if text:
-        resp = get_time_based_greeting_response(text)
+        resp = get_time_based_greeting_response(text, user_name=user_name)
         if resp:
             return resp
     period = _infer_period_from_clock(now)
     options = TIME_GREETING_RESPONSES.get(period)
     if options:
-        return random.choice(options)
-    return random.choice(GREETING_RESPONSES)
+        response = random.choice(options)
+        return response.format(user_name=user_name or 'bestie')
+    return get_greeting_response(user_name=user_name)
 
 
 # ─────────────────────────────────────────────────────────
@@ -257,5 +276,6 @@ def is_greeting_message(text: str) -> bool:
 
 # ─────────────────────────────────────────────────────────
 # 6) Ambil respons sapaan generik (kompatibilitas lama)
-def get_greeting_response() -> str:
-    return random.choice(GREETING_RESPONSES)
+def get_greeting_response(user_name: Optional[str] = None) -> str:
+    response = random.choice(GREETING_RESPONSES)
+    return response.format(user_name=user_name or 'bestie')
