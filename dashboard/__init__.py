@@ -9,7 +9,7 @@ from flask import Flask
 from .auth import auth_bp, current_user
 from .routes import main_bp
 from .db_access import shutdown_pool
-from .queries import fetch_pending_bullying_count, fetch_pending_psych_count
+from .queries import fetch_pending_bullying_count, fetch_pending_psych_count, fetch_pending_corruption_count
 from .schema import ensure_dashboard_schema
 
 
@@ -38,6 +38,7 @@ def create_app() -> Flask:
         user = current_user()
         pending_count = 0
         pending_psych = 0
+        pending_corruption = 0
 
         if user:
             try:
@@ -48,11 +49,16 @@ def create_app() -> Flask:
                 pending_psych = fetch_pending_psych_count()
             except Exception:
                 pending_psych = 0
+            try:
+                pending_corruption = fetch_pending_corruption_count()
+            except Exception:
+                pending_corruption = 0
 
         return {
             "current_user": user,
             "pending_bullying_count": pending_count,
             "pending_psych_count": pending_psych,
+            "pending_corruption_count": pending_corruption,
         }
 
     atexit.register(shutdown_pool)

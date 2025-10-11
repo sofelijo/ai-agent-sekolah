@@ -276,7 +276,58 @@ def get_or_create_web_user(email: str, full_name: str) -> dict:
         conn.commit()
         return new_user
 
+def _ensure_corruption_schema() -> None:
+    """Pastikan tabel untuk laporan korupsi (corruption_reports) tersedia."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS corruption_reports (
+                id SERIAL PRIMARY KEY,
+                ticket_id TEXT UNIQUE NOT NULL,
+                user_id BIGINT,
+                status TEXT NOT NULL DEFAULT 'open',
+                involved TEXT,
+                location TEXT,
+                time TEXT,
+                chronology TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CHECK (status IN ('open', 'in_progress', 'resolved', 'archived'))
+            );
+            """
+        )
+    conn.commit()
+
+def record_corruption_report(data: Dict[str, Any]) -> Optional[int]:
+    """Simpan laporan korupsi ke tabel khusus."""
+    if not data or not data.get("ticket_id"):
+        return None
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO corruption_reports (
+                ticket_id, user_id, status, involved, location, time, chronology
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                data.get("ticket_id"),
+                data.get("user_id"),
+                data.get("status", "open"),
+                data.get("involved"),
+                data.get("location"),
+                data.get("time"),
+                data.get("chronology"),
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    return int(row[0]) if row else None
+
 # Call schema functions on startup
 _ensure_bullying_schema()
 _ensure_psych_schema()
 _ensure_user_schema()
+_ensure_corruption_schema()

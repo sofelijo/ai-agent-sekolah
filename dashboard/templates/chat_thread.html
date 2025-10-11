@@ -171,6 +171,65 @@
         bottom: 1.5rem;
         z-index: 10;
     }
+
+    .btn-back-mobile {
+        display: none;
+    }
+
+    /* Mobile-specific styles */
+    @media (max-width: 768px) {
+        .chat-view {
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Default mobile state: show list, hide chat */
+        .user-list-container {
+            width: 100%;
+            display: flex;
+            border-right: none;
+        }
+        .chat-content-container {
+            display: none;
+        }
+
+        /* When a chat is opened on mobile */
+        .chat-view.is-chat-open .user-list-container {
+            display: none;
+        }
+        .chat-view.is-chat-open .chat-content-container {
+            display: flex;
+            width: 100%;
+            padding: 0;
+        }
+
+        .btn-back-mobile {
+            display: inline-block;
+            margin-right: 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            padding: 0;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+        }
+
+        .chat-card {
+            border: none;
+            box-shadow: none;
+            height: 100%;
+        }
+        .chat-scroll {
+            padding: 1rem 0.75rem 2rem;
+        }
+        .chat-message {
+            max-width: 85%;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -195,7 +254,10 @@
     <div class="chat-content-container">
         <div class="card chat-card">
             <div class="chat-header">
-                <h3 class="h6 mb-0 fw-bold">Percakapan dengan {{ user.username }} <span class="text-muted fw-normal">(User ID: {{ user.user_id }})</span></h3>
+                <button type="button" id="backButton" class="btn btn-icon btn-back-mobile">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                </button>
+                <h3 class="h6 mb-0 fw-bold">{{ user.username }} <span class="text-muted fw-normal">(ID: {{ user.user_id }})</span></h3>
             </div>
             <div id="chatContainer" class="chat-scroll">
                 {% for row in messages %}
@@ -227,26 +289,61 @@
 {% block scripts %}
 <script>
     (function () {
-        const container = document.getElementById("chatContainer");
+        // --- ELEMENTS ---
+        const chatView = document.querySelector('.chat-view');
+        const backButton = document.getElementById('backButton');
+        const activeUser = document.querySelector('.user-list-item.active');
+        const chatContainer = document.getElementById("chatContainer");
         const jumpBtn = document.getElementById("chatJumpBottom");
 
-        if (!container) return;
+        // --- HELPERS ---
+        const isMobile = () => window.innerWidth <= 768;
 
+        // --- SCROLL LOGIC ---
         const scrollToBottom = (smooth = false) => {
-            container.scrollTo({ top: container.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+            if (!chatContainer) return;
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: smooth ? "smooth" : "auto" });
         };
 
         const toggleJumpButton = () => {
+            if (!chatContainer || !jumpBtn) return;
             const threshold = 200;
-            const isScrolledUp = container.scrollHeight - container.scrollTop - container.clientHeight > threshold;
+            const isScrolledUp = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight > threshold;
             jumpBtn.classList.toggle("d-none", !isScrolledUp);
         };
 
-        scrollToBottom(false);
-        toggleJumpButton();
+        // --- INITIALIZATION ---
+        if (isMobile()) {
+            // On mobile, decide which view to show
+            if (activeUser) {
+                chatView.classList.add('is-chat-open');
+                // Scroll to bottom AFTER the view is visible
+                setTimeout(() => {
+                    scrollToBottom(false);
+                    toggleJumpButton();
+                }, 50); // Timeout to allow rendering
+            }
+            // If no active user, the user list is shown by default via CSS.
+        } else {
+            // On desktop, always scroll chat to bottom
+            scrollToBottom(false);
+            toggleJumpButton();
+        }
 
-        container.addEventListener("scroll", toggleJumpButton, { passive: true });
-        jumpBtn.addEventListener("click", () => scrollToBottom(true));
+        // --- EVENT LISTENERS ---
+        if (chatContainer) {
+            chatContainer.addEventListener("scroll", toggleJumpButton, { passive: true });
+        }
+        if (jumpBtn) {
+            jumpBtn.addEventListener("click", () => scrollToBottom(true));
+        }
+        if (backButton) {
+            backButton.addEventListener('click', () => {
+                if (isMobile()) {
+                    chatView.classList.remove('is-chat-open');
+                }
+            });
+        }
     })();
 </script>
 {% endblock %}

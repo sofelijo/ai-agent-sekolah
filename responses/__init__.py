@@ -51,6 +51,8 @@ from .psychologist import (
     summarize_for_dashboard as summarize_psych_message,
     generate_support_message as get_psych_support_message,
 )
+from .corruption import CorruptionResponse, is_corruption_report_intent
+
 
 __all__ = [
     "ASKA_NO_DATA_RESPONSE",
@@ -105,4 +107,6 @@ __all__ = [
     "is_self_intro_message",
     "is_status_message",
     "is_thank_you_message",
+    "is_corruption_report_intent",
+    "CorruptionResponse",
 ]

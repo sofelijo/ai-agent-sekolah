@@ -41,6 +41,8 @@ from responses import (
     is_self_intro_message,
     is_status_message,
     is_thank_you_message,
+    is_corruption_report_intent,
+    CorruptionResponse,
     extract_grade_hint,
     extract_subject_hint,
     format_question_intro,
@@ -231,6 +233,34 @@ async def handle_user_query(
                 print(f"[{now_str()}] [WARN] Could not persist bullying report because chat_log_id missing")
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             response = get_bullying_ack_response(bullying_category)
+            await reply_message.reply_text(response)
+            save_chat(user_id, "ASKA", response, role="aska")
+            mark_responded()
+            return True
+
+        # Handle corruption reporting session
+        corruption_sessions = context.chat_data.setdefault("corruption_sessions", {})
+        corruption_session = corruption_sessions.get(storage_key)
+
+        if corruption_session:
+            # User is in a corruption reporting flow
+            response = corruption_session.handle_response(raw_input)
+            if response:
+                await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
+                await reply_message.reply_text(response)
+                save_chat(user_id, "ASKA", response, role="aska")
+                # If the report is finalized, clear the session
+                if corruption_session.state == "idle":
+                    corruption_sessions.pop(storage_key, None)
+                mark_responded()
+                return True
+
+        if is_corruption_report_intent(normalized_input):
+            print(f"[{now_str()}] CORRUPTION REPORT INTENT DETECTED - STARTING FLOW")
+            session = CorruptionResponse(user_id)
+            response = session.start_report()
+            corruption_sessions[storage_key] = session
+            await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(response)
             save_chat(user_id, "ASKA", response, role="aska")
             mark_responded()

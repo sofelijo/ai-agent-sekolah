@@ -67,6 +67,13 @@ BULLYING_STATUSES = (
     'spam',
 )
 
+CORRUPTION_STATUSES = (
+    'open',
+    'in_progress',
+    'resolved',
+    'archived',
+)
+
 PSYCH_STATUSES = (
     'open',
     'in_progress',
@@ -977,6 +984,192 @@ def fetch_bullying_report_basic(report_id: int) -> Optional[Dict[str, Any]]:
         )
         row = cur.fetchone()
     return dict(row) if row else None
+
+
+def fetch_corruption_summary() -> Dict[str, int]:
+    """Return aggregated counts of corruption reports by status."""
+    summary = {status: 0 for status in CORRUPTION_STATUSES}
+    total = 0
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM corruption_reports
+            GROUP BY status
+            """
+        )
+        rows = cur.fetchall()
+    for row in rows:
+        status = (row.get('status') or '').lower()
+        count = int(row.get('total') or 0)
+        if status in summary:
+            summary[status] = count
+            total += count
+    summary['total'] = total
+    return summary
+
+
+def fetch_pending_corruption_count() -> int:
+    """Shortcut to obtain the number of open corruption reports."""
+    return fetch_corruption_summary().get('open', 0)
+
+
+def fetch_corruption_reports(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Return paginated corruption reports ordered by recency."""
+    status_filter = None
+    if status:
+        normalized = status.lower()
+        if normalized not in CORRUPTION_STATUSES:
+            raise ValueError(f"Status korupsi tidak dikenal: {status}")
+        status_filter = normalized
+
+    conditions: List[str] = []
+    params: List[Any] = []
+    if status_filter:
+        conditions.append('status = %s')
+        params.append(status_filter)
+
+    where_clause = ''
+    if conditions:
+        where_clause = ' WHERE ' + ' AND '.join(conditions)
+
+    query = (
+        """
+        SELECT
+            id,
+            ticket_id,
+            user_id,
+            status,
+            involved,
+            location,
+            time,
+            chronology,
+            created_at,
+            updated_at
+        FROM corruption_reports
+        """
+        + where_clause
+        + " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+    )
+
+    with get_cursor() as cur:
+        cur.execute(query, (*params, limit, offset))
+        rows = cur.fetchall()
+        cur.execute(
+            "SELECT COUNT(*) FROM corruption_reports" + where_clause,
+            params,
+        )
+        total = cur.fetchone()[0]
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def fetch_corruption_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
+    """Fetches all details for a single corruption report."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                ticket_id,
+                user_id,
+                status,
+                involved,
+                location,
+                time,
+                chronology,
+                created_at,
+                updated_at
+            FROM corruption_reports
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (report_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        
+        report = dict(row)
+        username = None
+
+        if report.get('user_id'):
+            cur.execute(
+                "SELECT username FROM chat_logs WHERE user_id = %s ORDER BY created_at DESC LIMIT 1",
+                (report['user_id'],)
+            )
+            user_row = cur.fetchone()
+            if user_row:
+                username = user_row['username']
+        
+        report['username'] = username
+        report['notes'] = None
+        report['assigned_to'] = None
+        report['due_at'] = None
+        report['resolved_at'] = None
+        report['escalated'] = False
+        report['last_updated_by'] = None
+        report['events'] = []
+
+    return report
+
+
+def bulk_update_corruption_report_status(
+    report_ids: List[int],
+    status: str,
+    updated_by: Optional[str] = None,
+) -> bool:
+    """Update the status for a list of corruption reports."""
+    if not report_ids:
+        return False
+
+    normalized_status = status.lower()
+    if normalized_status not in CORRUPTION_STATUSES and normalized_status != "undo":
+        raise ValueError(f"Invalid corruption report status: {status}")
+
+    target_status = "open" if normalized_status == "undo" else normalized_status
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE corruption_reports
+            SET status = %s,
+                updated_at = NOW()
+            WHERE id = ANY(%s::int[])
+            """,
+            (target_status, report_ids),
+        )
+        return cur.rowcount > 0
+
+
+def update_corruption_report_status(
+    report_id: int,
+    status: Optional[str] = None,
+    *,
+    updated_by: Optional[str] = None,
+) -> bool:
+    """Update corruption report status."""
+    if status is None:
+        return False
+        
+    normalized = status.lower()
+    if normalized not in CORRUPTION_STATUSES:
+        raise ValueError(f"Status korupsi tidak dikenal: {status}")
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE corruption_reports 
+            SET status = %s, updated_at = NOW()
+            WHERE id = %s
+            """,
+            (normalized, report_id)
+        )
+        return cur.rowcount > 0
 
 
 def get_user_by_email(email: str) -> Optional[DictRow]:

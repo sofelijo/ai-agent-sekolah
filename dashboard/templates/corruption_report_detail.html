@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}Detail Laporan Bullying #{{ report.id }}{% endblock %}
+{% block title %}Detail Laporan Korupsi #{{ report.id }}{% endblock %}
 
 {% block content %}
 <section class="mb-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
         <div>
-            <h1 class="h4 fw-bold mb-1">Laporan Bullying #{{ report.id }}</h1>
+            <h1 class="h4 fw-bold mb-1">Laporan Korupsi #{{ report.id }}</h1>
             <p class="text-muted mb-0">Ringkasan lengkap laporan dan riwayat tindak lanjut.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.main.bullying_reports', highlight=report.id) }}">← Kembali ke daftar</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.main.update_bullying_status', report_id=report.id) }}" onclick="event.preventDefault(); document.getElementById('quick-reopen-form').submit();">Reopen cepat</a>
-            <form id="quick-reopen-form" method="post" action="{{ url_for('admin.main.update_bullying_status', report_id=report.id) }}" class="d-none">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.corruption_reports', highlight=report.id) }}">← Kembali ke daftar</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.update_corruption_status', report_id=report.id) }}" onclick="event.preventDefault(); document.getElementById('quick-reopen-form').submit();">Reopen cepat</a>
+            <form id="quick-reopen-form" method="post" action="{{ url_for('main.update_corruption_status', report_id=report.id) }}" class="d-none">
                 <input type="hidden" name="action" value="reopen">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
             </form>
@@ -22,21 +22,18 @@
         <div class="col-lg-8 d-flex flex-column gap-3" style="max-height: calc(100vh - 180px);">
             <div class="card shadow-sm border-0 flex-fill">
                 <div class="card-body">
-                    {% set STATUS_LABELS = {'pending': 'Menunggu', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'spam': 'Spam'} %}
+                    {% set STATUS_LABELS = {'open': 'Terbuka', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'archived': 'Diarsipkan'} %}
                     {% set status_badge = {
-                        'pending': 'danger',
+                        'open': 'danger',
                         'in_progress': 'warning text-dark',
                         'resolved': 'success',
-                        'spam': 'secondary text-dark'
+                        'archived': 'secondary text-dark'
                     } %}
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <span class="badge text-bg-{{ status_badge.get(report.status, 'secondary') }}">
                             Status: {{ STATUS_LABELS.get(report.status, report.status|replace('_',' ')|title) }}
                         </span>
-                        <span class="badge text-bg-secondary text-uppercase">{{ report.category|replace('_', ' ')|title }}</span>
-                        {% if report.severity %}
-                        <span class="badge text-bg-info text-uppercase">Risiko {{ report.severity|capitalize }}</span>
-                        {% endif %}
+                        <span class="badge text-bg-secondary text-uppercase">KORUPSI</span>
                         {% if report.escalated %}
                         <span class="badge text-bg-danger text-uppercase">Urgent</span>
                         {% endif %}
@@ -67,30 +64,32 @@
                     </dl>
                     <hr>
                     <h2 class="h6 fw-bold">Deskripsi laporan</h2>
-                    <p style="white-space: pre-wrap;">{{ report.description }}</p>
+                    <p style="white-space: pre-wrap;">{{ report.chronology }}</p>
+                    <h3 class="h6 fw-bold mt-4">Pihak Terlibat</h3>
+                    <p>{{ report.involved or '-' }}</p>
+                    <h3 class="h6 fw-bold mt-4">Lokasi Kejadian</h3>
+                    <p>{{ report.location or '-' }}</p>
+                    <h3 class="h6 fw-bold mt-4">Waktu Kejadian</h3>
+                    <p>{{ report.time or '-' }}</p>
                     {% if report.notes %}
                     <h3 class="h6 fw-bold mt-4">Catatan tindak lanjut</h3>
                     <p class="small text-muted" style="white-space: pre-wrap;">{{ report.notes }}</p>
-                    {% endif %}
-                    {% if report.metadata %}
-                    <h3 class="h6 fw-bold mt-4">Metadata tambahan</h3>
-                    <pre class="bg-light rounded p-3 small">{{ report.metadata | tojson(indent=2) }}</pre>
                     {% endif %}
                 </div>
             </div>
             <div class="card shadow-sm border-0 flex-fill">
                 <div class="card-body">
                     <h2 class="h6 fw-bold mb-3">Perbarui Laporan</h2>
-                    <form method="post" action="{{ url_for('admin.main.update_bullying_status', report_id=report.id) }}" class="row g-3">
+                    <form method="post" action="{{ url_for('main.update_corruption_status', report_id=report.id) }}" class="row g-3">
                         <input type="hidden" name="next" value="{{ request.full_path }}">
                         <input type="hidden" name="escalate" value="off">
                         <div class="col-md-6">
                             <label class="form-label small text-muted">Status</label>
                             <select class="form-select form-select-sm" name="status">
-                                <option value="pending" {% if report.status == 'pending' %}selected{% endif %}>Menunggu</option>
+                                <option value="open" {% if report.status == 'open' %}selected{% endif %}>Terbuka</option>
                                 <option value="in_progress" {% if report.status == 'in_progress' %}selected{% endif %}>Diproses</option>
                                 <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>Selesai</option>
-                                <option value="spam" {% if report.status == 'spam' %}selected{% endif %}>Spam</option>
+                                <option value="archived" {% if report.status == 'archived' %}selected{% endif %}>Diarsipkan</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -113,9 +112,9 @@
                         </div>
                         <div class="col-12 d-flex flex-wrap gap-2">
                             <button type="submit" class="btn btn-primary btn-sm" name="action" value="save">Simpan perubahan</button>
-                            <button type="submit" class="btn btn-outline-warning btn-sm" name="action" value="reopen" {% if report.status == 'pending' %}disabled{% endif %}>Reopen</button>
+                            <button type="submit" class="btn btn-outline-warning btn-sm" name="action" value="reopen" {% if report.status == 'open' %}disabled{% endif %}>Reopen</button>
                             <button type="button" class="btn btn-success btn-sm" onclick="const select = this.form.querySelector('select[name=status]'); if (select) { select.value = 'resolved'; } this.form.submit();">Tandai selesai</button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="const select = this.form.querySelector('select[name=status]'); if (select) { select.value = 'spam'; } this.form.submit();">Tandai spam</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="const select = this.form.querySelector('select[name=status]'); if (select) { select.value = 'archived'; } this.form.submit();">Arsipkan</button>
                         </div>
                     </form>
                 </div>
@@ -130,7 +129,8 @@
                         "status_changed": "Status diperbarui",
                         "resolved": "Laporan selesai",
                         "reopened": "Laporan dibuka kembali",
-                        "escalated": "Laporan diekalasi"
+                        "escalated": "Laporan diekalasi",
+                        "archived": "Laporan diarsipkan"
                     } %}
                     {% macro render_value(value) -%}
                         {%- if value is none -%}
@@ -138,8 +138,8 @@
                         {%- elif value is boolean -%}
                             {{ 'Ya' if value else 'Tidak' }}
                         {%- elif value is string -%}
-                            {% if value in ['pending', 'in_progress', 'resolved', 'spam'] %}
-                                {{ {'pending': 'Menunggu', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'spam': 'Spam'}[value] }}
+                            {% if value in ['open', 'in_progress', 'resolved', 'archived'] %}
+                                {{ {'open': 'Terbuka', 'in_progress': 'Diproses', 'resolved': 'Selesai', 'archived': 'Diarsipkan'}[value] }}
                             {% else %}
                                 {{ value|replace('T', ' ') }}
                             {% endif %}

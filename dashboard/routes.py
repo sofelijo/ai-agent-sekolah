@@ -20,6 +20,7 @@ from .auth import current_user, login_required, role_required
 from .queries import (
     BULLYING_STATUSES,
     PSYCH_STATUSES,
+    CORRUPTION_STATUSES,
     ChatFilters,
     fetch_all_chat_users,
     fetch_bullying_reports,
@@ -40,6 +41,11 @@ from .queries import (
     fetch_psych_group_reports,
     update_psych_report_status,
     bulk_update_psych_report_status,
+    fetch_corruption_reports,
+    fetch_corruption_summary,
+    fetch_corruption_report_detail,
+    bulk_update_corruption_report_status,
+    update_corruption_report_status,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -305,6 +311,110 @@ def update_bullying_status(report_id: int) -> Response:
         flash(message, "success")
     else:
         flash("Tidak ada perubahan yang disimpan.", "info")
+
+    return redirect(next_url)
+
+
+@main_bp.route("/corruption-reports")
+@login_required
+def corruption_reports() -> Response:
+    args: MultiDict = request.args
+    raw_status = (args.get("status") or "").strip().lower() or None
+    if raw_status and raw_status not in CORRUPTION_STATUSES:
+        flash("Status filter tidak dikenal.", "warning")
+        return redirect(url_for("main.corruption_reports"))
+
+    page = max(1, int(args.get("page", 1)))
+    limit = REPORT_PAGE_SIZE
+    offset = (page - 1) * limit
+
+    try:
+        records, total = fetch_corruption_reports(status=raw_status, limit=limit, offset=offset)
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("main.corruption_reports"))
+
+    summary = fetch_corruption_summary()
+    total_pages = max(1, ceil(total / limit))
+
+    return render_template(
+        "corruption_reports.html",
+        records=records,
+        summary=summary,
+        filter_status=raw_status,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        per_page=limit,
+    )
+
+
+@main_bp.route("/corruption-reports/<int:report_id>")
+@login_required
+def corruption_report_detail(report_id: int) -> Response:
+    report = fetch_corruption_report_detail(report_id)
+    if not report:
+        flash("Laporan korupsi tidak ditemukan.", "warning")
+        return redirect(url_for("main.corruption_reports"))
+    return render_template("corruption_report_detail.html", report=report)
+
+
+@main_bp.route("/corruption-reports/bulk-status", methods=["POST"])
+@role_required("admin", "staff")
+def bulk_update_corruption_status() -> Response:
+    data = request.get_json()
+    report_ids = data.get("report_ids")
+    status = data.get("status")
+    user = current_user()
+    updated_by = user.get("full_name") or user.get("email") if user else None
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "Invalid report IDs"}), 400
+
+    if status not in CORRUPTION_STATUSES and status != "undo":
+        return jsonify({"success": False, "message": "Invalid status"}), 400
+
+    try:
+        if status == "undo":
+            bulk_update_corruption_report_status(report_ids, "open", updated_by)
+        else:
+            bulk_update_corruption_report_status(report_ids, status, updated_by)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@main_bp.route("/corruption-reports/<int:report_id>/status", methods=["POST"])
+@role_required("admin", "staff")
+def update_corruption_status(report_id: int) -> Response:
+    action = (request.form.get("action") or "save").strip().lower()
+    status_value = request.form.get("status")
+    next_url = request.form.get("next") or url_for("main.corruption_reports")
+
+    user = current_user()
+    updated_by = user.get("full_name") or user.get("email") if user else None
+
+    if action == "reopen":
+        status_value = "open"
+    
+    if not status_value:
+        flash("Tidak ada status yang dipilih.", "warning")
+        return redirect(next_url)
+
+    try:
+        updated = update_corruption_report_status(
+            report_id,
+            status=status_value,
+            updated_by=updated_by,
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(next_url)
+
+    if updated:
+        flash("Status laporan korupsi berhasil diperbarui.", "success")
+    else:
+        flash("Gagal memperbarui status laporan korupsi.", "danger")
 
     return redirect(next_url)
 
