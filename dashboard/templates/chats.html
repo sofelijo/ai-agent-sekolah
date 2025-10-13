@@ -2,17 +2,22 @@
 {% block title %}Chat Logs - ASKA Insights{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h3 fw-bold">Chat Logs</h1>
-        <p class="text-muted mb-0">Telusuri percakapan, filter berdasarkan tanggal atau kata kunci, dan ekspor bila diperlukan.</p>
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-chat-left-text"></i>
+        </span>
+        <div>
+            <h1 class="h3 fw-bold page-title mb-0">Chat Logs</h1>
+            <p class="page-subtitle">Telusuri percakapan, filter berdasarkan tanggal atau kata kunci, dan ekspor bila diperlukan.</p>
+        </div>
     </div>
-    <div>
+    <div class="page-header-actions">
         <a class="btn btn-outline-primary" href="{{ export_url }}">
-            Export CSV
+            <i class="bi bi-download me-2"></i>Export CSV
         </a>
     </div>
-</div>
+</section>
 
 <form class="row g-3 mb-4" method="get">
     <div class="col-md-3">
@@ -40,8 +45,12 @@
         <input type="text" class="form-control" name="search" placeholder="Kata kunci" value="{{ filters.search or '' }}">
     </div>
     <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">Terapkan Filter</button>
-        <a href="{{ url_for('main.chats') }}" class="btn btn-outline-secondary">Reset</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-filter-circle me-2"></i>Terapkan Filter
+        </button>
+        <a href="{{ url_for('main.chats') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-counterclockwise me-2"></i>Reset
+        </a>
     </div>
 </form>
 
@@ -51,11 +60,11 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th scope="col" style="width: 120px;">Waktu</th>
-                        <th scope="col" style="width: 110px;">User ID</th>
-                        <th scope="col" style="width: 110px;">Role</th>
-                        <th scope="col">Pesan</th>
-                        <th scope="col" style="width: 130px;">Response (ms)</th>
+                        <th scope="col" style="width: 120px;"><i class="bi bi-clock-history"></i>Waktu</th>
+                        <th scope="col" style="width: 110px;"><i class="bi bi-person-bounding-box"></i>User ID</th>
+                        <th scope="col" style="width: 110px;"><i class="bi bi-robot"></i>Role</th>
+                        <th scope="col"><i class="bi bi-chat-text"></i>Pesan</th>
+                        <th scope="col" style="width: 130px;"><i class="bi bi-speedometer2"></i>Response (ms)</th>
                         <th scope="col" style="width: 50px;"></th>
                     </tr>
                 </thead>
@@ -75,7 +84,7 @@
                         <td>{{ row.response_time_ms or '-' }}</td>
                         <td>
                             <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.chat_thread', user_id=row.user_id) }}" title="Lihat thread">
-                                Detail
+                                <i class="bi bi-arrow-up-right-square me-1"></i>Detail
                             </a>
                         </td>
                     </tr>

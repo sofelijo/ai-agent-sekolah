@@ -2,20 +2,35 @@
 {% block title %}Laporan Konseling - ASKA Insights{% endblock %}
 
 {% block content %}
-<section class="mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-success">
+            <i class="bi bi-heart-pulse"></i>
+        </span>
         <div>
-            <h1 class="h4 fw-bold mb-1">Laporan Konseling</h1>
-            <p class="text-muted mb-0">Pantau cerita sensitif dari siswa supaya guru BK bisa menindaklanjuti dengan cepat.</p>
+            <h1 class="h4 fw-bold page-title mb-0">Laporan Konseling</h1>
+            <p class="page-subtitle">Pantau cerita sensitif dari siswa supaya guru BK bisa menindaklanjuti dengan cepat.</p>
         </div>
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">Kembali ke Dashboard</a>
     </div>
+    <div class="page-header-actions">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">
+            <i class="bi bi-bar-chart-steps me-2"></i>Kembali ke Dashboard
+        </a>
+    </div>
+</section>
+
+<section class="mb-4">
 
     <div class="row g-3 mb-3">
         <div class="col-md-3 col-sm-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Open</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Open</span>
+                        <span class="icon-badge stat-icon text-danger">
+                            <i class="bi bi-envelope-exclamation"></i>
+                        </span>
+                    </div>
                     <h2 class="h3 fw-bold mt-1 text-danger">{{ summary.get('open', 0) }}</h2>
                     <p class="small text-muted mb-0">Belum ditangani guru.</p>
                 </div>
@@ -24,7 +39,12 @@
         <div class="col-md-3 col-sm-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Diproses</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Diproses</span>
+                        <span class="icon-badge stat-icon text-warning">
+                            <i class="bi bi-hourglass-split"></i>
+                        </span>
+                    </div>
                     <h2 class="h3 fw-bold mt-1 text-warning">{{ summary.get('in_progress', 0) }}</h2>
                     <p class="small text-muted mb-0">Sedang ditangani guru.</p>
                 </div>
@@ -33,7 +53,12 @@
         <div class="col-md-3 col-sm-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Selesai</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Selesai</span>
+                        <span class="icon-badge stat-icon text-success">
+                            <i class="bi bi-check2-circle"></i>
+                        </span>
+                    </div>
                     <h2 class="h3 fw-bold mt-1 text-success">{{ summary.get('resolved', 0) }}</h2>
                     <p class="small text-muted mb-0">Laporan konseling sudah ditutup.</p>
                 </div>
@@ -42,7 +67,12 @@
         <div class="col-md-3 col-sm-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Total Laporan Konseling</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Total Laporan Konseling</span>
+                        <span class="icon-badge stat-icon text-primary">
+                            <i class="bi bi-collection"></i>
+                        </span>
+                    </div>
                     <h2 class="h3 fw-bold mt-1">{{ summary.get('total', 0) }}</h2>
                     <p class="small text-muted mb-0">Semua laporan konseling yang tersimpan.</p>
                 </div>
@@ -54,7 +84,12 @@
         <div class="col-md-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Kritis</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Kritis</span>
+                        <span class="icon-badge stat-icon text-danger">
+                            <i class="bi bi-bandaid"></i>
+                        </span>
+                    </div>
                     <h2 class="h4 fw-bold mt-1 text-danger">{{ severity_counts.get('critical', 0) }}</h2>
                     <p class="small text-muted mb-0">Perlu intervensi cepat.</p>
                 </div>
@@ -63,7 +98,12 @@
         <div class="col-md-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">Elevated</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">Elevated</span>
+                        <span class="icon-badge stat-icon text-warning">
+                            <i class="bi bi-activity"></i>
+                        </span>
+                    </div>
                     <h2 class="h4 fw-bold mt-1 text-warning">{{ severity_counts.get('elevated', 0) }}</h2>
                     <p class="small text-muted mb-0">Butuh pemantauan dekat.</p>
                 </div>
@@ -72,7 +112,12 @@
         <div class="col-md-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <span class="text-secondary text-uppercase small fw-semibold">General</span>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="text-secondary text-uppercase small fw-semibold">General</span>
+                        <span class="icon-badge stat-icon text-success">
+                            <i class="bi bi-emoji-smile"></i>
+                        </span>
+                    </div>
                     <h2 class="h4 fw-bold mt-1 text-success">{{ severity_counts.get('general', 0) }}</h2>
                     <p class="small text-muted mb-0">Keluhan ringan / umum.</p>
                 </div>
@@ -82,44 +127,46 @@
 
     <ul class="nav nav-pills mb-3">
         <li class="nav-item">
-            <a class="nav-link {% if not filter_status %}active{% endif %}" href="{{ url_for('main.psych_reports', severity=filter_severity) }}">Semua Status</a>
+            <a class="nav-link {% if not filter_status %}active{% endif %}" href="{{ url_for('main.psych_reports', severity=filter_severity) }}"><i class="bi bi-funnel me-2"></i>Semua Status</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'open' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='open', severity=filter_severity) }}">Open</a>
+            <a class="nav-link {% if filter_status == 'open' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='open', severity=filter_severity) }}"><i class="bi bi-envelope-exclamation me-2"></i>Open</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'in_progress' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='in_progress', severity=filter_severity) }}">Diproses</a>
+            <a class="nav-link {% if filter_status == 'in_progress' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='in_progress', severity=filter_severity) }}"><i class="bi bi-hourglass-split me-2"></i>Diproses</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'resolved' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='resolved', severity=filter_severity) }}">Selesai</a>
+            <a class="nav-link {% if filter_status == 'resolved' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='resolved', severity=filter_severity) }}"><i class="bi bi-check-circle me-2"></i>Selesai</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_status == 'archived' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='archived', severity=filter_severity) }}">Diarsipkan</a>
+            <a class="nav-link {% if filter_status == 'archived' %}active{% endif %}" href="{{ url_for('main.psych_reports', status='archived', severity=filter_severity) }}"><i class="bi bi-archive me-2"></i>Diarsipkan</a>
         </li>
     </ul>
 
     <ul class="nav nav-pills mb-3">
         <li class="nav-item">
-            <a class="nav-link {% if not filter_severity %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status) }}">Semua Severity</a>
+            <a class="nav-link {% if not filter_severity %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status) }}"><i class="bi bi-speedometer me-2"></i>Semua Severity</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_severity == 'critical' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='critical') }}">Kritis</a>
+            <a class="nav-link {% if filter_severity == 'critical' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='critical') }}"><i class="bi bi-bandaid me-2"></i>Kritis</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_severity == 'elevated' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='elevated') }}">Elevated</a>
+            <a class="nav-link {% if filter_severity == 'elevated' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='elevated') }}"><i class="bi bi-activity me-2"></i>Elevated</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if filter_severity == 'general' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='general') }}">General</a>
+            <a class="nav-link {% if filter_severity == 'general' %}active{% endif %}" href="{{ url_for('main.psych_reports', status=filter_status, severity='general') }}"><i class="bi bi-emoji-smile me-2"></i>General</a>
         </li>
     </ul>
 
     <div id="bulk-action-bar" class="d-none card shadow-sm border-0 mb-3">
         <div class="card-body d-flex justify-content-between align-items-center">
             <div>
-                <span id="selected-count" class="fw-bold">0</span> laporan dipilih
+                <i class="bi bi-check2-square me-2 text-primary"></i><span id="selected-count" class="fw-bold">0</span> laporan dipilih
             </div>
             <div>
-                <button id="bulk-archive-btn" class="btn btn-secondary btn-sm">Arsipkan</button>
+                <button id="bulk-archive-btn" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-archive me-1"></i>Arsipkan
+                </button>
             </div>
         </div>
     </div>
@@ -132,12 +179,12 @@
                         <thead class="table-light">
                             <tr>
                                 <th scope="col" style="width: 3%;"></th>
-                                <th scope="col" style="width: 14%;">Dibuat</th>
-                                <th scope="col" style="width: 16%;">Pelapor</th>
-                                <th scope="col">Ringkasan Laporan Konseling</th>
-                                <th scope="col" style="width: 12%;">Severity</th>
-                                <th scope="col" style="width: 12%;">Status</th>
-                                <th scope="col" style="width: 18%;">Aksi</th>
+                                <th scope="col" style="width: 14%;"><i class="bi bi-calendar2-week"></i>Dibuat</th>
+                                <th scope="col" style="width: 16%;"><i class="bi bi-person-badge"></i>Pelapor</th>
+                                <th scope="col"><i class="bi bi-chat-quote"></i>Ringkasan Laporan Konseling</th>
+                                <th scope="col" style="width: 12%;"><i class="bi bi-thermometer-half"></i>Severity</th>
+                                <th scope="col" style="width: 12%;"><i class="bi bi-flag"></i>Status</th>
+                                <th scope="col" style="width: 18%;"><i class="bi bi-tools"></i>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -236,8 +236,14 @@
 {% block content %}
 <div class="chat-view">
     <div class="user-list-container">
-        <div class="user-list-header">
-            <h2 class="h5 fw-bold mb-0">Percakapan</h2>
+        <div class="user-list-header d-flex align-items-start gap-3">
+            <span class="icon-badge section-icon text-primary">
+                <i class="bi bi-chat-dots"></i>
+            </span>
+            <div>
+                <h2 class="h6 fw-bold mb-0">Percakapan</h2>
+                <p class="text-muted small mb-0">Pilih pengguna untuk melihat riwayat chat.</p>
+            </div>
         </div>
         <div class="user-list-scroll">
             {% for u in users_list %}
@@ -257,6 +263,10 @@
                 <button type="button" id="backButton" class="btn btn-icon btn-back-mobile">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
                 </button>
+                <span class="icon-badge section-icon text-primary me-2 d-none d-md-inline-flex">
+                    <i class="bi bi-person-circle"></i>
+                    
+                </span>
                 <h3 class="h6 mb-0 fw-bold">{{ user.username }} <span class="text-muted fw-normal">(ID: {{ user.user_id }})</span></h3>
             </div>
             <div id="chatContainer" class="chat-scroll">
@@ -279,7 +289,7 @@
                 {% endfor %}
             </div>
             <button id="chatJumpBottom" type="button" class="btn btn-primary btn-sm chat-jump-btn d-none">
-                Ke pesan terbaru
+                <i class="bi bi-arrow-down-circle me-1"></i>Ke pesan terbaru
             </button>
         </div>
     </div>

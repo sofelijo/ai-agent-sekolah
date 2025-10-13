@@ -2,21 +2,31 @@
 {% block title %}Detail Laporan Korupsi #{{ report.id }}{% endblock %}
 
 {% block content %}
-<section class="mb-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-warning">
+            <i class="bi bi-cash-coin"></i>
+        </span>
         <div>
-            <h1 class="h4 fw-bold mb-1">Laporan Korupsi #{{ report.id }}</h1>
-            <p class="text-muted mb-0">Ringkasan lengkap laporan dan riwayat tindak lanjut.</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.corruption_reports', highlight=report.id) }}">← Kembali ke daftar</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.update_corruption_status', report_id=report.id) }}" onclick="event.preventDefault(); document.getElementById('quick-reopen-form').submit();">Reopen cepat</a>
-            <form id="quick-reopen-form" method="post" action="{{ url_for('main.update_corruption_status', report_id=report.id) }}" class="d-none">
-                <input type="hidden" name="action" value="reopen">
-                <input type="hidden" name="next" value="{{ request.full_path }}">
-            </form>
+            <h1 class="h4 fw-bold page-title mb-0">Laporan Korupsi #{{ report.id }}</h1>
+            <p class="page-subtitle">Ringkasan lengkap laporan dan riwayat tindak lanjut.</p>
         </div>
     </div>
+    <div class="page-header-actions">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.corruption_reports', highlight=report.id) }}">
+            <i class="bi bi-arrow-left me-2"></i>Kembali ke daftar
+        </a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.update_corruption_status', report_id=report.id) }}" onclick="event.preventDefault(); document.getElementById('quick-reopen-form').submit();">
+            <i class="bi bi-arrow-repeat me-2"></i>Reopen cepat
+        </a>
+        <form id="quick-reopen-form" method="post" action="{{ url_for('main.update_corruption_status', report_id=report.id) }}" class="d-none">
+            <input type="hidden" name="action" value="reopen">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+        </form>
+    </div>
+</section>
+
+<section class="mb-4">
 
     <div class="row g-3 align-items-stretch">
         <div class="col-lg-8 d-flex flex-column gap-3" style="max-height: calc(100vh - 180px);">

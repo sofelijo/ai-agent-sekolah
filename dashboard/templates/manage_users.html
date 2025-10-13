@@ -2,11 +2,28 @@
 {% block title %}Manajemen User - ASKA Insights{% endblock %}
 
 {% block content %}
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-people"></i>
+        </span>
+        <div>
+            <h1 class="h4 fw-bold page-title mb-0">Manajemen User</h1>
+            <p class="page-subtitle">Tambahkan anggota tim dan kelola hak akses dashboard ASKA.</p>
+        </div>
+    </div>
+</section>
+
 <div class="row g-4">
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h2 class="h5 fw-bold mb-3">Tambah User Dashboard</h2>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-primary">
+                        <i class="bi bi-person-plus"></i>
+                    </span>
+                    <h2 class="h5 fw-bold mb-0">Tambah User Dashboard</h2>
+                </div>
                 <form method="post">
                     <div class="mb-3">
                         <label class="form-label">Nama Lengkap</label>
@@ -29,7 +46,9 @@
                             <option value="admin">Admin</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Simpan</button>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save me-2"></i>Simpan
+                    </button>
                 </form>
             </div>
         </div>
@@ -37,16 +56,21 @@
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <h2 class="h5 fw-bold mb-3">Daftar User</h2>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-secondary">
+                        <i class="bi bi-card-list"></i>
+                    </span>
+                    <h2 class="h5 fw-bold mb-0">Daftar User</h2>
+                </div>
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Nama</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Dibuat</th>
-                                <th>Login Terakhir</th>
+                                <th><i class="bi bi-person"></i>Nama</th>
+                                <th><i class="bi bi-envelope"></i>Email</th>
+                                <th><i class="bi bi-shield-check"></i>Role</th>
+                                <th><i class="bi bi-calendar-event"></i>Dibuat</th>
+                                <th><i class="bi bi-clock-history"></i>Login Terakhir</th>
                             </tr>
                         </thead>
                         <tbody>

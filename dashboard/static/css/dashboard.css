@@ -51,6 +51,13 @@ a {
     transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.navbar .navbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 1.1rem;
+}
+
 .navbar .navbar-brand,
 .navbar .nav-link,
 .navbar .navbar-toggler {
@@ -98,6 +105,108 @@ html[data-theme="dark"] .theme-toggle-label .theme-icon-moon {
     border-radius: 16px;
 }
 
+.icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-muted);
+    color: var(--accent);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-soft);
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.icon-badge i {
+    line-height: 1;
+}
+
+.feature-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 1.35rem;
+}
+
+.brand-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    font-size: 1.15rem;
+    border-radius: 0.9rem;
+}
+
+.stat-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    font-size: 1.25rem;
+}
+
+.section-icon {
+    width: 2.6rem;
+    height: 2.6rem;
+    font-size: 1.1rem;
+    border-radius: 0.9rem;
+    background-color: var(--bg-subtle);
+}
+
+.timeline-icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    font-size: 1.05rem;
+    border-radius: 0.75rem;
+    background-color: var(--bg-subtle);
+    box-shadow: none;
+}
+
+.alert-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.1rem;
+    border-radius: 999px;
+    background-color: rgba(220, 53, 69, 0.16);
+    color: #dc3545;
+    box-shadow: none;
+}
+
+.alert-icon-warning {
+    background-color: rgba(255, 193, 7, 0.22);
+    color: #ffc107;
+}
+
+.card:hover .icon-badge {
+    transform: translateY(-2px);
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.page-title-group {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+}
+
+.page-title-group .page-title {
+    margin-bottom: 0.25rem;
+}
+
+.page-subtitle {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .card {
     background-color: var(--bg-surface);
     border-color: var(--border-soft);
@@ -142,6 +251,32 @@ html[data-theme="dark"] .theme-toggle-label .theme-icon-moon {
     color: var(--accent);
 }
 
+.navbar .nav-link .nav-icon {
+    margin-right: 0.55rem;
+    font-size: 1.05rem;
+}
+
+.navbar .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-inline: 0.75rem;
+}
+
+.navbar .nav-link.active {
+    font-weight: 600;
+}
+
+.nav-pills .nav-link .bi {
+    margin-right: 0.35rem;
+}
+
+.nav-pills .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
 .form-control,
 .form-select {
     color: inherit;
@@ -181,6 +316,29 @@ html[data-theme="dark"] .theme-toggle-label .theme-icon-moon {
 .list-group-timeline {
     max-height: 320px;
     overflow-y: auto;
+}
+
+.question-item {
+    transition: background-color 0.2s ease;
+}
+
+.question-item .bi-chevron-right {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0.6;
+}
+
+.question-item:hover {
+    background-color: var(--bg-subtle);
+}
+
+.question-item:hover .bi-chevron-right {
+    transform: translateX(4px);
+    opacity: 1;
+}
+
+.table thead th .bi {
+    margin-right: 0.35rem;
+    font-size: 1rem;
 }
 
 .text-truncate-2 {
