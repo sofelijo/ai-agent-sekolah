@@ -352,13 +352,14 @@ def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, 
             SELECT id, user_id, username, text, role, created_at, response_time_ms
             FROM chat_logs
             WHERE user_id = %s
-            ORDER BY created_at ASC
+            ORDER BY created_at DESC
             LIMIT %s
             """,
             (user_id, limit),
         )
-        rows = cur.fetchall()
-    return [dict(row) for row in rows]
+        rows = [dict(row) for row in cur.fetchall()]
+    rows.reverse()
+    return rows
 
 
 def fetch_all_chat_users() -> List[Dict[str, Any]]:

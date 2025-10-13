@@ -192,12 +192,12 @@
                             <tr id="report-{{ item.id }}">
                                 <td><input type="checkbox" class="form-check-input report-checkbox" name="report_ids" value="{{ item.id }}"></td>
                                 <td>
-                                    <div class="small fw-semibold">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="small fw-semibold">{{ item.created_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     {% if item.updated_at %}
-                                    <div class="text-muted small">Update: {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-muted small">Update: {{ item.updated_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     {% endif %}
                                     {% if item.chat_created_at %}
-                                    <div class="text-muted small">Chat: {{ item.chat_created_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-muted small">Chat: {{ item.chat_created_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     {% endif %}
                                 </td>
                                 <td>

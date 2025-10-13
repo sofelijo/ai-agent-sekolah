@@ -132,8 +132,8 @@
                             <tr class="{% if highlight_id == item.id %}table-warning{% endif %}" id="report-{{ item.id }}">
                                 <td><input type="checkbox" class="form-check-input report-checkbox" name="report_ids" value="{{ item.id }}"></td>
                                 <td>
-                                    <div class="small fw-semibold">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
-                                    <div class="text-muted small">Update: {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="small fw-semibold">{{ item.created_at|jakarta('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-muted small">Update: {{ item.updated_at|jakarta('%d %b %Y %H:%M') }}</div>
                                 </td>
                                 <td>
                                     <div class="fw-semibold">{{ item.username or 'Anon' }}</div>
@@ -168,10 +168,10 @@
                                     <div class="text-muted small mt-1">Ditangani: {{ item.assigned_to }}</div>
                                     {% endif %}
                                     {% if item.due_at %}
-                                    <div class="text-muted small">Jatuh tempo: {{ item.due_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-muted small">Jatuh tempo: {{ item.due_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     {% endif %}
                                     {% if item.resolved_at %}
-                                    <div class="text-muted small">Selesai: {{ item.resolved_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-muted small">Selesai: {{ item.resolved_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     {% endif %}
                                 </td>
                                 <td>

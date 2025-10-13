@@ -1,7 +1,7 @@
 # utils.py
 import asyncio
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 
 from telegram import Message, Update
@@ -13,6 +13,19 @@ try:
     from zoneinfo import ZoneInfo
 except (ImportError, ModuleNotFoundError):
     ZoneInfo = None
+
+if ZoneInfo is not None:
+    try:
+        JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
+    except Exception:
+        JAKARTA_TZ = None
+    try:
+        UTC_TZ = ZoneInfo("UTC")
+    except Exception:
+        UTC_TZ = timezone.utc
+else:
+    JAKARTA_TZ = None
+    UTC_TZ = timezone.utc
 
 
 # Regex untuk mendeteksi markdown gambar ![](url)
@@ -113,12 +126,27 @@ def coerce_to_text(result_obj):
 
 
 def current_jakarta_time() -> datetime:
-    if ZoneInfo is not None:
+    if JAKARTA_TZ is not None:
         try:
-            return datetime.now(ZoneInfo("Asia/Jakarta"))
+            return datetime.now(JAKARTA_TZ)
         except Exception:
             pass
     return datetime.now()
+
+
+def to_jakarta(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if not isinstance(dt, datetime):
+        return dt
+    if JAKARTA_TZ is None:
+        return dt
+    try:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC_TZ)
+        return dt.astimezone(JAKARTA_TZ)
+    except Exception:
+        return dt
 
 def format_indonesian_date(dt: datetime) -> str:
     month_name = INDONESIAN_MONTH_NAMES.get(dt.month, dt.strftime("%B"))

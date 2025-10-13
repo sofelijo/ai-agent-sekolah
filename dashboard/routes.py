@@ -17,6 +17,7 @@ from flask import (
 from werkzeug.datastructures import MultiDict
 
 from .auth import current_user, login_required, role_required
+from utils import current_jakarta_time, to_jakarta
 from .queries import (
     BULLYING_STATUSES,
     PSYCH_STATUSES,
@@ -73,14 +74,14 @@ def dashboard() -> Response:
     top_users = fetch_top_users(limit=5)
     top_keywords = fetch_top_keywords(limit=8, days=14)
 
-    chart_labels = [row["day"].strftime("%d %b") for row in activity]
+    chart_labels = [to_jakarta(row["day"]).strftime("%d %b") for row in activity]
     chart_values = [row["messages"] for row in activity]
     keyword_labels = [item["keyword"] for item in top_keywords]
     keyword_counts = [item["count"] for item in top_keywords]
 
     return render_template(
         "dashboard.html",
-        generated_at=datetime.utcnow(),
+        generated_at=current_jakarta_time(),
         metrics=metrics,
         recent_questions=recent_questions,
         top_users=top_users,
@@ -595,10 +596,17 @@ def export_chats() -> Response:
     writer = csv.writer(buffer)
     writer.writerow(["id", "created_at", "user_id", "username", "role", "response_time_ms", "text"])
     for row in records:
+        created_at = row.get("created_at")
+        if created_at:
+            created_at = to_jakarta(created_at)
+            try:
+                created_at = created_at.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                created_at = str(created_at)
         writer.writerow(
             [
                 row.get("id"),
-                row.get("created_at"),
+                created_at,
                 row.get("user_id"),
                 row.get("username"),
                 row.get("role"),
@@ -608,7 +616,7 @@ def export_chats() -> Response:
         )
 
     buffer.seek(0)
-    filename = f"chat_logs_export_{datetime.utcnow():%Y%m%d_%H%M%S}.csv"
+    filename = f"chat_logs_export_{current_jakarta_time():%Y%m%d_%H%M%S}.csv"
     response = Response(buffer.getvalue(), mimetype="text/csv")
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return response

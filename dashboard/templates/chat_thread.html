@@ -275,7 +275,7 @@
                     <div class="chat-bubble">
                         <div class="chat-text">{{ row.text }}</div>
                         <div class="chat-meta">
-                            <span>{{ row.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                            <span>{{ row.created_at|jakarta('%d %b %Y %H:%M') }}</span>
                             {% if row.response_time_ms %}
                             <span class="badge rounded-pill text-bg-primary">{{ "%.2f"|format(row.response_time_ms / 1000) }}&nbsp;s</span>
                             {% endif %}

@@ -52,9 +52,9 @@
                         <dt class="col-sm-3 text-muted">Pelapor</dt>
                         <dd class="col-sm-9">{{ report.username or 'Anon' }}{% if report.user_id %} (ID {{ report.user_id }}){% endif %}</dd>
                         <dt class="col-sm-3 text-muted">Masuk</dt>
-                        <dd class="col-sm-9">{{ report.created_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        <dd class="col-sm-9">{{ report.created_at|jakarta('%d %b %Y %H:%M') }}</dd>
                         <dt class="col-sm-3 text-muted">Terakhir update</dt>
-                        <dd class="col-sm-9">{{ report.updated_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        <dd class="col-sm-9">{{ report.updated_at|jakarta('%d %b %Y %H:%M') }}</dd>
                         {% if report.last_updated_by %}
                         <dt class="col-sm-3 text-muted">Diupdate oleh</dt>
                         <dd class="col-sm-9">{{ report.last_updated_by }}</dd>
@@ -65,11 +65,11 @@
                         {% endif %}
                         {% if report.due_at %}
                         <dt class="col-sm-3 text-muted">Jatuh tempo</dt>
-                        <dd class="col-sm-9">{{ report.due_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        <dd class="col-sm-9">{{ report.due_at|jakarta('%d %b %Y %H:%M') }}</dd>
                         {% endif %}
                         {% if report.resolved_at %}
                         <dt class="col-sm-3 text-muted">Diselesaikan</dt>
-                        <dd class="col-sm-9">{{ report.resolved_at.strftime('%d %b %Y %H:%M') }}</dd>
+                        <dd class="col-sm-9">{{ report.resolved_at|jakarta('%d %b %Y %H:%M') }}</dd>
                         {% endif %}
                     </dl>
                     <hr>
@@ -108,7 +108,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small text-muted">Jatuh tempo</label>
-                            <input type="datetime-local" class="form-control form-control-sm" name="due_at" value="{{ report.due_at.strftime('%Y-%m-%dT%H:%M') if report.due_at else '' }}">
+                    <input type="datetime-local" class="form-control form-control-sm" name="due_at" value="{{ report.due_at|jakarta('%Y-%m-%dT%H:%M') if report.due_at else '' }}">
                         </div>
                         <div class="col-md-6 d-flex align-items-end">
                             <div class="form-check form-switch">
@@ -166,7 +166,7 @@
                         <div class="border rounded p-3 bg-light">
                             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                                 <div>
-                                    <div class="text-uppercase text-muted small" style="letter-spacing: .08em;">{{ event.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                                    <div class="text-uppercase text-muted small" style="letter-spacing: .08em;">{{ event.created_at|jakarta('%d %b %Y %H:%M') }}</div>
                                     <div class="fw-semibold">{{ EVENT_TITLES.get(event.event_type, event.event_type|replace('_',' ')|title) }}</div>
                                 </div>
                                 {% if event.actor %}

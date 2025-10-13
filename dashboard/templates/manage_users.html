@@ -79,8 +79,8 @@
                                 <td>{{ user.full_name }}</td>
                                 <td>{{ user.email }}</td>
                                 <td><span class="badge text-bg-secondary text-uppercase">{{ user.role }}</span></td>
-                                <td>{{ user.created_at.strftime('%d %b %Y %H:%M') if user.created_at }}</td>
-                                <td>{{ user.last_login_at.strftime('%d %b %Y %H:%M') if user.last_login_at else '-' }}</td>
+                                <td>{{ user.created_at|jakarta('%d %b %Y %H:%M') if user.created_at }}</td>
+                                <td>{{ user.last_login_at|jakarta('%d %b %Y %H:%M') if user.last_login_at else '-' }}</td>
                             </tr>
                             {% else %}
                             <tr>

@@ -51,12 +51,12 @@
                         {% endif %}
                     </div>
                     <div class="text-muted small text-end">
-                        <div>Dibuat: {{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                        <div>Dibuat: {{ item.created_at|jakarta('%d %b %Y %H:%M') }}</div>
                         {% if item.updated_at %}
-                        <div>Update: {{ item.updated_at.strftime('%d %b %Y %H:%M') }}</div>
+                        <div>Update: {{ item.updated_at|jakarta('%d %b %Y %H:%M') }}</div>
                         {% endif %}
                         {% if item.chat_created_at %}
-                        <div>Chat: {{ item.chat_created_at.strftime('%d %b %Y %H:%M') }}</div>
+                        <div>Chat: {{ item.chat_created_at|jakarta('%d %b %Y %H:%M') }}</div>
                         {% endif %}
                     </div>
                 </div>

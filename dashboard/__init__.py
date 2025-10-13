@@ -11,6 +11,7 @@ from .routes import main_bp
 from .db_access import shutdown_pool
 from .queries import fetch_pending_bullying_count, fetch_pending_psych_count, fetch_pending_corruption_count
 from .schema import ensure_dashboard_schema
+from utils import to_jakarta
 
 
 def create_app() -> Flask:
@@ -60,6 +61,16 @@ def create_app() -> Flask:
             "pending_psych_count": pending_psych,
             "pending_corruption_count": pending_corruption,
         }
+
+    @app.template_filter("jakarta")
+    def format_jakarta(value, fmt="%d %b %Y %H:%M"):
+        if value is None:
+            return ""
+        dt = to_jakarta(value)
+        try:
+            return dt.strftime(fmt)
+        except Exception:
+            return ""
 
     atexit.register(shutdown_pool)
 

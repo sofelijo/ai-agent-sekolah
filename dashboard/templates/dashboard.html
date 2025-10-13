@@ -15,7 +15,7 @@
         </div>
         <div class="page-header-actions">
             <span class="badge text-bg-light border">
-                <i class="bi bi-clock-history me-1"></i>Update {{ generated_at.strftime('%d %b %Y %H:%M') }}
+                <i class="bi bi-clock-history me-1"></i>Update {{ generated_at|jakarta('%d %b %Y %H:%M') }}
             </span>
         </div>
     </div>
@@ -187,7 +187,7 @@
                             <i class="bi bi-chat-left-text"></i>
                         </span>
                         <div class="flex-grow-1">
-                            <div class="small text-muted">{{ item.created_at.strftime('%d %b %Y %H:%M') }}</div>
+                            <div class="small text-muted">{{ item.created_at|jakarta('%d %b %Y %H:%M') }}</div>
                             <div class="fw-semibold">{{ item.username or 'Anon' }} ({{ item.user_id }})</div>
                             <div class="text-truncate-2">{{ item.text }}</div>
                         </div>
@@ -246,7 +246,10 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <a href="#" id="confirmChatLink" class="btn btn-primary" target="_blank">Lanjutkan</a>
+        <a href="#" id="confirmChatLink" class="btn btn-primary d-inline-flex align-items-center gap-2" target="_blank">
+          <i class="bi bi-arrow-up-right-square"></i>
+          <span>Lihat Detail Percakapan</span>
+        </a>
       </div>
     </div>
   </div>

@@ -71,7 +71,7 @@
                 <tbody>
                     {% for row in records %}
                     <tr>
-                        <td><span class="badge text-bg-light">{{ row.created_at.strftime('%d %b %Y %H:%M') }}</span></td>
+                        <td><span class="badge text-bg-light">{{ row.created_at|jakarta('%d %b %Y %H:%M') }}</span></td>
                         <td class="fw-semibold">{{ row.user_id }}</td>
                         <td>
                             {% if row.role == 'aska' %}
