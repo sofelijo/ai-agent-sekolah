@@ -174,16 +174,6 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
 
         cur.execute(
             """
-            SELECT COUNT(*) AS messages_window
-            FROM chat_logs
-            WHERE created_at >= NOW() - %s::interval
-            """,
-            (f"{window_days} days",),
-        )
-        messages_window = cur.fetchone()["messages_window"]
-
-        cur.execute(
-            """
             SELECT
                 AVG(response_time_ms)::float AS avg_response,
                 percentile_cont(0.9) WITHIN GROUP (ORDER BY response_time_ms) AS p90_response
@@ -224,7 +214,6 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
         "unique_users_7d": int(unique_users_7d or 0),
         "unique_users_30d": int(unique_users_30d or 0),
         "unique_users_365d": int(unique_users_365d or 0),
-        "messages_window": int(messages_window or 0),
         "window_days": window_days,
         "avg_response_ms": round(avg_response, 2),
         "p90_response_ms": round(p90_response, 2),

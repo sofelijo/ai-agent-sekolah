@@ -62,16 +62,28 @@
             </div>
         </div>
         <div class="col-lg-3 col-sm-6">
-            <div class="card stat-card border-0 shadow-sm h-100">
+            <div class="card stat-card border-0 shadow-sm h-100" id="messagesCard" data-counts='{{ messages_counts | tojson }}'>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <span class="text-secondary text-uppercase small fw-semibold">Pesan {{ metrics.window_days }} Hari</span>
-                        <span class="icon-badge stat-icon text-info">
-                            <i class="bi bi-activity"></i>
-                        </span>
+                    <div class="d-flex justify-content-between align-items-start mb-3 gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="icon-badge stat-icon text-info">
+                                <i class="bi bi-activity"></i>
+                            </span>
+                            <span class="text-secondary text-uppercase small fw-semibold">Total Pesan</span>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">Hari Ini</button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
+                                <li><a class="dropdown-item js-messages-option active" data-range="today" href="#">Hari Ini</a></li>
+                                <li><a class="dropdown-item js-messages-option" data-range="week" href="#">Seminggu</a></li>
+                                <li><a class="dropdown-item js-messages-option" data-range="month" href="#">Sebulan</a></li>
+                                <li><a class="dropdown-item js-messages-option" data-range="year" href="#">Setahun</a></li>
+                                <li><a class="dropdown-item js-messages-option" data-range="all" href="#">Semua</a></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="display-6 fw-bold">{{ metrics.messages_window }}</h2>
-                    <p class="mb-0 text-muted">Aktivitas terbaru {{ metrics.window_days }} hari.</p>
+                    <h2 class="display-6 fw-bold" id="messagesValue">{{ messages_counts.today }}</h2>
+                    <p class="mb-0 text-muted" id="messagesDescription">Jumlah pesan pada periode terpilih.</p>
                 </div>
             </div>
         </div>
@@ -140,7 +152,17 @@
                         </div>
                     </div>
                     <div class="text-lg-end">
-                        <span class="badge text-bg-light border">Avg {{ metrics.avg_response_ms }} ms · P90 {{ metrics.p90_response_ms }} ms</span>
+                        <span class="badge text-bg-light border d-inline-flex align-items-center gap-2">
+                            <span class="d-inline-flex align-items-center gap-1 text-muted">
+                                <i class="bi bi-speedometer"></i>
+                                <span>Avg {{ metrics.avg_response_ms }} ms</span>
+                            </span>
+                            <span class="vr"></span>
+                            <span class="d-inline-flex align-items-center gap-1 text-muted">
+                                <i class="bi bi-lightning-charge"></i>
+                                <span>P90 {{ metrics.p90_response_ms }} ms</span>
+                            </span>
+                        </span>
                     </div>
                 </div>
                 <div class="chart-container" style="height: 320px;">
@@ -215,7 +237,17 @@
                                 <i class="bi bi-person-circle"></i>
                             </span>
                             <div>
-                                <div class="fw-semibold">{{ item.username }}</div>
+                                <div class="fw-semibold d-flex align-items-center gap-2">
+                                    {% set suffix_map = {1: 'st', 2: 'nd', 3: 'rd'} %}
+                                    {% set last_two = loop.index % 100 %}
+                                    {% if last_two in [11, 12, 13] %}
+                                        {% set suffix = 'th' %}
+                                    {% else %}
+                                        {% set suffix = suffix_map.get(loop.index % 10, 'th') %}
+                                    {% endif %}
+                                    <span class="badge rounded-pill text-bg-warning text-dark">{{ loop.index }}{{ suffix }}</span>
+                                    <span>{{ item.username }}</span>
+                                </div>
                                 <small class="text-muted">ID {{ item.user_id }}</small>
                             </div>
                         </div>
@@ -377,6 +409,51 @@
                 option.classList.add('active');
             });
         });
+    }
+
+    const messagesCard = document.getElementById('messagesCard');
+    const messagesValueEl = document.getElementById('messagesValue');
+    const messagesDropdown = document.getElementById('messagesDropdown');
+    const messagesDescription = document.getElementById('messagesDescription');
+    if (messagesCard && messagesValueEl && messagesDropdown) {
+        let messageCounts = {};
+        try {
+            messageCounts = JSON.parse(messagesCard.dataset.counts || '{}');
+        } catch (error) {
+            messageCounts = {};
+        }
+        const labelMap = {
+            today: 'Hari Ini',
+            week: 'Seminggu',
+            month: 'Sebulan',
+            year: 'Setahun',
+            all: 'Semua',
+        };
+        const descriptionMap = {
+            today: 'Jumlah pesan yang diterima hari ini.',
+            week: 'Jumlah pesan dalam 7 hari terakhir.',
+            month: 'Jumlah pesan dalam 30 hari terakhir.',
+            year: 'Jumlah pesan dalam 365 hari terakhir.',
+            all: 'Total pesan sepanjang waktu.',
+        };
+        const messageOptions = messagesCard.querySelectorAll('.js-messages-option');
+        messageOptions.forEach((option) => {
+            option.addEventListener('click', (event) => {
+                event.preventDefault();
+                const range = option.dataset.range || 'today';
+                const value = messageCounts[range] ?? messageCounts.today ?? 0;
+                messagesValueEl.textContent = value;
+                messagesDropdown.textContent = labelMap[range] || option.textContent.trim();
+                if (messagesDescription) {
+                    messagesDescription.textContent = descriptionMap[range] || 'Jumlah pesan pada periode terpilih.';
+                }
+                messageOptions.forEach((item) => item.classList.remove('active'));
+                option.classList.add('active');
+            });
+        });
+        if (messagesDescription) {
+            messagesDescription.textContent = descriptionMap.today;
+        }
     }
 
 </script>

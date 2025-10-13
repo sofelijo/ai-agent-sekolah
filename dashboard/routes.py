@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import ceil
 from typing import Optional
 
@@ -69,15 +69,32 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
 @login_required
 def dashboard() -> Response:
     metrics = fetch_overview_metrics(window_days=7)
-    activity = fetch_daily_activity(days=14)
+    activity_all = fetch_daily_activity(days=14)
+    activity_long = fetch_daily_activity(days=365)
     recent_questions = fetch_recent_questions(limit=8)
     top_users = fetch_top_users(limit=5)
     top_keywords = fetch_top_keywords(limit=8, days=14)
 
-    chart_labels = [to_jakarta(row["day"]).strftime("%d %b") for row in activity]
-    chart_values = [row["messages"] for row in activity]
+    chart_labels = [to_jakarta(row["day"]).strftime("%d %b") for row in activity_all]
+    chart_values = [row["messages"] for row in activity_all]
     keyword_labels = [item["keyword"] for item in top_keywords]
     keyword_counts = [item["count"] for item in top_keywords]
+
+    today_date = current_jakarta_time().date()
+
+    def sum_period(days: int) -> int:
+        if not activity_long:
+            return 0
+        cutoff = today_date - timedelta(days=days - 1) if days > 1 else today_date
+        return sum(row["messages"] for row in activity_long if row["day"] >= cutoff)
+
+    messages_counts = {
+        "today": sum_period(1),
+        "week": sum_period(7),
+        "month": sum_period(30),
+        "year": sum_period(365),
+        "all": metrics["total_messages"],
+    }
 
     return render_template(
         "dashboard.html",
@@ -89,6 +106,7 @@ def dashboard() -> Response:
         chart_values=chart_values,
         keyword_labels=keyword_labels,
         keyword_counts=keyword_counts,
+        messages_counts=messages_counts,
     )
 
 
