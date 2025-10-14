@@ -11,12 +11,12 @@ from db import save_chat, get_chat_history
 from responses import ASKA_NO_DATA_RESPONSE, ASKA_TECHNICAL_ISSUE_RESPONSE
 from utils import (
     normalize_input,
-    strip_markdown,
     now_str,
     format_history_for_chain,
     coerce_to_text,
     rewrite_schedule_query,
     replace_bot_mentions,
+    remove_trailing_signature,
 )
 from flows.safety_flow import handle_bullying
 from flows.corruption_flow import handle_corruption
@@ -49,8 +49,8 @@ class MockMessage:
         self._last_reply: Optional[str] = None
 
     async def reply_text(self, text, parse_mode=None):
-        # Store stripped markdown to keep web output clean
-        self._last_reply = strip_markdown(text)
+        # Capture bot reply (keep markdown) but trim signature for web output
+        self._last_reply = remove_trailing_signature(text)
         return None
 
 class MockUpdate:
@@ -195,71 +195,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             print(f"[{now_str()}] WEB FLOW HANDLED: psych")
             return reply_target._last_reply or ""
 
-        teacher_sessions = context.chat_data.setdefault("teacher_sessions", {})
-        teacher_session = teacher_sessions.get(storage_key)
-
-        if teacher_session:
-            last_bot_time = teacher_session.get("last_bot_time")
-            if last_bot_time and (now_ts - last_bot_time) > TEACHER_TIMEOUT_SECONDS:
-                response = TEACHER_TIMEOUT_MESSAGE
-                save_chat(user_id, "ASKA", response, role="aska")
-                teacher_sessions.pop(storage_key, None)
-                return response
-
-        if is_teacher_stop(normalized_input):
-            if teacher_session:
-                teacher_sessions.pop(storage_key, None)
-                farewell = (
-                    "Sesi belajar bersama ASKA selesai. Kapan pun mau latihan lagi, ketik saja "
-                    "'kasih soal' atau 'mode guru', ya!"
-                )
-                save_chat(user_id, "ASKA", farewell, role="aska")
-                return farewell
-
-        if is_teacher_start(normalized_input):
-            grade_hint = extract_grade_hint(raw_input)
-            subject_hint = extract_subject_hint(raw_input)
-            question = pick_question(grade_hint, subject_hint, raw_input)
-            session_data = {
-                "question": question,
-                "grade_hint": grade_hint,
-                "subject_hint": subject_hint or question.subject,
-                "attempt": 1,
-                "conversation": [],
-            }
-            teacher_sessions[storage_key] = session_data
-            intro = format_question_intro(question)
-            save_chat(user_id, "ASKA", intro, role="aska")
-            session_data["conversation"].append({"role": "assistant", "content": intro})
-            session_data["last_bot_time"] = time.time()
-            return intro
-
-        if not teacher_session and is_teacher_next(normalized_input):
-            reminder = (
-                "Belum ada sesi guru yang aktif. Ketik 'kasih soal' atau 'mode guru' dulu ya."
-            )
-            save_chat(user_id, "ASKA", reminder, role="aska")
-            return reminder
-
-        if teacher_session and is_teacher_next(normalized_input):
-            grade_hint_override = extract_grade_hint(raw_input)
-            if grade_hint_override:
-                teacher_session["grade_hint"] = grade_hint_override
-            subject_hint_override = extract_subject_hint(raw_input) or teacher_session.get("subject_hint")
-            question = pick_question(
-                teacher_session.get("grade_hint"),
-                subject_hint_override,
-                raw_input,
-            )
-            teacher_session["question"] = question
-            teacher_session["attempt"] = 1
-            teacher_session["subject_hint"] = subject_hint_override or question.subject
-            teacher_session["conversation"] = []
-            intro = format_question_intro(question, attempt_number=1)
-            save_chat(user_id, "ASKA", intro, role="aska")
-            teacher_session["conversation"].append({"role": "assistant", "content": intro})
-            teacher_session["last_bot_time"] = time.time()
-            return intro
+        # Teacher flow is handled via shared flow handler below
 
         # 4) Teacher mode (reuse shared flow)
         reply_target = MockMessage(user, "")
@@ -312,8 +248,9 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             print(f"  {i}. {doc.page_content[:200]}...")
 
         response = coerce_to_text(result)
+        response = remove_trailing_signature(response.strip())
 
-        if not response.strip():
+        if not response:
             response = ASKA_NO_DATA_RESPONSE
 
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -321,7 +258,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         save_chat(
             user_id,
             "ASKA",
-            strip_markdown(response),
+            response,
             role="aska",
             topic="web",
             response_time_ms=int(duration_ms),

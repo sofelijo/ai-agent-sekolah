@@ -97,6 +97,7 @@
             flex-direction: column; 
             animation: fadeInUp 1s ease-in-out;
             margin-top: 50px;
+            position: relative;
         }
         
         /* New Header Styles */
@@ -146,47 +147,84 @@
             color: var(--loader-color);
             font-style: italic;
         }
-        .chat-message { 
-            padding: 10px 15px; 
-            border-radius: 20px; 
-            max-width: 75%; 
-            line-height: 1.5; 
+        .chat-message {
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 75%;
+            line-height: 1.5;
             word-wrap: break-word;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap; /* preserve newlines */
+            position: relative;
+        }
+        .onboarding-message {
+            white-space: normal;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .onboarding-message p {
+            margin-bottom: 0;
+        }
+        .onboarding-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+        }
+        .onboarding-section .emoji {
+            font-size: 1.25rem;
+            line-height: 1.4;
+        }
+        .onboarding-section .content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .onboarding-message ul {
+            margin: 0;
+            padding-left: 1.1rem;
         }
         .user-message { 
             background-color: var(--user-msg-bg); 
             color: var(--text-color-light); 
             align-self: flex-end; 
+            border-bottom-right-radius: 6px;
         }
         .bot-message { 
             background-color: var(--bot-msg-bg); 
             color: var(--text-color-dark); 
             align-self: flex-start; 
+            border-bottom-left-radius: 6px;
         }
         .bot-message ul {
             padding-left: 20px;
         }
         .chat-input { 
             display: flex; 
-            padding: 15px; 
+            align-items: flex-end;
+            gap: 10px;
+            padding: 12px 15px; 
             border-top: 1px solid var(--input-border-color); 
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
         }
-        .chat-input input { 
+        .chat-input textarea { 
             flex-grow: 1; 
             border: 1px solid var(--input-border-color); 
             background-color: var(--input-bg-color);
             color: var(--text-color-dark);
-            border-radius: 20px; 
-            padding: 10px 15px; 
+            border-radius: 14px; 
+            padding: 10px 12px; 
             font-size: 16px; 
+            max-height: 160px;
+            resize: none;
+            outline: none;
         }
         .chat-input button { 
             background-color: var(--header-bg); 
             color: var(--text-color-light);
             border: none; 
             border-radius: 20px; 
-            padding: 10px 15px;
-            margin-left: 10px; 
+            padding: 10px 14px;
             cursor: pointer; 
             font-size: 16px; 
             transition: background-color 0.2s, transform 0.2s;
@@ -201,6 +239,7 @@
         .chat-input button:active {
             transform: scale(0.98);
         }
+        .chat-input button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
         .typing-indicator { 
             align-self: flex-start; 
             color: #999; 
@@ -252,8 +291,15 @@
 
         @media (max-width: 768px) {
             body { align-items: flex-start; height: 100%; }
-            .chat-container { height: 100vh; border-radius: 0; box-shadow: none; }
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+                margin-top: 0;
+                padding-top: calc(env(safe-area-inset-top, 0) + 8px);
+            }
             .chat-header { border-radius: 0; }
+            .chat-message { max-width: 85%; }
         }
         .loader {
             width: 15px;
@@ -271,6 +317,38 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* Suggestion chips */
+        .suggestions { padding: 8px 16px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+        .suggestion-chip { border: 1px solid var(--input-border-color); background-color: var(--input-bg-color); color: var(--text-color-dark); border-radius: 999px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+        .suggestion-chip:hover { filter: brightness(0.98); }
+        /* Copy button */
+        .btn-copy {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            border: none;
+            background: var(--bg-muted);
+            color: inherit;
+            opacity: 0.75;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 999px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .btn-copy:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+        body.dark-mode .btn-copy {
+            background: rgba(255,255,255,0.08);
+        }
+        /* Jump button */
+        .jump-bottom { position: absolute; right: 18px; bottom: 82px; z-index: 10; display: none; }
+        .jump-bottom.show { display: inline-flex; }
     </style>
 </head>
 <body>
@@ -330,38 +408,62 @@
                 </div>
             </nav>
         </div>
-        <div class="chat-box" id="chat-box">
+        <div class="chat-box" id="chat-box" role="log" aria-live="polite" aria-relevant="additions">
             <div id="history-loader" class="history-loader" style="display: none;">Memuat riwayat...</div>
             
+            {% set first_name = (user.full_name.split()[0] if user and user.full_name else 'bestie') %}
+            <div class="chat-message bot-message onboarding-message" data-initial="1">
+                <p><strong>Yo, {{ first_name }}!</strong> ✨ Welcome to ASKA. Mau cari info, belajar, atau ngobrolin sekolah? Spill aja—ASKA standby 24/7 🤖💬</p>
+                <div class="onboarding-section">
+                    <span class="emoji">📝</span>
+                    <div class="content">
+                        <span>Punya ide kece buat upgrade ASKA? Drop di sini:</span>
+                        <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form Feedback</a>
+                    </div>
+                </div>
+                <div class="onboarding-section">
+                    <span class="emoji">🤳</span>
+                    <div class="content">
+                        <span>Mau lanjut ngobrol via Telegram? Chat aja:</span>
+                        <a href="https://t.me/tanyaaska_bot" target="_blank" class="modern-link">@tanyaaska_bot</a>
+                    </div>
+                </div>
+                <div class="onboarding-section">
+                    <span class="emoji">📚</span>
+                    <div class="content">
+                        <span>Knowledge base ASKA isinya antara lain:</span>
+                        <ul>
+                            <li>Profil SDN Semper Barat 01 🏫</li>
+                            <li>Info SPMB, KJP, dan administrasi 📄</li>
+                            <li>Kalendar sekolah 🗓️</li>
+                            <li>FAQ random seputar sekolah 🤙</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             {% if initial_chats %}
                 {% for chat in initial_chats|reverse %}
-                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}">
-                        {{ chat.text }}
+                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}" data-sender="{{ chat.role }}" aria-label="{{ 'Kamu' if chat.role == 'user' else 'ASKA' }} mengatakan">
+                        {{ chat.text | trim }}
+                        {% if chat.role != 'user' %}
+                        <button class="btn-copy" type="button" title="Salin"><span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span></button>
+                        {% endif %}
                     </div>
                 {% endfor %}
-            {% else %}
-                <div class="chat-message bot-message">
-                    Wassup! 🤙 Kenalin, aku ASKA 🤖, AI assistant kece di SDN Semper Barat 01. Pengen nanya-nanya? Gas aja, ASKA siap bantu! 🚀✨
-                    <br>
-                    📝 kasih masukan buat ASKA di 
-                    <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form Feedback</a>
-                    <br>
-                    🤖 Cek juga ASKA di Telegram
-                    <a href="https://t.me/tanyaaska_bot" target="_blank" class="modern-link">@tanyaaska_bot</a>
-                    <br>
-                    📘 Isi Pengetahuan ASKA :
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li>Profil sekolah 🏫</li>
-                        <li>Info SPMB, KJP, & administrasi lainnya 📝</li>
-                        <li>Kalender akademik 📅</li>
-                        <li>Random questions seputar sekolah 🤪</li>
-                    </ul>
+{% else %}
+                <div class="suggestions" aria-label="Contoh pertanyaan cepat">
+                    <button class="suggestion-chip">Kapan liburan semester?</button>
+                    <button class="suggestion-chip">Cara daftar siswa baru?</button>
+                    <button class="suggestion-chip">Syarat KJP terbaru?</button>
+                    <button class="suggestion-chip">Lapor bullying gimana?</button>
                 </div>
             {% endif %}
         </div>
+        <button id="jumpBottom" class="btn btn-primary btn-sm jump-bottom" type="button">Ke pesan terbaru</button>
         <form class="chat-input" id="chat-form">
-            <input type="text" id="message-input" placeholder="Ketik pesanmu di sini..." autocomplete="off">
-            <button type="submit" class="send-button">
+            <textarea id="message-input" placeholder="Ketik pesan... (Shift+Enter untuk baris baru)" rows="1" autocomplete="off" aria-label="Ketik pesan"></textarea>
+            <button type="submit" id="send-button" class="send-button" aria-label="Kirim">
                 <lord-icon
                     src="https://cdn.lordicon.com/gqjpawbc.json"
                     trigger="hover"
@@ -382,11 +484,14 @@
         const messageInput = document.getElementById('message-input');
         const themeToggle = document.getElementById('theme-toggle');
         const historyLoader = document.getElementById('history-loader');
+        const jumpBottom = document.getElementById('jumpBottom');
+        const sendButton = document.getElementById('send-button');
 
         let chatOffset = 10;
         let isLoadingHistory = false;
         let noMoreHistory = false;
         let typingInterval;
+        let isSending = false;
 
         // Function to set the theme
         function setTheme(theme) {
@@ -422,18 +527,72 @@
             setTheme(newTheme);
         });
 
+        function normalizeUserText(text) {
+            if (!text) return '';
+            let value = String(text).replace(/\r\n/g, '\n');
+            let lines = value.split('\n');
+            while (lines.length && !lines[0].trim()) lines.shift();
+            while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+            if (!lines.length) return '';
+            let minIndent = null;
+            lines.forEach((line) => {
+                if (!line.trim()) return;
+                const match = line.match(/^ +/);
+                const indent = match ? match[0].length : 0;
+                if (minIndent === null) minIndent = indent; else minIndent = Math.min(minIndent, indent);
+            });
+            if (minIndent && minIndent > 0) {
+                lines = lines.map(line => line.replace(new RegExp('^ {0,' + minIndent + '}'), ''));
+            }
+            return lines.join('\n');
+        }
+
+        function renderBotHtml(text) {
+            let html = String(text || '');
+            // Normalize newlines and remove common leading indentation
+            html = html.replace(/\r\n/g, '\n');
+            (function () {
+                const lines = html.split('\n');
+                let minIndent = null;
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const m = line.match(/^ +/);
+                    const n = m ? m[0].length : 0;
+                    if (minIndent === null) minIndent = n; else minIndent = Math.min(minIndent, n);
+                }
+                if (minIndent && minIndent > 0) {
+                    html = lines.map(l => l.replace(new RegExp('^ {0,' + minIndent + '}'), '')).join('\n');
+                }
+            })();
+            html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1<\/strong>');
+            html = html.replace(/\*([^\*]+)\*/g, '<em>$1<\/em>');
+            html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 10px; margin-top: 10px;">');
+            html = html.replace(/(https?:\/\/[^\s]+)|(www\.[^\s]+)/g, function(m){
+                const url = m.startsWith('http') ? m : `http://${m}`;
+                return `<a href="${url}" target="_blank" rel="noopener">${m}<\/a>`;
+            });
+            return html;
+        }
+
         function createMessageElement(message, sender) {
             const messageElement = document.createElement('div');
             const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
             messageElement.classList.add('chat-message', messageClass);
+            messageElement.setAttribute('data-sender', sender);
+            messageElement.setAttribute('aria-label', sender === 'user' ? 'Kamu mengatakan' : 'ASKA mengatakan');
 
             if (sender !== 'user') { // Treat 'aska' and other non-user roles as bot
-                let html = message.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-                html = html.replace(/\*([^\*]+)\*/g, '<strong>$1</strong>');
-                html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 10px; margin-top: 10px;">');
+                const html = renderBotHtml(message);
                 messageElement.innerHTML = html;
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'btn-copy';
+                copyBtn.textContent = 'Salin';
+                copyBtn.title = 'Salin';
+                copyBtn.addEventListener('click', () => copyMessage(messageElement));
+                messageElement.appendChild(copyBtn);
             } else {
-                messageElement.textContent = message;
+                messageElement.textContent = normalizeUserText(message);
             }
             return messageElement;
         }
@@ -482,19 +641,63 @@
             }
         }
 
+        function updateJumpButton() {
+            const threshold = 120;
+            const distance = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight;
+            if (jumpBottom) jumpBottom.classList.toggle('show', distance > threshold);
+        }
+
         chatBox.addEventListener('scroll', () => {
             if (chatBox.scrollTop === 0) {
                 loadHistory();
             }
+            updateJumpButton();
         });
+        if (jumpBottom) {
+            jumpBottom.addEventListener('click', () => {
+                chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+            });
+        }
+
+        // Suggestion chips
+        document.querySelectorAll('.suggestion-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                messageInput.value = btn.textContent.trim();
+                if (typeof autoResizeTextarea === 'function') autoResizeTextarea();
+                messageInput.focus();
+            });
+        });
+
+        // Auto-resize textarea
+        function autoResizeTextarea() {
+            if (!messageInput) return;
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 160) + 'px';
+        }
+        if (messageInput) {
+            messageInput.addEventListener('input', () => {
+                autoResizeTextarea();
+                if (sendButton) sendButton.disabled = !messageInput.value.trim() || isSending;
+            });
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    chatForm.requestSubmit();
+                }
+            });
+        }
 
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const message = messageInput.value.trim();
-            if (!message) return;
+            if (!message || isSending) return;
+            isSending = true;
+            if (sendButton) sendButton.disabled = true;
+            messageInput.disabled = true;
 
             appendMessage(message, 'user');
             messageInput.value = '';
+            if (typeof autoResizeTextarea === 'function') autoResizeTextarea();
             showTypingIndicator();
 
             try {
@@ -524,6 +727,11 @@
                 console.error('Error:', error);
                 removeTypingIndicator();
                 appendMessage('Maaf, terjadi kesalahan. Coba lagi nanti.', 'bot');
+            } finally {
+                isSending = false;
+                messageInput.disabled = false;
+                if (sendButton) sendButton.disabled = !messageInput.value.trim();
+                messageInput.focus();
             }
         });
 
@@ -552,9 +760,63 @@
             }
         }
 
+        function copyMessage(messageEl) {
+            const text = messageEl.innerText || '';
+            try {
+                navigator.clipboard.writeText(text);
+                const old = messageEl.querySelector('.btn-copy');
+                if (old) {
+                    const prev = old.textContent;
+                    old.textContent = 'Tersalin';
+                    setTimeout(() => { old.textContent = 'Salin'; }, 1000);
+                }
+            } catch (err) {
+                // ignore
+            }
+        }
+
+        function normalizeExistingUserMessages() {
+            document.querySelectorAll('.chat-message.user-message').forEach((el) => {
+                el.textContent = normalizeUserText(el.textContent || '');
+            });
+        }
+
+        function enhanceExistingMessages() {
+            document.querySelectorAll('.chat-message.bot-message').forEach((el) => {
+                // Remove existing copy buttons BEFORE reading text, to avoid \"Salin\" leaking
+                el.querySelectorAll('.btn-copy').forEach(b => b.remove());
+                const hasStructuredContent = el.children.length > 0; // keep <ul>, <br>, etc.
+                if (!hasStructuredContent) {
+                    let raw = el.textContent || '';
+                    raw = raw.replace(/\r\n/g, '\n');
+                    el.innerHTML = renderBotHtml(raw.trim());
+                }
+                // Skip copy button for the very first intro bubble
+                if (!el.dataset.initial) {
+                    const copyBtn = document.createElement('button');
+                    copyBtn.type = 'button';
+                    copyBtn.className = 'btn-copy';
+                    copyBtn.innerHTML = '<span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span>';
+                    copyBtn.title = 'Salin';
+                    copyBtn.addEventListener('click', () => copyMessage(el));
+                    el.appendChild(copyBtn);
+                }
+            });
+        }
+
+        // Double-click to copy bot messages (including pre-rendered)
+        chatBox.addEventListener('dblclick', (e) => {
+            const target = e.target.closest('.bot-message');
+            if (target) copyMessage(target);
+        });
+
         // Scroll to the bottom on initial load
         window.addEventListener('load', () => {
+            normalizeExistingUserMessages();
+            enhanceExistingMessages();
             chatBox.scrollTop = chatBox.scrollHeight;
+            if (typeof autoResizeTextarea === 'function') autoResizeTextarea();
+            if (typeof updateJumpButton === 'function') updateJumpButton();
         });
 
     </script>

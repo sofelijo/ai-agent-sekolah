@@ -1,6 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard - ASKA Insights{% endblock %}
 
+{% block head_extra %}
+<style>
+    .page-header-actions { gap: 0.5rem; }
+    .page-header-actions .btn { vertical-align: middle; }
+    .stat-value.stat-animated { animation: statPulse 0.45s ease; }
+    @keyframes statPulse { 0% { transform: scale(1); } 35% { transform: scale(1.04); } 100% { transform: scale(1); } }
+    .range-chip { white-space: nowrap; }
+    @media (max-width: 576px) {
+        .page-header-actions { width: 100%; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="mb-4">
     <div class="page-header">
@@ -14,7 +27,18 @@
             </div>
         </div>
         <div class="page-header-actions">
-            <span class="badge text-bg-light border">
+            <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Filter periode cepat">
+                <button type="button" class="btn btn-outline-secondary range-chip js-global-range" data-range="today" title="Tampilkan hari ini">Hari Ini</button>
+                <button type="button" class="btn btn-outline-secondary range-chip js-global-range" data-range="week" title="Tampilkan 7 hari">7 Hari</button>
+                <button type="button" class="btn btn-outline-secondary range-chip js-global-range" data-range="month" title="Tampilkan 30 hari">30 Hari</button>
+                <button type="button" class="btn btn-outline-secondary range-chip js-global-range" data-range="year" title="Tampilkan 1 tahun">1 Tahun</button>
+                <button type="button" class="btn btn-outline-secondary range-chip js-global-range" data-range="all" title="Tampilkan semua">Semua</button>
+            </div>
+            <button type="button" id="refreshBtn" class="btn btn-outline-secondary btn-sm" data-bs-toggle="tooltip" title="Muat ulang data">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span class="d-none d-sm-inline">Refresh</span>
+            </button>
+            <span class="badge text-bg-light border" title="Waktu pembuatan ringkasan">
                 <i class="bi bi-clock-history me-1"></i>Update {{ generated_at|jakarta('%d %b %Y %H:%M') }}
             </span>
         </div>
@@ -56,7 +80,7 @@
                             </ul>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold mt-2 mb-1" id="uniqueUsersValue">{{ metrics.unique_users_all }}</h2>
+                    <h2 class="display-6 fw-bold mt-2 mb-1 stat-value" id="uniqueUsersValue" aria-live="polite">{{ metrics.unique_users_all }}</h2>
                     <p class="mb-0 text-muted">Jumlah pengguna yang pernah chat.</p>
                 </div>
             </div>
@@ -82,7 +106,7 @@
                             </ul>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold" id="messagesValue">{{ messages_counts.today }}</h2>
+                    <h2 class="display-6 fw-bold stat-value" id="messagesValue" aria-live="polite">{{ messages_counts.today }}</h2>
                     <p class="mb-0 text-muted" id="messagesDescription">Jumlah pesan pada periode terpilih.</p>
                 </div>
             </div>
@@ -204,7 +228,7 @@
                 </div>
                 <ul class="list-group list-group-flush list-group-timeline">
                     {% for item in recent_questions %}
-                    <li class="list-group-item px-0 question-item d-flex align-items-start gap-3" style="cursor: pointer;" data-question="{{ item.text }}" data-url="{{ url_for('main.chat_thread', user_id=item.user_id) }}">
+                    <li class="list-group-item px-0 question-item d-flex align-items-start gap-3" style="cursor: pointer;" data-question="{{ item.text }}" data-url="{{ url_for('main.chat_thread', user_id=item.user_id) }}" role="button" tabindex="0" aria-label="Lihat percakapan: {{ item.text }}">
                         <span class="icon-badge timeline-icon text-primary">
                             <i class="bi bi-chat-left-text"></i>
                         </span>
@@ -292,6 +316,12 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Enable Bootstrap tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
         const modalElement = document.getElementById('chatConfirmationModal');
         if (!modalElement) return;
 
@@ -299,18 +329,21 @@
         const confirmChatLink = document.getElementById('confirmChatLink');
         const chatModal = new bootstrap.Modal(modalElement);
 
-        document.querySelectorAll('.question-item').forEach(item => {
-            item.addEventListener('click', function () {
-                const question = this.dataset.question;
-                const url = this.dataset.url;
+        const openQuestionModal = (el) => {
+            const question = el.dataset.question;
+            const url = el.dataset.url;
+            if (questionTextElement) questionTextElement.textContent = question;
+            if (confirmChatLink) confirmChatLink.href = url;
+            chatModal.show();
+        };
 
-                if (questionTextElement) {
-                    questionTextElement.textContent = question;
+        document.querySelectorAll('.question-item').forEach(item => {
+            item.addEventListener('click', function () { openQuestionModal(this); });
+            item.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openQuestionModal(this);
                 }
-                if (confirmChatLink) {
-                    confirmChatLink.href = url;
-                }
-                chatModal.show();
             });
         });
 
@@ -321,12 +354,56 @@
                 chatModal.hide();
             });
         }
+
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => window.location.reload());
+        }
     });
 </script>
 <script>
+    // Utilities
+    function animateValue(el, toValue) {
+        const text = (el.textContent || '').replace(/[^0-9.-]/g, '');
+        const from = Number.parseInt(text, 10) || 0;
+        const to = Number.parseInt(toValue, 10) || 0;
+        if (from === to) return;
+        const duration = 500;
+        const start = performance.now();
+        function step(now) {
+            const p = Math.min(1, (now - start) / duration);
+            const current = Math.round(from + (to - from) * p);
+            el.textContent = current;
+            if (p < 1) requestAnimationFrame(step);
+            else {
+                el.classList.add('stat-animated');
+                setTimeout(() => el.classList.remove('stat-animated'), 350);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    // Colors from CSS variables for charts
+    function getCssVar(name, fallback) {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || (fallback || '#0d6efd');
+    }
+    function hexToRgba(hex, alpha) {
+        const h = hex.replace('#','');
+        const bigint = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     const activityCtx = document.getElementById('activityChart');
     const activityLabels = {{ chart_labels|tojson }};
     const activityValues = {{ chart_values|tojson }};
+    const accent = getCssVar('--accent', '#0d6efd');
+    const gridColor = getCssVar('--border-soft', 'rgba(148,163,184,0.2)');
+    const ticksColor = getCssVar('--text-muted', '#64748b');
 
     if (activityCtx) {
         new Chart(activityCtx, {
@@ -338,9 +415,9 @@
                     data: activityValues,
                     tension: 0.3,
                     fill: true,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    pointBackgroundColor: '#0d6efd',
+                    borderColor: accent,
+                    backgroundColor: hexToRgba(accent, 0.12),
+                    pointBackgroundColor: accent,
                 }]
             },
             options: {
@@ -349,7 +426,8 @@
                     legend: { display: false }
                 },
                 scales: {
-                    y: { beginAtZero: true }
+                    x: { grid: { color: gridColor }, ticks: { color: ticksColor } },
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: ticksColor } }
                 }
             }
         });
@@ -367,8 +445,8 @@
                 datasets: [{
                     label: 'Jumlah Sebutan',
                     data: keywordCounts,
-                    backgroundColor: '#20c997',
-                    borderColor: '#20c997',
+                    backgroundColor: accent,
+                    borderColor: accent,
                     borderWidth: 1,
                 }]
             },
@@ -381,7 +459,12 @@
                 scales: {
                     x: {
                         beginAtZero: true,
-                        ticks: { precision: 0 }
+                        ticks: { precision: 0, color: ticksColor },
+                        grid: { color: gridColor }
+                    },
+                    y: {
+                        ticks: { color: ticksColor },
+                        grid: { color: gridColor }
                     }
                 }
             }
@@ -403,7 +486,7 @@
                 event.preventDefault();
                 const range = option.dataset.range || 'all';
                 const value = counts[range] ?? counts.all ?? 0;
-                uniqueValueEl.textContent = value;
+                animateValue(uniqueValueEl, value);
                 uniqueDropdown.textContent = option.textContent.trim();
                 options.forEach((item) => item.classList.remove('active'));
                 option.classList.add('active');
@@ -442,7 +525,7 @@
                 event.preventDefault();
                 const range = option.dataset.range || 'today';
                 const value = messageCounts[range] ?? messageCounts.today ?? 0;
-                messagesValueEl.textContent = value;
+                animateValue(messagesValueEl, value);
                 messagesDropdown.textContent = labelMap[range] || option.textContent.trim();
                 if (messagesDescription) {
                     messagesDescription.textContent = descriptionMap[range] || 'Jumlah pesan pada periode terpilih.';
@@ -455,6 +538,37 @@
             messagesDescription.textContent = descriptionMap.today;
         }
     }
+
+    // Global range chips to update both cards simultaneously
+    (function setupGlobalRange() {
+        const chips = document.querySelectorAll('.js-global-range');
+        if (!chips.length) return;
+        const setActive = (target) => {
+            chips.forEach(c => c.classList.remove('active'));
+            target.classList.add('active');
+        };
+        const clickUniqueOption = (range) => {
+            const uniqueCardEl = document.getElementById('uniqueUsersCard');
+            if (!uniqueCardEl) return;
+            const opt = uniqueCardEl.querySelector(`.js-unique-users-option[data-range="${range}"]`);
+            if (opt) opt.click();
+        };
+        const clickMessagesOption = (range) => {
+            const messagesCardEl = document.getElementById('messagesCard');
+            if (!messagesCardEl) return;
+            const opt = messagesCardEl.querySelector(`.js-messages-option[data-range="${range}"]`);
+            if (opt) opt.click();
+        };
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const range = chip.dataset.range;
+                if (!range) return;
+                setActive(chip);
+                clickUniqueOption(range);
+                clickMessagesOption(range);
+            });
+        });
+    })();
 
 </script>
 {% endblock %}

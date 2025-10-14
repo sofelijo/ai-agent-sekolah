@@ -94,6 +94,17 @@ def strip_markdown(text):
         return str(text)
 
 
+_SIGNATURE_RE = re.compile(r"(?:\s*\n)?[-–—]\s*ASKA\s*$", re.IGNORECASE)
+
+
+def remove_trailing_signature(text: Optional[str]) -> str:
+    """Remove trailing '- ASKA' style signatures from model output."""
+    if not isinstance(text, str):
+        text = str(text or "")
+    cleaned = _SIGNATURE_RE.sub("", text)
+    return cleaned.rstrip()
+
+
 def now_str():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
