@@ -6,6 +6,16 @@ ASKA hadir sebagai **teman belajar, sahabat interaktif, sekaligus pusat informas
 
 Dengan gaya komunikasi yang ramah, responsif, dan sesuai tren generasi saat ini, ASKA tidak hanya memberikan jawaban, tapi juga menciptakan pengalaman belajar yang lebih **asyik, efisien, dan menyenangkan**.
 
+## Fitur Terbaru ASKA
+- 🧭 **Alur Pelaporan Korupsi Terpandu**  
+  Flow `corruption_flow` memandu pelapor langkah demi langkah, lengkap dengan pengecekan niat laporan, panduan cara melapor, hingga pemberian tiket pelacakan yang tersimpan di basis data sekolah.
+- 🧠 **Mode Konseling Psikologis Adaptif**  
+  Flow `psych_flow` mendeteksi tingkat keparahan emosi (general, elevated, critical), menyimpan ringkasan percakapan penting, dan menyajikan dukungan bertahap yang bisa dihentikan atau dilanjutkan sesuai kesiapan pengguna.
+- 🚨 **Deteksi Perundungan & Kekerasan**  
+  Flow `safety_flow` langsung menandai laporan bullying fisik maupun kekerasan seksual, memberi respons penguatan, dan mencatat insiden untuk ditindaklanjuti secara aman.
+- 🎓 **Mode Guru Interaktif**  
+  Flow `teacher_flow` menyediakan latihan soal adaptif: memilih soal berdasarkan kelas/mata pelajaran, memberi umpan balik tiap jawaban, dan mengatur diskusi lanjutan agar siswa bisa belajar mandiri.
+
 ---
 
 ## Tujuan Pembuatan
@@ -12235,7 +12245,5 @@ Berikut adalah daftar lokasi pelaksanaan:
   - B — (–) — 25 peserta didik
   - C — IPA — 0 peserta didik
   - C — IPS — 30 peserta didik
-
-
 
 

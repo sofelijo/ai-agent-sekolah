@@ -128,7 +128,11 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         last_ts = recent_messages.get(normalized_input)
         if last_ts is not None and (now_ts - last_ts) < 60:
             print(f"[{now_str()}] DUPLICATE MESSAGE RECEIVED WITHIN 60s - SKIPPING")
-            return "..."
+            # Let the user know the duplicate message was treated as spammy noise.
+            return (
+                "Uh-oh, chat kamu kembar sama yang barusan nih jadi aku skip dulu biar "
+                "nggak kebaca spam 😅 Cobain kirim versi beda atau tunggu bentar ya ✨"
+            )
         recent_messages[normalized_input] = now_ts
 
         print(f"[{now_str()}] SAVING USER MESSAGE")

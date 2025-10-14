@@ -143,7 +143,12 @@ async def handle_user_query(
         last_ts = recent_messages.get(normalized_input)
         if last_ts is not None and (now_ts - last_ts) < 60:
             print(f"[{now_str()}] DUPLICATE MESSAGE RECEIVED WITHIN 60s - SKIPPING")
-            return False
+            # Send a quick bubble so the user knows the message was skipped as spammy noise.
+            await reply_message.reply_text(
+                "Eh bestie, chat kamu kembar sama yang tadi jadi aku skip dulu biar "
+                "nggak dikira spam 😅 Coba remix dikit atau tunggu bentar ya ✨"
+            )
+            return True
         recent_messages[normalized_input] = now_ts
 
         # Persist user message
@@ -310,4 +315,3 @@ async def handle_user_query(
                     print(f"[{now_str()}] [WARN] Unexpected error while sending technical issue notice: {send_exc}")
 
     return False
-

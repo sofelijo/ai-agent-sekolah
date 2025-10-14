@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,35 +38,101 @@
             --text-color: #333;
             --container-bg: #fff;
             --separator-color: #ccc;
+            --gradient-start: #f8fbff;
+            --gradient-end: #e0f0ff;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 40px 24px;
         }
 
         .login-wrapper {
             animation: fadeIn 0.8s ease-in-out;
+            width: 100%;
+            max-width: 960px;
+        }
+
+        .login-layout {
+            display: flex;
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(6px);
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .info-panel {
+            flex: 1 1 50%;
+            background: rgba(74, 144, 226, 0.08);
+            padding: 48px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .info-panel h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #245a9c;
+        }
+
+        .brand-logos {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .brand-logo {
+            height: 58px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 8px rgba(36, 90, 156, 0.18));
+        }
+
+        .info-panel .badge {
+            background: #fff;
+            color: #245a9c;
+            align-self: flex-start;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 600;
+            box-shadow: 0 6px 12px rgba(36, 90, 156, 0.15);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.02em;
+        }
+
+        .info-panel ul {
+            padding-left: 20px;
+            margin: 0;
+            color: #245a9c;
+            line-height: 1.6;
+        }
+
+        .info-panel li {
+            margin-bottom: 10px;
         }
 
         .login-container {
+            flex: 1 1 50%;
             text-align: center;
             background-color: var(--container-bg);
             padding: 50px 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
         }
 
         .login-logo {
-            max-width: 100px; /* Adjust size as needed */
+            max-width: 100px;
             height: auto;
             margin-bottom: 20px;
         }
@@ -96,6 +162,7 @@
             text-decoration: none;
             transition: all 0.3s ease;
             border: none;
+            position: relative;
         }
 
         .btn-custom i {
@@ -112,6 +179,12 @@
             background-color: #3a7bc8;
             color: #fff;
             transform: translateY(-2px);
+        }
+
+        .btn-custom:focus-visible {
+            outline: 3px solid rgba(36, 144, 226, 0.6);
+            outline-offset: 3px;
+            box-shadow: 0 0 0 4px rgba(36, 144, 226, 0.25);
         }
 
         .btn-telegram {
@@ -159,6 +232,18 @@
             font-size: 0.9rem;
         }
 
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -169,41 +254,96 @@
                 transform: translateY(0);
             }
         }
+
+        @media (max-width: 992px) {
+            .login-layout {
+                flex-direction: column;
+            }
+
+            .info-panel,
+            .login-container {
+                flex: none;
+                padding: 36px 28px;
+            }
+
+            body {
+                padding: 32px 16px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .login-container {
+                padding: 32px 24px;
+            }
+
+            .info-panel {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="login-wrapper">
-        <div class="login-container">
-            
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                {% for category, message in messages %}
-                  {% if category == 'error' %}
-                    <div class="flash-error">{{ message }}</div>
+        <div class="login-layout">
+            <div class="info-panel">
+                <div class="brand-logos" aria-label="Didukung oleh Dinas Pendidikan DKI Jakarta">
+                    <img src="{{ url_for('static', filename='logo_dinas.png') }}" alt="Logo Dinas Pendidikan DKI Jakarta" class="brand-logo">
+                </div>
+                <span class="badge">
+                    <i class="fa-solid fa-shield-heart" aria-hidden="true"></i>
+                    Official SDN Semper Barat 01
+                </span>
+                <h2>ASKA mendampingi murid dan orang tua dalam pembelajaran digital yang aman.</h2>
+                <ul>
+                    <li>Sinkron dengan akun belajar.id resmi sekolah.</li>
+                    <li>Informasi berbasis regulasi terbaru.</li>
+                    <li>Dukungan tim sekolah jika ada kendala akses.</li>
+                </ul>
+            </div>
+            <div class="login-container">
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      {% if category == 'error' %}
+                        <div class="flash-error" role="alert" aria-live="assertive">{{ message }}</div>
+                      {% endif %}
+                    {% endfor %}
                   {% endif %}
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
+                {% endwith %}
 
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="ASKA Logo" class="login-logo">
-            <h1>ASKA</h1>
-            <p class="subtitle">Agen AI Sekolah Kita <br>Created by SDN Semper Barat 01</p>
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="ASKA Logo" class="login-logo">
+                <h1>ASKA</h1>
+                <p class="subtitle">Agen AI Sekolah Kita <br>Created by SDN Semper Barat 01</p>
 
-            <a href="/login" class="btn btn-custom btn-login mb-3">
-                <i class="fab fa-google"></i>
-                Login dengan Akun belajar.id
-            </a>
-            
-            <div class="separator">atau</div>
+                <a href="/login"
+                   class="btn btn-custom btn-login mb-3"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="top"
+                   title="Autentikasi aman menggunakan akun belajar.id melalui Google"
+                   aria-describedby="google-login-help">
+                    <i class="fab fa-google" aria-hidden="true"></i>
+                    Login dengan Akun belajar.id
+                </a>
+                <span id="google-login-help" class="visually-hidden">Kami hanya meminta izin dasar untuk memastikan Anda bagian dari SDN Semper Barat 01.</span>
+                
+                <div class="separator">atau</div>
 
-            <a href="https://t.me/tanyaaska_bot" class="btn btn-custom btn-telegram" target="_blank">
-                <i class="fab fa-telegram"></i>
-                Akses via Telegram
-            </a>
+                <a href="https://t.me/tanyaaska_bot" class="btn btn-custom btn-telegram" target="_blank">
+                    <i class="fab fa-telegram" aria-hidden="true"></i>
+                    Akses via Telegram
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach((tooltipTriggerEl) => {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    </script>
 </body>
 </html>
