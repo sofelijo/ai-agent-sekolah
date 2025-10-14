@@ -1,69 +1,15 @@
 # web_aska/handlers.py
 import asyncio
-import os
-import tempfile
 import time
-from typing import List, Optional, Set
+from typing import Optional
 
 from dotenv import load_dotenv
-from openai import OpenAI
+# from openai import OpenAI  # not used in web handler
 
 from ai_core import build_qa_chain
-from db import save_chat, get_chat_history, record_bullying_report, record_psych_report
-from responses import (
-    ASKA_NO_DATA_RESPONSE,
-    ASKA_TECHNICAL_ISSUE_RESPONSE,
-    contains_inappropriate_language,
-    get_advice_response,
-    CATEGORY_PHYSICAL,
-    CATEGORY_SEXUAL,
-    detect_bullying_category,
-    get_bullying_ack_response,
-    get_relationship_advice_response,
-    get_acknowledgement_response,
-    get_farewell_response,
-    get_greeting_response,
-    get_time_based_greeting_response,
-    get_self_intro_response,
-    get_status_response,
-    get_thank_you_response,
-    is_acknowledgement_message,
-    is_farewell_message,
-    is_greeting_message,
-    is_relationship_question,
-    is_self_intro_message,
-    is_status_message,
-    is_thank_you_message,
-    extract_grade_hint,
-    extract_subject_hint,
-    format_question_intro,
-    grade_response,
-    generate_discussion_reply,
-    is_teacher_discussion_request,
-    is_teacher_next,
-    is_teacher_start,
-    is_teacher_stop,
-    pick_question,
-    SEVERITY_CRITICAL,
-    SEVERITY_ELEVATED,
-    SEVERITY_GENERAL,
-    classify_message_severity,
-    detect_psych_intent,
-    get_psych_closing_message,
-    get_psych_confirmation_prompt,
-    get_psych_critical_message,
-    get_psych_stage_prompt,
-    get_psych_validation,
-    get_psych_support_message,
-    is_psych_negative_confirmation,
-    is_psych_positive_confirmation,
-    is_psych_stop_request,
-    psych_next_stage,
-    psych_stage_exists,
-    summarize_psych_message,
-)
+from db import save_chat, get_chat_history
+from responses import ASKA_NO_DATA_RESPONSE, ASKA_TECHNICAL_ISSUE_RESPONSE
 from utils import (
-    IMG_MD,
     normalize_input,
     strip_markdown,
     now_str,
@@ -72,11 +18,20 @@ from utils import (
     rewrite_schedule_query,
     replace_bot_mentions,
 )
+from flows.safety_flow import handle_bullying
+from flows.corruption_flow import handle_corruption
+from flows.psych_flow import handle_psych
+from flows.teacher_flow import handle_teacher
+from flows.smalltalk_flow import handle_smalltalk
 
 # --- Mock Telegram Objects ---
 class MockBot:
     def __init__(self, username="ASKA_WEB"):
         self.username = username
+
+    async def send_chat_action(self, chat_id, action):
+        # No-op for web environment
+        return None
 
 class MockUser:
     def __init__(self, user_id, first_name="WebUser", username=None):
@@ -88,6 +43,15 @@ class MockMessage:
     def __init__(self, user, text):
         self.from_user = user
         self.text = text
+
+    # Adapter to capture replies from flow modules
+    def _init_capture(self):
+        self._last_reply: Optional[str] = None
+
+    async def reply_text(self, text, parse_mode=None):
+        # Store stripped markdown to keep web output clean
+        self._last_reply = strip_markdown(text)
+        return None
 
 class MockUpdate:
     def __init__(self, message):
@@ -125,11 +89,7 @@ PSYCH_TIMEOUT_MESSAGE = (
     "Kapan pun butuh cerita lagi langsung chat ASKA. Sampai jumpa! 🤗💖"
 )
 
-PSYCH_SEVERITY_RANK = {
-    SEVERITY_GENERAL: 0,
-    SEVERITY_ELEVATED: 1,
-    SEVERITY_CRITICAL: 2,
-}
+# Psych severity rank handled inside shared flows (responses/psychologist)
 
 async def process_web_request(user_id: int, user_input: str, username: str = "WebUser") -> str:
     """Main function to handle a chat request from the web API."""
@@ -174,194 +134,66 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         print(f"[{now_str()}] SAVING USER MESSAGE")
         chat_log_id = save_chat(user_id, username, normalized_input, role="user", topic="web")
 
-        bullying_category = detect_bullying_category(normalized_input)
-        if bullying_category:
-            print(f"[{now_str()}]BULLYING REPORT DETECTED ({bullying_category.upper()}) - FLAGGING CHAT")
-            severity = "critical" if bullying_category == CATEGORY_SEXUAL else (
-                "high" if bullying_category == CATEGORY_PHYSICAL else "medium"
-            )
-            if chat_log_id is not None:
-                try:
-                    record_bullying_report(
-                        chat_log_id,
-                        user_id,
-                        username,
-                        normalized_input,
-                        category=bullying_category,
-                        severity=severity,
-                        metadata={"source": "web"},
-                    )
-                except Exception as exc:
-                    print(f"[{now_str()}] [ERROR] Failed to record bullying report: {exc}")
-            else:
-                print(f"[{now_str()}] [WARN] Could not persist bullying report because chat_log_id missing")
-            response = get_bullying_ack_response(bullying_category)
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
+        # 1) Bullying / Safety (reuse shared flow)
+        reply_target = MockMessage(user, "")
+        reply_target._init_capture()
+        handled = await handle_bullying(
+            update=update,
+            context=context,
+            reply_message=reply_target,
+            raw_input=raw_input,
+            normalized_input=normalized_input,
+            user_id=user_id,
+            username=username,
+            chat_log_id=chat_log_id,
+            source="web",
+            mark_responded=lambda: None,
+        )
+        if handled:
+            print(f"[{now_str()}] WEB FLOW HANDLED: bullying")
+            return reply_target._last_reply or ""
 
-        psych_sessions = context.chat_data.setdefault("psych_sessions", {})
-        psych_session = psych_sessions.get(storage_key)
+        # 2) Corruption Reporting Flow (reuse shared flow)
+        reply_target = MockMessage(user, "")
+        reply_target._init_capture()
+        handled = await handle_corruption(
+            update=update,
+            context=context,
+            reply_message=reply_target,
+            raw_input=raw_input,
+            normalized_input=normalized_input,
+            user_id=user_id,
+            username=username,
+            storage_key=storage_key,
+            source="web",
+            mark_responded=lambda: None,
+        )
+        if handled:
+            print(f"[{now_str()}] WEB FLOW HANDLED: corruption")
+            return reply_target._last_reply or ""
 
-        if psych_session:
-            last_bot_time = psych_session.get("last_bot_time")
-            if last_bot_time and (now_ts - last_bot_time) > PSYCH_TIMEOUT_SECONDS:
-                response = PSYCH_TIMEOUT_MESSAGE
-                save_chat(user_id, "ASKA", response, role="aska")
-                psych_sessions.pop(storage_key, None)
-                psych_session = None
-                return response
-
-        def _persist_psych_report(
-            message_text: str,
-            *,
-            severity_value: str,
-            stage_label: Optional[str],
-            status_value: str = "open",
-            base_chat_log_id: Optional[int] = None,
-        ) -> None:
-            if not message_text:
-                return
-            target_chat_log_id = base_chat_log_id if base_chat_log_id is not None else chat_log_id
-            try:
-                record_psych_report(
-                    target_chat_log_id,
-                    user_id,
-                    username,
-                    message_text,
-                    severity=severity_value,
-                    status=status_value,
-                    summary=summarize_psych_message(message_text),
-                    metadata={
-                        "stage": stage_label,
-                        "source": "web",
-                    },
-                )
-            except Exception as exc:
-                print(f"[{now_str()}] [ERROR] Failed to record psych report: {exc}")
-
-        if psych_session and psych_session.get("state") == "awaiting_confirmation":
-            if is_psych_positive_confirmation(raw_input):
-                severity_value = psych_session.get("severity", SEVERITY_GENERAL)
-                first_stage = psych_next_stage(None)
-                psych_session["state"] = "ongoing"
-                psych_session["stage"] = first_stage
-                validation = get_psych_validation()
-                response_parts = [validation]
-                if severity_value == SEVERITY_CRITICAL:
-                    response_parts.append(get_psych_critical_message())
-                if first_stage and psych_stage_exists(first_stage):
-                    support_text = get_psych_support_message(
-                        psych_session.get("initial_message", ""),
-                        stage=first_stage,
-                        severity=severity_value,
-                    )
-                    if support_text:
-                        response_parts.append(support_text)
-                    response_parts.append(get_psych_stage_prompt(first_stage))
-                else:
-                    response_parts.append(get_psych_closing_message())
-                    psych_sessions.pop(storage_key, None)
-                if initial_message := psych_session.get("initial_message"):
-                    initial_chat_log_id = psych_session.get("initial_chat_log_id")
-                    _persist_psych_report(
-                        initial_message,
-                        severity_value=severity_value,
-                        stage_label="initial",
-                        base_chat_log_id=initial_chat_log_id,
-                    )
-                    psych_session.pop("initial_message", None)
-                    psych_session.pop("initial_chat_log_id", None)
-                reply_text = "\n\n".join(response_parts)
-                save_chat(user_id, "ASKA", reply_text, role="aska")
-                if storage_key in psych_sessions:
-                    psych_sessions[storage_key]["last_bot_time"] = time.time()
-                return reply_text
-
-            if is_psych_negative_confirmation(raw_input):
-                severity_value = psych_session.get("severity", SEVERITY_GENERAL)
-                response = (
-                    "Oke, tidak apa-apa. Kalau nanti butuh teman cerita lagi, ASKA siap standby 😊"
-                )
-                if severity_value == SEVERITY_CRITICAL:
-                    response = (
-                        f"{response}\n\n{get_psych_critical_message()}"
-                    )
-                save_chat(user_id, "ASKA", response, role="aska")
-                psych_sessions.pop(storage_key, None)
-                return response
-
-            reminder = "Kalau mau lanjut laporan konseling, tinggal jawab 'iya'. Kalau enggak, bilang aja 'nggak' ya."
-            save_chat(user_id, "ASKA", reminder, role="aska")
-            psych_session["last_bot_time"] = time.time()
-            return reminder
-
-        if psych_session and psych_session.get("state") == "ongoing":
-            if is_psych_stop_request(raw_input):
-                closing = get_psych_closing_message()
-                if psych_session.get("severity") == SEVERITY_CRITICAL:
-                    closing = f"{closing}\n\n{get_psych_critical_message()}"
-                save_chat(user_id, "ASKA", closing, role="aska")
-                psych_sessions.pop(storage_key, None)
-                return closing
-
-            current_severity = psych_session.get("severity", SEVERITY_GENERAL)
-            message_severity = classify_message_severity(raw_input, default=current_severity)
-            if PSYCH_SEVERITY_RANK.get(message_severity, 0) > PSYCH_SEVERITY_RANK.get(current_severity, 0):
-                psych_session["severity"] = message_severity
-                current_severity = message_severity
-
-            current_stage = psych_session.get("stage")
-            if not current_stage or not psych_stage_exists(current_stage):
-                current_stage = psych_next_stage(None)
-                psych_session["stage"] = current_stage
-
-            _persist_psych_report(
-                raw_input,
-                severity_value=current_severity,
-                stage_label=current_stage,
-            )
-
-            response_parts = [get_psych_validation()]
-            if current_severity == SEVERITY_CRITICAL:
-                response_parts.append(get_psych_critical_message())
-
-            support_stage = current_stage
-            support_text = get_psych_support_message(
-                raw_input,
-                stage=support_stage,
-                severity=current_severity,
-            )
-            if support_text:
-                response_parts.append(support_text)
-
-            next_stage_value = psych_next_stage(current_stage) if current_stage else None
-            if next_stage_value and psych_stage_exists(next_stage_value):
-                psych_session["stage"] = next_stage_value
-                response_parts.append(get_psych_stage_prompt(next_stage_value))
-            else:
-                response_parts.append(get_psych_closing_message())
-                psych_sessions.pop(storage_key, None)
-
-            reply_text = "\n\n".join(response_parts)
-            save_chat(user_id, "ASKA", reply_text, role="aska")
-            if storage_key in psych_sessions:
-                psych_sessions[storage_key]["last_bot_time"] = time.time()
-            return reply_text
-
-        if not psych_session:
-            psych_severity = detect_psych_intent(raw_input)
-            if psych_severity:
-                confirmation = get_psych_confirmation_prompt(psych_severity)
-                psych_sessions[storage_key] = {
-                    "state": "awaiting_confirmation",
-                    "severity": psych_severity,
-                    "stage": None,
-                    "initial_message": raw_input,
-                    "initial_chat_log_id": chat_log_id,
-                }
-                save_chat(user_id, "ASKA", confirmation, role="aska")
-                psych_sessions[storage_key]["last_bot_time"] = time.time()
-                return confirmation
+        # 3) Psych / counseling (reuse shared flow)
+        reply_target = MockMessage(user, "")
+        reply_target._init_capture()
+        handled = await handle_psych(
+            update=update,
+            context=context,
+            reply_message=reply_target,
+            raw_input=raw_input,
+            normalized_input=normalized_input,
+            user_id=user_id,
+            username=username,
+            storage_key=storage_key,
+            chat_log_id=chat_log_id,
+            source="web",
+            mark_responded=lambda: None,
+            timeout_seconds=PSYCH_TIMEOUT_SECONDS,
+            timeout_message=PSYCH_TIMEOUT_MESSAGE,
+            now_ts=now_ts,
+        )
+        if handled:
+            print(f"[{now_str()}] WEB FLOW HANDLED: psych")
+            return reply_target._last_reply or ""
 
         teacher_sessions = context.chat_data.setdefault("teacher_sessions", {})
         teacher_session = teacher_sessions.get(storage_key)
@@ -429,88 +261,40 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             teacher_session["last_bot_time"] = time.time()
             return intro
 
-        if teacher_session and teacher_session.get("question"):
-            question = teacher_session["question"]
-            conversation: List[dict[str, str]] = teacher_session.setdefault("conversation", [])
+        # 4) Teacher mode (reuse shared flow)
+        reply_target = MockMessage(user, "")
+        reply_target._init_capture()
+        handled = await handle_teacher(
+            update=update,
+            context=context,
+            reply_message=reply_target,
+            raw_input=raw_input,
+            normalized_input=normalized_input,
+            user_id=user_id,
+            storage_key=storage_key,
+            mark_responded=lambda: None,
+            timeout_seconds=TEACHER_TIMEOUT_SECONDS,
+            timeout_message=TEACHER_TIMEOUT_MESSAGE,
+        )
+        if handled:
+            print(f"[{now_str()}] WEB FLOW HANDLED: teacher")
+            return reply_target._last_reply or ""
 
-            if is_teacher_discussion_request(raw_input):
-                response_text = generate_discussion_reply(question, conversation, raw_input)
-                conversation.append({"role": "user", "content": raw_input})
-                conversation.append({"role": "assistant", "content": response_text})
-                if len(conversation) > TEACHER_CONVERSATION_LIMIT * 2:
-                    conversation[:] = conversation[-TEACHER_CONVERSATION_LIMIT * 2 :]
-                save_chat(user_id, "ASKA", response_text, role="aska")
-                return response_text
-
-            grade_hint = teacher_session.get("grade_hint")
-            subject_hint = teacher_session.get("subject_hint")
-            teacher_session["attempt"] = teacher_session.get("attempt", 1) + 1
-
-            conversation.append({"role": "user", "content": raw_input})
-
-            correct, feedback = grade_response(question, raw_input)
-
-            if correct:
-                next_question = pick_question(grade_hint, subject_hint, raw_input)
-                teacher_session["question"] = next_question
-                teacher_session["attempt"] = 1
-                teacher_session["subject_hint"] = subject_hint or next_question.subject
-                next_intro = format_question_intro(next_question, attempt_number=2)
-                feedback = f"{feedback}\n\nSoal berikutnya:\n{next_intro}"
-            else:
-                feedback = (
-                    f"{feedback}\n\nBoleh coba lagi atau ketik 'lanjut soal' untuk ganti pertanyaan."
-                )
-
-            conversation.append({"role": "assistant", "content": feedback})
-            if len(conversation) > TEACHER_CONVERSATION_LIMIT * 2:
-                conversation[:] = conversation[-TEACHER_CONVERSATION_LIMIT * 2 :]
-            teacher_session["conversation"] = conversation
-
-            save_chat(user_id, "ASKA", feedback, role="aska")
-            if storage_key in teacher_sessions:
-                teacher_sessions[storage_key]["last_bot_time"] = time.time()
-            return feedback
-
-        if contains_inappropriate_language(normalized_input):
-            response = get_advice_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_relationship_question(normalized_input):
-            response = get_relationship_advice_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_greeting_message(normalized_input):
-            response = get_time_based_greeting_response(normalized_input) or get_greeting_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_thank_you_message(normalized_input):
-            response = get_thank_you_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_acknowledgement_message(normalized_input):
-            response = get_acknowledgement_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_farewell_message(normalized_input):
-            response = get_farewell_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_self_intro_message(normalized_input):
-            response = get_self_intro_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
-
-        if is_status_message(normalized_input):
-            response = get_status_response()
-            save_chat(user_id, "ASKA", response, role="aska")
-            return response
+        # 5) Smalltalk / canned (reuse shared flow)
+        reply_target = MockMessage(user, "")
+        reply_target._init_capture()
+        handled = await handle_smalltalk(
+            update=update,
+            context=context,
+            reply_message=reply_target,
+            normalized_input=normalized_input,
+            user_id=user_id,
+            username=username,
+            mark_responded=lambda: None,
+        )
+        if handled:
+            print(f"[{now_str()}] WEB FLOW HANDLED: smalltalk")
+            return reply_target._last_reply or ""
 
         normalized_input = rewrite_schedule_query(normalized_input)
 
