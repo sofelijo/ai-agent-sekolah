@@ -7,7 +7,7 @@ from authlib.integrations.flask_client import OAuth
 
 # Import from within the project
 from .handlers import process_web_request
-from db import get_or_create_web_user, get_chat_history
+from db import get_or_create_web_user, get_chat_history, get_corruption_report
 
 def create_app() -> Flask:
     """Create and configure an instance of the Flask application."""
@@ -128,5 +128,22 @@ def create_app() -> Flask:
                 item['created_at'] = item['created_at'].isoformat()
 
         return jsonify(history)
+
+    @app.route("/cek-laporan", methods=["GET"])
+    def cek_laporan():
+        ticket = request.args.get("ticket", "").strip()
+        report = None
+        error = None
+
+        if ticket:
+            report = get_corruption_report(ticket)
+            if not report:
+                error = "Nomor tiketnya belum ketemu nih. Coba pastiin lagi atau cek huruf kapitalnya ya!"
+
+        return render_template("cek_laporan.html", ticket=ticket, report=report, error=error)
+
+    @app.route("/cek-laporan/<ticket_id>")
+    def cek_laporan_detail(ticket_id: str):
+        return redirect(url_for("cek_laporan", ticket=ticket_id, _anchor="hasil"))
 
     return app

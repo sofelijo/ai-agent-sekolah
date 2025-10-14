@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Status Laporan | ASKA</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <!-- SEO Meta -->
+    <meta name="description" content="Pantau progres laporan korupsi Anda bersama ASKA tanpa perlu login. Masukkan nomor tiket atau gunakan link langsung untuk cek status terkini.">
+    <meta name="keywords" content="ASKA, laporan korupsi, cek status laporan, anti korupsi, SDN Semper Barat 01">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <!-- Lordicon -->
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --primary-color: #4a90e2;
+            --accent-color: #6c63ff;
+            --text-dark: #1f2933;
+            --text-light: #ffffff;
+            --border-soft: rgba(74, 144, 226, 0.2);
+        }
+
+        body {
+            background: var(--bg-color);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            color: var(--text-dark);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 28px;
+            padding: 28px 16px 48px;
+        }
+
+        .checker-wrapper {
+            max-width: 960px;
+            width: 100%;
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, rgba(74, 144, 226, 0.95), rgba(108, 99, 255, 0.9));
+            color: var(--text-light);
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 50px rgba(74, 144, 226, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.25), transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-icon {
+            width: 90px;
+            height: 90px;
+        }
+
+        .hero-title {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            font-size: 2.2rem;
+        }
+
+        .hero-text {
+            opacity: 0.95;
+            max-width: 520px;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .checker-card {
+            margin-top: -40px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 16px 40px rgba(31, 41, 51, 0.08);
+            border: 1px solid var(--border-soft);
+        }
+
+        .ticket-input {
+            border-radius: 16px;
+            border: 1px solid #d1d5db;
+            padding: 14px 18px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .ticket-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.12);
+        }
+
+        .btn-checker {
+            border-radius: 16px;
+            padding: 14px 28px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .status-card {
+            border-radius: 20px;
+            border: 1px solid var(--border-soft);
+            padding: 28px;
+            background: linear-gradient(160deg, rgba(74, 144, 226, 0.05), rgba(255, 255, 255, 0.85));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .status-open { background: rgba(255, 170, 0, 0.18); color: #b45309; }
+        .status-in_progress { background: rgba(59, 130, 246, 0.18); color: #1d4ed8; }
+        .status-resolved { background: rgba(16, 185, 129, 0.18); color: #047857; }
+        .status-archived { background: rgba(156, 163, 175, 0.18); color: #374151; }
+
+        .detail-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6b7280;
+        }
+
+        .detail-value {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #1f2933;
+        }
+
+        .timeline-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-soft);
+        }
+
+        .empty-state {
+            border-radius: 16px;
+            background: rgba(74, 144, 226, 0.1);
+            padding: 20px;
+            color: #1f2933;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                gap: 12px;
+                padding: 12px 12px 28px;
+            }
+            .hero-card {
+                padding: 18px 18px 20px;
+                border-radius: 20px;
+            }
+            .hero-title {
+                font-size: 1.65rem;
+                margin-bottom: 10px !important;
+            }
+            .hero-text {
+                font-size: 0.95rem;
+                line-height: 1.45;
+            }
+            .hero-icon {
+                width: 70px;
+                height: 70px;
+                flex-shrink: 0;
+            }
+            .checker-card {
+                padding: 18px 16px;
+                margin-top: -18px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .hero-wrapper {
+                align-items: flex-start !important;
+            }
+            .hero-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="checker-wrapper">
+        <section class="hero-card mb-4">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-4 hero-wrapper">
+                <div class="hero-icon">
+                    <lord-icon
+                        src="https://cdn.lordicon.com/mfjuupec.json"
+                        trigger="hover"
+                        style="width:90px;height:90px">
+                    </lord-icon>
+                </div>
+                <div>
+                    <h1 class="hero-title display-6 mb-3">Track Progres Laporanmu 🎯</h1>
+                    <p class="hero-text mb-0">
+                        Masukin nomor tiket atau pakai link langsung buat ngecek progres laporan korupsi kamu.
+                        Gak perlu login—simple, cepat, dan tetap aman!
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="checker-card">
+            <form method="get" class="mb-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-lg-8">
+                        <label for="ticket" class="form-label text-uppercase fw-semibold text-secondary small mb-2">
+                            Masukkan Nomor Tiket
+                        </label>
+                        <input
+                            type="text"
+                            id="ticket"
+                            name="ticket"
+                            class="form-control ticket-input"
+                            placeholder="Contoh: 5F3A7C"
+                            value="{{ ticket }}"
+                            required
+                        >
+                    </div>
+                    <div class="col-12 col-lg-4 d-grid">
+                        <label class="form-label text-uppercase fw-semibold text-secondary small mb-2 opacity-0">
+                            .
+                        </label>
+                        <button type="submit" class="btn btn-primary btn-checker">
+                            🔍 Cek Status
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% if error %}
+            <div class="empty-state" role="alert">
+                <strong>Oops!</strong> {{ error }}
+            </div>
+            {% endif %}
+
+            <div id="hasil"></div>
+
+            {% if report %}
+            <div class="status-card mt-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                    <div>
+                        <span class="detail-label">Nomor Tiket</span>
+                        <p class="detail-value mb-0 fs-4">{{ report.ticket_id }}</p>
+                    </div>
+                    <span class="status-pill status-{{ report.status|replace(' ', '_') }}">
+                        {% if report.status == 'open' %}🚦 Pending Review
+                        {% elif report.status == 'in_progress' %}🛠️ Lagi Diproses
+                        {% elif report.status == 'resolved' %}✅ Selesai
+                        {% elif report.status == 'archived' %}🗃️ Diarsipkan
+                        {% else %}📌 Status: {{ report.status|capitalize }}
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="timeline-card h-100">
+                            <h2 class="h6 text-uppercase text-secondary fw-bold mb-3">Detail Cepat</h2>
+                            <div class="mb-3">
+                                <div class="detail-label">Yang Dilaporkan</div>
+                                <div class="detail-value">{{ report.involved or '-' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="detail-label">Lokasi Kejadian</div>
+                                <div class="detail-value">{{ report.location or '-' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="detail-label">Waktu Kejadian</div>
+                                <div class="detail-value">{{ report.time or '-' }}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">Update Terakhir</div>
+                                <div class="detail-value">
+                                    {% if report.updated_at %}
+                                        {{ report.updated_at.strftime('%d %B %Y • %H:%M') }} WIB
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="timeline-card h-100">
+                            <h2 class="h6 text-uppercase text-secondary fw-bold mb-3">Chronology Drop</h2>
+                            <p class="detail-value" style="white-space: pre-line;">{{ report.chronology or 'Belum ada kronologi yang kamu masukin.' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 rounded-4" style="background: rgba(255,255,255,0.75); border:1px dashed var(--border-soft);">
+                    <h2 class="h6 text-uppercase text-secondary fw-bold mb-2">Timeline</h2>
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <strong>🎟️ Dibuat:</strong>
+                            {% if report.created_at %}
+                                {{ report.created_at.strftime('%d %B %Y • %H:%M') }} WIB
+                            {% else %}
+                                -
+                            {% endif %}
+                        </li>
+                        <li>
+                            <strong>🛰️ Status Now:</strong>
+                            {% if report.status == 'open' %}
+                                Lagi di-review tim sekolah. Stay tuned, kita lagi kumpulin bukti.
+                            {% elif report.status == 'in_progress' %}
+                                Tim lagi turun tangan buat klarifikasi dan pengumpulan bukti.
+                            {% elif report.status == 'resolved' %}
+                                Case closed! Tim udah ambil tindakan dan laporan selesai.
+                            {% elif report.status == 'archived' %}
+                                Laporan ini udah disimpan di arsip. Kalau butuh follow-up, kontak tim admin ya.
+                            {% else %}
+                                Status terbaru belum tersedia. Hubungi admin kalau butuh bantuan.
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            {% elif ticket and not error %}
+            <div class="empty-state" role="status">
+                Data lagi dimuat... kalau loading kelamaan, refresh atau coba lagi nanti ya!
+            </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <footer class="text-center text-muted small">
+        Made with ❤️ by Tim ASKA. Privasi kamu aman terkendali.
+    </footer>
+</body>
+</html>

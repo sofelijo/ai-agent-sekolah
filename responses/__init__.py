@@ -51,7 +51,13 @@ from .psychologist import (
     summarize_for_dashboard as summarize_psych_message,
     generate_support_message as get_psych_support_message,
 )
-from .corruption import CorruptionResponse, is_corruption_report_intent
+from .corruption import (
+    CorruptionResponse,
+    is_corruption_report_intent,
+    is_corruption_howto_request,
+    get_corruption_howto_response,
+    mentions_corruption_only,
+)
 
 
 __all__ = [
@@ -108,5 +114,8 @@ __all__ = [
     "is_status_message",
     "is_thank_you_message",
     "is_corruption_report_intent",
+    "is_corruption_howto_request",
+    "get_corruption_howto_response",
+    "mentions_corruption_only",
     "CorruptionResponse",
 ]

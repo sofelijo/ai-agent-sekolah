@@ -55,6 +55,32 @@ Menjadi **sobat belajar dan sahabat digital sekolah** yang mampu:
 - Menjadi **teman belajar yang cerdas, asyik, dan aman**.  
 - Mewujudkan **sekolah digital berbasis AI** yang siap menghadapi era transformasi teknologi.  
 
+## Panduan Lapor Korupsi via ASKA (Pendidikan Jakarta Utara)
+
+ASKA menyediakan alur pelaporan korupsi/pungli/gratifikasi yang ramah pengguna dan menjaga kerahasiaan pelapor.
+
+Langkah cepat:
+
+1. Mulai: ketik "lapor korupsi" di chat ASKA.
+2. Jawab pertanyaan inti ASKA:
+   - Siapa yang terlibat (jabatan/unit jika ada)
+   - Lokasi kejadian (ruang/bagian/instansi)
+   - Waktu kejadian (tanggal dan jam perkiraan)
+   - Kronologi lengkap (ringkas, faktual)
+3. Konfirmasi ringkasan: balas "benar" untuk simpan, "edit" untuk mengubah, atau "batal" untuk membatalkan.
+4. Setelah tersimpan, pelapor menerima nomor tiket dan tautan untuk pemantauan.
+5. Pantau progres tanpa login melalui halaman cek status: `/cek-laporan` (atau tautan langsung `/cek-laporan/<TIKET>`).
+
+Tips penguatan bukti (tanpa melanggar privasi):
+- Sebut unit/jabatan, lokasi spesifik, dan waktu sedetail mungkin.
+- Hindari menyertakan data pribadi yang tidak perlu.
+- Dokumentasi pendukung boleh diringkas pada kronologi (tanpa mengunggah berkas di chat).
+
+Catatan wilayah: Skema ini difokuskan untuk lingkungan pendidikan Jakarta Utara. Tindak lanjut dilakukan sesuai prosedur sekolah dan peraturan yang berlaku.
+
+Quick action (saran untuk balasan cepat):
+- “Mau lapor resmi via ASKA? Ketik: lapor korupsi.”
+
 
 # Profil Sekolah
 
@@ -12209,7 +12235,6 @@ Berikut adalah daftar lokasi pelaksanaan:
   - B — (–) — 25 peserta didik
   - C — IPA — 0 peserta didik
   - C — IPS — 30 peserta didik
-
 
 
 

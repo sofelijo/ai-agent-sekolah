@@ -326,6 +326,34 @@ def record_corruption_report(data: Dict[str, Any]) -> Optional[int]:
     conn.commit()
     return int(row[0]) if row else None
 
+def get_corruption_report(ticket_id: str) -> Optional[Dict[str, Any]]:
+    """Ambil detail laporan korupsi berdasarkan tiket."""
+    if not ticket_id:
+        return None
+
+    normalized_ticket = ticket_id.strip().upper()
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                ticket_id,
+                status,
+                involved,
+                location,
+                time,
+                chronology,
+                created_at,
+                updated_at
+            FROM corruption_reports
+            WHERE ticket_id = %s
+            """,
+            (normalized_ticket,),
+        )
+        report = cur.fetchone()
+
+    return report
+
 # Call schema functions on startup
 _ensure_bullying_schema()
 _ensure_psych_schema()
