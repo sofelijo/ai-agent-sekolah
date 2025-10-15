@@ -12,6 +12,8 @@
 - Bot Telegram aktif 24 jam via `systemd`
 - Web Dashboard untuk administrasi
 - Web App untuk antarmuka chat
+- Integrasi opsional dengan Twitter/X untuk balas mention otomatis
+- Auto-post tweet terjadwal (opsional), bisa pakai RAG untuk nyusun info sekolah
 
 ---
 
@@ -46,6 +48,19 @@ DB_PASS=password
 DB_HOST=127.0.0.1
 DB_PORT=5432
 # Opsional kalau provider butuh TLS: DB_SSLMODE=require
+
+# Integrasi Twitter/X (opsional)
+TWITTER_BEARER_TOKEN=ISI_DARI_PORTAL_DEVELOPER_X
+TWITTER_API_KEY=ISI_DARI_PORTAL_DEVELOPER_X
+TWITTER_API_SECRET=ISI_DARI_PORTAL_DEVELOPER_X
+TWITTER_ACCESS_TOKEN=ISI_DARI_PORTAL_DEVELOPER_X
+TWITTER_ACCESS_SECRET=ISI_DARI_PORTAL_DEVELOPER_X
+TWITTER_POLL_INTERVAL=90
+TWITTER_AUTOPOST_ENABLED=false
+TWITTER_AUTOPOST_INTERVAL=3600
+TWITTER_AUTOPOST_MESSAGES_PATH=twitter_posts.txt
+TWITTER_AUTOPOST_RECENT_LIMIT=8
+TWITTER_SPAM_KEYWORDS=promo,follback,followback
 
 # Konfigurasi dashboard Flask
 DASHBOARD_SECRET_KEY=ganti-dengan-string-acak-minimal-32-karakter
@@ -288,6 +303,24 @@ sudo systemctl restart ai-bots.service
 sudo systemctl restart aska-dashboard.service
 sudo systemctl restart aska-webapp.service
 ```
+
+---
+
+## 🐦 Integrasi Twitter/X (Opsional)
+
+ASKA bisa ikut menyapa warga sekolah di Twitter/X dengan membalas mention secara otomatis.
+
+1. Pastikan variabel `TWITTER_*` di `.env` sudah terisi dari [portal developer X](https://developer.x.com/).
+2. Aktifkan virtualenv dan jalankan `python twitter_bot.py` untuk memulai worker penjawab mention.
+3. Secara default bot akan mengecek mention baru setiap 90 detik. Atur dengan `TWITTER_POLL_INTERVAL`.
+4. ID mention terakhir disimpan di `twitter_state.json` (bisa diubah lewat `TWITTER_STATE_PATH`).
+5. Untuk auto-post, isi file `twitter_posts.txt` (satu tweet per baris, bisa pakai `#` untuk komentar), set `TWITTER_AUTOPOST_ENABLED=true`, dan sesuaikan interval lewat `TWITTER_AUTOPOST_INTERVAL` (detik).
+6. Mau auto-post berbasis pengetahuan sekolah? Awali baris dengan `RAG:` (mis. `RAG: Ringkas info penting minggu ini`), ASKA otomatis menarik jawaban dari `kecerdasan.md`.
+7. Gunakan placeholder seperti `{{DATE}}`, `{{TIME}}`, `{{DAY}}`, `{{DATETIME}}`, `{{STAMP}}`, atau `{{UNIQUE}}` supaya tweet selalu beda di setiap putaran (cache duplikat dikontrol `TWITTER_AUTOPOST_RECENT_LIMIT`).
+8. Setelah mengubah daftar pesan auto-post, restart worker agar daftar terbaru dimuat ulang.
+9. Untuk memblokir mention spam tertentu, isi `TWITTER_SPAM_KEYWORDS` dengan daftar kata kunci (dipisah koma). ASKA juga memiliki filter bawaan untuk permintaan follow/promo.
+
+> **Catatan:** Worker Twitter berjalan terpisah dari bot Telegram. Jalankan di screen/tmux atau buat service systemd baru kalau ingin 24/7.
 
 ---
 

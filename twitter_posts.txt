@@ -1,0 +1,45 @@
+# =========================
+# ASKA Twitter Autopost List
+# =========================
+# Catatan:
+# - Baris kosong & yang diawali "#" diabaikan.
+# - Baris diawali "rag:" = pakai RAG (kecerdasan.md).
+# - Usahakan hasil <= 280 karakter; sudah dibatasi di prompt.
+# - Placeholder waktu akan diganti otomatis.
+
+rag: Tulis ringkasan sangat singkat (<=200 karakter) tentang apa itu ASKA dan manfaatnya bagi orang tua murid di SDN Semper Barat 01 berdasarkan kecerdasan.md. Akhiri dengan ajakan: "Mention @tanyaaska".
+rag: Jadwal layanan sekolah hari ini (<=200 karakter). Sorot jam layanan TU/sekretariat sesuai kecerdasan.md. Tanpa data pribadi, tanpa markdown.
+rag: PPDB SD 2025 DKI—tulis alur paling ringkas (<=220 karakter): tahapan inti + dokumen wajib menurut kecerdasan.md. Tanpa markdown.
+rag: KJP Plus—kriteria singkat (<=200 karakter) dan cara cek status menurut kecerdasan.md. Gunakan nada informatif dan positif.
+rag: Kalender Pendidikan 2025/2026—hari penting pekan ini (<=200 karakter) dari kecerdasan.md. Sertakan konteks {{DAY}}.
+rag: Tata tertib siswa—3 perilaku inti (<=220 karakter) dari kecerdasan.md; gunakan kalimat ajakan positif, tanpa menyalahkan.
+rag: Prosedur izin sakit/berhalangan hadir (<=200 karakter) menurut kecerdasan.md. Jika ada format pesan, tulis ringkas.
+rag: Cara minta surat keterangan aktif sekolah (<=200 karakter) dari kecerdasan.md. Jelaskan langkah & tempat layanan.
+rag: Kanal aduan & saran resmi (<=180 karakter)—sebut kanal dari kecerdasan.md. Hindari URL jika tidak perlu.
+rag: Profil sekolah—visi dan misi singkat (<=220 karakter) dari kecerdasan.md. Nada inspiratif.
+rag: Kontak sekolah—alamat & jam operasional (<=200 karakter) dari kecerdasan.md; tanpa markdown.
+rag: Panduan seragam harian untuk {{DAY}} (<=200 karakter) dari kecerdasan.md.
+rag: Jadwal upacara/apel terdekat (<=180 karakter) dari kecerdasan.md. Cantumkan hari/tanggal jika ada.
+rag: Kebijakan membawa HP di sekolah (<=180 karakter) dari kecerdasan.md. Jelaskan secara edukatif.
+rag: Etika berkomunikasi dengan guru (<=200 karakter) dari kecerdasan.md. Tekankan sopan, jelas, singkat.
+rag: Informasi ekstrakurikuler—pendaftaran & jadwal ringkas (<=220 karakter) dari kecerdasan.md.
+rag: Prosedur mutasi masuk/keluar (<=220 karakter) dari kecerdasan.md. Urutkan tahap ringkas.
+rag: Mekanisme bantuan buku/seragam bila tersedia (<=220 karakter) dari kecerdasan.md.
+rag: Daftar dokumen resmi publik yang boleh dibagikan (<=200 karakter) dari kecerdasan.md. Jangan sertakan tautan internal.
+rag: Penanganan perundungan—alur lapor & dukungan (<=220 karakter) dari kecerdasan.md. Bahasa suportif.
+rag: Cara legalisir rapor/ijazah (<=200 karakter) dari kecerdasan.md. Sebut lokasi layanan.
+rag: SOP kunjungan orang tua ke sekolah (<=200 karakter) dari kecerdasan.md.
+rag: Waktu & kanal pengumuman resmi (<=180 karakter) dari kecerdasan.md.
+rag: Cara ajukan dispensasi/keringanan biaya bila tersedia (<=220 karakter) dari kecerdasan.md.
+rag: Tautan/formulir umpan balik layanan (<=160 karakter) dari kecerdasan.md. Arahkan untuk isi saat {{DAY}} ini.
+
+# ── Static posts (tanpa RAG)
+Halo! Aku ASKA 🤖 siap bantu info sekolah 24/7. Mention aja @tanyaaska, kita balas gercep! 💬
+Selamat {{DAY}}! 🌞 Butuh info PPDB, KJP Plus, kalender, atau jadwal? Tanyakan ke ASKA ya ✨
+Tip: Tulis pertanyaan jelas (kelas/topik) biar ASKA jawab lebih akurat 🙌
+Kalau jawaban kurang pas, balas dengan "klarifikasi:" + detailmu ya. Kita perbaiki bareng 🤝
+Jaga privasi ya—jangan kirim NIK/KK di reply publik ❗️
+Jadwal layanan hari ini bisa ditanya ke @tanyaaska. DM/mention oke ✅
+Saran & aduan? Spill ke ASKA—kami dengerin buat layanan makin Responsif dan Berkualitas 🙌
+Terima kasih sudah pakai ASKA. Bantu share biar makin banyak yang terbantu 💙
+Posting otomatis oleh ASKA pada {{DATETIME}}.
