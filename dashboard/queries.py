@@ -524,7 +524,18 @@ def fetch_bullying_reports(
         )
         total = cur.fetchone()[0]
 
-    return [dict(row) for row in rows], int(total or 0)
+    records: List[Dict[str, Any]] = []
+    for row in rows:
+        record = dict(row)
+        description = record.get("description") or ""
+        if description:
+            preview = description.split("\n\n", 1)[0].strip()
+        else:
+            preview = ""
+        record["description_preview"] = preview
+        records.append(record)
+
+    return records, int(total or 0)
 
 
 def fetch_psych_reports(
@@ -609,7 +620,18 @@ def fetch_psych_reports(
         cur.execute(count_query, params)
         total = cur.fetchone()[0] if cur.rowcount else 0
 
-    return [dict(row) for row in rows], int(total or 0)
+    records: List[Dict[str, Any]] = []
+    for row in rows:
+        record = dict(row)
+        summary = record.get("summary") or record.get("message") or ""
+        if summary:
+            preview = summary.split("\n\n", 1)[0].strip()
+        else:
+            preview = ""
+        record["summary_preview"] = preview
+        records.append(record)
+
+    return records, int(total or 0)
 
 
 def fetch_psych_group_reports(

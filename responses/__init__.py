@@ -7,6 +7,14 @@ from .bullying import (
     CATEGORY_SEXUAL,
     detect_bullying_category,
     get_bullying_ack_response,
+    get_bullying_opening_prompt,
+    get_bullying_followup_response,
+    get_bullying_stage_prompt,
+    get_bullying_conversation_reply,
+    bullying_next_stage,
+    bullying_stage_exists,
+    get_bullying_timeout_message,
+    is_bullying_stop_request,
 )
 from .relationship import get_relationship_advice_response, is_relationship_question
 from .thank_you import get_thank_you_response, is_thank_you_message
@@ -50,6 +58,7 @@ from .psychologist import (
     stage_exists as psych_stage_exists,
     summarize_for_dashboard as summarize_psych_message,
     generate_support_message as get_psych_support_message,
+    get_psych_conversation_reply,
 )
 from .corruption import (
     CorruptionResponse,
@@ -67,6 +76,14 @@ __all__ = [
     "get_advice_response",
     "get_acknowledgement_response",
     "get_bullying_ack_response",
+    "get_bullying_opening_prompt",
+    "get_bullying_followup_response",
+    "get_bullying_stage_prompt",
+    "get_bullying_conversation_reply",
+    "bullying_next_stage",
+    "bullying_stage_exists",
+    "get_bullying_timeout_message",
+    "is_bullying_stop_request",
     "detect_bullying_category",
     "CATEGORY_GENERAL",
     "CATEGORY_PHYSICAL",
@@ -103,6 +120,7 @@ __all__ = [
     "get_psych_critical_message",
     "get_psych_stage_prompt",
     "get_psych_validation",
+    "get_psych_conversation_reply",
     "psych_stage_exists",
     "summarize_psych_message",
     "get_psych_support_message",

@@ -145,7 +145,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.description }}</div>
+                                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.description_preview or item.description }}</div>
                                     {% if item.category %}
                                     <div class="mt-2">
                                         <span class="badge rounded-pill text-bg-secondary text-uppercase" style="letter-spacing: .05em;">{{ item.category|replace('_', ' ')|title }}</span>
