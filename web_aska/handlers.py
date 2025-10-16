@@ -78,6 +78,7 @@ qa_chain = build_qa_chain()
 TEACHER_CONVERSATION_LIMIT = 10
 TEACHER_TIMEOUT_SECONDS = 600
 PSYCH_TIMEOUT_SECONDS = 600
+BULLYING_TIMEOUT_SECONDS = 600
 
 TEACHER_TIMEOUT_MESSAGE = (
     "Latihan kita ke-pause lumayan lama nih, ASKA pamit dulu ya. "
@@ -152,6 +153,9 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             chat_log_id=chat_log_id,
             source="web",
             mark_responded=lambda: None,
+            storage_key=storage_key,
+            now_ts=now_ts,
+            timeout_seconds=BULLYING_TIMEOUT_SECONDS,
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: bullying")
