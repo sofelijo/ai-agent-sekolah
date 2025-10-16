@@ -36,48 +36,6 @@ DEFAULT_SPAM_KEYWORDS = {
     "please follow", "follow me",
 }
 
-# ─────────────────────────────────────────────────────────
-# FIX: helper untuk menangani 429 (Too Many Requests)
-def with_rate_limit(func, *args, **kwargs):
-    """
-    Jalankan func(*args, **kwargs); bila kena 429, tidur sampai x-rate-limit-reset
-    (jika ada), atau exponential backoff (maks 15 menit). Ulangi sampai sukses.
-    """
-    backoff = kwargs.pop("_rl_backoff", 90)  # detik awal
-    while True:
-        try:
-            return func(*args, **kwargs)
-        except tweepy.errors.TooManyRequests as e:
-            reset_epoch = None
-            try:
-                resp = getattr(e, "response", None)
-                if resp is not None:
-                    hdr = resp.headers.get("x-rate-limit-reset")
-                    if hdr:
-                        reset_epoch = int(hdr)
-            except Exception:
-                reset_epoch = None
-
-            if reset_epoch:
-                wait_s = max(0, reset_epoch - int(time.time()) + 2)
-                LOGGER.warning("[rate-limit] 429. Tidur %ss hingga reset window…", wait_s)
-                time.sleep(wait_s)
-                backoff = 90  # reset backoff setelah tunggu berdasar header
-            else:
-                wait_s = min(backoff, 15 * 60)
-                LOGGER.warning("[rate-limit] 429 tanpa header reset. Tidur %ss…", wait_s)
-                time.sleep(wait_s)
-                backoff = min(wait_s * 2, 15 * 60)
-
-            kwargs["_rl_backoff"] = backoff
-        except tweepy.TweepyException as e:
-            LOGGER.exception("[tweepy] Error API: %s (retry 10s)", e)
-            time.sleep(10)
-        except Exception as e:
-            LOGGER.exception("[general] Error tak terduga: %s (retry 10s)", e)
-            time.sleep(10)
-# ─────────────────────────────────────────────────────────
-
 
 def _load_required_env(key: str) -> str:
     v = os.getenv(key)
@@ -120,7 +78,7 @@ class TwitterAskaBot:
         )
 
         # Runtime/env
-        self.poll_interval = int(os.getenv("TWITTER_POLL_INTERVAL", "90"))
+        self.poll_interval = int(os.getenv("TWITTER_POLL_INTERVAL", "180"))
         self.state_path = Path(os.getenv("TWITTER_STATE_PATH", "twitter_state.json"))
 
         # Autopost config
@@ -145,24 +103,12 @@ class TwitterAskaBot:
         LOGGER.info("Initializing ASKA Twitter bot…")
         self._client = self._build_client()
 
-        # ── FIX: Hindari get_me() langsung saat start
-        # Coba pakai ENV dulu; kalau kosong, baru lazy fetch via with_rate_limit
-        env_uid = os.getenv("TWITTER_USER_ID")
-        env_uname = os.getenv("TWITTER_USERNAME")
-
-        self.bot_user_id: Optional[int] = int(env_uid) if env_uid and env_uid.isdigit() else None
-        self.bot_username: Optional[str] = env_uname.lower() if env_uname else None
-
-        if self.bot_user_id is None or not self.bot_username:
-            LOGGER.info("TWITTER_USER_ID/USERNAME belum lengkap; ambil via get_me() dengan backoff…")
-            me = with_rate_limit(self._client.get_me)
-            if not me or not me.data:
-                raise RuntimeError("Failed to fetch bot account details from Twitter API (get_me).")
-            self.bot_user_id = int(me.data.id)
-            self.bot_username = str(me.data.username).lower()
-            LOGGER.info("Authenticated (lazy): @%s (id=%s)", self.bot_username, self.bot_user_id)
-        else:
-            LOGGER.info("Authenticated (ENV): @%s (id=%s)", self.bot_username, self.bot_user_id)
+        me = self._client.get_me()
+        if not me or not me.data:
+            raise RuntimeError("Failed to fetch bot account details from Twitter API.")
+        self.bot_user_id = int(me.data.id)
+        self.bot_username = me.data.username.lower()
+        LOGGER.info("Authenticated as @%s (id=%s)", self.bot_username, self.bot_user_id)
 
         # Build RAG chain
         self.qa_chain = build_qa_chain()
@@ -214,14 +160,14 @@ class TwitterAskaBot:
         api_secret = _load_required_env("TWITTER_API_SECRET")
         access_token = _load_required_env("TWITTER_ACCESS_TOKEN")
         access_secret = _load_required_env("TWITTER_ACCESS_SECRET")
-        # FIX: kita tangani rate limit sendiri
+        wait_on = os.getenv("TWITTER_WAIT_ON_RATE_LIMIT", "false").strip().lower() in {"1", "true", "yes", "on"}
         return tweepy.Client(
             bearer_token=bearer,
             consumer_key=api_key,
             consumer_secret=api_secret,
             access_token=access_token,
             access_token_secret=access_secret,
-            wait_on_rate_limit=False,
+            wait_on_rate_limit=wait_on,  # False direkomendasikan: manual backoff
         )
 
     # ── State ──────────────────────────────────────────────
@@ -316,8 +262,7 @@ class TwitterAskaBot:
         }
 
         try:
-            # FIX: bungkus dengan handler 429
-            response = with_rate_limit(self._client.get_users_mentions, self.bot_user_id, **params)
+            response = self._client.get_users_mentions(self.bot_user_id, **params)
             # sukses → reset backoff dasar
             self._mentions_backoff_last = self.mentions_cooldown
         except tweepy.TooManyRequests as exc:
@@ -341,7 +286,7 @@ class TwitterAskaBot:
             LOGGER.warning("Mentions 400 Bad Request: %s. Retrying once with max_results=5.", exc)
             params["max_results"] = 5
             try:
-                response = with_rate_limit(self._client.get_users_mentions, self.bot_user_id, **params)
+                response = self._client.get_users_mentions(self.bot_user_id, **params)
                 self._mentions_backoff_last = self.mentions_cooldown
             except Exception as exc2:
                 LOGGER.warning("Mentions fallback failed: %s", exc2)
@@ -430,8 +375,7 @@ class TwitterAskaBot:
         status = (prefix + reply_text)[:280]
 
         try:
-            # FIX: balas lewat handler 429 juga
-            with_rate_limit(self._client.create_tweet, text=status, in_reply_to_tweet_id=tweet.id)
+            self._client.create_tweet(text=status, in_reply_to_tweet_id=tweet.id)
             LOGGER.info("Replied to tweet %s", tweet.id)
         except tweepy.Forbidden as exc:
             info = _parse_tweepy_error(exc)
@@ -444,12 +388,12 @@ class TwitterAskaBot:
                 # Not allowed to reply to this Tweet (privacy who-can-reply)
                 try:
                     qt = (prefix + reply_text)[:280]
-                    with_rate_limit(self._client.create_tweet, text=qt, quote_tweet_id=tweet.id)
+                    self._client.create_tweet(text=qt, quote_tweet_id=tweet.id)
                     LOGGER.info("Quote-tweeted instead for %s", tweet.id)
                 except Exception:
                     try:
                         nt = (prefix + reply_text)[:280]
-                        with_rate_limit(self._client.create_tweet, text=nt)
+                        self._client.create_tweet(text=nt)
                         LOGGER.info("Posted normal mention instead for %s", tweet.id)
                     except Exception:
                         LOGGER.exception("Failed all fallbacks for tweet %s", tweet.id)
@@ -460,7 +404,7 @@ class TwitterAskaBot:
                     from datetime import datetime as _dt
                     suffix = " · " + _dt.now().strftime("%H:%M:%S")
                     dedup = (status[: (280 - len(suffix))] + suffix)
-                    with_rate_limit(self._client.create_tweet, text=dedup, in_reply_to_tweet_id=tweet.id)
+                    self._client.create_tweet(text=dedup, in_reply_to_tweet_id=tweet.id)
                     LOGGER.info("Replied after de-duplicating content for %s", tweet.id)
                 except Exception:
                     LOGGER.exception("Failed to resend non-duplicate reply for %s", tweet.id)
@@ -469,12 +413,12 @@ class TwitterAskaBot:
                 # Generic fallback
                 try:
                     qt = (prefix + reply_text)[:280]
-                    with_rate_limit(self._client.create_tweet, text=qt, quote_tweet_id=tweet.id)
+                    self._client.create_tweet(text=qt, quote_tweet_id=tweet.id)
                     LOGGER.info("Quote-tweeted (generic fallback) for %s", tweet.id)
                 except Exception:
                     try:
                         nt = (prefix + reply_text)[:280]
-                        with_rate_limit(self._client.create_tweet, text=nt)
+                        self._client.create_tweet(text=nt)
                         LOGGER.info("Posted normal mention (generic fallback) for %s", tweet.id)
                     except Exception:
                         LOGGER.exception("Failed generic fallbacks for tweet %s", tweet.id)
@@ -525,9 +469,43 @@ class TwitterAskaBot:
                 return self.qa_chain.invoke(payload)
             raise
 
+    # --- Helper (taruh di dalam class TwitterAskaBot) ----------------------------
+    def _twitter_target_len(self) -> int:
+        try:
+            return max(80, int(os.getenv("ASKA_TWITTER_MAX_CHARS", "200")))
+        except Exception:
+            return 200
+
+    def _smart_trim(self, text: str, limit: int) -> str:
+        """Potong teks dengan rapi (prioritas titik, lalu spasi), tambahkan '...' jika dipotong."""
+        if len(text) <= limit:
+            return text
+        cut = text[: max(0, limit - 3)]
+        # cari akhir kalimat yang masuk akal
+        end = cut.rfind(".")
+        if end >= int(0.6 * limit):
+            return cut[: end + 1].rstrip() + " ..."
+        # kalau tidak ada titik, coba spasi
+        end = cut.rfind(" ")
+        if end >= int(0.6 * limit):
+            return cut[: end].rstrip() + " ..."
+        return cut.rstrip() + "..."
+
+
+    # --- GANTI fungsi ini dengan versi di bawah ----------------------------------
     def _generate_reply(self, user_id: int, message: str) -> str:
         normalized = normalize_input(message)
         normalized = rewrite_schedule_query(normalized)
+
+        # ⬇️ Suntikkan instruksi "jawab ringkas" khusus Twitter
+        if os.getenv("ASKA_TWITTER_MODE", "true").strip().lower() in {"1", "true", "on"}:
+            target = self._twitter_target_len()
+            normalized = (
+                "Jawablah SANGAT RINGKAS (maksimal "
+                f"{target} karakter), bahasa Indonesia sederhana, langsung ke inti, "
+                "tanpa markdown/emoji/daftar/basa-basi. "
+                f"Pertanyaan: {normalized}"
+            )
 
         history = []
         try:
@@ -544,11 +522,24 @@ class TwitterAskaBot:
             except Exception:
                 cleaned = raw
             response = cleaned or raw or ""
+            if not response:
+                return ASKA_NO_DATA_RESPONSE
+
+            # ⬇️ Pastikan tidak melewati batas karakter yang kamu inginkan untuk Twitter
+            #    (batasi sesuai target ringkas + batas tweet)
+            target = self._twitter_target_len()
+            try:
+                max_tweet = max(140, int(os.getenv("TWITTER_MAX_TWEET_LEN", "280")))
+            except Exception:
+                max_tweet = 280
+            hard_limit = min(target, max_tweet)  # misal 200 ↔︎ 280
+            response = self._smart_trim(response, hard_limit)
+
             return response or ASKA_NO_DATA_RESPONSE
         except Exception:
             LOGGER.exception("Failed to generate ASKA reply for user %s", user_id)
             return ASKA_TECHNICAL_ISSUE_RESPONSE
-
+                
     # ── Autopost ───────────────────────────────────────────
     def _load_autopost_entries(self) -> List[Dict[str, Any]]:
         if not self.autopost_enabled:
@@ -633,7 +624,7 @@ class TwitterAskaBot:
                      next_index, entry.get("mode", "static"), len(message), message)
 
         try:
-            with_rate_limit(self._client.create_tweet, text=message)  # FIX: lindungi dari 429
+            self._client.create_tweet(text=message)
             LOGGER.info("Auto-posted tweet (index=%s, mode=%s).", next_index, entry.get("mode", "static"))
         except Exception:
             LOGGER.exception("Failed to auto-post tweet at index %s (mode=%s, preview=%r)",
