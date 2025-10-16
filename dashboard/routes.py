@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import json
+import os
+from datetime import datetime, timedelta, timezone
 from math import ceil
 from typing import Optional
+from pathlib import Path
 
 from flask import (
     Blueprint,
@@ -47,11 +50,18 @@ from .queries import (
     fetch_corruption_report_detail,
     bulk_update_corruption_report_status,
     update_corruption_report_status,
+    fetch_twitter_overview,
+    fetch_twitter_activity,
+    fetch_twitter_top_users,
+    chat_topic_available,
+    fetch_twitter_worker_logs,
 )
 
 main_bp = Blueprint("main", __name__)
 PAGE_SIZE = 50
 REPORT_PAGE_SIZE = 25
+TWITTER_PAGE_SIZE = 25
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -63,6 +73,106 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
         except ValueError:
             continue
     return None
+
+
+def _env_flag(name: str, default: str = "false") -> bool:
+    value = os.getenv(name, default)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_runtime_path(value: Optional[str], default: str) -> Path:
+    path = Path(value or default)
+    if not path.is_absolute():
+        path = (PROJECT_ROOT / path).resolve()
+    return path
+
+
+def _load_twitter_runtime() -> dict:
+    """Kumpulkan info real-time worker Twitter dari env, state file, dan autopost list."""
+    state_path = _resolve_runtime_path(os.getenv("TWITTER_STATE_PATH"), "twitter_state.json")
+    autopost_path = _resolve_runtime_path(os.getenv("TWITTER_AUTOPOST_MESSAGES_PATH"), "twitter_posts.txt")
+
+    runtime: dict = {
+        "state_path": str(state_path),
+        "autopost_path": str(autopost_path),
+        "state_exists": state_path.exists(),
+        "autopost_exists": autopost_path.exists(),
+        "state_error": None,
+        "autopost_error": None,
+        "state": {},
+        "last_seen_id": None,
+        "autopost_state": {},
+        "last_autopost": None,
+        "autopost_entries": [],
+        "autopost_total": 0,
+        "autopost_rag_total": 0,
+        "autopost_preview": [],
+        "settings": {
+            "mentions_enabled": _env_flag("TWITTER_MENTIONS_ENABLED", "true"),
+            "autopost_enabled": _env_flag("TWITTER_AUTOPOST_ENABLED", "false"),
+            "poll_interval": int(os.getenv("TWITTER_POLL_INTERVAL", "180") or 180),
+            "mentions_cooldown": int(os.getenv("TWITTER_MENTIONS_COOLDOWN", "180") or 180),
+            "mentions_max_results": int(os.getenv("TWITTER_MENTIONS_MAX_RESULTS", "5") or 5),
+            "autopost_interval": int(os.getenv("TWITTER_AUTOPOST_INTERVAL", "3600") or 3600),
+            "autopost_recent_limit": int(os.getenv("TWITTER_AUTOPOST_RECENT_LIMIT", "8") or 8),
+            "max_tweet_len": int(os.getenv("TWITTER_MAX_TWEET_LEN", "280") or 280),
+        },
+    }
+
+    if runtime["state_exists"]:
+        try:
+            with state_path.open("r", encoding="utf-8") as fh:
+                payload = json.load(fh)
+            if isinstance(payload, dict):
+                runtime["state"] = payload
+                runtime["last_seen_id"] = payload.get("last_seen_id")
+                autopost_state = payload.get("autopost")
+                if isinstance(autopost_state, dict):
+                    runtime["autopost_state"] = autopost_state
+                    last_ts = autopost_state.get("last_timestamp")
+                    if isinstance(last_ts, (int, float)) and last_ts > 0:
+                        runtime["last_autopost"] = datetime.fromtimestamp(last_ts, tz=timezone.utc)
+            else:
+                runtime["state_error"] = "Format state file tidak dikenal."
+        except Exception as exc:
+            runtime["state_error"] = str(exc)
+    else:
+        runtime["state_error"] = "File state belum dibuat oleh worker."
+
+    entries: list[dict] = []
+    if runtime["autopost_exists"]:
+        try:
+            text = autopost_path.read_text(encoding="utf-8")
+            for raw_line in text.splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                is_rag = line.upper().startswith("RAG:")
+                display = line[4:].strip() if is_rag else line
+                entry = {
+                    "raw": line,
+                    "display": display,
+                    "is_rag": is_rag,
+                    "has_placeholders": "{{" in line and "}}" in line,
+                }
+                entries.append(entry)
+        except Exception as exc:
+            runtime["autopost_error"] = str(exc)
+    else:
+        runtime["autopost_error"] = "File daftar autopost belum tersedia."
+
+    runtime["autopost_entries"] = entries
+    runtime["autopost_total"] = len(entries)
+    runtime["autopost_rag_total"] = sum(1 for item in entries if item.get("is_rag"))
+    runtime["autopost_preview"] = entries[:8]
+    if runtime.get("last_autopost"):
+        runtime["last_autopost_local"] = to_jakarta(runtime["last_autopost"])
+    else:
+        runtime["last_autopost_local"] = None
+
+    return runtime
 
 
 @main_bp.route("/")
@@ -126,6 +236,12 @@ def dashboard() -> Response:
         "all": metrics["total_incoming_messages"],
     }
 
+    aska_links = {
+        "tele": os.getenv("ASKA_TELEGRAM_URL", "https://t.me/tanyaaska_bot"),
+        "web": os.getenv("ASKA_WEB_URL", "https://aska.sdnsembar01.sch.id/"),
+        "twitter": os.getenv("ASKA_TWITTER_URL", "https://twitter.com/tanyaaska_ai"),
+    }
+
     return render_template(
         "dashboard.html",
         generated_at=current_jakarta_time(),
@@ -139,6 +255,129 @@ def dashboard() -> Response:
         keyword_counts=keyword_counts,
         requests_counts=requests_counts,
         messages_counts=messages_counts,
+        aska_links=aska_links,
+    )
+
+
+@main_bp.route("/twitter/logs")
+@login_required
+def twitter_logs() -> Response:
+    args: MultiDict = request.args
+    page = max(1, int(args.get("page", 1)))
+    range_key = args.get("range")
+
+    start = _parse_date(args.get("start"))
+    end = _parse_date(args.get("end"))
+    now = current_jakarta_time()
+
+    if range_key:
+        key = range_key.lower()
+        if key == "today":
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = now
+        elif key == "24h":
+            start = now - timedelta(hours=24)
+            end = now
+        elif key == "7d":
+            start = now - timedelta(days=7)
+            end = now
+        elif key == "30d":
+            start = now - timedelta(days=30)
+            end = now
+        elif key == "90d":
+            start = now - timedelta(days=90)
+            end = now
+        elif key == "all":
+            start = None
+            end = None
+
+    role = args.get("role") or None
+    if role not in {"user", "aska"}:
+        role = None
+    search = args.get("search") or None
+    user_id = args.get("user_id")
+    user_id = int(user_id) if user_id else None
+
+    filters = ChatFilters(
+        start=start,
+        end=end,
+        role=role,
+        search=search,
+        user_id=user_id,
+        topic="twitter",
+    )
+
+    topic_supported = chat_topic_available()
+
+    offset = (page - 1) * TWITTER_PAGE_SIZE
+    if topic_supported:
+        records, total = fetch_chat_logs(filters=filters, limit=TWITTER_PAGE_SIZE, offset=offset)
+    else:
+        records, total = [], 0
+    total_pages = max(1, ceil(total / TWITTER_PAGE_SIZE)) if total else 1
+
+    overview = fetch_twitter_overview(window_days=7)
+    activity_rows = fetch_twitter_activity(days=45)
+    activity_days: list[str] = []
+    activity_mentions: list[int] = []
+    activity_replies: list[int] = []
+    for row in activity_rows:
+        day_value = row.get("day")
+        if isinstance(day_value, datetime):
+            label = day_value.date().isoformat()
+        elif hasattr(day_value, "isoformat"):
+            label = day_value.isoformat()
+        else:
+            label = str(day_value)
+        activity_days.append(label)
+        activity_mentions.append(int(row.get("mentions") or 0))
+        activity_replies.append(int(row.get("replies") or 0))
+
+    top_users = fetch_twitter_top_users(limit=8)
+    runtime = _load_twitter_runtime()
+    worker_logs = fetch_twitter_worker_logs(limit=120)
+
+    export_url = None
+    if topic_supported:
+        export_params: dict = {"topic": "twitter"}
+        if start:
+            try:
+                export_params["start"] = start.strftime("%Y-%m-%d")
+            except Exception:
+                export_params["start"] = str(start)
+        if end:
+            try:
+                export_params["end"] = end.strftime("%Y-%m-%d")
+            except Exception:
+                export_params["end"] = str(end)
+        if role:
+            export_params["role"] = role
+        if search:
+            export_params["search"] = search
+        if user_id:
+            export_params["user_id"] = user_id
+        export_url = url_for("main.export_chats", **export_params)
+
+    if not range_key and not start and not end:
+        range_key = "all"
+
+    return render_template(
+        "twitter_logs.html",
+        overview=overview,
+        records=records,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        filters=filters,
+        selected_range=range_key,
+        activity_days=activity_days,
+        activity_mentions=activity_mentions,
+        activity_replies=activity_replies,
+        top_users=top_users,
+        runtime=runtime,
+        export_url=export_url,
+        topic_supported=topic_supported,
+        worker_logs=worker_logs,
     )
 
 
@@ -641,8 +880,9 @@ def export_chats() -> Response:
     search = args.get("search") or None
     user_id = args.get("user_id")
     user_id = int(user_id) if user_id else None
+    topic = args.get("topic") or None
 
-    filters = ChatFilters(start=start, end=end, role=role, search=search, user_id=user_id)
+    filters = ChatFilters(start=start, end=end, role=role, search=search, user_id=user_id, topic=topic)
 
     records, _ = fetch_chat_logs(filters=filters, limit=5000, offset=0)
 
@@ -651,7 +891,7 @@ def export_chats() -> Response:
 
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["id", "created_at", "user_id", "username", "role", "response_time_ms", "text"])
+    writer.writerow(["id", "created_at", "user_id", "username", "role", "topic", "response_time_ms", "text"])
     for row in records:
         created_at = row.get("created_at")
         if created_at:
@@ -667,6 +907,7 @@ def export_chats() -> Response:
                 row.get("user_id"),
                 row.get("username"),
                 row.get("role"),
+                row.get("topic"),
                 row.get("response_time_ms"),
                 (row.get("text") or "").replace("\n", " "),
             ]

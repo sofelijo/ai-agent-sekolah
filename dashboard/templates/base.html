@@ -44,6 +44,11 @@
                     <a class="nav-link {% if request.endpoint in ['main.chats', 'main.chat_thread'] %}active{% endif %}" href="{{ url_for('main.chats') }}"><i class="bi bi-chat-square-text nav-icon"></i>Chat Logs</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'main.twitter_logs' %}active{% endif %}" href="{{ url_for('main.twitter_logs') }}">
+                        <i class="bi bi-twitter nav-icon"></i>Twitter Ops
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.psych_reports' %}active{% endif %}" href="{{ url_for('main.psych_reports') }}">
                         <i class="bi bi-journal-medical nav-icon"></i>Konseling
                         {% if pending_psych_count %}

@@ -8,7 +8,7 @@
 # - Placeholder waktu akan diganti otomatis.
 
 rag: Tulis ringkasan sangat singkat (<=200 karakter) tentang apa itu ASKA dan manfaatnya bagi orang tua murid di SDN Semper Barat 01 berdasarkan kecerdasan.md. Akhiri dengan ajakan: "Mention @tanyaaska".
-rag: Jadwal layanan sekolah hari ini (<=200 karakter). Sorot jam layanan TU/sekretariat sesuai kecerdasan.md. Tanpa data pribadi, tanpa markdown.
+rag: Daya tampung sekolah(<=200 karakter). pilih salah satu sekolah bagikan informasi daya tampung sesuai kecerdasan.md. Tanpa markdown.
 rag: PPDB SD 2025 DKI—tulis alur paling ringkas (<=220 karakter): tahapan inti + dokumen wajib menurut kecerdasan.md. Tanpa markdown.
 rag: KJP Plus—kriteria singkat (<=200 karakter) dan cara cek status menurut kecerdasan.md. Gunakan nada informatif dan positif.
 rag: Kalender Pendidikan 2025/2026—hari penting pekan ini (<=200 karakter) dari kecerdasan.md. Sertakan konteks {{DAY}}.

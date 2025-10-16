@@ -61,6 +61,27 @@ STOPWORDS = {
     "aska",
 }
 
+_CHAT_TOPIC_AVAILABLE: Optional[bool] = None
+
+
+def chat_topic_available() -> bool:
+    """Check once whether chat_logs table has topic column."""
+    global _CHAT_TOPIC_AVAILABLE
+    if _CHAT_TOPIC_AVAILABLE is not None:
+        return _CHAT_TOPIC_AVAILABLE
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'chat_logs'
+              AND column_name = 'topic'
+            LIMIT 1
+            """
+        )
+        _CHAT_TOPIC_AVAILABLE = cur.fetchone() is not None
+    return _CHAT_TOPIC_AVAILABLE
 BULLYING_STATUSES = (
     'pending',
     'in_progress',
@@ -95,6 +116,7 @@ class ChatFilters:
     role: Optional[str] = None
     search: Optional[str] = None
     user_id: Optional[int] = None
+    topic: Optional[str] = None
 
 def _apply_filters(conditions: List[str], params: List[Any], filters: ChatFilters) -> None:
     if filters.start:
@@ -112,6 +134,9 @@ def _apply_filters(conditions: List[str], params: List[Any], filters: ChatFilter
     if filters.search:
         conditions.append("text ILIKE %s")
         params.append(f"%{filters.search}%")
+    if filters.topic and chat_topic_available():
+        conditions.append("topic = %s")
+        params.append(filters.topic)
 
 def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
     """Aggregate key performance indicators for the dashboard landing page."""
@@ -119,6 +144,7 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
     interval = timedelta(days=window_days)
 
     bullying_rows: List[Dict[str, Any]] = []
+    escalated_total = 0
 
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS total_messages FROM chat_logs")
@@ -203,6 +229,14 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
             """
         )
         bullying_rows = cur.fetchall()
+        cur.execute(
+            """
+            SELECT COUNT(*) AS escalated_total
+            FROM bullying_reports
+            WHERE escalated = TRUE
+            """
+        )
+        escalated_total = cur.fetchone()["escalated_total"] or 0
 
     avg_response = response_stats["avg_response"] or 0.0
     p90_response = response_stats["p90_response"] or 0.0
@@ -215,6 +249,18 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
         if status in bullying_summary:
             bullying_summary[status] = count
             bullying_total += count
+    bullying_summary["total"] = bullying_total
+    bullying_summary["escalated"] = int(escalated_total or 0)
+
+    corruption_summary = fetch_corruption_summary()
+    psych_summary = fetch_psych_summary()
+    corruption_active_total = int(
+        (corruption_summary.get("total", 0) - corruption_summary.get("archived", 0))
+        if corruption_summary
+        else 0
+    )
+    bullying_active_total = int(bullying_total - bullying_summary.get("spam", 0))
+    psych_active_total = int(psych_summary.get("total", 0)) if psych_summary else 0
 
     return {
         "total_messages": int(total_messages or 0),
@@ -234,6 +280,12 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
         "bullying_in_progress": bullying_summary['in_progress'],
         "bullying_resolved": bullying_summary['resolved'],
         "bullying_spam": bullying_summary['spam'],
+        "bullying_summary": bullying_summary,
+        "bullying_active_total": bullying_active_total,
+        "corruption_summary": corruption_summary,
+        "corruption_active_total": corruption_active_total,
+        "psych_summary": psych_summary,
+        "psych_active_total": psych_active_total,
     }
 
 def fetch_daily_activity(days: int = 14, role: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -341,8 +393,12 @@ def fetch_chat_logs(
     if conditions:
         where_clause = " WHERE " + " AND ".join(conditions)
 
+    select_columns = "id, user_id, username, text, role, created_at, response_time_ms"
+    if chat_topic_available():
+        select_columns = "id, user_id, username, text, role, topic, created_at, response_time_ms"
+
     query = (
-        "SELECT id, user_id, username, text, role, created_at, response_time_ms "
+        f"SELECT {select_columns} "
         "FROM chat_logs"
         f"{where_clause} "
         "ORDER BY created_at DESC "
@@ -391,6 +447,199 @@ def fetch_all_chat_users() -> List[Dict[str, Any]]:
         )
         rows = cur.fetchall()
     return [dict(row) for row in rows]
+
+
+def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
+    """Aggregate metrik penting untuk operasional Twitter/X."""
+    if not chat_topic_available():
+        return {
+            "window_days": window_days,
+            "total_mentions": 0,
+            "total_replies": 0,
+            "total_users": 0,
+            "mentions_window": 0,
+            "replies_window": 0,
+            "users_window": 0,
+            "mentions_24h": 0,
+            "replies_24h": 0,
+            "mentions_today": 0,
+            "replies_today": 0,
+            "avg_response_ms": None,
+            "p90_response_ms": None,
+            "backlog": 0,
+            "reply_rate": 0.0,
+            "last_mention": None,
+            "last_reply": None,
+        }
+
+    window_days = max(1, window_days)
+    window_interval = f"{window_days} days"
+
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE role = 'user') AS mentions_total,
+                COUNT(*) FILTER (WHERE role = 'aska') AS replies_total,
+                COUNT(DISTINCT user_id) FILTER (WHERE role = 'user') AS users_total,
+                COUNT(*) FILTER (WHERE role = 'user' AND created_at >= NOW() - %s::interval) AS mentions_window,
+                COUNT(*) FILTER (WHERE role = 'aska' AND created_at >= NOW() - %s::interval) AS replies_window,
+                COUNT(DISTINCT user_id) FILTER (WHERE role = 'user' AND created_at >= NOW() - %s::interval) AS users_window,
+                COUNT(*) FILTER (WHERE role = 'user' AND created_at >= NOW() - INTERVAL '1 day') AS mentions_24h,
+                COUNT(*) FILTER (WHERE role = 'aska' AND created_at >= NOW() - INTERVAL '1 day') AS replies_24h,
+                COUNT(*) FILTER (WHERE role = 'user' AND DATE(created_at) = CURRENT_DATE) AS mentions_today,
+                COUNT(*) FILTER (WHERE role = 'aska' AND DATE(created_at) = CURRENT_DATE) AS replies_today,
+                AVG(response_time_ms) FILTER (WHERE role = 'aska' AND response_time_ms IS NOT NULL) AS avg_response_ms,
+                percentile_cont(0.9) WITHIN GROUP (ORDER BY response_time_ms)
+                    FILTER (WHERE role = 'aska' AND response_time_ms IS NOT NULL) AS p90_response_ms
+            FROM chat_logs
+            WHERE topic = 'twitter'
+            """,
+            (window_interval, window_interval, window_interval),
+        )
+        overview_row = cur.fetchone() or {}
+
+        cur.execute(
+            """
+            SELECT id, user_id, username, text, created_at
+            FROM chat_logs
+            WHERE topic = 'twitter' AND role = 'user'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        )
+        last_mention = cur.fetchone()
+
+        cur.execute(
+            """
+            SELECT id, user_id, username, text, created_at, response_time_ms
+            FROM chat_logs
+            WHERE topic = 'twitter' AND role = 'aska'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        )
+        last_reply = cur.fetchone()
+
+    def _coerce_int(value) -> int:
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    avg_response = overview_row.get("avg_response_ms")
+    p90_response = overview_row.get("p90_response_ms")
+
+    total_mentions = _coerce_int(overview_row.get("mentions_total"))
+    total_replies = _coerce_int(overview_row.get("replies_total"))
+    backlog = max(0, total_mentions - total_replies)
+    reply_rate = 0.0
+    if total_mentions:
+        reply_rate = round(min(1.0, total_replies / total_mentions), 3)
+
+    return {
+        "window_days": window_days,
+        "total_mentions": total_mentions,
+        "total_replies": total_replies,
+        "total_users": _coerce_int(overview_row.get("users_total")),
+        "mentions_window": _coerce_int(overview_row.get("mentions_window")),
+        "replies_window": _coerce_int(overview_row.get("replies_window")),
+        "users_window": _coerce_int(overview_row.get("users_window")),
+        "mentions_24h": _coerce_int(overview_row.get("mentions_24h")),
+        "replies_24h": _coerce_int(overview_row.get("replies_24h")),
+        "mentions_today": _coerce_int(overview_row.get("mentions_today")),
+        "replies_today": _coerce_int(overview_row.get("replies_today")),
+        "avg_response_ms": float(avg_response) if avg_response is not None else None,
+        "p90_response_ms": float(p90_response) if p90_response is not None else None,
+        "backlog": backlog,
+        "reply_rate": reply_rate,
+        "last_mention": dict(last_mention) if last_mention else None,
+        "last_reply": dict(last_reply) if last_reply else None,
+    }
+
+
+def fetch_twitter_activity(days: int = 30) -> List[Dict[str, Any]]:
+    """Ambil aktivitas harian mention dan balasan untuk topik Twitter."""
+    if not chat_topic_available():
+        return []
+    days = max(1, days)
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                DATE(created_at) AS day,
+                COUNT(*) FILTER (WHERE role = 'user') AS mentions,
+                COUNT(*) FILTER (WHERE role = 'aska') AS replies
+            FROM chat_logs
+            WHERE topic = 'twitter'
+              AND created_at >= NOW() - %s::interval
+            GROUP BY day
+            ORDER BY day ASC
+            """,
+            (f"{days} days",),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "day": row.get("day"),
+            "mentions": int(row.get("mentions") or 0),
+            "replies": int(row.get("replies") or 0),
+        }
+        for row in rows
+    ]
+
+
+def fetch_twitter_top_users(limit: int = 8) -> List[Dict[str, Any]]:
+    """Pengguna Twitter yang paling sering menyebut bot."""
+    if not chat_topic_available():
+        return []
+    limit = max(1, limit)
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                user_id,
+                COALESCE(NULLIF(username, ''), 'Unknown') AS username,
+                COUNT(*) AS mentions,
+                MAX(created_at) AS last_seen
+            FROM chat_logs
+            WHERE topic = 'twitter'
+              AND role = 'user'
+            GROUP BY user_id, username
+            ORDER BY mentions DESC, last_seen DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_twitter_worker_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """Ambil log terbaru dari worker Twitter yang tersimpan di database."""
+    limit = max(1, min(int(limit or 100), 500))
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, level, message, context, tweet_id, twitter_user_id, created_at
+            FROM twitter_worker_logs
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+
+    result: List[Dict[str, Any]] = []
+    for row in rows:
+        payload = dict(row)
+        context = payload.get("context")
+        if isinstance(context, dict):
+            payload["context"] = dict(context)
+        else:
+            payload["context"] = None
+        result.append(payload)
+    return result
 
 
 

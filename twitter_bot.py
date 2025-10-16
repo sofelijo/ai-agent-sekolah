@@ -12,7 +12,7 @@ import requests
 from dotenv import load_dotenv
 
 from ai_core import build_qa_chain
-from db import save_chat, get_chat_history
+from db import save_chat, get_chat_history, record_twitter_log
 from responses import ASKA_NO_DATA_RESPONSE, ASKA_TECHNICAL_ISSUE_RESPONSE
 from utils import (
     coerce_to_text,
@@ -29,6 +29,54 @@ from utils import (
 )
 
 LOGGER = logging.getLogger("aska.twitter")
+
+
+class _TwitterDBLogHandler(logging.Handler):
+    """Logging handler yang menyimpan log penting ke database untuk dashboard."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno < logging.INFO:
+            return
+        try:
+            message = record.getMessage()
+            if not message:
+                return
+
+            tweet_id = getattr(record, "tweet_id", None)
+            twitter_user_id = getattr(record, "twitter_user_id", None) or getattr(record, "user_id", None)
+
+            context: Dict[str, Any] = {
+                "logger": record.name,
+                "module": record.module,
+                "function": record.funcName,
+                "line": record.lineno,
+                "thread": record.threadName,
+            }
+            if tweet_id:
+                context["tweet_id"] = tweet_id
+            if twitter_user_id:
+                context["twitter_user_id"] = twitter_user_id
+
+            mention_username = getattr(record, "username", None)
+            if mention_username:
+                context["username"] = mention_username
+
+            if record.exc_info:
+                try:
+                    context["exception"] = self.formatException(record.exc_info)
+                except Exception:
+                    context["exception"] = "Unable to format exception."
+
+            record_twitter_log(
+                record.levelname,
+                message,
+                tweet_id=tweet_id,
+                twitter_user_id=twitter_user_id,
+                context=context,
+            )
+        except Exception:
+            # Hindari recursive logging di handler
+            pass
 
 DEFAULT_SPAM_KEYWORDS = {
     "follow back", "folback", "promo", "promote", "dm for collab",
@@ -76,6 +124,10 @@ class TwitterAskaBot:
             level=os.getenv("TWITTER_LOG_LEVEL", "INFO"),
             format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         )
+        if not any(isinstance(h, _TwitterDBLogHandler) for h in LOGGER.handlers):
+            db_handler = _TwitterDBLogHandler()
+            db_handler.setLevel(logging.INFO)
+            LOGGER.addHandler(db_handler)
 
         # Runtime/env
         self.poll_interval = int(os.getenv("TWITTER_POLL_INTERVAL", "180"))

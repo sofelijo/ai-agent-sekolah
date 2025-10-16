@@ -89,6 +89,28 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at
 ON notifications (created_at DESC);
 """
 
+_TWITTER_LOGS_SQL = """
+CREATE TABLE IF NOT EXISTS twitter_worker_logs (
+    id SERIAL PRIMARY KEY,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    context JSONB,
+    tweet_id BIGINT,
+    twitter_user_id BIGINT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_TWITTER_LOGS_INDEX_CREATED = """
+CREATE INDEX IF NOT EXISTS idx_twitter_worker_logs_created
+ON twitter_worker_logs (created_at DESC);
+"""
+
+_TWITTER_LOGS_INDEX_LEVEL = """
+CREATE INDEX IF NOT EXISTS idx_twitter_worker_logs_level
+ON twitter_worker_logs (level);
+"""
+
 
 def ensure_dashboard_schema() -> None:
     """Create core dashboard tables when they do not yet exist."""
@@ -101,6 +123,9 @@ def ensure_dashboard_schema() -> None:
         _NOTIFICATIONS_SQL,
         _NOTIFICATIONS_INDEX_STATUS,
         _NOTIFICATIONS_INDEX_CREATED,
+        _TWITTER_LOGS_SQL,
+        _TWITTER_LOGS_INDEX_CREATED,
+        _TWITTER_LOGS_INDEX_LEVEL,
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS severity TEXT",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS metadata JSONB",

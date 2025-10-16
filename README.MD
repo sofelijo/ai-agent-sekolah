@@ -322,6 +322,73 @@ ASKA bisa ikut menyapa warga sekolah di Twitter/X dengan membalas mention secara
 
 > **Catatan:** Worker Twitter berjalan terpisah dari bot Telegram. Jalankan di screen/tmux atau buat service systemd baru kalau ingin 24/7.
 
+### ⚙️ Deploy Worker Twitter/X di Server Ubuntu (Systemd)
+
+Gunakan tutorial ini ketika worker Twitter sudah diuji jalan secara manual.
+
+```bash
+# 1. Pastikan dependensi terpasang dan virtualenv aktif
+cd /root/ai-agent-sekolah
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Cek kredensial Twitter di .env (gunakan nilai produksi)
+nano .env  # periksa TWITTER_BEARER_TOKEN, TWITTER_API_KEY, dll.
+
+# 3. Uji coba worker secara manual (Ctrl+C untuk berhenti)
+python twitter_bot.py
+```
+
+Setelah worker terbukti jalan, buat service systemd khusus supaya worker ikut hidup otomatis saat server reboot.
+
+```bash
+# 4. Buat unit service systemd
+sudo nano /etc/systemd/system/aska-twitter.service
+```
+
+Isi file `aska-twitter.service`:
+
+```ini
+[Unit]
+Description=ASKA Twitter Worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/ai-agent-sekolah
+EnvironmentFile=/root/ai-agent-sekolah/.env
+ExecStart=/root/ai-agent-sekolah/venv/bin/python twitter_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Kemudian aktifkan service:
+
+```bash
+# 5. Reload systemd dan jalankan worker
+sudo systemctl daemon-reload
+sudo systemctl enable aska-twitter.service
+sudo systemctl start aska-twitter.service
+
+# 6. Pantau status dan log cepat
+sudo systemctl status aska-twitter.service
+sudo journalctl -u aska-twitter.service -f
+```
+
+Tips produksi:
+
+- Simpan file state di lokasi yang persisten (`TWITTER_STATE_PATH=/root/ai-agent-sekolah/twitter_state.json`).
+- Gunakan interval yang masuk akal (`TWITTER_POLL_INTERVAL`, `TWITTER_AUTOPOST_INTERVAL`) agar tidak melewati rate limit.
+- Atur kata kunci spam (`TWITTER_SPAM_KEYWORDS`) dan panjang maksimal (`TWITTER_MAX_TWEET_LEN`) sesuai strategi konten.
+- Pastikan direktori `twitter_posts.txt` dapat dibaca oleh user service (`www-data` atau user lain yang dipilih).
+
 ---
 
 ## 📈 Cek Status & Log

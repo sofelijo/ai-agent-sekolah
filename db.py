@@ -47,6 +47,32 @@ if DB_SSLMODE:
 # Koneksi ke PostgreSQL
 conn = psycopg2.connect(**conn_args)
 
+_CHAT_TOPIC_AVAILABLE: Optional[bool] = None
+MAX_TWITTER_LOG_ROWS = max(0, int(os.getenv("TWITTER_LOG_MAX_ROWS", "100") or 100))
+
+
+def _chat_logs_has_topic_column() -> bool:
+    """
+    Periksa sekali apakah tabel chat_logs memiliki kolom 'topic'.
+    Hasil dicegah supaya query berikutnya lebih cepat dan stabil.
+    """
+    global _CHAT_TOPIC_AVAILABLE
+    if _CHAT_TOPIC_AVAILABLE is not None:
+        return _CHAT_TOPIC_AVAILABLE
+
+    query = """
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'chat_logs'
+          AND column_name = 'topic'
+        LIMIT 1
+    """
+    with conn.cursor() as cur:
+        cur.execute(query)
+        _CHAT_TOPIC_AVAILABLE = cur.fetchone() is not None
+    return _CHAT_TOPIC_AVAILABLE
+
 def _ensure_bullying_schema() -> None:
     """Pastikan tabel dan kolom pendukung pelaporan bullying tersedia."""
     with conn.cursor() as cur:
@@ -230,15 +256,26 @@ def save_chat(
     response_time_ms: Optional[int] = None,
 ) -> Optional[int]:
     """Simpan chat ke tabel chat_logs dan kembalikan id baris yang dibuat."""
+    use_topic = _chat_logs_has_topic_column()
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO chat_logs (user_id, username, text, role, created_at, response_time_ms)
-            VALUES (%s, %s, %s, %s, NOW(), %s)
-            RETURNING id
-            """,
-            (user_id, username, message, role, response_time_ms),
-        )
+        if use_topic:
+            cur.execute(
+                """
+                INSERT INTO chat_logs (user_id, username, text, role, topic, created_at, response_time_ms)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+                RETURNING id
+                """,
+                (user_id, username, message, role, topic, response_time_ms),
+            )
+        else:
+            cur.execute(
+                """
+                INSERT INTO chat_logs (user_id, username, text, role, created_at, response_time_ms)
+                VALUES (%s, %s, %s, %s, NOW(), %s)
+                RETURNING id
+                """,
+                (user_id, username, message, role, response_time_ms),
+            )
         row = cur.fetchone()
     conn.commit()
     return int(row[0]) if row else None
@@ -354,8 +391,97 @@ def get_corruption_report(ticket_id: str) -> Optional[Dict[str, Any]]:
 
     return report
 
+def _ensure_twitter_log_schema() -> None:
+    """Pastikan tabel penyimpanan log worker Twitter tersedia."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS twitter_worker_logs (
+                id SERIAL PRIMARY KEY,
+                level TEXT NOT NULL,
+                message TEXT NOT NULL,
+                context JSONB,
+                tweet_id BIGINT,
+                twitter_user_id BIGINT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_twitter_worker_logs_created
+            ON twitter_worker_logs (created_at DESC);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_twitter_worker_logs_level
+            ON twitter_worker_logs (level);
+            """
+        )
+    conn.commit()
+
+def record_twitter_log(
+    level: str,
+    message: str,
+    *,
+    tweet_id: Optional[int] = None,
+    twitter_user_id: Optional[int] = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Simpan log worker Twitter ke database untuk dipantau via dashboard."""
+    if not message:
+        return
+    clean_level = (level or "INFO").strip().upper()
+    clean_message = message.strip()
+    if not clean_message:
+        return
+    if len(clean_message) > 4000:
+        clean_message = clean_message[:4000]
+
+    context_payload: Optional[Dict[str, Any]] = None
+    if context:
+        context_payload = {}
+        for key, value in context.items():
+            if value is None:
+                continue
+            if isinstance(value, (str, int, float, bool, dict, list)):
+                context_payload[key] = value
+            else:
+                context_payload[key] = str(value)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO twitter_worker_logs (level, message, context, tweet_id, twitter_user_id)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                clean_level,
+                clean_message,
+                Json(context_payload) if context_payload else None,
+                tweet_id,
+                twitter_user_id,
+            ),
+        )
+        if MAX_TWITTER_LOG_ROWS > 0:
+            cur.execute(
+                """
+                DELETE FROM twitter_worker_logs
+                WHERE id NOT IN (
+                    SELECT id
+                    FROM twitter_worker_logs
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT %s
+                )
+                """,
+                (MAX_TWITTER_LOG_ROWS,),
+            )
+    conn.commit()
+
 # Call schema functions on startup
 _ensure_bullying_schema()
 _ensure_psych_schema()
 _ensure_user_schema()
 _ensure_corruption_schema()
+_ensure_twitter_log_schema()
