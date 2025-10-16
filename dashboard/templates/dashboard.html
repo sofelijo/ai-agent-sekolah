@@ -61,18 +61,47 @@
         align-items: flex-end;
         gap: 1rem;
     }
+    #refreshBtn {
+        border-radius: 999px;
+        padding-inline: 0.9rem;
+    }
+    .hero-actions .btn-group .btn {
+        border-radius: 0;
+    }
+    .hero-actions .btn-group .btn:first-child {
+        border-top-left-radius: 999px;
+        border-bottom-left-radius: 999px;
+    }
+    .hero-actions .btn-group .btn:last-child {
+        border-top-right-radius: 999px;
+        border-bottom-right-radius: 999px;
+    }
     .hero-actions .badge {
         font-weight: 600;
+        border-radius: 999px;
+        padding-inline: 0.9rem;
     }
     .akses-card .akses-links {
-        display: flex;
+        display: inline-flex;
         flex-wrap: wrap;
-        gap: 0.45rem;
+        gap: 0;
     }
     .akses-card .akses-links .btn {
-        border-radius: 999px;
+        border-radius: 0;
         padding-inline: 0.95rem;
         font-weight: 500;
+        margin: 0;
+    }
+    .akses-card .akses-links .btn + .btn {
+        margin-left: -1px;
+    }
+    .akses-card .akses-links .btn:first-child {
+        border-top-left-radius: 999px;
+        border-bottom-left-radius: 999px;
+    }
+    .akses-card .akses-links .btn:last-child {
+        border-top-right-radius: 999px;
+        border-bottom-right-radius: 999px;
     }
     .insight-chip {
         display: inline-flex;
@@ -178,6 +207,8 @@
         height: 420px;
         display: flex;
         flex-direction: column;
+        border-radius: 1.25rem;
+        overflow: hidden;
     }
     .metric-card-equal .card-body {
         flex: 1;
@@ -428,8 +459,17 @@
                             <i class="bi bi-arrow-clockwise"></i>
                             <span class="d-none d-sm-inline">Refresh</span>
                         </button>
-                        <span class="badge text-bg-light border" title="Waktu pembuatan ringkasan">
-                            <i class="bi bi-clock-history me-1"></i>Update {{ generated_at|jakarta('%d %b %Y %H:%M') }}
+                        <span class="badge text-bg-light border d-inline-flex align-items-center gap-1">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i>
+                            <span>Update</span>
+                            <time id="generatedAtTime"
+                                  class="fw-semibold"
+                                  datetime="{{ generated_at|jakarta('%Y-%m-%dT%H:%M:%S%z') if generated_at else '' }}"
+                                  data-local-label="{{ generated_at|jakarta('%d %b %Y %H:%M') if generated_at else '' }}"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="bottom">
+                                {{ generated_at|jakarta('%d %b %Y %H:%M') if generated_at else '—' }}
+                            </time>
                         </span>
                     </div>
                     <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Filter periode cepat">
@@ -454,15 +494,17 @@
                                     <p class="text-muted small mb-0">Pilih saluran interaksi.</p>
                                 </div>
                             </div>
-                            <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ aska_links.tele }}" target="_blank" rel="noopener">
-                                <i class="bi bi-telegram"></i><span>Telegram</span>
-                            </a>
-                            <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2 ms-2" href="{{ aska_links.web }}" target="_blank" rel="noopener">
-                                <i class="bi bi-globe2"></i><span>Website</span>
-                            </a>
-                            <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2 ms-2" href="{{ aska_links.twitter }}" target="_blank" rel="noopener">
-                                <i class="bi bi-twitter"></i><span>Twitter</span>
-                            </a>
+                            <div class="akses-links" role="group" aria-label="Saluran ASKA">
+                                <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ aska_links.tele }}" target="_blank" rel="noopener">
+                                    <i class="bi bi-telegram"></i><span>Telegram</span>
+                                </a>
+                                <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ aska_links.web }}" target="_blank" rel="noopener">
+                                    <i class="bi bi-globe2"></i><span>Web</span>
+                                </a>
+                                <a class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2" href="{{ aska_links.twitter }}" target="_blank" rel="noopener">
+                                    <i class="bi bi-twitter"></i><span>Twitter</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -489,9 +531,16 @@
                             <div class="caption">detik</div>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between small text-muted">
-                        <span>P90: <strong>{{ response_p90_seconds|round(2) }} s</strong></span>
-                        <span id="responseGaugeGoal">Target ≤ 15 s</span>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                        <span class="badge rounded-pill bg-light text-success d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm">
+                            <i class="bi bi-graph-up"></i>
+                            <span>P90</span>
+                            <strong class="text-dark">{{ response_p90_seconds|round(2) }} s</strong>
+                        </span>
+                        <span class="badge rounded-pill bg-light text-primary d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm" id="responseGaugeGoal">
+                            <i class="bi bi-flag"></i>
+                            <span>Target ≤ 15 s</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -527,7 +576,7 @@
                         </span>
                         <div>
                             <h2 class="h6 fw-bold mb-0">Kata Kunci Populer</h2>
-                            <p class="text-muted mb-0">14 hari terakhir</p>
+                            <p class="text-muted mb-0">30 hari terakhir</p>
                         </div>
                     </div>
                     <div class="chart-container flex-grow-1" style="height: 200px;">
@@ -750,6 +799,59 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const formatRelativeTime = (targetDate) => {
+            if (!(targetDate instanceof Date) || Number.isNaN(targetDate.getTime())) {
+                return '';
+            }
+            try {
+                const now = Date.now();
+                const diffSeconds = Math.round((targetDate.getTime() - now) / 1000);
+                const rtf = new Intl.RelativeTimeFormat('id-ID', { numeric: 'auto' });
+                const divisions = [
+                    { unit: 'year', seconds: 31536000 },
+                    { unit: 'month', seconds: 2629800 },
+                    { unit: 'week', seconds: 604800 },
+                    { unit: 'day', seconds: 86400 },
+                    { unit: 'hour', seconds: 3600 },
+                    { unit: 'minute', seconds: 60 },
+                    { unit: 'second', seconds: 1 },
+                ];
+                for (const division of divisions) {
+                    if (Math.abs(diffSeconds) >= division.seconds || division.unit === 'second') {
+                        const value = Math.round(diffSeconds / division.seconds);
+                        return rtf.format(value, division.unit);
+                    }
+                }
+            } catch (error) {
+                console.warn('Relative time formatting failed:', error);
+            }
+            return '';
+        };
+
+        const generatedAtTimeEl = document.getElementById('generatedAtTime');
+        if (generatedAtTimeEl) {
+            const fallbackLabel = generatedAtTimeEl.dataset.localLabel || generatedAtTimeEl.textContent.trim();
+            if (fallbackLabel) {
+                generatedAtTimeEl.textContent = fallbackLabel;
+            }
+            const rawDateTime = generatedAtTimeEl.getAttribute('datetime') || '';
+            let normalizedDateTime = rawDateTime;
+            if (rawDateTime && /[+-]\d{4}$/.test(rawDateTime)) {
+                normalizedDateTime = rawDateTime.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+            }
+            let parsedDate = normalizedDateTime ? new Date(normalizedDateTime) : null;
+            if (parsedDate && Number.isNaN(parsedDate.getTime()) && rawDateTime) {
+                parsedDate = new Date(rawDateTime);
+            }
+            const relativeLabel = parsedDate ? formatRelativeTime(parsedDate) : '';
+            const tooltipText = relativeLabel
+                ? `Diperbarui ${relativeLabel}`
+                : (fallbackLabel ? `Diperbarui pada ${fallbackLabel}` : 'Waktu pembaruan tidak tersedia');
+            generatedAtTimeEl.setAttribute('data-bs-title', tooltipText);
+            generatedAtTimeEl.setAttribute('title', tooltipText);
+            generatedAtTimeEl.setAttribute('aria-label', tooltipText);
+        }
+
         // Enable Bootstrap tooltips
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.forEach(function (tooltipTriggerEl) {
@@ -816,6 +918,22 @@
             }
         }
         requestAnimationFrame(step);
+    }
+
+    function animateStatFromZero(el, rawTarget) {
+        if (!el || el.dataset.initialAnimated === 'true') return;
+        const parseNumber = (value) => {
+            if (value === undefined || value === null) return NaN;
+            return Number.parseInt(String(value).replace(/[^0-9.-]/g, ''), 10);
+        };
+        let target = parseNumber(rawTarget);
+        if (Number.isNaN(target)) {
+            target = parseNumber(el.textContent);
+        }
+        if (Number.isNaN(target)) return;
+        el.dataset.initialAnimated = 'true';
+        el.textContent = '0';
+        requestAnimationFrame(() => animateValue(el, target));
     }
 
     // Colors from CSS variables for charts
@@ -973,8 +1091,44 @@
     const keywordCounts = {{ keyword_counts|tojson }};
 
     if (keywordCtx && keywordLabels.length) {
-        const alphaRamp = [1, 0.9, 0.82, 0.74, 0.66, 0.58, 0.5, 0.42, 0.34];
+        const alphaRamp = [1, 0.9, 0.82, 0.74, 0.66, 0.58, 0.5, 0.42, 0.34, 0.26];
         const keywordColors = keywordLabels.map((_, idx) => hexToRgba(accent, alphaRamp[Math.min(idx, alphaRamp.length - 1)]));
+        const keywordRankPlugin = {
+            id: 'keywordRank',
+            afterDatasetsDraw(chart, args, opts) {
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+                const ctx = chart.ctx;
+                const chartArea = chart.chartArea || {};
+                const pluginOpts = opts || {};
+                const offset = Number.isFinite(pluginOpts.offset) ? pluginOpts.offset : 14;
+                const color = pluginOpts.color || ticksColor || '#475569';
+                const fontOpts = pluginOpts.font || {};
+                const fontSize = fontOpts.size || 12;
+                const fontWeight = fontOpts.weight || 600;
+                const fontFamily = fontOpts.family || (document.body ? getComputedStyle(document.body).fontFamily : 'sans-serif');
+
+                ctx.save();
+                ctx.fillStyle = color;
+                ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                ctx.textBaseline = 'middle';
+
+                meta.data.forEach((element, index) => {
+                    if (!element) return;
+                    const { x, y } = element.tooltipPosition(true);
+                    const label = `#${index + 1}`;
+                    const textWidth = ctx.measureText(label).width;
+                    let textX = x + offset;
+                    if (chartArea.right !== undefined && (textX + textWidth) > chartArea.right) {
+                        textX = chartArea.right - textWidth - 6;
+                    }
+                    ctx.fillText(label, textX, y);
+                });
+
+                ctx.restore();
+            },
+        };
+
         new Chart(keywordCtx, {
             type: 'bar',
             data: {
@@ -994,7 +1148,15 @@
                 indexAxis: 'y',
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    keywordRank: {
+                        offset: 16,
+                        font: {
+                            size: 12,
+                            weight: 600,
+                        },
+                        color: ticksColor,
+                    },
                 },
                 scales: {
                     x: {
@@ -1007,13 +1169,44 @@
                         grid: { color: gridColor }
                     }
                 }
-            }
+            },
+            plugins: [keywordRankPlugin],
         });
     }
     const responseStats = {{ {
         "avg": ((metrics.avg_response_ms | default(0, true)) / 1000.0),
         "p90": ((metrics.p90_response_ms | default(0, true)) / 1000.0)
     } | tojson }};
+    const responseGaugeRoundedPlugin = {
+        id: 'responseGaugeRoundedEnds',
+        afterDatasetsDraw(chart) {
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data.length) return;
+            const arc = meta.data[0];
+            if (!arc) return;
+            const dataset = chart.data?.datasets?.[0];
+            const value = Number(dataset?.data?.[0] ?? 0);
+            if (!dataset || value <= 0) return;
+            const color = Array.isArray(dataset.backgroundColor)
+                ? dataset.backgroundColor[0]
+                : dataset.backgroundColor;
+            if (!color) return;
+            const { x, y, endAngle, innerRadius, outerRadius } = arc;
+            const thickness = Math.max(outerRadius - innerRadius, 0);
+            if (thickness === 0) return;
+            const radius = thickness / 2;
+            const centerRadius = innerRadius + radius;
+            const capX = x + Math.cos(endAngle) * centerRadius;
+            const capY = y + Math.sin(endAngle) * centerRadius;
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(capX, capY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        },
+    };
     const responseCardEl = document.getElementById('responseHealthCard');
     const responseGaugeCtx = document.getElementById('responseGaugeChart');
     if (responseGaugeCtx && responseCardEl) {
@@ -1044,6 +1237,7 @@
                     tooltip: { enabled: false },
                 },
             },
+            plugins: [responseGaugeRoundedPlugin],
         });
         const gaugeGoalEl = document.getElementById('responseGaugeGoal');
         if (gaugeGoalEl && Number.isFinite(targetSeconds)) {
@@ -1162,6 +1356,10 @@
                 option.classList.add('active');
             });
         });
+        const activeRequestOption = requestsCard.querySelector('.js-requests-option.active');
+        const initialRequestRange = activeRequestOption?.dataset.range || 'all';
+        const initialRequestValue = requestCounts[initialRequestRange] ?? requestCounts.all ?? requestsValueEl.textContent;
+        animateStatFromZero(requestsValueEl, initialRequestValue);
     }
 
     const uniqueCard = document.getElementById('uniqueUsersCard');
@@ -1186,6 +1384,10 @@
                 option.classList.add('active');
             });
         });
+        const activeUniqueOption = uniqueCard.querySelector('.js-unique-users-option.active');
+        const initialUniqueRange = activeUniqueOption?.dataset.range || 'all';
+        const initialUniqueValue = counts[initialUniqueRange] ?? counts.all ?? uniqueValueEl.textContent;
+        animateStatFromZero(uniqueValueEl, initialUniqueValue);
     }
 
     const messagesCard = document.getElementById('messagesCard');
@@ -1231,6 +1433,10 @@
         if (messagesDescription) {
             messagesDescription.textContent = descriptionMap.all;
         }
+        const activeMessageOption = messagesCard.querySelector('.js-messages-option.active');
+        const initialMessageRange = activeMessageOption?.dataset.range || 'all';
+        const initialMessageValue = messageCounts[initialMessageRange] ?? messageCounts.all ?? messagesValueEl.textContent;
+        animateStatFromZero(messagesValueEl, initialMessageValue);
     }
 
     // Global range chips to update both cards simultaneously
@@ -1240,9 +1446,9 @@
         const summaryLabelEl = document.getElementById('globalRangeLabelText');
         const summaryLabelMap = {
             today: 'hari ini',
-            week: 'Minggu',
-            month: 'Sebulan',
-            year: 'Setahun',
+            week: 'seminggu',
+            month: 'sebulan',
+            year: 'setahun',
             all: 'semua waktu',
         };
         const updateSummaryLabel = (range) => {

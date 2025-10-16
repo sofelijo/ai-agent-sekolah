@@ -185,7 +185,7 @@ def dashboard() -> Response:
     incoming_activity_long = fetch_daily_activity(days=365, role="user")
     recent_questions = fetch_recent_questions(limit=8)
     top_users = fetch_top_users(limit=5)
-    top_keywords = fetch_top_keywords(limit=8, days=14)
+    top_keywords = fetch_top_keywords(limit=10, days=30)
 
     chart_days: list[str] = []
     chart_values: list[int] = []
