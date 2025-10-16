@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
+import os
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import json
-import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from flask import has_request_context, session
 from psycopg2.extras import DictRow, Json
 
 from .db_access import get_cursor
@@ -62,6 +64,48 @@ STOPWORDS = {
 }
 
 _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
+_TESTER_IDS_CACHE: Optional[List[int]] = None
+
+
+def _load_tester_ids() -> List[int]:
+    """Parse tester user_id list from environment."""
+    global _TESTER_IDS_CACHE
+    if _TESTER_IDS_CACHE is not None:
+        return _TESTER_IDS_CACHE
+
+    raw_value = os.getenv("DASHBOARD_TESTER_IDS", "") or ""
+    candidates = re.split(r"[,\s;]+", raw_value.strip())
+    parsed: List[int] = []
+    for item in candidates:
+        if not item:
+            continue
+        try:
+            parsed.append(int(item))
+        except ValueError:
+            continue
+    _TESTER_IDS_CACHE = parsed
+    return parsed
+
+
+def _no_tester_active() -> bool:
+    """Return True when the current request should hide tester data."""
+    if not has_request_context():
+        return False
+    user = session.get("user") or {}
+    return bool(user.get("no_tester_enabled"))
+
+
+def _tester_condition(column: str = "user_id") -> Tuple[str, List[Any]]:
+    """
+    Build a SQL condition snippet (without prefix) to exclude tester user_ids.
+    Returns the condition string and parameter list (single list of ids) when active.
+    """
+    if not _no_tester_active():
+        return "", []
+    tester_ids = _load_tester_ids()
+    if not tester_ids:
+        return "", []
+    return f"({column} IS NULL OR {column} <> ALL(%s))", [tester_ids]
 
 
 def chat_topic_available() -> bool:
@@ -147,76 +191,58 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
     escalated_total = 0
 
     with get_cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS total_messages FROM chat_logs")
+        clause, params = _tester_condition("user_id")
+        tester_param = params[0] if params else None
+
+        query = "SELECT COUNT(*) AS total_messages FROM chat_logs"
+        if clause:
+            query += f" WHERE {clause}"
+        cur.execute(query, (tester_param,) if tester_param is not None else ())
         total_messages = cur.fetchone()["total_messages"]
 
-        cur.execute(
-            """
-            SELECT COUNT(*) AS total_incoming_messages
-            FROM chat_logs
-            WHERE role = 'user'
-            """
+        query = (
+            "SELECT COUNT(*) AS total_incoming_messages "
+            "FROM chat_logs WHERE role = 'user'"
         )
+        query_params: List[Any] = []
+        if clause:
+            query += f" AND {clause}"
+            query_params = [tester_param]
+        cur.execute(query, tuple(query_params))
         total_incoming_messages = cur.fetchone()["total_incoming_messages"]
 
-        cur.execute(
-            """
-            SELECT COUNT(DISTINCT user_id) AS unique_users
-            FROM chat_logs
-            WHERE role = 'user'
-            """
-        )
-        unique_users_all = cur.fetchone()["unique_users"]
+        def _distinct_users(interval_clause: str) -> int:
+            base_query = (
+                "SELECT COUNT(DISTINCT user_id) AS unique_users "
+                "FROM chat_logs WHERE role = 'user'"
+            )
+            query_params: List[Any] = []
+            if interval_clause:
+                base_query += f" AND {interval_clause}"
+            if clause:
+                base_query += f" AND {clause}"
+                query_params.append(tester_param)
+            cur.execute(base_query, tuple(query_params))
+            return cur.fetchone()["unique_users"]
 
-        cur.execute(
-            """
-            SELECT COUNT(DISTINCT user_id) AS unique_users_today
-            FROM chat_logs
-            WHERE role = 'user'
-              AND DATE(created_at) = CURRENT_DATE
-            """
-        )
-        unique_users_today = cur.fetchone()["unique_users_today"]
+        unique_users_all = _distinct_users("")
+        unique_users_today = _distinct_users("DATE(created_at) = CURRENT_DATE")
+        unique_users_7d = _distinct_users("created_at >= NOW() - INTERVAL '7 days'")
+        unique_users_30d = _distinct_users("created_at >= NOW() - INTERVAL '30 days'")
+        unique_users_365d = _distinct_users("created_at >= NOW() - INTERVAL '365 days'")
 
-        cur.execute(
-            """
-            SELECT COUNT(DISTINCT user_id) AS unique_users_7d
-            FROM chat_logs
-            WHERE role = 'user'
-              AND created_at >= NOW() - INTERVAL '7 days'
-            """
+        query = (
+            "SELECT "
+            "    AVG(response_time_ms)::float AS avg_response, "
+            "    percentile_cont(0.9) WITHIN GROUP (ORDER BY response_time_ms) AS p90_response "
+            "FROM chat_logs "
+            "WHERE response_time_ms IS NOT NULL"
         )
-        unique_users_7d = cur.fetchone()["unique_users_7d"]
-
-        cur.execute(
-            """
-            SELECT COUNT(DISTINCT user_id) AS unique_users_30d
-            FROM chat_logs
-            WHERE role = 'user'
-              AND created_at >= NOW() - INTERVAL '30 days'
-            """
-        )
-        unique_users_30d = cur.fetchone()["unique_users_30d"]
-
-        cur.execute(
-            """
-            SELECT COUNT(DISTINCT user_id) AS unique_users_365d
-            FROM chat_logs
-            WHERE role = 'user'
-              AND created_at >= NOW() - INTERVAL '365 days'
-            """
-        )
-        unique_users_365d = cur.fetchone()["unique_users_365d"]
-
-        cur.execute(
-            """
-            SELECT
-                AVG(response_time_ms)::float AS avg_response,
-                percentile_cont(0.9) WITHIN GROUP (ORDER BY response_time_ms) AS p90_response
-            FROM chat_logs
-            WHERE response_time_ms IS NOT NULL
-            """
-        )
+        query_params = []
+        if clause:
+            query += f" AND {clause}"
+            query_params = [tester_param]
+        cur.execute(query, tuple(query_params))
         response_stats = cur.fetchone()
 
         active_today = unique_users_today
@@ -299,6 +325,10 @@ def fetch_daily_activity(days: int = 14, role: Optional[str] = None) -> List[Dic
     if role:
         query.append("AND role = %s")
         params.append(role)
+    clause, clause_params = _tester_condition("user_id")
+    if clause:
+        query.append(f"AND {clause}")
+        params.extend(clause_params)
     query.extend(
         [
             "GROUP BY day",
@@ -318,32 +348,44 @@ def fetch_daily_activity(days: int = 14, role: Optional[str] = None) -> List[Dic
 
 def fetch_recent_questions(limit: int = 10) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, user_id, username, text, created_at
-            FROM chat_logs
-            WHERE role = 'user'
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT id, user_id, username, text, created_at",
+            "FROM chat_logs",
+            "WHERE role = 'user'",
+        ]
+        if clause:
+            query_parts.append(f"AND {clause}")
+        query_parts.extend(
+            [
+                "ORDER BY created_at DESC",
+                "LIMIT %s",
+            ]
         )
+        params: List[Any] = [*clause_params, limit]
+        cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
 def fetch_top_users(limit: int = 5) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT user_id, COALESCE(username, 'Unknown') AS username, COUNT(*) AS messages
-            FROM chat_logs
-            WHERE role = 'user'
-            GROUP BY user_id, username
-            ORDER BY messages DESC
-            LIMIT %s
-            """,
-            (limit,),
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT user_id, COALESCE(username, 'Unknown') AS username, COUNT(*) AS messages",
+            "FROM chat_logs",
+            "WHERE role = 'user'",
+        ]
+        if clause:
+            query_parts.append(f"AND {clause}")
+        query_parts.extend(
+            [
+                "GROUP BY user_id, username",
+                "ORDER BY messages DESC",
+                "LIMIT %s",
+            ]
         )
+        params: List[Any] = [*clause_params, limit]
+        cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
@@ -354,17 +396,19 @@ def fetch_top_keywords(limit: int = 10, days: int = 14, min_length: int = 3) -> 
     min_length = max(1, min_length)
 
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT text
-            FROM chat_logs
-            WHERE role = 'user'
-              AND text IS NOT NULL
-              AND text <> ''
-              AND created_at >= NOW() - %s::interval
-            """,
-            (f"{days} days",),
-        )
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT text",
+            "FROM chat_logs",
+            "WHERE role = 'user'",
+            "  AND text IS NOT NULL",
+            "  AND text <> ''",
+            "  AND created_at >= NOW() - %s::interval",
+        ]
+        if clause:
+            query_parts.append(f"  AND {clause}")
+        params: List[Any] = [f"{days} days", *clause_params]
+        cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
 
     counter: Counter[str] = Counter()
@@ -388,6 +432,11 @@ def fetch_chat_logs(
     conditions: List[str] = []
     params: List[Any] = []
     _apply_filters(conditions, params, filters)
+
+    tester_clause, tester_params = _tester_condition("user_id")
+    if tester_clause:
+        conditions.append(tester_clause)
+        params.extend(tester_params)
 
     where_clause = ""
     if conditions:
@@ -414,6 +463,8 @@ def fetch_chat_logs(
     return [dict(row) for row in rows], int(total or 0)
 
 def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, Any]]:
+    if _no_tester_active() and user_id in set(_load_tester_ids()):
+        return []
     with get_cursor() as cur:
         cur.execute(
             """
@@ -433,18 +484,24 @@ def fetch_conversation_thread(user_id: int, limit: int = 200) -> List[Dict[str, 
 def fetch_all_chat_users() -> List[Dict[str, Any]]:
     """Fetches all users who have sent messages, with their message counts."""
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                user_id,
-                COALESCE(username, 'Unknown') AS username,
-                COUNT(*) AS message_count
-            FROM chat_logs
-            WHERE role = 'user'
-            GROUP BY user_id, username
-            ORDER BY MAX(created_at) DESC
-            """
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT",
+            "    user_id,",
+            "    COALESCE(username, 'Unknown') AS username,",
+            "    COUNT(*) AS message_count",
+            "FROM chat_logs",
+            "WHERE role = 'user'",
+        ]
+        if clause:
+            query_parts.append(f"AND {clause}")
+        query_parts.extend(
+            [
+                "GROUP BY user_id, username",
+                "ORDER BY MAX(created_at) DESC",
+            ]
         )
+        cur.execute("\n".join(query_parts), tuple(clause_params))
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
@@ -476,8 +533,8 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
     window_interval = f"{window_days} days"
 
     with get_cursor() as cur:
-        cur.execute(
-            """
+        clause, clause_params = _tester_condition("user_id")
+        overview_query = """
             SELECT
                 COUNT(*) FILTER (WHERE role = 'user') AS mentions_total,
                 COUNT(*) FILTER (WHERE role = 'aska') AS replies_total,
@@ -494,31 +551,38 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
                     FILTER (WHERE role = 'aska' AND response_time_ms IS NOT NULL) AS p90_response_ms
             FROM chat_logs
             WHERE topic = 'twitter'
-            """,
-            (window_interval, window_interval, window_interval),
-        )
+        """.strip()
+        params: List[Any] = [window_interval, window_interval, window_interval]
+        if clause:
+            overview_query += f" AND {clause}"
+            params.extend(clause_params)
+        cur.execute(overview_query, tuple(params))
         overview_row = cur.fetchone() or {}
 
-        cur.execute(
-            """
-            SELECT id, user_id, username, text, created_at
-            FROM chat_logs
-            WHERE topic = 'twitter' AND role = 'user'
-            ORDER BY created_at DESC
-            LIMIT 1
-            """
-        )
+        mention_query = [
+            "SELECT id, user_id, username, text, created_at",
+            "FROM chat_logs",
+            "WHERE topic = 'twitter' AND role = 'user'",
+        ]
+        mention_params: List[Any] = []
+        if clause:
+            mention_query.append(f"AND {clause}")
+            mention_params.extend(clause_params)
+        mention_query.extend(["ORDER BY created_at DESC", "LIMIT 1"])
+        cur.execute("\n".join(mention_query), tuple(mention_params))
         last_mention = cur.fetchone()
 
-        cur.execute(
-            """
-            SELECT id, user_id, username, text, created_at, response_time_ms
-            FROM chat_logs
-            WHERE topic = 'twitter' AND role = 'aska'
-            ORDER BY created_at DESC
-            LIMIT 1
-            """
-        )
+        reply_query = [
+            "SELECT id, user_id, username, text, created_at, response_time_ms",
+            "FROM chat_logs",
+            "WHERE topic = 'twitter' AND role = 'aska'",
+        ]
+        reply_params: List[Any] = []
+        if clause:
+            reply_query.append(f"AND {clause}")
+            reply_params.extend(clause_params)
+        reply_query.extend(["ORDER BY created_at DESC", "LIMIT 1"])
+        cur.execute("\n".join(reply_query), tuple(reply_params))
         last_reply = cur.fetchone()
 
     def _coerce_int(value) -> int:
@@ -564,20 +628,21 @@ def fetch_twitter_activity(days: int = 30) -> List[Dict[str, Any]]:
         return []
     days = max(1, days)
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                DATE(created_at) AS day,
-                COUNT(*) FILTER (WHERE role = 'user') AS mentions,
-                COUNT(*) FILTER (WHERE role = 'aska') AS replies
-            FROM chat_logs
-            WHERE topic = 'twitter'
-              AND created_at >= NOW() - %s::interval
-            GROUP BY day
-            ORDER BY day ASC
-            """,
-            (f"{days} days",),
-        )
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT",
+            "    DATE(created_at) AS day,",
+            "    COUNT(*) FILTER (WHERE role = 'user') AS mentions,",
+            "    COUNT(*) FILTER (WHERE role = 'aska') AS replies",
+            "FROM chat_logs",
+            "WHERE topic = 'twitter'",
+            "  AND created_at >= NOW() - %s::interval",
+        ]
+        if clause:
+            query_parts.append(f"  AND {clause}")
+        query_parts.extend(["GROUP BY day", "ORDER BY day ASC"])
+        params: List[Any] = [f"{days} days", *clause_params]
+        cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
     return [
         {
@@ -595,22 +660,28 @@ def fetch_twitter_top_users(limit: int = 8) -> List[Dict[str, Any]]:
         return []
     limit = max(1, limit)
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                user_id,
-                COALESCE(NULLIF(username, ''), 'Unknown') AS username,
-                COUNT(*) AS mentions,
-                MAX(created_at) AS last_seen
-            FROM chat_logs
-            WHERE topic = 'twitter'
-              AND role = 'user'
-            GROUP BY user_id, username
-            ORDER BY mentions DESC, last_seen DESC
-            LIMIT %s
-            """,
-            (limit,),
+        clause, clause_params = _tester_condition("user_id")
+        query_parts = [
+            "SELECT",
+            "    user_id,",
+            "    COALESCE(NULLIF(username, ''), 'Unknown') AS username,",
+            "    COUNT(*) AS mentions,",
+            "    MAX(created_at) AS last_seen",
+            "FROM chat_logs",
+            "WHERE topic = 'twitter'",
+            "  AND role = 'user'",
+        ]
+        if clause:
+            query_parts.append(f"  AND {clause}")
+        query_parts.extend(
+            [
+                "GROUP BY user_id, username",
+                "ORDER BY mentions DESC, last_seen DESC",
+                "LIMIT %s",
+            ]
         )
+        params: List[Any] = [*clause_params, limit]
+        cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
     return [dict(row) for row in rows]
 
@@ -649,17 +720,22 @@ def fetch_bullying_summary() -> Dict[str, int]:
     total = 0
     escalated_total = 0
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT status, COUNT(*) AS total
-            FROM bullying_reports
-            GROUP BY status
-            """
-        )
+        clause, clause_params = _tester_condition("user_id")
+        query = [
+            "SELECT status, COUNT(*) AS total",
+            "FROM bullying_reports",
+        ]
+        if clause:
+            query.append(f"WHERE {clause}")
+        query.append("GROUP BY status")
+        cur.execute("\n".join(query), tuple(clause_params))
         rows = cur.fetchall()
-        cur.execute(
-            "SELECT COUNT(*) FROM bullying_reports WHERE escalated = TRUE"
-        )
+        esc_query = "SELECT COUNT(*) FROM bullying_reports WHERE escalated = TRUE"
+        esc_params: List[Any] = []
+        if clause:
+            esc_query += f" AND {clause}"
+            esc_params.extend(clause_params)
+        cur.execute(esc_query, tuple(esc_params))
         escalated_total = cur.fetchone()[0]
     for row in rows:
         status = (row.get('status') or '').lower()
@@ -682,25 +758,30 @@ def fetch_psych_summary() -> Dict[str, Any]:
     summary = {status: 0 for status in PSYCH_STATUSES}
     severity_counts = {severity: 0 for severity in PSYCH_SEVERITIES}
     total = 0
+    clause, clause_params = _tester_condition("user_id")
 
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT status, COUNT(*) AS total
-            FROM psych_reports
-            GROUP BY status
-            """
-        )
+        status_query = [
+            "SELECT status, COUNT(*) AS total",
+            "FROM psych_reports",
+        ]
+        if clause:
+            status_query.append(f"WHERE {clause}")
+        status_query.append("GROUP BY status")
+        cur.execute("\n".join(status_query), tuple(clause_params))
         status_rows = cur.fetchall()
 
-        cur.execute(
-            """
-            SELECT severity, COUNT(*) AS total
-            FROM psych_reports
-            WHERE status IS NULL OR status <> 'archived'
-            GROUP BY severity
-            """
-        )
+        severity_query = [
+            "SELECT severity, COUNT(*) AS total",
+            "FROM psych_reports",
+            "WHERE status IS NULL OR status <> 'archived'",
+        ]
+        severity_params: List[Any] = []
+        if clause:
+            severity_query.append(f"  AND {clause}")
+            severity_params.extend(clause_params)
+        severity_query.append("GROUP BY severity")
+        cur.execute("\n".join(severity_query), tuple(severity_params))
         severity_rows = cur.fetchall()
 
     for row in status_rows:
@@ -727,10 +808,14 @@ def fetch_psych_summary() -> Dict[str, Any]:
 
 def fetch_pending_psych_count() -> int:
     """Return number of open psychological reports."""
+    clause, clause_params = _tester_condition("user_id")
+    query = "SELECT COUNT(*) FROM psych_reports WHERE status = 'open'"
+    params: List[Any] = []
+    if clause:
+        query += f" AND {clause}"
+        params.extend(clause_params)
     with get_cursor() as cur:
-        cur.execute(
-            "SELECT COUNT(*) FROM psych_reports WHERE status = 'open'"
-        )
+        cur.execute(query, tuple(params))
         row = cur.fetchone()
     return int(row[0] if row else 0)
 
@@ -753,6 +838,10 @@ def fetch_bullying_reports(
     if status_filter:
         conditions.append('br.status = %s')
         params.append(status_filter)
+    tester_clause, tester_params = _tester_condition("br.user_id")
+    if tester_clause:
+        conditions.append(tester_clause)
+        params.extend(tester_params)
 
     where_clause = ''
     if conditions:
@@ -835,6 +924,10 @@ def fetch_psych_reports(
             raise ValueError(f"Tingkat keparahan tidak dikenal: {severity}")
         conditions.append("pr.severity = %s")
         params.append(normalized_severity)
+    tester_clause, tester_params = _tester_condition("pr.user_id")
+    if tester_clause:
+        conditions.append(tester_clause)
+        params.extend(tester_params)
 
     where_clause = ""
     if conditions:
@@ -921,53 +1014,59 @@ def fetch_psych_group_reports(
     if user_id is None and report_id is None:
         raise ValueError("Either user_id or report_id must be provided")
 
+    tester_clause, tester_params = _tester_condition("pr.user_id")
+
     with get_cursor() as cur:
         if user_id is not None:
-            cur.execute(
-                """
-                SELECT
-                    pr.id,
-                    pr.chat_log_id,
-                    pr.user_id,
-                    pr.username,
-                    pr.message,
-                    pr.summary,
-                    pr.severity,
-                    pr.status,
-                    pr.metadata,
-                    pr.created_at,
-                    pr.updated_at,
-                    cl.created_at AS chat_created_at
-                FROM psych_reports pr
-                LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id
-                WHERE pr.user_id = %s
-                ORDER BY pr.created_at DESC
-                """,
-                (user_id,),
-            )
+            query_parts = [
+                "SELECT",
+                "    pr.id,",
+                "    pr.chat_log_id,",
+                "    pr.user_id,",
+                "    pr.username,",
+                "    pr.message,",
+                "    pr.summary,",
+                "    pr.severity,",
+                "    pr.status,",
+                "    pr.metadata,",
+                "    pr.created_at,",
+                "    pr.updated_at,",
+                "    cl.created_at AS chat_created_at",
+                "FROM psych_reports pr",
+                "LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id",
+                "WHERE pr.user_id = %s",
+            ]
+            params: List[Any] = [user_id]
+            if tester_clause:
+                query_parts.append(f"  AND {tester_clause}")
+                params.extend(tester_params)
+            query_parts.append("ORDER BY pr.created_at DESC")
+            cur.execute("\n".join(query_parts), tuple(params))
         else:
-            cur.execute(
-                """
-                SELECT
-                    pr.id,
-                    pr.chat_log_id,
-                    pr.user_id,
-                    pr.username,
-                    pr.message,
-                    pr.summary,
-                    pr.severity,
-                    pr.status,
-                    pr.metadata,
-                    pr.created_at,
-                    pr.updated_at,
-                    cl.created_at AS chat_created_at
-                FROM psych_reports pr
-                LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id
-                WHERE pr.id = %s
-                ORDER BY pr.created_at DESC
-                """,
-                (report_id,),
-            )
+            query_parts = [
+                "SELECT",
+                "    pr.id,",
+                "    pr.chat_log_id,",
+                "    pr.user_id,",
+                "    pr.username,",
+                "    pr.message,",
+                "    pr.summary,",
+                "    pr.severity,",
+                "    pr.status,",
+                "    pr.metadata,",
+                "    pr.created_at,",
+                "    pr.updated_at,",
+                "    cl.created_at AS chat_created_at",
+                "FROM psych_reports pr",
+                "LEFT JOIN chat_logs cl ON cl.id = pr.chat_log_id",
+                "WHERE pr.id = %s",
+            ]
+            params = [report_id]
+            if tester_clause:
+                query_parts.append(f"  AND {tester_clause}")
+                params.extend(tester_params)
+            query_parts.append("ORDER BY pr.created_at DESC")
+            cur.execute("\n".join(query_parts), tuple(params))
         rows = cur.fetchall()
 
     records: List[Dict[str, Any]] = []
@@ -1245,36 +1344,39 @@ def bulk_update_bullying_report_status(
 
 
 def fetch_bullying_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
+    tester_clause, tester_params = _tester_condition("br.user_id")
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                br.id,
-                br.chat_log_id,
-                br.user_id,
-                br.username,
-                br.description,
-                br.status,
-                br.priority,
-                br.notes,
-                br.created_at,
-                br.updated_at,
-                br.last_updated_by,
-                br.category,
-                br.severity,
-                br.metadata,
-                br.assigned_to,
-                br.due_at,
-                br.resolved_at,
-                br.escalated,
-                cl.created_at AS chat_created_at
-            FROM bullying_reports br
-            LEFT JOIN chat_logs cl ON cl.id = br.chat_log_id
-            WHERE br.id = %s
-            LIMIT 1
-            """,
-            (report_id,)
-        )
+        query_parts = [
+            "SELECT",
+            "    br.id,",
+            "    br.chat_log_id,",
+            "    br.user_id,",
+            "    br.username,",
+            "    br.description,",
+            "    br.status,",
+            "    br.priority,",
+            "    br.notes,",
+            "    br.created_at,",
+            "    br.updated_at,",
+            "    br.last_updated_by,",
+            "    br.category,",
+            "    br.severity,",
+            "    br.metadata,",
+            "    br.assigned_to,",
+            "    br.due_at,",
+            "    br.resolved_at,",
+            "    br.escalated,",
+            "    cl.created_at AS chat_created_at",
+            "FROM bullying_reports br",
+            "LEFT JOIN chat_logs cl ON cl.id = br.chat_log_id",
+            "WHERE br.id = %s",
+        ]
+        params: List[Any] = [report_id]
+        if tester_clause:
+            query_parts.append(f"  AND {tester_clause}")
+            params.extend(tester_params)
+        query_parts.append("LIMIT 1")
+        cur.execute("\n".join(query_parts), tuple(params))
         report_row = cur.fetchone()
         if not report_row:
             return None
@@ -1295,16 +1397,19 @@ def fetch_bullying_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
 
 
 def fetch_bullying_report_basic(report_id: int) -> Optional[Dict[str, Any]]:
+    clause, clause_params = _tester_condition("user_id")
+    query = [
+        "SELECT id, status, notes, assigned_to, due_at, escalated",
+        "FROM bullying_reports",
+        "WHERE id = %s",
+    ]
+    params: List[Any] = [report_id]
+    if clause:
+        query.append(f"  AND {clause}")
+        params.extend(clause_params)
+    query.append("LIMIT 1")
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, status, notes, assigned_to, due_at, escalated
-            FROM bullying_reports
-            WHERE id = %s
-            LIMIT 1
-            """,
-            (report_id,)
-        )
+        cur.execute("\n".join(query), tuple(params))
         row = cur.fetchone()
     return dict(row) if row else None
 
@@ -1313,14 +1418,16 @@ def fetch_corruption_summary() -> Dict[str, int]:
     """Return aggregated counts of corruption reports by status."""
     summary = {status: 0 for status in CORRUPTION_STATUSES}
     total = 0
+    clause, clause_params = _tester_condition("user_id")
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT status, COUNT(*) AS total
-            FROM corruption_reports
-            GROUP BY status
-            """
-        )
+        query_parts = [
+            "SELECT status, COUNT(*) AS total",
+            "FROM corruption_reports",
+        ]
+        if clause:
+            query_parts.append(f"WHERE {clause}")
+        query_parts.append("GROUP BY status")
+        cur.execute("\n".join(query_parts), tuple(clause_params))
         rows = cur.fetchall()
     for row in rows:
         status = (row.get('status') or '').lower()
@@ -1355,6 +1462,10 @@ def fetch_corruption_reports(
     if status_filter:
         conditions.append('status = %s')
         params.append(status_filter)
+    tester_clause, tester_params = _tester_condition("user_id")
+    if tester_clause:
+        conditions.append(tester_clause)
+        params.extend(tester_params)
 
     where_clause = ''
     if conditions:
@@ -1393,26 +1504,29 @@ def fetch_corruption_reports(
 
 def fetch_corruption_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
     """Fetches all details for a single corruption report."""
+    clause, clause_params = _tester_condition("user_id")
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                id,
-                ticket_id,
-                user_id,
-                status,
-                involved,
-                location,
-                time,
-                chronology,
-                created_at,
-                updated_at
-            FROM corruption_reports
-            WHERE id = %s
-            LIMIT 1
-            """,
-            (report_id,)
-        )
+        query_parts = [
+            "SELECT",
+            "    id,",
+            "    ticket_id,",
+            "    user_id,",
+            "    status,",
+            "    involved,",
+            "    location,",
+            "    time,",
+            "    chronology,",
+            "    created_at,",
+            "    updated_at",
+            "FROM corruption_reports",
+            "WHERE id = %s",
+        ]
+        params: List[Any] = [report_id]
+        if clause:
+            query_parts.append(f"  AND {clause}")
+            params.extend(clause_params)
+        query_parts.append("LIMIT 1")
+        cur.execute("\n".join(query_parts), tuple(params))
         row = cur.fetchone()
         if not row:
             return None
@@ -1499,7 +1613,7 @@ def get_user_by_email(email: str) -> Optional[DictRow]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT id, email, password_hash, full_name, role, last_login_at
+            SELECT id, email, password_hash, full_name, role, no_tester_enabled, last_login_at
             FROM dashboard_users
             WHERE email = %s
             LIMIT 1
@@ -1513,7 +1627,7 @@ def list_dashboard_users() -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT id, email, full_name, role, created_at, last_login_at
+            SELECT id, email, full_name, role, no_tester_enabled, created_at, last_login_at
             FROM dashboard_users
             ORDER BY created_at ASC
             """
@@ -1545,3 +1659,12 @@ def update_last_login(user_id: int) -> None:
             "UPDATE dashboard_users SET last_login_at = NOW() WHERE id = %s",
             (user_id,),
         )
+
+
+def update_no_tester_preference(user_id: int, enabled: bool) -> bool:
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "UPDATE dashboard_users SET no_tester_enabled = %s WHERE id = %s",
+            (enabled, user_id),
+        )
+        return cur.rowcount > 0

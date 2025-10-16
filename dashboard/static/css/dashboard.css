@@ -70,6 +70,211 @@ a {
     color: var(--accent);
 }
 
+.user-menu {
+    position: relative;
+}
+
+.user-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    background-color: transparent;
+    border: 0;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.user-menu-toggle:hover,
+.user-menu.open .user-menu-toggle {
+    background-color: var(--bg-muted);
+    box-shadow: var(--shadow-soft);
+}
+
+.user-menu-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.user-menu-toggle .user-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.user-menu-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+    background-color: var(--bg-subtle);
+    color: var(--text-muted);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.user-menu-toggle:hover .user-menu-arrow,
+.user-menu.open .user-menu-arrow {
+    background-color: var(--accent);
+    color: #ffffff;
+}
+
+.user-avatar {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--accent), rgba(13, 110, 253, 0.55));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+html[data-theme="dark"] .user-avatar {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.user-caret {
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+}
+
+.user-menu.open .user-caret {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu.user-dropdown {
+    min-width: 19rem;
+    border: 0;
+    border-radius: 1rem;
+    padding: 1rem;
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow-soft);
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+    transform-origin: right top;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.dropdown-menu.user-dropdown.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.user-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.user-dropdown-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.85rem;
+    background-color: var(--bg-muted);
+    font-size: 1.1rem;
+    color: var(--accent);
+}
+
+.user-dropdown-meta .user-dropdown-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-dropdown-meta .user-dropdown-subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.user-dropdown-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.5rem;
+    border-radius: 0.75rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.user-dropdown-option:focus {
+    outline: none;
+}
+
+.user-dropdown-option:hover,
+.user-dropdown-option:focus-visible {
+    background-color: var(--bg-muted);
+    transform: translateY(-1px);
+}
+
+.option-leading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.option-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 0.75rem;
+    background-color: rgba(13, 110, 253, 0.12);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+html[data-theme="dark"] .option-icon {
+    background-color: rgba(79, 139, 255, 0.18);
+}
+
+.option-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.option-description {
+    font-size: 0.8rem;
+}
+
+.user-dropdown-status {
+    min-height: 1rem;
+}
+
+.user-dropdown-logout {
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+.user-dropdown-logout:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+html[data-theme="dark"] .user-dropdown-logout:hover {
+    background-color: rgba(220, 53, 69, 0.18);
+}
+
+.user-dropdown .form-check-input {
+    cursor: pointer;
+}
+
+.dropdown-menu.user-dropdown .dropdown-divider {
+    margin: 0.75rem 0;
+    border-color: var(--border-soft);
+}
+
 .theme-toggle-label {
     display: inline-flex;
     align-items: center;

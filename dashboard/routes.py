@@ -16,6 +16,7 @@ from flask import (
     render_template,
     request,
     url_for,
+    session,
 )
 from werkzeug.datastructures import MultiDict
 
@@ -55,6 +56,7 @@ from .queries import (
     fetch_twitter_top_users,
     chat_topic_available,
     fetch_twitter_worker_logs,
+    update_no_tester_preference,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -173,6 +175,35 @@ def _load_twitter_runtime() -> dict:
         runtime["last_autopost_local"] = None
 
     return runtime
+
+
+@main_bp.route("/profile/no-tester", methods=["POST"])
+@login_required
+def toggle_no_tester() -> Response:
+    user = current_user()
+    if not user:
+        return jsonify({"success": False, "message": "Unauthorized"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    raw_enabled = payload.get("enabled")
+    if isinstance(raw_enabled, str):
+        enabled = raw_enabled.strip().lower() in {"1", "true", "yes", "on"}
+    else:
+        enabled = bool(raw_enabled)
+
+    try:
+        success = update_no_tester_preference(user["id"], enabled)
+    except Exception as exc:  # pragma: no cover - surfaces to UI
+        return jsonify({"success": False, "message": str(exc)}), 500
+
+    if not success:
+        return jsonify({"success": False, "message": "User preference not updated"}), 400
+
+    session_user = session.get("user") or {}
+    session_user["no_tester_enabled"] = enabled
+    session["user"] = session_user
+
+    return jsonify({"success": True, "enabled": enabled})
 
 
 @main_bp.route("/")

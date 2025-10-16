@@ -76,6 +76,7 @@ def login() -> Response:
             "email": email,
             "full_name": user["full_name"],
             "role": user["role"],
+            "no_tester_enabled": bool(user.get("no_tester_enabled")),
         }
         session.permanent = remember
         update_last_login(user["id"])
@@ -115,4 +116,3 @@ def manage_users() -> Response:
 
     users = list_dashboard_users()
     return render_template("manage_users.html", users=users)
-

@@ -100,8 +100,48 @@
                     </label>
                 </div>
                 {% if current_user %}
-                <span class="fw-semibold">{{ (current_user.full_name or current_user.email).split(' ')[0] }}</span>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+                {% set user_display = (current_user.full_name or current_user.email or 'User') %}
+                {% set user_initial = user_display[:1].upper() %}
+                {% set first_name = user_display.split(' ')[0] %}
+                <div class="dropdown user-menu" id="userMenuDropdown">
+                    <button class="user-menu-toggle" type="button" id="userMenuToggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <span class="user-menu-arrow" aria-hidden="true">
+                            <i class="bi bi-chevron-down user-caret"></i>
+                        </span>
+                        <span class="user-name">{{ first_name }}</span>
+                        <span class="user-avatar">{{ user_initial }}</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end user-dropdown" aria-labelledby="userMenuToggle">
+                        <div class="user-dropdown-header">
+                            <span class="user-dropdown-icon text-primary">
+                                <i class="bi bi-person-vcard"></i>
+                            </span>
+                            <div class="user-dropdown-meta">
+                                <div class="user-dropdown-title">{{ user_display }}</div>
+                                <div class="user-dropdown-subtitle"><i class="bi bi-envelope me-1"></i>{{ current_user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="user-dropdown-option" data-option="no-tester" role="button" tabindex="0">
+                            <div class="option-leading">
+                                <span class="option-icon text-primary"><i class="bi bi-incognito"></i></span>
+                                <div>
+                                    <div class="option-label">No Tester</div>
+                                    <div class="option-description text-muted">Sembunyikan data user tester di dashboard</div>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="noTesterToggle" {% if current_user.no_tester_enabled %}checked{% endif %}>
+                            </div>
+                        </div>
+                        <div class="user-dropdown-status small text-muted mt-2" id="noTesterStatus"></div>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item user-dropdown-logout d-flex align-items-center gap-2 text-danger" href="{{ url_for('auth.logout') }}">
+                            <span class="text-danger"><i class="bi bi-box-arrow-right"></i></span>
+                            <span>Logout</span>
+                        </a>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -210,7 +250,110 @@
             }
         }
     })();
-</script>
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var dropdownContainer = document.getElementById("userMenuDropdown");
+            var dropdownToggle = document.getElementById("userMenuToggle");
+            var noTesterToggle = document.getElementById("noTesterToggle");
+            var noTesterStatus = document.getElementById("noTesterStatus");
+            var noTesterSection = document.querySelector('[data-option="no-tester"]');
+
+            var setStatus = function (message, tone) {
+                if (!noTesterStatus) {
+                    return;
+                }
+                noTesterStatus.textContent = message || "";
+                noTesterStatus.classList.remove("text-muted", "text-danger", "text-success");
+                if (tone === "success") {
+                    noTesterStatus.classList.add("text-success");
+                } else if (tone === "error") {
+                    noTesterStatus.classList.add("text-danger");
+                } else {
+                    noTesterStatus.classList.add("text-muted");
+                }
+            };
+
+            if (dropdownContainer && dropdownToggle) {
+                dropdownToggle.addEventListener("show.bs.dropdown", function () {
+                    dropdownContainer.classList.add("open");
+                });
+                dropdownToggle.addEventListener("hide.bs.dropdown", function () {
+                    dropdownContainer.classList.remove("open");
+                    setStatus("", "muted");
+                });
+            }
+
+            if (noTesterSection && noTesterToggle) {
+                noTesterSection.addEventListener("click", function (event) {
+                    if (event.target === noTesterToggle) {
+                        return;
+                    }
+                    event.preventDefault();
+                    noTesterToggle.checked = !noTesterToggle.checked;
+                    noTesterToggle.dispatchEvent(new Event("change", { bubbles: true }));
+                });
+                noTesterSection.addEventListener("keydown", function (event) {
+                    if (!noTesterToggle) {
+                        return;
+                    }
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        noTesterToggle.checked = !noTesterToggle.checked;
+                        noTesterToggle.dispatchEvent(new Event("change", { bubbles: true }));
+                    }
+                });
+            }
+
+            if (noTesterToggle) {
+                var previousState = noTesterToggle.checked;
+                noTesterToggle.addEventListener("change", function () {
+                    var enabled = noTesterToggle.checked;
+                    noTesterToggle.disabled = true;
+                    setStatus("Menyimpan preferensi…", "muted");
+                    fetch("{{ url_for('main.toggle_no_tester') }}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify({ enabled: enabled })
+                    })
+                        .then(function (response) {
+                            return response.text().then(function (text) {
+                                var data = {};
+                                if (text) {
+                                    try {
+                                        data = JSON.parse(text);
+                                    } catch (error) {
+                                        data = {};
+                                    }
+                                }
+                                return { ok: response.ok, data: data };
+                            });
+                        })
+                        .then(function (result) {
+                            if (result.ok && result.data && result.data.success) {
+                                previousState = enabled;
+                                setStatus("Preferensi tersimpan. Memuat ulang…", "success");
+                                setTimeout(function () {
+                                    window.location.reload();
+                                }, 450);
+                            } else {
+                                throw new Error((result.data && result.data.message) || "Gagal menyimpan preferensi.");
+                            }
+                        })
+                        .catch(function (error) {
+                            noTesterToggle.checked = previousState;
+                            setStatus(error.message || "Terjadi kesalahan.", "error");
+                        })
+                        .finally(function () {
+                            noTesterToggle.disabled = false;
+                        });
+                });
+            }
+        });
+    </script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

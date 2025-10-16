@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS dashboard_users (
     full_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'viewer',
+    no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_login_at TIMESTAMPTZ
 );
@@ -126,6 +127,7 @@ def ensure_dashboard_schema() -> None:
         _TWITTER_LOGS_SQL,
         _TWITTER_LOGS_INDEX_CREATED,
         _TWITTER_LOGS_INDEX_LEVEL,
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS severity TEXT",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS metadata JSONB",
