@@ -71,12 +71,20 @@ def create_app() -> Flask:
             flash("Login harus menggunakan email dengan domain @belajar.id atau subdomainnya.", "error")
             return redirect(url_for('login_page'))
 
-        # Get or create user in the database
-        user = get_or_create_web_user(email=email, full_name=userinfo.get('name'))
-        
-        # Add profile picture from userinfo to the user dictionary
-        if user and userinfo.get('picture'):
-            user['picture'] = userinfo.get('picture')
+        # Get or create user in the database, update photo URL and last login timestamp
+        user = get_or_create_web_user(
+            email=email,
+            full_name=userinfo.get('name'),
+            photo_url=userinfo.get('picture'),
+        )
+
+        if user:
+            # Ensure datetime is serializable in the session
+            last_login = user.get('last_login')
+            if hasattr(last_login, 'isoformat'):
+                user['last_login'] = last_login.isoformat()
+            # Maintain compatibility with templates expecting `user.picture`
+            user['picture'] = user.get('photo_url') or userinfo.get('picture')
 
         # Save user in session
         session['user'] = user

@@ -159,6 +159,8 @@ def _ensure_user_schema() -> None:
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 full_name TEXT,
+                photo_url TEXT,
+                last_login TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
             """
@@ -320,21 +322,42 @@ def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str
         )
         return cur.fetchall()
 
-def get_or_create_web_user(email: str, full_name: str) -> dict:
-    """Ambil user berdasarkan email, atau buat jika belum ada."""
+def get_or_create_web_user(email: str, full_name: str, photo_url: Optional[str] = None) -> dict:
+    """Ambil user berdasarkan email, atau buat jika belum ada, lalu perbarui informasi login."""
+    now_utc = datetime.now(timezone.utc)
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT id, email, full_name FROM web_users WHERE email = %s", (email,))
-        user = cur.fetchone()
-        if user:
-            return user
+        cur.execute(
+            "SELECT id, email, full_name, photo_url, last_login FROM web_users WHERE email = %s",
+            (email,),
+        )
+        existing_user = cur.fetchone()
+        if existing_user:
+            cur.execute(
+                """
+                UPDATE web_users
+                SET full_name = COALESCE(%s, full_name),
+                    photo_url = COALESCE(%s, photo_url),
+                    last_login = %s
+                WHERE email = %s
+                RETURNING id, email, full_name, photo_url, last_login
+                """,
+                (full_name, photo_url, now_utc, email),
+            )
+            updated_user = cur.fetchone()
+            conn.commit()
+            return updated_user
 
         cur.execute(
-            "INSERT INTO web_users (email, full_name) VALUES (%s, %s) RETURNING id, email, full_name",
-            (email, full_name),
+            """
+            INSERT INTO web_users (email, full_name, photo_url, last_login)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, email, full_name, photo_url, last_login
+            """,
+            (email, full_name, photo_url, now_utc),
         )
         new_user = cur.fetchone()
-        conn.commit()
-        return new_user
+    conn.commit()
+    return new_user
 
 def _ensure_corruption_schema() -> None:
     """Pastikan tabel untuk laporan korupsi (corruption_reports) tersedia."""
