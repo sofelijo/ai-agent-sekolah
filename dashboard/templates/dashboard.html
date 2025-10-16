@@ -48,8 +48,14 @@
             max-width: none;
         }
     }
+    /* Keep the control column from growing too wide so it
+       doesn't push the stat cards to a new line when range
+       chips change. Allow wrapping inside the column instead. */
     .hero-actions {
         min-width: 260px;
+        /* Fix the flex-basis and prevent growth to keep layout stable */
+        flex: 0 0 340px;
+        max-width: 420px;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
@@ -79,11 +85,18 @@
         border: 1px solid var(--border-soft);
         color: var(--text-secondary);
         box-shadow: var(--shadow-soft);
+        /* Allow the text to wrap so the chip never forces the
+           hero actions column to grow wider than intended */
+        max-width: 100%;
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     .insight-chip i {
         font-size: 0.95rem;
         color: var(--accent);
     }
+    .insight-chip > span { white-space: normal; }
     .response-gauge {
         position: relative;
         height: 200px;
@@ -253,6 +266,9 @@
             padding: 1.3rem 1.4rem 1.5rem;
         }
         .hero-actions {
+            /* On small screens, let controls take full width */
+            flex: 1 1 100%;
+            max-width: none;
             align-items: stretch;
         }
         .hero-card-grid {
@@ -332,9 +348,9 @@
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="requestsDropdown">
                                                 <li><a class="dropdown-item js-requests-option active" data-range="all" href="#">Semua</a></li>
                                                 <li><a class="dropdown-item js-requests-option" data-range="today" href="#">Hari Ini</a></li>
-                                                <li><a class="dropdown-item js-requests-option" data-range="week" href="#">Seminggu</a></li>
-                                                <li><a class="dropdown-item js-requests-option" data-range="month" href="#">Sebulan</a></li>
-                                                <li><a class="dropdown-item js-requests-option" data-range="year" href="#">Setahun</a></li>
+                                                <li><a class="dropdown-item js-requests-option" data-range="week" href="#">7 Hari</a></li>
+                                                <li><a class="dropdown-item js-requests-option" data-range="month" href="#">Bulan</a></li>
+                                                <li><a class="dropdown-item js-requests-option" data-range="year" href="#">Tahun</a></li>
                                             </ul>
                                         </div>
                                     </div>
@@ -361,9 +377,9 @@
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="uniqueUsersDropdown">
                                                 <li><a class="dropdown-item js-unique-users-option active" data-range="all" href="#">Semua</a></li>
                                                 <li><a class="dropdown-item js-unique-users-option" data-range="today" href="#">Hari Ini</a></li>
-                                                <li><a class="dropdown-item js-unique-users-option" data-range="week" href="#">Seminggu</a></li>
-                                                <li><a class="dropdown-item js-unique-users-option" data-range="month" href="#">Sebulan</a></li>
-                                                <li><a class="dropdown-item js-unique-users-option" data-range="year" href="#">Setahun</a></li>
+                                                <li><a class="dropdown-item js-unique-users-option" data-range="week" href="#">7 Hari</a></li>
+                                                <li><a class="dropdown-item js-unique-users-option" data-range="month" href="#">Bulan</a></li>
+                                                <li><a class="dropdown-item js-unique-users-option" data-range="year" href="#">Tahun</a></li>
                                             </ul>
                                         </div>
                                     </div>
@@ -388,9 +404,9 @@
                                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">Semua</button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
                                                 <li><a class="dropdown-item js-messages-option" data-range="today" href="#">Hari Ini</a></li>
-                                                <li><a class="dropdown-item js-messages-option" data-range="week" href="#">Seminggu</a></li>
-                                                <li><a class="dropdown-item js-messages-option" data-range="month" href="#">Sebulan</a></li>
-                                                <li><a class="dropdown-item js-messages-option" data-range="year" href="#">Setahun</a></li>
+                                                <li><a class="dropdown-item js-messages-option" data-range="week" href="#">7 Hari</a></li>
+                                                <li><a class="dropdown-item js-messages-option" data-range="month" href="#">Bulan</a></li>
+                                                <li><a class="dropdown-item js-messages-option" data-range="year" href="#">Tahun</a></li>
                                                 <li><a class="dropdown-item js-messages-option active" data-range="all" href="#">Semua</a></li>
                                             </ul>
                                         </div>
@@ -1130,9 +1146,9 @@
         const labelMap = {
             all: 'Semua',
             today: 'Hari Ini',
-            week: 'Seminggu',
-            month: 'Sebulan',
-            year: 'Setahun',
+            week: '7 Hari',
+            month: 'Bulan',
+            year: 'Tahun',
         };
         const requestOptions = requestsCard.querySelectorAll('.js-requests-option');
         requestOptions.forEach((option) => {
@@ -1185,16 +1201,16 @@
         }
         const labelMap = {
             today: 'Hari Ini',
-            week: 'Seminggu',
-            month: 'Sebulan',
-            year: 'Setahun',
+            week: '7 Hari',
+            month: 'Bulan',
+            year: 'Tahun',
             all: 'Semua',
         };
         const descriptionMap = {
-            today: 'Jumlah pesan yang diterima hari ini.',
-            week: 'Jumlah pesan dalam 7 hari terakhir.',
-            month: 'Jumlah pesan dalam 30 hari terakhir.',
-            year: 'Jumlah pesan dalam 365 hari terakhir.',
+            today: 'Jumlah pesan hari ini.',
+            week: 'Pesan seminggu terakhir.',
+            month: 'Total pesan sebulan terakhir.',
+            year: 'Total pesan setahun terakhir.',
             all: 'Total pesan sepanjang waktu.',
         };
         const messageOptions = messagesCard.querySelectorAll('.js-messages-option');
@@ -1224,9 +1240,9 @@
         const summaryLabelEl = document.getElementById('globalRangeLabelText');
         const summaryLabelMap = {
             today: 'hari ini',
-            week: '7 hari terakhir',
-            month: '30 hari terakhir',
-            year: '1 tahun terakhir',
+            week: 'Minggu',
+            month: 'Sebulan',
+            year: 'Setahun',
             all: 'semua waktu',
         };
         const updateSummaryLabel = (range) => {

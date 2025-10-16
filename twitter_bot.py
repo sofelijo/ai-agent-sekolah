@@ -130,7 +130,7 @@ class TwitterAskaBot:
             LOGGER.addHandler(db_handler)
 
         # Runtime/env
-        self.poll_interval = int(os.getenv("TWITTER_POLL_INTERVAL", "180"))
+        self.poll_interval = int(os.getenv("TWITTER_POLL_INTERVAL", "300"))
         self.state_path = Path(os.getenv("TWITTER_STATE_PATH", "twitter_state.json"))
 
         # Autopost config
