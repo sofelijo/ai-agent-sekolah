@@ -506,7 +506,7 @@ def fetch_all_chat_users() -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
+def fetch_twitter_overview(window_days: int = 7, bot_user_id: Optional[int] = None) -> Dict[str, Any]:
     """Aggregate metrik penting untuk operasional Twitter/X."""
     if not chat_topic_available():
         return {
@@ -527,6 +527,11 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
             "reply_rate": 0.0,
             "last_mention": None,
             "last_reply": None,
+            "autopost_total": 0,
+            "autopost_window": 0,
+            "autopost_24h": 0,
+            "autopost_today": 0,
+            "last_autopost": None,
         }
 
     window_days = max(1, window_days)
@@ -578,12 +583,53 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
             "WHERE topic = 'twitter' AND role = 'aska'",
         ]
         reply_params: List[Any] = []
+        if bot_user_id:
+            reply_query.append("AND (user_id IS NULL OR user_id <> %s)")
+            reply_params.append(bot_user_id)
         if clause:
             reply_query.append(f"AND {clause}")
             reply_params.extend(clause_params)
         reply_query.extend(["ORDER BY created_at DESC", "LIMIT 1"])
         cur.execute("\n".join(reply_query), tuple(reply_params))
         last_reply = cur.fetchone()
+
+        autopost_total = autopost_window = autopost_24h = autopost_today = 0
+        last_autopost = None
+        if bot_user_id:
+            autopost_query = [
+                "SELECT",
+                "    COUNT(*) AS total,",
+                "    COUNT(*) FILTER (WHERE created_at >= NOW() - %s::interval) AS window,",
+                "    COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS day_24h,",
+                "    COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE) AS today",
+                "FROM chat_logs",
+                "WHERE topic = 'twitter'",
+                "  AND role = 'aska'",
+                "  AND user_id = %s",
+            ]
+            autopost_params: List[Any] = [window_interval, bot_user_id]
+            if clause:
+                autopost_query.append(f"  AND {clause}")
+                autopost_params.extend(clause_params)
+            cur.execute("\n".join(autopost_query), tuple(autopost_params))
+            autopost_row = cur.fetchone() or {}
+
+            autopost_last_query = [
+                "SELECT id, user_id, username, text, created_at",
+                "FROM chat_logs",
+                "WHERE topic = 'twitter'",
+                "  AND role = 'aska'",
+                "  AND user_id = %s",
+            ]
+            autopost_last_params: List[Any] = [bot_user_id]
+            if clause:
+                autopost_last_query.append(f"  AND {clause}")
+                autopost_last_params.extend(clause_params)
+            autopost_last_query.extend(["ORDER BY created_at DESC", "LIMIT 1"])
+            cur.execute("\n".join(autopost_last_query), tuple(autopost_last_params))
+            last_autopost = cur.fetchone()
+        else:
+            autopost_row = {}
 
     def _coerce_int(value) -> int:
         try:
@@ -595,7 +641,21 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
     p90_response = overview_row.get("p90_response_ms")
 
     total_mentions = _coerce_int(overview_row.get("mentions_total"))
-    total_replies = _coerce_int(overview_row.get("replies_total"))
+    total_replies_raw = _coerce_int(overview_row.get("replies_total"))
+    replies_window_raw = _coerce_int(overview_row.get("replies_window"))
+    replies_24h_raw = _coerce_int(overview_row.get("replies_24h"))
+    replies_today_raw = _coerce_int(overview_row.get("replies_today"))
+
+    autopost_total = _coerce_int(autopost_row.get("total"))
+    autopost_window = _coerce_int(autopost_row.get("window"))
+    autopost_24h = _coerce_int(autopost_row.get("day_24h"))
+    autopost_today = _coerce_int(autopost_row.get("today"))
+
+    total_replies = max(0, total_replies_raw - autopost_total)
+    replies_window = max(0, replies_window_raw - autopost_window)
+    replies_24h = max(0, replies_24h_raw - autopost_24h)
+    replies_today = max(0, replies_today_raw - autopost_today)
+
     backlog = max(0, total_mentions - total_replies)
     reply_rate = 0.0
     if total_mentions:
@@ -607,18 +667,23 @@ def fetch_twitter_overview(window_days: int = 7) -> Dict[str, Any]:
         "total_replies": total_replies,
         "total_users": _coerce_int(overview_row.get("users_total")),
         "mentions_window": _coerce_int(overview_row.get("mentions_window")),
-        "replies_window": _coerce_int(overview_row.get("replies_window")),
+        "replies_window": replies_window,
         "users_window": _coerce_int(overview_row.get("users_window")),
         "mentions_24h": _coerce_int(overview_row.get("mentions_24h")),
-        "replies_24h": _coerce_int(overview_row.get("replies_24h")),
+        "replies_24h": replies_24h,
         "mentions_today": _coerce_int(overview_row.get("mentions_today")),
-        "replies_today": _coerce_int(overview_row.get("replies_today")),
+        "replies_today": replies_today,
         "avg_response_ms": float(avg_response) if avg_response is not None else None,
         "p90_response_ms": float(p90_response) if p90_response is not None else None,
         "backlog": backlog,
         "reply_rate": reply_rate,
         "last_mention": dict(last_mention) if last_mention else None,
         "last_reply": dict(last_reply) if last_reply else None,
+        "autopost_total": autopost_total,
+        "autopost_window": autopost_window,
+        "autopost_24h": autopost_24h,
+        "autopost_today": autopost_today,
+        "last_autopost": dict(last_autopost) if last_autopost else None,
     }
 
 

@@ -51,13 +51,13 @@ _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
 MAX_TWITTER_LOG_ROWS = max(0, int(os.getenv("TWITTER_LOG_MAX_ROWS", "100") or 100))
 
 
-def _chat_logs_has_topic_column() -> bool:
+def _chat_logs_has_topic_column(force_refresh: bool = False) -> bool:
     """
     Periksa sekali apakah tabel chat_logs memiliki kolom 'topic'.
     Hasil dicegah supaya query berikutnya lebih cepat dan stabil.
     """
     global _CHAT_TOPIC_AVAILABLE
-    if _CHAT_TOPIC_AVAILABLE is not None:
+    if _CHAT_TOPIC_AVAILABLE is not None and not force_refresh:
         return _CHAT_TOPIC_AVAILABLE
 
     query = """
@@ -91,7 +91,7 @@ def _ensure_chat_logs_schema() -> None:
             """
         )
         # Tambahkan kolom 'topic' jika belum ada, untuk menjaga kompatibilitas
-        if not _chat_logs_has_topic_column():
+        if not _chat_logs_has_topic_column(force_refresh=True):
             cur.execute("ALTER TABLE chat_logs ADD COLUMN topic TEXT")
             _CHAT_TOPIC_AVAILABLE = True  # Update cache
     conn.commit()
@@ -281,7 +281,14 @@ def save_chat(
     response_time_ms: Optional[int] = None,
 ) -> Optional[int]:
     """Simpan chat ke tabel chat_logs dan kembalikan id baris yang dibuat."""
+    normalized_topic: Optional[str] = None
+    if topic is not None:
+        clean_topic = str(topic).strip().lower()
+        normalized_topic = clean_topic or None
+
     use_topic = _chat_logs_has_topic_column()
+    inserted_id: Optional[int] = None
+
     with conn.cursor() as cur:
         if use_topic:
             cur.execute(
@@ -290,7 +297,7 @@ def save_chat(
                 VALUES (%s, %s, %s, %s, %s, NOW(), %s)
                 RETURNING id
                 """,
-                (user_id, username, message, role, topic, response_time_ms),
+                (user_id, username, message, role, normalized_topic, response_time_ms),
             )
         else:
             cur.execute(
@@ -302,8 +309,25 @@ def save_chat(
                 (user_id, username, message, role, response_time_ms),
             )
         row = cur.fetchone()
+        if row:
+            inserted_id = int(row[0])
+
+        if normalized_topic and inserted_id and not use_topic:
+            topic_supported = _chat_logs_has_topic_column(force_refresh=True)
+            if not topic_supported:
+                try:
+                    _ensure_chat_logs_schema()
+                except Exception:
+                    topic_supported = False
+                else:
+                    topic_supported = _chat_logs_has_topic_column(force_refresh=True)
+            if topic_supported:
+                cur.execute(
+                    "UPDATE chat_logs SET topic = %s WHERE id = %s",
+                    (normalized_topic, inserted_id),
+                )
     conn.commit()
-    return int(row[0]) if row else None
+    return inserted_id
 
 def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str, Any]]:
     """

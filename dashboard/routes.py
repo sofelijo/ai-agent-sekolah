@@ -95,6 +95,19 @@ def _load_twitter_runtime() -> dict:
     """Kumpulkan info real-time worker Twitter dari env, state file, dan autopost list."""
     state_path = _resolve_runtime_path(os.getenv("TWITTER_STATE_PATH"), "twitter_state.json")
     autopost_path = _resolve_runtime_path(os.getenv("TWITTER_AUTOPOST_MESSAGES_PATH"), "twitter_posts.txt")
+    raw_bot_user_id = os.getenv("TWITTER_USER_ID")
+    bot_user_id: Optional[int]
+    if raw_bot_user_id:
+        try:
+            bot_user_id = int(str(raw_bot_user_id).strip())
+        except (TypeError, ValueError):
+            bot_user_id = None
+    else:
+        bot_user_id = None
+    raw_bot_username = (os.getenv("TWITTER_USERNAME") or "").strip()
+    if raw_bot_username.startswith("@"):
+        raw_bot_username = raw_bot_username[1:]
+    bot_username = raw_bot_username or None
 
     runtime: dict = {
         "state_path": str(state_path),
@@ -111,6 +124,8 @@ def _load_twitter_runtime() -> dict:
         "autopost_total": 0,
         "autopost_rag_total": 0,
         "autopost_preview": [],
+        "bot_user_id": bot_user_id,
+        "bot_username": bot_username,
         "settings": {
             "mentions_enabled": _env_flag("TWITTER_MENTIONS_ENABLED", "true"),
             "autopost_enabled": _env_flag("TWITTER_AUTOPOST_ENABLED", "false"),
@@ -347,7 +362,9 @@ def twitter_logs() -> Response:
         records, total = [], 0
     total_pages = max(1, ceil(total / TWITTER_PAGE_SIZE)) if total else 1
 
-    overview = fetch_twitter_overview(window_days=7)
+    runtime = _load_twitter_runtime()
+    bot_user_id = runtime.get("bot_user_id")
+    overview = fetch_twitter_overview(window_days=7, bot_user_id=bot_user_id)
     activity_rows = fetch_twitter_activity(days=45)
     activity_days: list[str] = []
     activity_mentions: list[int] = []
@@ -365,8 +382,16 @@ def twitter_logs() -> Response:
         activity_replies.append(int(row.get("replies") or 0))
 
     top_users = fetch_twitter_top_users(limit=8)
-    runtime = _load_twitter_runtime()
     worker_logs = fetch_twitter_worker_logs(limit=120)
+
+    autopost_page_total = 0
+    for row in records:
+        is_autopost = bool(bot_user_id and row.get("role") == "aska" and row.get("user_id") == bot_user_id)
+        row["is_autopost"] = is_autopost
+        row["is_reply"] = row.get("role") == "aska" and not is_autopost
+        row["is_mention"] = row.get("role") == "user"
+        if is_autopost:
+            autopost_page_total += 1
 
     export_url = None
     if topic_supported:
@@ -409,6 +434,7 @@ def twitter_logs() -> Response:
         export_url=export_url,
         topic_supported=topic_supported,
         worker_logs=worker_logs,
+        page_autopost_total=autopost_page_total,
     )
 
 

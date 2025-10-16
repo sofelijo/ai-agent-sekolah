@@ -683,6 +683,17 @@ class TwitterAskaBot:
                              next_index, entry.get("mode", "static"), message[:160])
             return
 
+        try:
+            save_chat(
+                self.bot_user_id,
+                self.bot_username,
+                message,
+                role="aska",
+                topic="twitter",
+            )
+        except Exception:
+            LOGGER.exception("Failed to persist auto-post tweet to chat history")
+
         recent_hashes.append(message_hash)
         if len(recent_hashes) > self.autopost_recent_limit:
             recent_hashes = recent_hashes[-self.autopost_recent_limit:]

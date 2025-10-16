@@ -22,6 +22,8 @@
     .log-level-badge { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
     .log-context { font-size: 0.8rem; color: var(--text-muted); }
     .console-log-table-wrapper { max-height: 420px; overflow: auto; }
+    .log-row-autopost { background: rgba(13, 110, 253, 0.06); }
+    .log-row-autopost td { border-top-color: rgba(13, 110, 253, 0.12); }
     @media (max-width: 576px) {
         .metric-card { min-height: auto; }
         .page-header-actions { width: 100%; }
@@ -165,6 +167,38 @@
                     <i class="bi bi-clock-history me-1"></i>24h: {{ overview.replies_24h }}
                     <span class="ms-2"><i class="bi bi-calendar-day me-1"></i>Hari ini: {{ overview.replies_today }}</span>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-lg-6 col-sm-6">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="stat-label text-secondary fw-semibold">Autopost ASKA</span>
+                    <span class="icon-badge stat-icon text-info">
+                        <i class="bi bi-megaphone"></i>
+                    </span>
+                </div>
+                <div class="stat-primary">{{ overview.autopost_total }}</div>
+                <div class="stat-detail mt-2">
+                    <i class="bi bi-clock-history me-1"></i>24h: {{ overview.autopost_24h }}
+                    <span class="ms-2"><i class="bi bi-calendar-event me-1"></i>{{ overview.window_days }} hari: {{ overview.autopost_window }}</span>
+                </div>
+                <div class="stat-detail mt-1">
+                    <i class="bi bi-calendar-day me-1"></i>Hari ini: {{ overview.autopost_today }}
+                </div>
+                {% if overview.last_autopost %}
+                <div class="stat-detail mt-2">
+                    <i class="bi bi-clock me-1"></i>Autopost terakhir {{ overview.last_autopost.created_at|jakarta('%d %b %Y %H:%M') }}
+                </div>
+                <div class="stat-detail text-muted small">
+                    <i class="bi bi-chat-quote me-1"></i>{{ overview.last_autopost.text|default('', true)|replace('\n', ' ')|truncate(70) }}
+                </div>
+                {% else %}
+                <div class="stat-detail mt-2 text-muted">
+                    <i class="bi bi-megaphone-off me-1"></i>Belum ada autopost tercatat.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -392,7 +426,12 @@
                     </span>
                     <div>
                         <h2 class="h6 fw-bold mb-0">Riwayat Mention & Balasan</h2>
-                        <p class="text-muted small mb-0">Data percakapan dari chat_logs dengan topic <code>twitter</code>.</p>
+                        <p class="text-muted small mb-0">
+                            Data percakapan dari chat_logs dengan topic <code>twitter</code>.
+                            {% if page_autopost_total %}
+                                <span class="badge text-bg-info-subtle border border-info-subtle ms-1">Autopost {{ page_autopost_total }}</span>
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -408,18 +447,36 @@
                         </thead>
                         <tbody>
                             {% for row in records %}
-                            <tr>
+                            <tr class="{% if row.is_autopost %}log-row-autopost{% endif %}">
                                 <td><span class="badge text-bg-light border">{{ row.created_at|jakarta('%d %b %Y %H:%M') }}</span></td>
                                 <td>
-                                    {% if row.role == 'aska' %}
+                                    {% if row.is_autopost %}
+                                        <span class="badge text-bg-info log-badge"><i class="bi bi-megaphone me-1"></i>Autopost</span>
+                                    {% elif row.role == 'aska' %}
                                         <span class="badge text-bg-primary log-badge"><i class="bi bi-arrow-return-right me-1"></i>Balasan</span>
                                     {% else %}
                                         <span class="badge text-bg-secondary log-badge"><i class="bi bi-arrow-return-left me-1"></i>Mention</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="fw-semibold">{{ row.username or 'Anon' }}</div>
-                                    <div class="small text-muted">ID {{ row.user_id or '-' }}</div>
+                                    {% if row.is_autopost %}
+                                        <div class="fw-semibold d-flex align-items-center gap-1">
+                                            <span class="badge text-bg-primary-subtle border border-primary-subtle">ASKA</span>
+                                            @{{ runtime.bot_username or row.username or 'aska' }}
+                                        </div>
+                                    {% else %}
+                                        <div class="fw-semibold">@{{ row.username or 'Anon' }}</div>
+                                    {% endif %}
+                                    <div class="small text-muted">
+                                        ID {{ row.user_id or '-' }}
+                                        {% if row.is_autopost %}
+                                            • Autopost
+                                        {% elif row.is_reply %}
+                                            • Balasan otomatis
+                                        {% else %}
+                                            • Mention masuk
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td>{{ row.text }}</td>
                                 <td>{{ row.response_time_ms or '-' }}</td>
