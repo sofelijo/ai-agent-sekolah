@@ -69,31 +69,61 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
 @login_required
 def dashboard() -> Response:
     metrics = fetch_overview_metrics(window_days=7)
-    activity_all = fetch_daily_activity(days=14)
+    chart_default_days = 30
+    activity_default = fetch_daily_activity(days=chart_default_days)
     activity_long = fetch_daily_activity(days=365)
+    incoming_activity_long = fetch_daily_activity(days=365, role="user")
     recent_questions = fetch_recent_questions(limit=8)
     top_users = fetch_top_users(limit=5)
     top_keywords = fetch_top_keywords(limit=8, days=14)
 
-    chart_labels = [to_jakarta(row["day"]).strftime("%d %b") for row in activity_all]
-    chart_values = [row["messages"] for row in activity_all]
+    chart_days: list[str] = []
+    chart_values: list[int] = []
+    for row in activity_default:
+        day = row.get("day")
+        if hasattr(day, "isoformat"):
+            day_str = day.isoformat()
+        else:
+            day_str = str(day)
+        chart_days.append(day_str)
+        chart_values.append(int(row.get("messages") or 0))
     keyword_labels = [item["keyword"] for item in top_keywords]
     keyword_counts = [item["count"] for item in top_keywords]
 
     today_date = current_jakarta_time().date()
 
-    def sum_period(days: int) -> int:
-        if not activity_long:
+    def sum_period(activity_data, days: int) -> int:
+        if not activity_data:
             return 0
         cutoff = today_date - timedelta(days=days - 1) if days > 1 else today_date
-        return sum(row["messages"] for row in activity_long if row["day"] >= cutoff)
+        total = 0
+        for row in activity_data:
+            day_value = row.get("day")
+            if isinstance(day_value, datetime):
+                day_value = day_value.date()
+            elif isinstance(day_value, str):
+                try:
+                    day_value = datetime.fromisoformat(day_value).date()
+                except ValueError:
+                    continue
+            if day_value and day_value >= cutoff:
+                total += int(row.get("messages") or 0)
+        return total
 
     messages_counts = {
-        "today": sum_period(1),
-        "week": sum_period(7),
-        "month": sum_period(30),
-        "year": sum_period(365),
+        "today": sum_period(activity_long, 1),
+        "week": sum_period(activity_long, 7),
+        "month": sum_period(activity_long, 30),
+        "year": sum_period(activity_long, 365),
         "all": metrics["total_messages"],
+    }
+
+    requests_counts = {
+        "today": sum_period(incoming_activity_long, 1),
+        "week": sum_period(incoming_activity_long, 7),
+        "month": sum_period(incoming_activity_long, 30),
+        "year": sum_period(incoming_activity_long, 365),
+        "all": metrics["total_incoming_messages"],
     }
 
     return render_template(
@@ -102,10 +132,12 @@ def dashboard() -> Response:
         metrics=metrics,
         recent_questions=recent_questions,
         top_users=top_users,
-        chart_labels=chart_labels,
+        chart_days=chart_days,
         chart_values=chart_values,
+        chart_default_days=chart_default_days,
         keyword_labels=keyword_labels,
         keyword_counts=keyword_counts,
+        requests_counts=requests_counts,
         messages_counts=messages_counts,
     )
 
@@ -589,7 +621,14 @@ def update_psych_status(report_id: int) -> Response:
 def activity_api() -> Response:
     days = int(request.args.get("days", 14))
     activity = fetch_daily_activity(days=days)
-    return jsonify(activity)
+    payload = [
+        {
+            "day": (row["day"].isoformat() if hasattr(row.get("day"), "isoformat") else str(row.get("day"))),
+            "messages": int(row.get("messages") or 0),
+        }
+        for row in activity
+    ]
+    return jsonify(payload)
 
 
 @main_bp.route("/chats/export")

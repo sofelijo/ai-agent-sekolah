@@ -45,16 +45,29 @@
     </div>
     <div class="row g-3">
         <div class="col-lg-3 col-sm-6">
-            <div class="card stat-card border-0 shadow-sm h-100">
+            <div class="card stat-card border-0 shadow-sm h-100" id="requestsCard"
+                 data-counts='{{ requests_counts | tojson }}'>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <span class="text-secondary text-uppercase small fw-semibold">Total Pesan</span>
-                        <span class="icon-badge stat-icon text-primary">
-                            <i class="bi bi-chat-dots"></i>
-                        </span>
+                    <div class="d-flex justify-content-between align-items-start mb-3 gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="icon-badge stat-icon text-primary">
+                                <i class="bi bi-chat-dots"></i>
+                            </span>
+                            <span class="text-secondary text-uppercase small fw-semibold">Total Request</span>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="requestsDropdown" data-bs-toggle="dropdown" aria-expanded="false">Semua</button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="requestsDropdown">
+                                <li><a class="dropdown-item js-requests-option active" data-range="all" href="#">Semua</a></li>
+                                <li><a class="dropdown-item js-requests-option" data-range="today" href="#">Hari Ini</a></li>
+                                <li><a class="dropdown-item js-requests-option" data-range="week" href="#">Seminggu</a></li>
+                                <li><a class="dropdown-item js-requests-option" data-range="month" href="#">Sebulan</a></li>
+                                <li><a class="dropdown-item js-requests-option" data-range="year" href="#">Setahun</a></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="display-6 fw-bold">{{ metrics.total_messages }}</h2>
-                    <p class="mb-0 text-muted">Seluruh pesan yang masuk & keluar.</p>
+                    <h2 class="display-6 fw-bold stat-value" id="requestsValue" aria-live="polite">{{ metrics.total_incoming_messages }}</h2>
+                    <p class="mb-0 text-muted">Seluruh pesan masuk (saja).</p>
                 </div>
             </div>
         </div>
@@ -96,18 +109,18 @@
                             <span class="text-secondary text-uppercase small fw-semibold">Total Pesan</span>
                         </div>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">Hari Ini</button>
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="messagesDropdown" data-bs-toggle="dropdown" aria-expanded="false">Semua</button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messagesDropdown">
-                                <li><a class="dropdown-item js-messages-option active" data-range="today" href="#">Hari Ini</a></li>
+                                <li><a class="dropdown-item js-messages-option" data-range="today" href="#">Hari Ini</a></li>
                                 <li><a class="dropdown-item js-messages-option" data-range="week" href="#">Seminggu</a></li>
                                 <li><a class="dropdown-item js-messages-option" data-range="month" href="#">Sebulan</a></li>
                                 <li><a class="dropdown-item js-messages-option" data-range="year" href="#">Setahun</a></li>
-                                <li><a class="dropdown-item js-messages-option" data-range="all" href="#">Semua</a></li>
+                                <li><a class="dropdown-item js-messages-option active" data-range="all" href="#">Semua</a></li>
                             </ul>
                         </div>
                     </div>
-                    <h2 class="display-6 fw-bold stat-value" id="messagesValue" aria-live="polite">{{ messages_counts.today }}</h2>
-                    <p class="mb-0 text-muted" id="messagesDescription">Jumlah pesan pada periode terpilih.</p>
+                    <h2 class="display-6 fw-bold stat-value" id="messagesValue" aria-live="polite">{{ messages_counts.all }}</h2>
+                    <p class="mb-0 text-muted" id="messagesDescription">Total pesan sepanjang waktu.</p>
                 </div>
             </div>
         </div>
@@ -172,19 +185,24 @@
                         </span>
                         <div>
                             <h2 class="h5 fw-bold mb-1">Tren Volume Pesan</h2>
-                            <p class="text-muted mb-0">14 hari terakhir</p>
+                            <p class="text-muted mb-0">Periode <span id="activityRangeLabel">{{ chart_default_days }} hari</span> terakhir</p>
                         </div>
                     </div>
-                    <div class="text-lg-end">
+                    <div class="d-flex align-items-center justify-content-end flex-wrap gap-2 text-lg-end">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Rentang data volume">
+                            <button type="button" class="btn btn-outline-secondary js-activity-range" data-range="14">14 Hari</button>
+                            <button type="button" class="btn btn-outline-secondary js-activity-range active" data-range="30">30 Hari</button>
+                            <button type="button" class="btn btn-outline-secondary js-activity-range" data-range="180">180 Hari</button>
+                        </div>
                         <span class="badge text-bg-light border d-inline-flex align-items-center gap-2">
                             <span class="d-inline-flex align-items-center gap-1 text-muted">
                                 <i class="bi bi-speedometer"></i>
-                                <span>Avg {{ metrics.avg_response_ms }} ms</span>
+                                <span>Avg {{ (metrics.avg_response_ms / 1000)|round(2) }} s</span>
                             </span>
                             <span class="vr"></span>
                             <span class="d-inline-flex align-items-center gap-1 text-muted">
                                 <i class="bi bi-lightning-charge"></i>
-                                <span>P90 {{ metrics.p90_response_ms }} ms</span>
+                                <span>P90 {{ (metrics.p90_response_ms / 1000)|round(2) }} s</span>
                             </span>
                         </span>
                     </div>
@@ -398,21 +416,108 @@
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    const activityCtx = document.getElementById('activityChart');
-    const activityLabels = {{ chart_labels|tojson }};
-    const activityValues = {{ chart_values|tojson }};
     const accent = getCssVar('--accent', '#0d6efd');
     const gridColor = getCssVar('--border-soft', 'rgba(148,163,184,0.2)');
     const ticksColor = getCssVar('--text-muted', '#64748b');
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    const activityCtx = document.getElementById('activityChart');
+    const activityRangeLabelEl = document.getElementById('activityRangeLabel');
+    const activityRangeButtons = document.querySelectorAll('.js-activity-range');
+    const activityDefaultDays = {{ chart_default_days|default(30) }};
+    const activityDays = {{ chart_days|tojson }};
+    const activityValues = {{ chart_values|tojson }};
+    const activityCache = new Map();
+    let activityChart = null;
+    let currentActivityRange = activityDefaultDays;
+    let isActivityLoading = false;
+
+    function setActivityRangeLabel(days) {
+        if (!activityRangeLabelEl) return;
+        const presetMap = { 14: '14 hari', 30: '30 hari', 180: '180 hari' };
+        activityRangeLabelEl.textContent = presetMap[days] || `${days} hari`;
+    }
+
+    function setActiveActivityButton(target) {
+        activityRangeButtons.forEach((btn) => {
+            if (target && btn === target) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+
+    function formatActivityDateLabel(isoDate) {
+        if (!isoDate) return '';
+        if (isoDate instanceof Date) {
+            const day = String(isoDate.getDate()).padStart(2, '0');
+            return `${day} ${monthLabels[isoDate.getMonth()]}`;
+        }
+        if (typeof isoDate !== 'string') return String(isoDate);
+        const parsed = new Date(isoDate);
+        if (!Number.isNaN(parsed.getTime())) {
+            const day = String(parsed.getDate()).padStart(2, '0');
+            return `${day} ${monthLabels[parsed.getMonth()]}`;
+        }
+        const parts = isoDate.split('-');
+        if (parts.length !== 3) return isoDate;
+        const [year, month, rest] = parts;
+        const day = (rest.split('T')[0] || rest).padStart(2, '0');
+        const monthIndex = Number.parseInt(month, 10) - 1;
+        const monthLabel = monthLabels[monthIndex] || month;
+        return `${day} ${monthLabel}`;
+    }
+
+    const initialActivityDataset = {
+        labels: activityDays.map((day) => formatActivityDateLabel(day)),
+        values: activityValues.map((value) => Number(value) || 0),
+    };
+    activityCache.set(String(activityDefaultDays), initialActivityDataset);
+
+    function applyActivityDataset(dataset) {
+        if (!activityChart) return;
+        activityChart.data.labels = dataset.labels;
+        activityChart.data.datasets[0].data = dataset.values;
+        activityChart.update();
+    }
+
+    async function loadActivityRange(days, button) {
+        if (days === currentActivityRange) return;
+        const cacheKey = String(days);
+        if (activityCache.has(cacheKey)) {
+            applyActivityDataset(activityCache.get(cacheKey));
+            currentActivityRange = days;
+            setActivityRangeLabel(days);
+            setActiveActivityButton(button);
+            return;
+        }
+        if (isActivityLoading) return;
+        isActivityLoading = true;
+        try {
+            const response = await fetch(`{{ url_for('main.activity_api') }}?days=${days}`);
+            if (!response.ok) throw new Error(`Gagal memuat data ${days} hari`);
+            const rows = await response.json();
+            const labels = rows.map((row) => formatActivityDateLabel(row.day));
+            const values = rows.map((row) => Number.parseInt(row.messages, 10) || 0);
+            const dataset = { labels, values };
+            activityCache.set(cacheKey, dataset);
+            applyActivityDataset(dataset);
+            currentActivityRange = days;
+            setActivityRangeLabel(days);
+            setActiveActivityButton(button);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            isActivityLoading = false;
+        }
+    }
 
     if (activityCtx) {
-        new Chart(activityCtx, {
+        activityChart = new Chart(activityCtx, {
             type: 'line',
             data: {
-                labels: activityLabels,
+                labels: initialActivityDataset.labels,
                 datasets: [{
                     label: 'Jumlah Pesan',
-                    data: activityValues,
+                    data: initialActivityDataset.values,
                     tension: 0.3,
                     fill: true,
                     borderColor: accent,
@@ -430,6 +535,20 @@
                     y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: ticksColor } }
                 }
             }
+        });
+        setActivityRangeLabel(activityDefaultDays);
+        const defaultButton = Array.from(activityRangeButtons).find(
+            (btn) => Number.parseInt(btn.dataset.range, 10) === activityDefaultDays
+        );
+        if (defaultButton) {
+            setActiveActivityButton(defaultButton);
+        }
+        activityRangeButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const value = Number.parseInt(button.dataset.range, 10);
+                if (!value) return;
+                loadActivityRange(value, button);
+            });
         });
     }
 
@@ -470,6 +589,37 @@
             }
         });
     }
+    const requestsCard = document.getElementById('requestsCard');
+    const requestsValueEl = document.getElementById('requestsValue');
+    const requestsDropdown = document.getElementById('requestsDropdown');
+    if (requestsCard && requestsValueEl && requestsDropdown) {
+        let requestCounts = {};
+        try {
+            requestCounts = JSON.parse(requestsCard.dataset.counts || '{}');
+        } catch (error) {
+            requestCounts = {};
+        }
+        const labelMap = {
+            all: 'Semua',
+            today: 'Hari Ini',
+            week: 'Seminggu',
+            month: 'Sebulan',
+            year: 'Setahun',
+        };
+        const requestOptions = requestsCard.querySelectorAll('.js-requests-option');
+        requestOptions.forEach((option) => {
+            option.addEventListener('click', (event) => {
+                event.preventDefault();
+                const range = option.dataset.range || 'all';
+                const value = requestCounts[range] ?? requestCounts.all ?? 0;
+                animateValue(requestsValueEl, value);
+                requestsDropdown.textContent = labelMap[range] || option.textContent.trim();
+                requestOptions.forEach((item) => item.classList.remove('active'));
+                option.classList.add('active');
+            });
+        });
+    }
+
     const uniqueCard = document.getElementById('uniqueUsersCard');
     const uniqueValueEl = document.getElementById('uniqueUsersValue');
     const uniqueDropdown = document.getElementById('uniqueUsersDropdown');
@@ -523,8 +673,8 @@
         messageOptions.forEach((option) => {
             option.addEventListener('click', (event) => {
                 event.preventDefault();
-                const range = option.dataset.range || 'today';
-                const value = messageCounts[range] ?? messageCounts.today ?? 0;
+                const range = option.dataset.range || 'all';
+                const value = messageCounts[range] ?? messageCounts.all ?? 0;
                 animateValue(messagesValueEl, value);
                 messagesDropdown.textContent = labelMap[range] || option.textContent.trim();
                 if (messagesDescription) {
@@ -535,7 +685,7 @@
             });
         });
         if (messagesDescription) {
-            messagesDescription.textContent = descriptionMap.today;
+            messagesDescription.textContent = descriptionMap.all;
         }
     }
 
@@ -553,10 +703,20 @@
             const opt = uniqueCardEl.querySelector(`.js-unique-users-option[data-range="${range}"]`);
             if (opt) opt.click();
         };
+        const clickRequestsOption = (range) => {
+            const requestsCardEl = document.getElementById('requestsCard');
+            if (!requestsCardEl) return;
+            const opt =
+                requestsCardEl.querySelector(`.js-requests-option[data-range="${range}"]`) ||
+                requestsCardEl.querySelector('.js-requests-option[data-range="all"]');
+            if (opt) opt.click();
+        };
         const clickMessagesOption = (range) => {
             const messagesCardEl = document.getElementById('messagesCard');
             if (!messagesCardEl) return;
-            const opt = messagesCardEl.querySelector(`.js-messages-option[data-range="${range}"]`);
+            const opt =
+                messagesCardEl.querySelector(`.js-messages-option[data-range="${range}"]`) ||
+                messagesCardEl.querySelector('.js-messages-option[data-range="all"]');
             if (opt) opt.click();
         };
         chips.forEach(chip => {
@@ -565,6 +725,7 @@
                 if (!range) return;
                 setActive(chip);
                 clickUniqueOption(range);
+                clickRequestsOption(range);
                 clickMessagesOption(range);
             });
         });

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+import json
 import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -125,6 +126,15 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
 
         cur.execute(
             """
+            SELECT COUNT(*) AS total_incoming_messages
+            FROM chat_logs
+            WHERE role = 'user'
+            """
+        )
+        total_incoming_messages = cur.fetchone()["total_incoming_messages"]
+
+        cur.execute(
+            """
             SELECT COUNT(DISTINCT user_id) AS unique_users
             FROM chat_logs
             WHERE role = 'user'
@@ -208,6 +218,7 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
 
     return {
         "total_messages": int(total_messages or 0),
+        "total_incoming_messages": int(total_incoming_messages or 0),
         "unique_users": int(unique_users_all or 0),
         "unique_users_all": int(unique_users_all or 0),
         "unique_users_today": int(unique_users_today or 0),
@@ -225,21 +236,33 @@ def fetch_overview_metrics(window_days: int = 7) -> Dict[str, Any]:
         "bullying_spam": bullying_summary['spam'],
     }
 
-def fetch_daily_activity(days: int = 14) -> List[Dict[str, Any]]:
+def fetch_daily_activity(days: int = 14, role: Optional[str] = None) -> List[Dict[str, Any]]:
     days = max(1, days)
+    params: List[Any] = [f"{days} days"]
+    query = [
+        "SELECT DATE(created_at) AS day, COUNT(*) AS messages",
+        "FROM chat_logs",
+        "WHERE created_at >= NOW() - %s::interval",
+    ]
+    if role:
+        query.append("AND role = %s")
+        params.append(role)
+    query.extend(
+        [
+            "GROUP BY day",
+            "ORDER BY day ASC",
+        ]
+    )
     with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT DATE(created_at) AS day, COUNT(*) AS messages
-            FROM chat_logs
-            WHERE created_at >= NOW() - %s::interval
-            GROUP BY day
-            ORDER BY day ASC
-            """,
-            (f"{days} days",),
-        )
+        cur.execute("\n".join(query), tuple(params))
         rows = cur.fetchall()
-    return [dict(row) for row in rows]
+    result: List[Dict[str, Any]] = []
+    for row in rows:
+        count = int(row.get("messages") or 0)
+        if count <= 0:
+            continue
+        result.append({"day": row.get("day"), "messages": count})
+    return result
 
 def fetch_recent_questions(limit: int = 10) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
@@ -623,12 +646,18 @@ def fetch_psych_reports(
     records: List[Dict[str, Any]] = []
     for row in rows:
         record = dict(row)
-        summary = record.get("summary") or record.get("message") or ""
-        if summary:
-            preview = summary.split("\n\n", 1)[0].strip()
+        message_text = record.get("message") or ""
+        if message_text:
+            message_preview = message_text.split("\n\n", 1)[0].strip()
         else:
-            preview = ""
-        record["summary_preview"] = preview
+            message_preview = ""
+        summary_text = record.get("summary") or ""
+        if summary_text:
+            summary_preview = summary_text.split("\n\n", 1)[0].strip()
+        else:
+            summary_preview = message_preview
+        record["message_preview"] = message_preview
+        record["summary_preview"] = summary_preview or message_preview
         records.append(record)
 
     return records, int(total or 0)
@@ -691,7 +720,40 @@ def fetch_psych_group_reports(
                 (report_id,),
             )
         rows = cur.fetchall()
-    return [dict(row) for row in rows]
+
+    records: List[Dict[str, Any]] = []
+    for row in rows:
+        record = dict(row)
+        metadata = record.get("metadata")
+        if metadata and isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except (ValueError, TypeError):
+                metadata = {}
+            record["metadata"] = metadata
+        if not metadata:
+            metadata = {}
+        message_chunks = metadata.get("message_chunks")
+        if isinstance(message_chunks, list) and message_chunks:
+            formatted = "\n\n".join(
+                chunk.strip()
+                for chunk in message_chunks
+                if isinstance(chunk, str) and chunk.strip()
+            )
+            if formatted:
+                record["message"] = formatted
+        else:
+            message_text = record.get("message")
+            if isinstance(message_text, str) and message_text:
+                record["message"] = (
+                    message_text.replace("\r\n", "\n").replace("\r", "\n")
+                )
+        summary_text = record.get("summary")
+        if isinstance(summary_text, str) and summary_text:
+            record["summary"] = summary_text.replace("\r\n", "\n").replace("\r", "\n")
+        records.append(record)
+
+    return records
 
 
 def update_psych_report_status(

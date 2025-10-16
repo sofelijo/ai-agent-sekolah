@@ -69,6 +69,7 @@ def _store_psych_session(session_data: dict, *, reason: str, aggregated_text: Op
         "stage_history": session_data.get("stage_history"),
         "ended_by": reason,
         "chat_log_ids": [msg.get("chat_log_id") for msg in messages if msg.get("chat_log_id") is not None],
+        "message_chunks": [msg.get("text") for msg in messages if msg.get("text")],
         "timeout_seconds": session_data.get("timeout_seconds"),
     }
     _persist_psych_report(

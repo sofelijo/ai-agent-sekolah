@@ -208,7 +208,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.summary_preview or item.summary or item.message }}</div>
+                                    <div class="text-wrap" style="white-space: pre-wrap;">{{ item.message_preview or item.summary_preview or item.summary or item.message }}</div>
                                     {% if item.metadata and item.metadata.stage %}
                                     <div class="text-muted small mt-2">Tahap: {{ item.metadata.stage|replace('_', ' ')|title }}</div>
                                     {% endif %}
