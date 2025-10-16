@@ -73,6 +73,29 @@ def _chat_logs_has_topic_column() -> bool:
         _CHAT_TOPIC_AVAILABLE = cur.fetchone() is not None
     return _CHAT_TOPIC_AVAILABLE
 
+def _ensure_chat_logs_schema() -> None:
+    """Pastikan tabel chat_logs dan semua kolomnya tersedia."""
+    global _CHAT_TOPIC_AVAILABLE
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_logs (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                username TEXT,
+                text TEXT,
+                role TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                response_time_ms INTEGER
+            );
+            """
+        )
+        # Tambahkan kolom 'topic' jika belum ada, untuk menjaga kompatibilitas
+        if not _chat_logs_has_topic_column():
+            cur.execute("ALTER TABLE chat_logs ADD COLUMN topic TEXT")
+            _CHAT_TOPIC_AVAILABLE = True  # Update cache
+    conn.commit()
+
 def _ensure_bullying_schema() -> None:
     """Pastikan tabel dan kolom pendukung pelaporan bullying tersedia."""
     with conn.cursor() as cur:
@@ -480,6 +503,7 @@ def record_twitter_log(
     conn.commit()
 
 # Call schema functions on startup
+_ensure_chat_logs_schema()
 _ensure_bullying_schema()
 _ensure_psych_schema()
 _ensure_user_schema()

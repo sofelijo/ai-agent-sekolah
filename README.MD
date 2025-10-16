@@ -68,14 +68,17 @@ DASHBOARD_SESSION_DAYS=14
 DASHBOARD_DB_MAX_CONN=8
 EOF
 
-# Jalankan sekali untuk inisialisasi tabel pengguna dashboard
-python -m dashboard.cli init-db
+# 6. Inisialisasi Database
+# Skrip ini akan membuat semua tabel dan skema yang dibutuhkan oleh bot dan dashboard.
+# Pastikan koneksi database di .env sudah benar sebelum menjalankan ini.
+python3 init_db.py
 
-# Buat akun admin pertama dashboard
-python -m dashboard.cli create-user admin@example.com "Nama Admin"
+# 7. Buat Akun Admin Dashboard (Opsional)
+# Ganti email dan nama dengan yang Anda inginkan.
+python3 -m dashboard.cli create-user admin@example.com "Nama Admin"
 
-# 6. Jalankan bot pertama kali (tes manual)
-python bot_sekolah.py
+# 8. Jalankan bot pertama kali (tes manual)
+python3 bot_sekolah.py
 ```
 
 ---
@@ -287,6 +290,22 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{question}")
 ])
 ```
+
+--- 
+
+## 🗄️ Struktur Database
+
+Proyek ini menggunakan **PostgreSQL** sebagai database. Inisialisasi skema dapat dilakukan dengan menjalankan `python3 init_db.py`. Skrip ini akan membuat tabel-tabel berikut:
+
+- **`chat_logs`**: Menyimpan riwayat semua percakapan antara pengguna dan bot.
+- **`bullying_reports`**: Mencatat laporan kasus perundungan yang masuk melalui bot.
+- **`psych_reports`**: Mencatat permintaan atau laporan terkait kesehatan psikologis.
+- **`corruption_reports`**: Mencatat laporan terkait potensi korupsi.
+- **`twitter_worker_logs`**: Menyimpan log aktivitas dari worker Twitter (balasan mention, auto-post).
+- **`dashboard_users`**: Menyimpan data pengguna yang dapat mengakses aplikasi web dashboard (login, role, dll).
+- **`bullying_report_events`**: Log jejak audit untuk setiap perubahan pada laporan perundungan.
+- **`notifications`**: Tabel untuk sistem notifikasi di dashboard.
+- **`web_users`**: Menyimpan data pengguna yang berinteraksi melalui antarmuka web chat.
 
 ---
 
