@@ -13,8 +13,20 @@ from utils import now_str, should_respond
 
 load_dotenv()
 
-# Configure STT
-audio_client = OpenAI()
+# Configure STT dengan endpoint OpenAI-compatible (default ke OpenAI Whisper)
+_STT_API_KEY = os.getenv("ASKA_STT_API_KEY") or os.getenv("OPENAI_API_KEY")
+_STT_API_BASE = os.getenv("ASKA_STT_API_BASE") or "https://api.openai.com/v1"
+
+try:
+    audio_client: Optional[OpenAI]
+    if _STT_API_KEY:
+        audio_client = OpenAI(api_key=_STT_API_KEY, base_url=_STT_API_BASE)
+    else:
+        audio_client = None
+except Exception as exc:
+    print(f"[VOICE] Gagal inisialisasi klien STT OpenAI-compatible: {exc}")
+    audio_client = None
+
 STT_MODELS: list[str] = []
 _env_model = os.getenv("OPENAI_STT_MODEL")
 if _env_model:
@@ -26,6 +38,11 @@ if "whisper-1" not in STT_MODELS:
 
 
 def transcribe_audio(path: str) -> str:
+    if audio_client is None:
+        raise RuntimeError(
+            "Speech-to-text belum aktif. Set ASKA_STT_API_KEY atau OPENAI_API_KEY agar STT berjalan."
+        )
+
     last_error: Optional[Exception] = None
     for model in STT_MODELS:
         try:
@@ -98,4 +115,3 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_target=message,
         target_user=getattr(message, "from_user", None),
     )
-

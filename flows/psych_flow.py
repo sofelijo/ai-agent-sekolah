@@ -140,6 +140,7 @@ async def handle_psych(
     timeout_seconds: int,
     timeout_message: str,
     now_ts: float,
+    topic: Optional[str] = None,
 ) -> bool:
     """Handle psychological counseling conversation flow.
 
@@ -156,7 +157,7 @@ async def handle_psych(
         for attempt in range(10):
             try:
                 await reply_message.reply_text(text)
-                save_chat(user_id, "ASKA", text, role="aska")
+                save_chat(user_id, "ASKA", text, role="aska", topic=topic)
                 sent_successfully = True
                 break
             except NetworkError as exc:  # pragma: no cover - network flakiness
@@ -167,7 +168,7 @@ async def handle_psych(
             try:
                 fallback = strip_markdown(text)
                 await reply_message.reply_text(fallback)
-                save_chat(user_id, "ASKA", fallback, role="aska")
+                save_chat(user_id, "ASKA", fallback, role="aska", topic=topic)
             except Exception:
                 pass
 

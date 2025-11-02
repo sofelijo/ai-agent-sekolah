@@ -1,5 +1,5 @@
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 
 import psycopg2
@@ -49,6 +49,12 @@ conn = psycopg2.connect(**conn_args)
 
 _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
 MAX_TWITTER_LOG_ROWS = max(0, int(os.getenv("TWITTER_LOG_MAX_ROWS", "100") or 100))
+DEFAULT_LIMITED_QUOTA = 3
+LIMIT_COOLDOWN_HOURS = 24
+DEFAULT_LIMITED_REASON = (
+    "Akses Gmail: maksimal 3 chat per 24 jam. "
+    "Kalau mau unlimited, pakai akun belajar.id atau Telegram."
+)
 
 
 def _chat_logs_has_topic_column(force_refresh: bool = False) -> bool:
@@ -150,6 +156,31 @@ def _ensure_psych_schema() -> None:
     conn.commit()
 
 
+def _column_exists(table: str, column: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+              AND column_name = %s
+            LIMIT 1
+            """,
+            (table, column),
+        )
+        return cur.fetchone() is not None
+
+
+def _ensure_column(table: str, column: str, ddl: str) -> bool:
+    if _column_exists(table, column):
+        return False
+    with conn.cursor() as cur:
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+    conn.commit()
+    return True
+
+
 def _ensure_user_schema() -> None:
     """Pastikan tabel untuk pengguna web (web_users) tersedia."""
     with conn.cursor() as cur:
@@ -161,11 +192,58 @@ def _ensure_user_schema() -> None:
                 full_name TEXT,
                 photo_url TEXT,
                 last_login TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                auth_provider TEXT,
+                access_tier TEXT NOT NULL DEFAULT 'full',
+                quota_limit INTEGER,
+                quota_remaining INTEGER,
+                quota_reset_at TIMESTAMPTZ,
+                limited_reason TEXT
             );
             """
         )
     conn.commit()
+    # Tambahkan kolom baru jika belum ada (untuk versi lama)
+    altered = False
+    altered |= _ensure_column(
+        "web_users",
+        "auth_provider",
+        "auth_provider TEXT",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "access_tier",
+        "access_tier TEXT NOT NULL DEFAULT 'full'",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "quota_limit",
+        "quota_limit INTEGER",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "quota_remaining",
+        "quota_remaining INTEGER",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "quota_reset_at",
+        "quota_reset_at TIMESTAMPTZ",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "limited_reason",
+        "limited_reason TEXT",
+    )
+    if altered:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE web_users
+                SET access_tier = COALESCE(access_tier, 'full')
+                """
+            )
+        conn.commit()
 
 def _calculate_due_at(category: str) -> datetime:
     base = datetime.now(timezone.utc)
@@ -346,42 +424,337 @@ def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str
         )
         return cur.fetchall()
 
-def get_or_create_web_user(email: str, full_name: str, photo_url: Optional[str] = None) -> dict:
+def get_or_create_web_user(
+    email: str,
+    full_name: Optional[str],
+    photo_url: Optional[str] = None,
+    *,
+    access_tier: str = "full",
+    auth_provider: Optional[str] = None,
+    quota_limit: Optional[int] = None,
+    limited_reason: Optional[str] = None,
+) -> dict:
     """Ambil user berdasarkan email, atau buat jika belum ada, lalu perbarui informasi login."""
+    _ensure_user_schema()
     now_utc = datetime.now(timezone.utc)
+    normalized_tier = (access_tier or "full").strip().lower()
+    if normalized_tier not in {"full", "limited"}:
+        normalized_tier = "full"
+
+    is_limited = normalized_tier == "limited"
+    desired_quota_limit = (
+        quota_limit
+        if quota_limit is not None
+        else (DEFAULT_LIMITED_QUOTA if is_limited else None)
+    )
+    effective_reason = (
+        limited_reason
+        if (limited_reason and is_limited)
+        else (DEFAULT_LIMITED_REASON if is_limited else None)
+    )
+
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
-            "SELECT id, email, full_name, photo_url, last_login FROM web_users WHERE email = %s",
+            """
+            SELECT
+                id, email, full_name, photo_url, last_login,
+                auth_provider, access_tier, quota_limit,
+                quota_remaining, quota_reset_at, limited_reason
+            FROM web_users
+            WHERE email = %s
+            """,
             (email,),
         )
         existing_user = cur.fetchone()
         if existing_user:
-            cur.execute(
-                """
+            update_clauses = [
+                "full_name = COALESCE(%s, full_name)",
+                "photo_url = COALESCE(%s, photo_url)",
+                "last_login = %s",
+            ]
+            params: List[Any] = [full_name, photo_url, now_utc]
+
+            if auth_provider:
+                update_clauses.append("auth_provider = COALESCE(%s, auth_provider)")
+                params.append(auth_provider)
+
+            if existing_user.get("access_tier") != normalized_tier:
+                update_clauses.append("access_tier = %s")
+                params.append(normalized_tier)
+
+            if is_limited:
+                limit_value = desired_quota_limit or DEFAULT_LIMITED_QUOTA
+                if existing_user.get("quota_limit") != limit_value:
+                    update_clauses.append("quota_limit = %s")
+                    params.append(limit_value)
+                if (
+                    existing_user.get("quota_remaining") is None
+                    or existing_user.get("access_tier") != "limited"
+                ):
+                    update_clauses.append("quota_remaining = %s")
+                    params.append(limit_value)
+                    update_clauses.append("quota_reset_at = NULL")
+                if effective_reason:
+                    update_clauses.append("limited_reason = %s")
+                    params.append(effective_reason)
+            else:
+                update_clauses.extend(
+                    [
+                        "quota_limit = NULL",
+                        "quota_remaining = NULL",
+                        "quota_reset_at = NULL",
+                        "limited_reason = NULL",
+                    ]
+                )
+
+            query = f"""
                 UPDATE web_users
-                SET full_name = COALESCE(%s, full_name),
-                    photo_url = COALESCE(%s, photo_url),
-                    last_login = %s
+                SET {', '.join(update_clauses)}
                 WHERE email = %s
-                RETURNING id, email, full_name, photo_url, last_login
-                """,
-                (full_name, photo_url, now_utc, email),
-            )
+                RETURNING
+                    id, email, full_name, photo_url, last_login,
+                    auth_provider, access_tier, quota_limit,
+                    quota_remaining, quota_reset_at, limited_reason
+            """
+            params.append(email)
+            cur.execute(query, params)
             updated_user = cur.fetchone()
             conn.commit()
-            return updated_user
+            return updated_user or existing_user
 
         cur.execute(
             """
-            INSERT INTO web_users (email, full_name, photo_url, last_login)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, email, full_name, photo_url, last_login
+            INSERT INTO web_users (
+                email,
+                full_name,
+                photo_url,
+                last_login,
+                auth_provider,
+                access_tier,
+                quota_limit,
+                quota_remaining,
+                quota_reset_at,
+                limited_reason
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING
+                id, email, full_name, photo_url, last_login,
+                auth_provider, access_tier, quota_limit,
+                quota_remaining, quota_reset_at, limited_reason
             """,
-            (email, full_name, photo_url, now_utc),
+            (
+                email,
+                full_name,
+                photo_url,
+                now_utc,
+                auth_provider,
+                normalized_tier,
+                desired_quota_limit,
+                desired_quota_limit if is_limited else None,
+                None,
+                effective_reason,
+            ),
         )
         new_user = cur.fetchone()
     conn.commit()
     return new_user
+
+def _maybe_reset_quota(
+    cur,
+    user_id: int,
+    row: Dict[str, Any],
+    now: datetime,
+) -> Tuple[Dict[str, Any], bool]:
+    """Reset kuota user terbatas jika cooldown sudah lewat."""
+    updated = False
+    if (row.get("access_tier") or "full") != "limited":
+        return row, updated
+
+    limit_value = row.get("quota_limit") or DEFAULT_LIMITED_QUOTA
+    if row.get("quota_limit") != limit_value:
+        cur.execute(
+            "UPDATE web_users SET quota_limit = %s WHERE id = %s",
+            (limit_value, user_id),
+        )
+        row["quota_limit"] = limit_value
+        updated = True
+
+    quota_remaining = row.get("quota_remaining")
+    reset_at = row.get("quota_reset_at")
+
+    if quota_remaining is None:
+        cur.execute(
+            """
+            UPDATE web_users
+            SET quota_remaining = %s,
+                quota_reset_at = NULL
+            WHERE id = %s
+            """,
+            (limit_value, user_id),
+        )
+        row["quota_remaining"] = limit_value
+        row["quota_reset_at"] = None
+        updated = True
+        return row, updated
+
+    if reset_at and reset_at <= now:
+        cur.execute(
+            """
+            UPDATE web_users
+            SET quota_remaining = %s,
+                quota_reset_at = NULL
+            WHERE id = %s
+            """,
+            (limit_value, user_id),
+        )
+        row["quota_remaining"] = limit_value
+        row["quota_reset_at"] = None
+        updated = True
+
+    return row, updated
+
+
+def get_chat_quota_status(user_id: int) -> Dict[str, Any]:
+    """Ambil status kuota chat user web, sekaligus reset jika cooldown selesai."""
+    _ensure_user_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id, access_tier, quota_limit,
+                quota_remaining, quota_reset_at, limited_reason
+            FROM web_users
+            WHERE id = %s
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return {
+                "access_tier": "full",
+                "quota_limit": None,
+                "quota_remaining": None,
+                "quota_reset_at": None,
+                "limited_reason": None,
+            }
+
+        now = datetime.now(timezone.utc)
+        row, updated = _maybe_reset_quota(cur, user_id, row, now)
+        if updated:
+            conn.commit()
+        return {
+            "access_tier": row.get("access_tier") or "full",
+            "quota_limit": row.get("quota_limit"),
+            "quota_remaining": row.get("quota_remaining"),
+            "quota_reset_at": row.get("quota_reset_at"),
+            "limited_reason": row.get("limited_reason"),
+        }
+
+
+def consume_chat_quota(user_id: int) -> Dict[str, Any]:
+    """
+    Kurangi kuota chat user terbatas sebanyak 1.
+    Mengembalikan detail status kuota serta flag apakah request boleh dilanjut.
+    """
+    _ensure_user_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id, access_tier, quota_limit,
+                quota_remaining, quota_reset_at, limited_reason
+            FROM web_users
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.commit()
+            return {
+                "allowed": False,
+                "access_tier": None,
+                "quota_limit": None,
+                "quota_remaining": None,
+                "quota_reset_at": None,
+                "limited_reason": None,
+                "error": "user_not_found",
+            }
+
+        now = datetime.now(timezone.utc)
+        row, updated = _maybe_reset_quota(cur, user_id, row, now)
+        access_tier = row.get("access_tier") or "full"
+
+        if access_tier != "limited":
+            conn.commit()
+            return {
+                "allowed": True,
+                "access_tier": access_tier,
+                "quota_limit": row.get("quota_limit"),
+                "quota_remaining": row.get("quota_remaining"),
+                "quota_reset_at": row.get("quota_reset_at"),
+                "limited_reason": row.get("limited_reason"),
+            }
+
+        limit_value = row.get("quota_limit") or DEFAULT_LIMITED_QUOTA
+        quota_remaining = row.get("quota_remaining")
+        reset_at = row.get("quota_reset_at")
+
+        if quota_remaining is None:
+            quota_remaining = limit_value
+            cur.execute(
+                """
+                UPDATE web_users
+                SET quota_remaining = %s,
+                    quota_reset_at = NULL
+                WHERE id = %s
+                """,
+                (quota_remaining, user_id),
+            )
+            updated = True
+
+        if quota_remaining <= 0:
+            if not reset_at:
+                reset_at = now + timedelta(hours=LIMIT_COOLDOWN_HOURS)
+                cur.execute(
+                    "UPDATE web_users SET quota_reset_at = %s WHERE id = %s",
+                    (reset_at, user_id),
+                )
+                updated = True
+            conn.commit()
+            return {
+                "allowed": False,
+                "access_tier": access_tier,
+                "quota_limit": limit_value,
+                "quota_remaining": 0,
+                "quota_reset_at": reset_at,
+                "limited_reason": row.get("limited_reason") or DEFAULT_LIMITED_REASON,
+            }
+
+        new_remaining = max(0, quota_remaining - 1)
+        new_reset_at = reset_at
+        if new_remaining == 0:
+            new_reset_at = now + timedelta(hours=LIMIT_COOLDOWN_HOURS)
+
+        cur.execute(
+            """
+            UPDATE web_users
+            SET quota_remaining = %s,
+                quota_reset_at = %s
+            WHERE id = %s
+            """,
+            (new_remaining, new_reset_at, user_id),
+        )
+        conn.commit()
+        return {
+            "allowed": True,
+            "access_tier": access_tier,
+            "quota_limit": limit_value,
+            "quota_remaining": new_remaining,
+            "quota_reset_at": new_reset_at,
+            "limited_reason": row.get("limited_reason") or DEFAULT_LIMITED_REASON,
+        }
 
 def _ensure_corruption_schema() -> None:
     """Pastikan tabel untuk laporan korupsi (corruption_reports) tersedia."""

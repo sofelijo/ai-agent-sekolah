@@ -1,6 +1,6 @@
 # 🤖 ASKA — Agent AI Sekolah Kita (Telegram Bot)
 
-**ASKA** adalah asisten AI berbasis Telegram untuk SDN Semper Barat 01 yang mampu menjawab pertanyaan seputar sekolah berdasarkan file `.md`. Dibangun dengan OpenAI GPT-4o, LangChain, dan FAISS. Bot ini aktif 24 jam di server VPS dengan auto-restart.
+**ASKA** adalah asisten AI berbasis Telegram untuk SDN Semper Barat 01 yang mampu menjawab pertanyaan seputar sekolah berdasarkan file `.md`. Dibangun dengan Groq Llama 3.1 (OpenAI-compatible), LangChain, dan FAISS. Bot ini aktif 24 jam di server VPS dengan auto-restart.
 
 ---
 
@@ -39,7 +39,11 @@ pip install -r requirements.txt
 # 5. Buat file .env dan isi kredensial produksi
 cat > .env <<'EOF'
 TELEGRAM_BOT_TOKEN=ISI_TOKEN_DARI_BOTFATHER
+GROQ_API_KEY=ISI_API_KEY_GROQ
+# Opsional (untuk embedding RAG & STT suara, tetap bisa pakai OpenAI Whisper/Embeddings)
 OPENAI_API_KEY=ISI_API_KEY_OPENAI
+ASKA_EMBEDDING_API_KEY=ISI_API_KEY_OPENAI
+ASKA_STT_API_KEY=ISI_API_KEY_OPENAI
 
 # Koneksi PostgreSQL (bot + dashboard)
 DB_NAME=nama_database
@@ -278,7 +282,7 @@ sudo certbot --nginx -d aska.sdnsembar01.sch.id
 
 ASKA menggunakan:
 - LangChain RetrievalQA
-- GPT-4o (model mini)
+- Groq `llama-3.1-8b-instant` (OpenAI-compatible)
 - Dokumen `.md` dari `kecerdasan.md`
 - Prompt bergaya Gen-Z dengan emoji
 

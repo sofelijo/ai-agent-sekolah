@@ -156,6 +156,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             storage_key=storage_key,
             now_ts=now_ts,
             timeout_seconds=BULLYING_TIMEOUT_SECONDS,
+            topic="web",
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: bullying")
@@ -174,6 +175,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             username=username,
             storage_key=storage_key,
             source="web",
+            topic="web",
             mark_responded=lambda: None,
         )
         if handled:
@@ -194,6 +196,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             storage_key=storage_key,
             chat_log_id=chat_log_id,
             source="web",
+            topic="web",
             mark_responded=lambda: None,
             timeout_seconds=PSYCH_TIMEOUT_SECONDS,
             timeout_message=PSYCH_TIMEOUT_MESSAGE,
@@ -216,6 +219,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             normalized_input=normalized_input,
             user_id=user_id,
             storage_key=storage_key,
+            topic="web",
             mark_responded=lambda: None,
             timeout_seconds=TEACHER_TIMEOUT_SECONDS,
             timeout_message=TEACHER_TIMEOUT_MESSAGE,
@@ -234,6 +238,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             normalized_input=normalized_input,
             user_id=user_id,
             username=username,
+            topic="web",
             mark_responded=lambda: None,
         )
         if handled:

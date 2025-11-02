@@ -46,6 +46,7 @@ async def handle_bullying(
     now_ts: float,
     timeout_seconds: int,
     mark_responded,
+    topic: Optional[str] = None,
 ) -> bool:
     """Kelola sesi curhat bullying dengan gaya percakapan natural."""
 
@@ -57,7 +58,7 @@ async def handle_bullying(
         for attempt in range(10):
             try:
                 await reply_message.reply_text(text)
-                save_chat(user_id, "ASKA", text, role="aska")
+                save_chat(user_id, "ASKA", text, role="aska", topic=topic)
                 sent_successfully = True
                 break
             except NetworkError as exc:  # pragma: no cover - network flakiness
@@ -70,7 +71,7 @@ async def handle_bullying(
             try:
                 fallback = strip_markdown(text)
                 await reply_message.reply_text(fallback)
-                save_chat(user_id, "ASKA", fallback, role="aska")
+                save_chat(user_id, "ASKA", fallback, role="aska", topic=topic)
             except Exception:
                 pass
 

@@ -1,0 +1,14 @@
+<svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="togaTitle togaDesc">
+  <title id="togaTitle">Logo belajar.id</title>
+  <desc id="togaDesc">Ikon toga sederhana untuk mewakili akses belajar.id</desc>
+  <defs>
+    <linearGradient id="capGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D47A1"/>
+      <stop offset="100%" stop-color="#42A5F5"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 28L36 16L64 28L36 40L8 28Z" fill="url(#capGradient)"/>
+  <path d="M20 32L36 40L52 32V44C52 48.4183 47.5228 52 42 52H30C24.4772 52 20 48.4183 20 44V32Z" fill="#1565C0"/>
+  <path d="M64 28V46" stroke="#FB8C00" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="50" r="5" fill="#FB8C00"/>
+</svg>

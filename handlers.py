@@ -175,6 +175,7 @@ async def handle_user_query(
             now_ts=now_ts,
             timeout_seconds=BULLYING_TIMEOUT_SECONDS,
             mark_responded=mark_responded,
+            topic=topic,
         ):
             return True
 
@@ -188,6 +189,7 @@ async def handle_user_query(
             username=username,
             storage_key=storage_key,
             source=source,
+            topic=topic,
             mark_responded=mark_responded,
         ):
             return True
@@ -203,6 +205,7 @@ async def handle_user_query(
             storage_key=storage_key,
             chat_log_id=chat_log_id,
             source=source,
+            topic=topic,
             mark_responded=mark_responded,
             timeout_seconds=PSYCH_TIMEOUT_SECONDS,
             timeout_message=PSYCH_TIMEOUT_MESSAGE,
@@ -218,6 +221,7 @@ async def handle_user_query(
             normalized_input=normalized_input,
             user_id=user_id,
             storage_key=storage_key,
+            topic=topic,
             mark_responded=mark_responded,
             timeout_seconds=TEACHER_TIMEOUT_SECONDS,
             timeout_message=TEACHER_TIMEOUT_MESSAGE,
@@ -231,6 +235,7 @@ async def handle_user_query(
             normalized_input=normalized_input,
             user_id=user_id,
             username=username,
+            topic=topic,
             mark_responded=mark_responded,
         ):
             return True

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from db import save_chat
 from responses import (
     contains_inappropriate_language,
@@ -30,13 +32,14 @@ async def handle_smalltalk(
     user_id,
     username: str,
     mark_responded,
+    topic: Optional[str] = None,
 ) -> bool:
     # Advice for inappropriate language
     if contains_inappropriate_language(normalized_input):
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_advice_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -45,7 +48,7 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_relationship_advice_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -57,7 +60,7 @@ async def handle_smalltalk(
             or get_greeting_response(user_name=username)
         )
         await reply_message.reply_text(response, parse_mode="Markdown")
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -66,7 +69,7 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_thank_you_response()
         await reply_message.reply_text(response, parse_mode="Markdown")
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -75,7 +78,7 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_acknowledgement_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -84,7 +87,7 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_farewell_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -93,7 +96,7 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_self_intro_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -102,9 +105,8 @@ async def handle_smalltalk(
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         response = get_status_response()
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
     return False
-

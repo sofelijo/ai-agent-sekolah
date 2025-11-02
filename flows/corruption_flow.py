@@ -27,6 +27,7 @@ async def handle_corruption(
     storage_key,
     source: str,
     mark_responded,
+    topic: Optional[str] = None,
 ) -> bool:
     """Handle corruption report flow and related intents.
 
@@ -45,7 +46,7 @@ async def handle_corruption(
                 try:
                     await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
                     await reply_message.reply_text(response, parse_mode="Markdown")
-                    save_chat(user_id, "ASKA", strip_markdown(response), role="aska")
+                    save_chat(user_id, "ASKA", strip_markdown(response), role="aska", topic=topic)
                     sent_successfully = True
                     print(f"[{now_str()}] Successfully sent corruption flow message on attempt {i+1}.")
                     break
@@ -67,7 +68,7 @@ async def handle_corruption(
         howto_text = get_corruption_howto_response()
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(howto_text)
-        save_chat(user_id, "ASKA", howto_text, role="aska")
+        save_chat(user_id, "ASKA", howto_text, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -79,7 +80,7 @@ async def handle_corruption(
         )
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(suggestion)
-        save_chat(user_id, "ASKA", suggestion, role="aska")
+        save_chat(user_id, "ASKA", suggestion, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -104,9 +105,8 @@ async def handle_corruption(
 
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(response)
-        save_chat(user_id, "ASKA", response, role="aska")
+        save_chat(user_id, "ASKA", response, role="aska", topic=topic)
         mark_responded()
         return True
 
     return False
-

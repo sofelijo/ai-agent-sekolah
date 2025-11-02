@@ -85,6 +85,101 @@
         }
         .flash-info { background-color: #d1ecf1; }
         .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .flash-warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+
+        .quota-status-wrapper {
+            display: none;
+            align-items: center;
+            margin-right: 12px;
+        }
+        .quota-status-wrapper[data-access="limited"] {
+            display: inline-flex;
+        }
+        .quota-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .quota-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
+        }
+        .quota-toggle-btn:active {
+            transform: translateY(0);
+        }
+        .quota-toggle-btn:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.6);
+            outline-offset: 2px;
+        }
+        .quota-toggle-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+        }
+        .quota-toggle-btn[data-state="cooldown"] {
+            background: rgba(234, 67, 53, 0.25);
+            border-color: rgba(234, 67, 53, 0.4);
+            color: #ffe8e6;
+        }
+        .quota-toggle-btn[data-state="cooldown"]:hover {
+            background: rgba(234, 67, 53, 0.35);
+        }
+        .quota-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4cd964;
+        }
+        .quota-toggle-btn[data-state="cooldown"] .quota-indicator {
+            background: #fbbc04;
+        }
+
+        .quota-panel {
+            position: relative;
+            margin: 12px 18px 0;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(234, 67, 53, 0.25);
+            background: rgba(234, 67, 53, 0.1);
+            color: #8a1c13;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            display: none;
+        }
+        .quota-panel.show {
+            display: block;
+        }
+        .quota-panel a {
+            color: #245a9c;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .quota-panel a:hover {
+            text-decoration: underline;
+        }
+        .quota-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .quota-panel-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+        .quota-panel .btn-close {
+            filter: invert(40%);
+        }
 
         .chat-container { 
             width: 100%; 
@@ -346,6 +441,27 @@
         body.dark-mode .btn-copy {
             background: rgba(255,255,255,0.08);
         }
+        body.dark-mode .quota-toggle-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #fff;
+        }
+        body.dark-mode .quota-toggle-btn[data-state="cooldown"] {
+            background: rgba(234, 67, 53, 0.3);
+            border-color: rgba(234, 67, 53, 0.45);
+            color: #ffe8e6;
+        }
+        body.dark-mode .quota-panel {
+            border-color: rgba(255, 193, 7, 0.35);
+            background: rgba(255, 193, 7, 0.12);
+            color: #ffecb3;
+        }
+        body.dark-mode .quota-panel a {
+            color: #8ab4f8;
+        }
+        body.dark-mode .quota-panel .btn-close {
+            filter: invert(85%);
+        }
         /* Jump button */
         .jump-bottom { position: absolute; right: 18px; bottom: 82px; z-index: 10; display: none; }
         .jump-bottom.show { display: inline-flex; }
@@ -362,6 +478,9 @@
       {% endif %}
     {% endwith %}
 
+    {% set raw_limit = quota.quotaLimit if quota and quota.quotaLimit is not none else 3 %}
+    {% set raw_remaining = quota.quotaRemaining if quota and quota.quotaRemaining is not none else raw_limit %}
+
     <div class="chat-container">
         <div class="chat-header">
             <nav class="navbar navbar-expand w-100">
@@ -374,6 +493,27 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-center">
+                        <div class="quota-status-wrapper me-3" id="quotaStatusWrapper"
+                             data-access="{{ quota.accessTier }}">
+                            <button id="quotaToggleBtn"
+                                    class="quota-toggle-btn"
+                                    type="button"
+                                    aria-expanded="{% if quota.accessTier == 'limited' %}true{% else %}false{% endif %}"
+                                    data-state="{% if quota.accessTier == 'limited' and quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}cooldown{% else %}ok{% endif %}">
+                                <span class="quota-indicator" aria-hidden="true"></span>
+                                <span id="quotaButtonLabel">
+                                    {% if quota.accessTier == 'limited' %}
+                                        {% if quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}
+                                            Hitung mundur …
+                                        {% else %}
+                                            Sisa {{ 0 if raw_remaining < 0 else raw_remaining }}/{{ raw_limit }} chat
+                                        {% endif %}
+                                    {% else %}
+                                        Akses penuh
+                                    {% endif %}
+                                </span>
+                            </button>
+                        </div>
                         <button id="theme-toggle" class="me-3">🌙</button>
                         {% if user %}
                         <div class="dropdown user-dropdown">
@@ -407,6 +547,28 @@
                     </div>
                 </div>
             </nav>
+        </div>
+        <div class="quota-panel{% if quota.accessTier == 'limited' %} show{% endif %}"
+             id="quotaNotice"
+             {% if quota.accessTier != 'limited' %}hidden{% endif %}>
+            <div class="quota-panel-header">
+            <div class="quota-panel-title">Mode Gmail</div>
+                <button type="button" class="btn-close" id="quotaNoticeClose" aria-label="Tutup panel"></button>
+            </div>
+            <p id="quotaNoticeText" class="mb-2">
+                {% if quota.accessTier == 'limited' %}
+                    {% if quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}
+                        Kuota Gmail sudah habis untuk sekarang. Tunggu hitung mundurnya selesai atau coba opsi lain ya.
+                    {% else %}
+                        Kamu masih punya {{ 0 if raw_remaining < 0 else raw_remaining }} dari {{ raw_limit }} chat tersisa.
+                    {% endif %}
+                {% else %}
+                    Akses penuh aktif. Selamat ngobrol bareng ASKA! 🎉
+                {% endif %}
+            </p>
+            <p class="mb-0" id="quotaNoticeReason">
+                {{ quota.limitedReason or "Login Gmail ASKA dibatasi 3 chat per 24 jam supaya kapasitas tetap optimal. Pakai akun belajar.id atau Telegram buat ngobrol tanpa batas ya!" }}
+            </p>
         </div>
         <div class="chat-box" id="chat-box" role="log" aria-live="polite" aria-relevant="additions">
             <div id="history-loader" class="history-loader" style="display: none;">Memuat riwayat...</div>
@@ -486,12 +648,206 @@
         const historyLoader = document.getElementById('history-loader');
         const jumpBottom = document.getElementById('jumpBottom');
         const sendButton = document.getElementById('send-button');
+        const quotaStatusWrapper = document.getElementById('quotaStatusWrapper');
+        const quotaToggleBtn = document.getElementById('quotaToggleBtn');
+        const quotaButtonLabel = document.getElementById('quotaButtonLabel');
+        const quotaNotice = document.getElementById('quotaNotice');
+        const quotaNoticeText = document.getElementById('quotaNoticeText');
+        const quotaNoticeReason = document.getElementById('quotaNoticeReason');
+        const quotaNoticeClose = document.getElementById('quotaNoticeClose');
+
+        let quotaState = {{ (quota or {})|tojson }};
+        let serverOffsetMs = 0;
+        const initialServerTime = '{{ server_time }}';
+        if (initialServerTime) {
+            const parsed = Date.parse(initialServerTime);
+            if (!Number.isNaN(parsed)) {
+                serverOffsetMs = Date.now() - parsed;
+            }
+        }
+        const limitedReasonFallback = (quotaState && quotaState.limitedReason)
+            ? quotaState.limitedReason
+            : "Login Gmail ASKA dibatasi 3 chat per 24 jam supaya kapasitas tetap optimal. Pakai akun belajar.id atau Telegram @tanyaaska_bot buat ngobrol tanpa batas ya!";
+        let quotaCountdownInterval = null;
 
         let chatOffset = 10;
         let isLoadingHistory = false;
         let noMoreHistory = false;
         let typingInterval;
         let isSending = false;
+        let telegramCtaShown = false;
+
+        function updateServerOffset(serverTimeIso) {
+            if (!serverTimeIso) return;
+            const parsed = Date.parse(serverTimeIso);
+            if (Number.isNaN(parsed)) return;
+            serverOffsetMs = Date.now() - parsed;
+        }
+
+        function serverNowMs() {
+            return Date.now() - serverOffsetMs;
+        }
+
+        function formatDuration(ms) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        let quotaPanelDismissed = !(quotaNotice && quotaNotice.classList.contains('show'));
+
+        function stopQuotaCountdown() {
+            if (quotaCountdownInterval) {
+                clearInterval(quotaCountdownInterval);
+                quotaCountdownInterval = null;
+            }
+        }
+
+        function setQuotaButtonLabel(text) {
+            if (quotaButtonLabel) {
+                quotaButtonLabel.textContent = text;
+            }
+        }
+
+        function showQuotaPanel() {
+            if (!quotaNotice) return;
+            quotaNotice.hidden = false;
+            quotaNotice.classList.add('show');
+            quotaPanelDismissed = false;
+            if (quotaToggleBtn) {
+                quotaToggleBtn.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function hideQuotaPanel(markDismissed = true) {
+            if (!quotaNotice) return;
+            quotaNotice.classList.remove('show');
+            quotaNotice.hidden = true;
+            if (markDismissed) {
+                quotaPanelDismissed = true;
+            }
+            if (quotaToggleBtn) {
+                quotaToggleBtn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function toggleQuotaPanel() {
+            if (!quotaNotice || !quotaToggleBtn || quotaToggleBtn.disabled) return;
+            if (quotaNotice.classList.contains('show')) {
+                hideQuotaPanel(true);
+            } else {
+                showQuotaPanel();
+            }
+        }
+
+        function startQuotaCountdown(resetIso, limit) {
+            if (!quotaToggleBtn || !resetIso) return;
+            const parsed = Date.parse(resetIso);
+            if (Number.isNaN(parsed)) {
+                stopQuotaCountdown();
+                return;
+            }
+            stopQuotaCountdown();
+            const refresh = () => {
+                const diff = parsed - serverNowMs();
+                if (diff <= 0) {
+                    stopQuotaCountdown();
+                    quotaToggleBtn.dataset.state = 'ok';
+                    setQuotaButtonLabel(`Sisa ${limit}/${limit} chat`);
+                    refreshQuotaStatus();
+                    return;
+                }
+                quotaToggleBtn.dataset.state = 'cooldown';
+                setQuotaButtonLabel(`Hitung mundur ${formatDuration(diff)}`);
+            };
+            refresh();
+            quotaCountdownInterval = setInterval(refresh, 1000);
+        }
+
+        function enforceQuotaLock() {
+            if (!sendButton) return;
+            const shouldDisable = isSending || !(messageInput && messageInput.value.trim());
+            sendButton.disabled = shouldDisable;
+        }
+
+        function updateQuotaUI(nextQuota) {
+            if (!nextQuota) return;
+            quotaState = Object.assign({}, quotaState || {}, nextQuota);
+            if (!quotaState.limitedReason) {
+                quotaState.limitedReason = limitedReasonFallback;
+            }
+
+            const accessTier = quotaState.accessTier || 'full';
+            const limit = typeof quotaState.quotaLimit === 'number' ? quotaState.quotaLimit : 3;
+            const remainingRaw = typeof quotaState.quotaRemaining === 'number' ? quotaState.quotaRemaining : limit;
+            const remaining = Math.max(0, remainingRaw);
+            const cooldownActive = accessTier === 'limited' && remaining === 0 && Boolean(quotaState.quotaResetAt);
+            const unlimitedCTA = 'Untuk akses tanpa batas tinggal login pakai akun belajar.id atau lanjut via <a href="https://t.me/tanyaaska_bot" target="_blank" rel="noopener">Telegram</a>.';
+
+            if (quotaStatusWrapper) {
+                quotaStatusWrapper.dataset.access = accessTier;
+            }
+
+            if (quotaToggleBtn) {
+                quotaToggleBtn.disabled = accessTier !== 'limited';
+                quotaToggleBtn.dataset.state = cooldownActive ? 'cooldown' : 'ok';
+                if (accessTier !== 'limited') {
+                    setQuotaButtonLabel('Akses penuh');
+                    quotaToggleBtn.setAttribute('aria-expanded', 'false');
+                } else if (!cooldownActive) {
+                    stopQuotaCountdown();
+                    setQuotaButtonLabel(`Sisa ${remaining}/${limit} chat`);
+                }
+            }
+
+            if (accessTier === 'limited' && cooldownActive && quotaState.quotaResetAt) {
+                startQuotaCountdown(quotaState.quotaResetAt, limit);
+            } else if (!cooldownActive) {
+                stopQuotaCountdown();
+            }
+
+            if (quotaNoticeText) {
+                if (accessTier === 'limited') {
+                    quotaNoticeText.innerHTML = cooldownActive
+                        ? `Kuota Gmail sudah habis untuk sekarang. Tunggu hitung mundurnya selesai atau coba opsi lain ya. ${unlimitedCTA}`
+                        : `Kamu masih punya ${remaining}/${limit} chat tersisa. ${unlimitedCTA}`;
+                } else {
+                    quotaNoticeText.textContent = 'Akses penuh aktif. Selamat ngobrol bareng ASKA! 🎉';
+                }
+            }
+
+            if (quotaNoticeReason) {
+                quotaNoticeReason.textContent = quotaState.limitedReason || limitedReasonFallback;
+            }
+
+            if (accessTier === 'limited') {
+                if (!quotaPanelDismissed) {
+                    showQuotaPanel();
+                }
+            } else {
+                hideQuotaPanel(true);
+            }
+
+            enforceQuotaLock();
+        }
+
+        async function refreshQuotaStatus() {
+            try {
+                const response = await fetch('/api/quota');
+                if (!response.ok) return;
+                const payload = await response.json();
+                if (payload.serverTime) {
+                    updateServerOffset(payload.serverTime);
+                }
+                if (payload.quota) {
+                    updateQuotaUI(payload.quota);
+                }
+            } catch (err) {
+                console.warn('Gagal memuat status kuota:', err);
+            }
+        }
 
         // Function to set the theme
         function setTheme(theme) {
@@ -518,6 +874,15 @@
         } else {
             document.body.classList.remove('dark-mode');
             themeToggle.textContent = '🌙';
+        }
+
+        updateQuotaUI(quotaState);
+        enforceQuotaLock();
+        if (quotaToggleBtn) {
+            quotaToggleBtn.addEventListener('click', toggleQuotaPanel);
+        }
+        if (quotaNoticeClose) {
+            quotaNoticeClose.addEventListener('click', () => hideQuotaPanel(true));
         }
 
         // Event listener for the theme toggle button
@@ -604,6 +969,25 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function appendTelegramCTA() {
+            if (telegramCtaShown) return;
+            telegramCtaShown = true;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-message bot-message onboarding-message';
+            wrapper.setAttribute('aria-label', 'ASKA menawarkan akses Telegram');
+            wrapper.innerHTML = `
+                <div class="onboarding-section">
+                    <span class="emoji">🤳</span>
+                    <div class="content">
+                        <span>Via Telegram? Chat aja:</span>
+                        <a href="https://t.me/tanyaaska_bot" target="_blank" class="modern-link">@tanyaaska_bot</a>
+                    </div>
+                </div>
+            `;
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
         function prependMessage(message, sender) {
             const messageElement = createMessageElement(message, sender);
             chatBox.insertBefore(messageElement, historyLoader.nextSibling);
@@ -665,6 +1049,7 @@
                 messageInput.value = btn.textContent.trim();
                 if (typeof autoResizeTextarea === 'function') autoResizeTextarea();
                 messageInput.focus();
+                enforceQuotaLock();
             });
         });
 
@@ -677,7 +1062,7 @@
         if (messageInput) {
             messageInput.addEventListener('input', () => {
                 autoResizeTextarea();
-                if (sendButton) sendButton.disabled = !messageInput.value.trim() || isSending;
+                enforceQuotaLock();
             });
             messageInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -692,7 +1077,7 @@
             const message = messageInput.value.trim();
             if (!message || isSending) return;
             isSending = true;
-            if (sendButton) sendButton.disabled = true;
+            enforceQuotaLock();
             messageInput.disabled = true;
 
             appendMessage(message, 'user');
@@ -721,7 +1106,16 @@
                 }
 
                 const data = await response.json();
+                if (data.serverTime) {
+                    updateServerOffset(data.serverTime);
+                }
+                if (data.quota) {
+                    updateQuotaUI(data.quota);
+                }
                 appendMessage(data.response, 'bot');
+                if (data.blocked) {
+                    appendTelegramCTA();
+                }
 
             } catch (error) {
                 console.error('Error:', error);
@@ -730,7 +1124,7 @@
             } finally {
                 isSending = false;
                 messageInput.disabled = false;
-                if (sendButton) sendButton.disabled = !messageInput.value.trim();
+                enforceQuotaLock();
                 messageInput.focus();
             }
         });

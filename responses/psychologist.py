@@ -140,11 +140,18 @@ _STOP_KEYWORDS: tuple[str, ...] = (
     "stop",
 )
 
-_LLM_MODEL = os.getenv("ASKA_PSYCH_MODEL") or os.getenv("ASKA_QA_MODEL") or "gpt-4o-mini"
+_LLM_MODEL = os.getenv("ASKA_PSYCH_MODEL") or os.getenv("ASKA_QA_MODEL") or "llama-3.1-8b-instant"
 _LLM_TEMPERATURE = float(os.getenv("ASKA_PSYCH_TEMPERATURE", "0.5"))
 _LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ASKA_PSYCH_MAX_TOKENS", "320"))
 _llm_client: Optional[OpenAI] = None
 _llm_client_failed = False
+_LLM_API_BASE = (
+    os.getenv("ASKA_PSYCH_API_BASE")
+    or os.getenv("ASKA_OPENAI_API_BASE")
+    or os.getenv("OPENAI_API_BASE")
+    or os.getenv("ASKA_GROQ_API_BASE")
+    or "https://api.groq.com/openai/v1"
+)
 
 
 def _get_llm_client() -> Optional[OpenAI]:
@@ -155,10 +162,19 @@ def _get_llm_client() -> Optional[OpenAI]:
     if OpenAI is None:
         return None
     if _llm_client is None:
+        api_key = (
+            os.getenv("ASKA_PSYCH_API_KEY")
+            or os.getenv("GROQ_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+        )
+        if not api_key:
+            print("[PSYCH] GROQ_API_KEY atau OPENAI_API_KEY belum di-set; fitur psikologis dimatikan.")
+            _llm_client_failed = True
+            return None
         try:
-            _llm_client = OpenAI()
+            _llm_client = OpenAI(api_key=api_key, base_url=_LLM_API_BASE)
         except Exception as exc:  # pragma: no cover - gagalnya init SDK
-            print(f"[PSYCH] Gagal inisialisasi OpenAI client: {exc}")
+            print(f"[PSYCH] Gagal inisialisasi klien Groq/OpenAI-compatible: {exc}")
             _llm_client_failed = True
             return None
     return _llm_client

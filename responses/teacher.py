@@ -46,11 +46,18 @@ _SUBJECT_KEYWORDS: Dict[str, tuple[str, ...]] = {
 _DEFAULT_SUBJECT = "Campuran"
 
 
-_LLM_MODEL = os.getenv("ASKA_TEACHER_MODEL") or os.getenv("ASKA_QA_MODEL") or "gpt-4o-mini"
+_LLM_MODEL = os.getenv("ASKA_TEACHER_MODEL") or os.getenv("ASKA_QA_MODEL") or "llama-3.1-8b-instant"
 _LLM_TEMPERATURE = float(os.getenv("ASKA_TEACHER_TEMPERATURE", "0.6"))
 _LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ASKA_TEACHER_MAX_TOKENS", "600"))
 _llm_client: Optional[OpenAI] = None
 _llm_client_failed = False
+_LLM_API_BASE = (
+    os.getenv("ASKA_TEACHER_API_BASE")
+    or os.getenv("ASKA_OPENAI_API_BASE")
+    or os.getenv("OPENAI_API_BASE")
+    or os.getenv("ASKA_GROQ_API_BASE")
+    or "https://api.groq.com/openai/v1"
+)
 
 
 def _get_llm_client() -> Optional[OpenAI]:
@@ -60,10 +67,19 @@ def _get_llm_client() -> Optional[OpenAI]:
     if OpenAI is None:
         return None
     if _llm_client is None:
+        api_key = (
+            os.getenv("ASKA_TEACHER_API_KEY")
+            or os.getenv("GROQ_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+        )
+        if not api_key:
+            print("[TEACHER] GROQ_API_KEY atau OPENAI_API_KEY belum di-set; mode guru dinonaktifkan.")
+            _llm_client_failed = True
+            return None
         try:
-            _llm_client = OpenAI()
+            _llm_client = OpenAI(api_key=api_key, base_url=_LLM_API_BASE)
         except Exception as exc:  # pragma: no cover - kegagalan koneksi/API
-            print(f"[TEACHER] Gagal inisialisasi OpenAI client: {exc}")
+            print(f"[TEACHER] Gagal inisialisasi klien Groq/OpenAI-compatible: {exc}")
             _llm_client_failed = True
             return None
     return _llm_client

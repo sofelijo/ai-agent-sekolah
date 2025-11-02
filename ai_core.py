@@ -11,13 +11,44 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 def build_qa_chain():
-    llm = ChatOpenAI(
-        temperature=0,
-        model="gpt-4o-mini",
-        max_tokens=300  # ⬅️ batas jawaban agar tidak ngalor ngidul
+    api_key = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "GROQ_API_KEY (atau OPENAI_API_KEY sebagai fallback) harus di-set untuk menjalankan ASKA."
+        )
+
+    api_base = (
+        os.getenv("ASKA_OPENAI_API_BASE")
+        or os.getenv("OPENAI_API_BASE")
+        or os.getenv("ASKA_GROQ_API_BASE")
+        or "https://api.groq.com/openai/v1"
     )
 
-    embedding = OpenAIEmbeddings()
+    llm = ChatOpenAI(
+        temperature=float(os.getenv("ASKA_QA_TEMPERATURE", "0")),
+        model=os.getenv("ASKA_QA_MODEL", "llama-3.1-8b-instant"),
+        max_tokens=int(os.getenv("ASKA_QA_MAX_TOKENS", "300")),  # ⬅️ batas jawaban agar tidak ngalor ngidul
+        openai_api_key=api_key,
+        openai_api_base=api_base,
+    )
+
+    embedding_api_key = os.getenv("ASKA_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not embedding_api_key:
+        raise RuntimeError(
+            "Setidaknya satu dari ASKA_EMBEDDING_API_KEY atau OPENAI_API_KEY dibutuhkan untuk membuat embedding."
+        )
+
+    embedding_api_base = (
+        os.getenv("ASKA_EMBEDDING_API_BASE")
+        or os.getenv("OPENAI_EMBEDDING_API_BASE")
+        or "https://api.openai.com/v1"
+    )
+
+    embedding = OpenAIEmbeddings(
+        model=os.getenv("ASKA_EMBEDDING_MODEL", "text-embedding-3-large"),
+        openai_api_key=embedding_api_key,
+        openai_api_base=embedding_api_base,
+    )
 
     with open("kecerdasan.md", "r", encoding="utf-8") as f:
         content = f.read()

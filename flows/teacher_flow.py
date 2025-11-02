@@ -29,6 +29,7 @@ async def handle_teacher(
     mark_responded,
     timeout_seconds: int,
     timeout_message: str,
+    topic: Optional[str] = None,
 ) -> bool:
     """Handle teacher practice session flow.
 
@@ -43,7 +44,7 @@ async def handle_teacher(
         if last_bot_time and (now_ts - last_bot_time) > timeout_seconds:
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(timeout_message)
-            save_chat(user_id, "ASKA", timeout_message, role="aska")
+            save_chat(user_id, "ASKA", timeout_message, role="aska", topic=topic)
             teacher_sessions.pop(storage_key, None)
             teacher_session = None
 
@@ -56,7 +57,7 @@ async def handle_teacher(
             )
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(farewell)
-            save_chat(user_id, "ASKA", farewell, role="aska")
+            save_chat(user_id, "ASKA", farewell, role="aska", topic=topic)
             mark_responded()
             return True
 
@@ -75,7 +76,7 @@ async def handle_teacher(
         intro = format_question_intro(question)
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(intro)
-        save_chat(user_id, "ASKA", intro, role="aska")
+        save_chat(user_id, "ASKA", intro, role="aska", topic=topic)
         session_data["conversation"].append({"role": "assistant", "content": intro})
         session_data["last_bot_time"] = time.time()
         mark_responded()
@@ -87,7 +88,7 @@ async def handle_teacher(
         )
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(reminder)
-        save_chat(user_id, "ASKA", reminder, role="aska")
+        save_chat(user_id, "ASKA", reminder, role="aska", topic=topic)
         mark_responded()
         return True
 
@@ -108,7 +109,7 @@ async def handle_teacher(
         intro = format_question_intro(question, attempt_number=1)
         await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
         await reply_message.reply_text(intro)
-        save_chat(user_id, "ASKA", intro, role="aska")
+        save_chat(user_id, "ASKA", intro, role="aska", topic=topic)
         teacher_session["conversation"].append({"role": "assistant", "content": intro})
         teacher_session["last_bot_time"] = time.time()
         mark_responded()
@@ -126,7 +127,7 @@ async def handle_teacher(
                 conversation.pop(0)
             await send_typing_once(context.bot, update.effective_chat.id, delay=0.2)
             await reply_message.reply_text(response_text)
-            save_chat(user_id, "ASKA", response_text, role="aska")
+            save_chat(user_id, "ASKA", response_text, role="aska", topic=topic)
             teacher_session["last_bot_time"] = time.time()
             mark_responded()
             return True
@@ -152,7 +153,7 @@ async def handle_teacher(
             response_text = f"{feedback}\n\n{intro_retry}"
 
         await reply_message.reply_text(response_text)
-        save_chat(user_id, "ASKA", response_text, role="aska")
+        save_chat(user_id, "ASKA", response_text, role="aska", topic=topic)
         teacher_session["conversation"] = conversation
         if storage_key in teacher_sessions:
             teacher_sessions[storage_key]["last_bot_time"] = time.time()
@@ -160,4 +161,3 @@ async def handle_teacher(
         return True
 
     return False
-
