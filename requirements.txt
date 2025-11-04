@@ -9,8 +9,6 @@ langchain>=0.2
 langchain-core>=0.2
 langchain-openai>=0.1.7
 langchain-community>=0.2
-//langchain-huggingface>=0.0.3
-//sentence-transformers>=2.2
 
 # Vector store backend
 faiss-cpu>=1.7.4; platform_system != "Windows"
@@ -25,3 +23,8 @@ gunicorn>=21.2; platform_system != "Windows"
 
 # Social integrations
 tweepy>=4.14
+
+# Opsional (embedding lokal - pasang manual bila server mendukung Torch)
+# langchain-huggingface>=0.0.3
+# sentence-transformers>=2.2
+# torch>=1.11.0

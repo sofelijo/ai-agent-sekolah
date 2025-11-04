@@ -46,6 +46,7 @@ ASKA_EMBEDDING_API_KEY=ISI_API_KEY_OPENAI
 ASKA_STT_API_KEY=ISI_API_KEY_OPENAI
 # Embedding default GRATIS (HuggingFace)
 ASKA_EMBEDDING_MODEL_LOCAL=sentence-transformers/all-MiniLM-L6-v2
+ASKA_EMBEDDING_BACKEND=auto  # openai | local | auto
 
 # Koneksi PostgreSQL (bot + dashboard)
 DB_NAME=nama_database
@@ -78,7 +79,7 @@ DASHBOARD_SESSION_DAYS=14
 DASHBOARD_DB_MAX_CONN=8
 EOF
 
-> Catatan: mulai sekarang embedding default-nya memakai model lokal HuggingFace (`sentence-transformers/all-MiniLM-L6-v2`) sehingga tidak menguras kuota OpenAI. Isi `ASKA_EMBEDDING_API_KEY` hanya jika ingin tetap memakai layanan berbayar OpenAI-compatible. Setelah pull terbaru, jalankan `pip install -r requirements.txt` untuk meng-install dependensi tambahan (`langchain-huggingface`, `sentence-transformers`, dan pin `numpy<2` agar kompatibel dengan PyTorch). Embedding apa pun yang sudah sukses dibuat otomatis dicache ke folder `.aska_vectorstore`, sehingga token OpenAI tidak akan terkuras lagi setiap kali service restart. Jika ingin mengatur ulang potongan dokumen, gunakan variabel `ASKA_CHUNK_SIZE` dan `ASKA_CHUNK_OVERLAP` atau hapus folder cache tersebut.
+> Catatan: `ASKA_EMBEDDING_BACKEND` mengatur sumber embedding. Gunakan `openai` bila server tidak mendukung Torch, `local` bila ingin gratis penuh (butuh `pip install langchain-huggingface sentence-transformers torch>=1.11`), atau biarkan `auto` supaya prioritas OpenAI saat API key tersedia. Embedding apa pun yang sudah sukses dibuat otomatis dicache ke folder `.aska_vectorstore`, sehingga token OpenAI tidak akan terkuras lagi setiap kali service restart. Jika ingin mengatur ulang potongan dokumen, gunakan variabel `ASKA_CHUNK_SIZE` dan `ASKA_CHUNK_OVERLAP` atau hapus folder cache tersebut.
 
 # 6. Inisialisasi Database
 # Skrip ini akan membuat semua tabel dan skema yang dibutuhkan oleh bot dan dashboard.

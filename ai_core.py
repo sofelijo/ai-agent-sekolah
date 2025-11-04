@@ -12,7 +12,11 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+
+try:  # opsional, hanya dipakai bila backend lokal diaktifkan
+    from langchain_huggingface import HuggingFaceEmbeddings
+except Exception:  # pragma: no cover - optional dependency
+    HuggingFaceEmbeddings = None  # type: ignore[misc,assignment]
 
 load_dotenv()
 
@@ -87,9 +91,39 @@ def build_qa_chain():
         openai_api_base=api_base,
     )
 
+    backend_pref = os.getenv("ASKA_EMBEDDING_BACKEND", "auto").lower()
     embedding_api_key = os.getenv("ASKA_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
     embedding_signature: dict[str, str]
-    if embedding_api_key:
+
+    if backend_pref not in {"auto", "openai", "local"}:
+        backend_pref = "auto"
+
+    use_local = backend_pref == "local" or (backend_pref == "auto" and not embedding_api_key)
+    if use_local:
+        if HuggingFaceEmbeddings is None:
+            raise RuntimeError(
+                "Embedding backend disetel ke 'local' tetapi dependensi langchain-huggingface/sentence-transformers belum terpasang.\n"
+                "Jalankan: pip install langchain-huggingface sentence-transformers torch>=1.11.0"
+            )
+        local_device = os.getenv("ASKA_EMBEDDING_DEVICE", "cpu")
+        local_model = os.getenv(
+            "ASKA_EMBEDDING_MODEL_LOCAL", "sentence-transformers/all-MiniLM-L6-v2"
+        )
+        embedding = HuggingFaceEmbeddings(
+            model_name=local_model,
+            model_kwargs={"device": local_device},
+            encode_kwargs={"normalize_embeddings": True},
+        )
+        embedding_signature = {
+            "provider": "huggingface",
+            "model": local_model,
+            "device": local_device,
+        }
+    else:
+        if not embedding_api_key:
+            raise RuntimeError(
+                "Embedding backend disetel ke OpenAI, tetapi ASKA_EMBEDDING_API_KEY / OPENAI_API_KEY belum diisi."
+            )
         embedding_api_base = (
             os.getenv("ASKA_EMBEDDING_API_BASE")
             or os.getenv("OPENAI_EMBEDDING_API_BASE")
@@ -106,21 +140,6 @@ def build_qa_chain():
             "provider": "openai",
             "model": openai_embedding_model,
             "api_base": embedding_api_base,
-        }
-    else:
-        local_device = os.getenv("ASKA_EMBEDDING_DEVICE", "cpu")
-        local_model = os.getenv(
-            "ASKA_EMBEDDING_MODEL_LOCAL", "sentence-transformers/all-MiniLM-L6-v2"
-        )
-        embedding = HuggingFaceEmbeddings(
-            model_name=local_model,
-            model_kwargs={"device": local_device},
-            encode_kwargs={"normalize_embeddings": True},
-        )
-        embedding_signature = {
-            "provider": "huggingface",
-            "model": local_model,
-            "device": local_device,
         }
 
     with open("kecerdasan.md", "r", encoding="utf-8") as f:
