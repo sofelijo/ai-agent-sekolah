@@ -12,6 +12,7 @@ from flask import has_request_context, session
 from psycopg2.extras import DictRow, Json
 
 from .db_access import get_cursor
+from account_status import ACCOUNT_STATUS_CHOICES
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 STOPWORDS = {
@@ -1731,5 +1732,188 @@ def update_no_tester_preference(user_id: int, enabled: bool) -> bool:
         cur.execute(
             "UPDATE dashboard_users SET no_tester_enabled = %s WHERE id = %s",
             (enabled, user_id),
+        )
+        return cur.rowcount > 0
+
+
+def _normalize_status_filter(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    return normalized if normalized in ACCOUNT_STATUS_CHOICES else None
+
+
+def fetch_aska_users(source: str, status: Optional[str], search: Optional[str], *, limit: int = 200) -> List[Dict[str, Any]]:
+    """Gabungkan daftar user web & Telegram sesuai filter."""
+    normalized_source = (source or "web").strip().lower()
+    normalized_status = _normalize_status_filter(status)
+    normalized_search = (search or "").strip()
+
+    rows: List[Dict[str, Any]] = []
+    fetch_web = normalized_source in {"web", "all"}
+    fetch_telegram = normalized_source in {"telegram", "all"}
+
+    if fetch_web:
+        conditions: List[str] = []
+        params: List[Any] = []
+        if normalized_status:
+            conditions.append("status = %s")
+            params.append(normalized_status)
+        if normalized_search:
+            conditions.append("(email ILIKE %s OR full_name ILIKE %s)")
+            term = f"%{normalized_search}%"
+            params.extend([term, term])
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        query = f"""
+            SELECT
+                id,
+                full_name,
+                email,
+                access_tier,
+                last_login,
+                created_at,
+                status,
+                status_reason,
+                status_changed_at,
+                status_changed_by
+            FROM web_users
+            {where_clause}
+            ORDER BY COALESCE(last_login, created_at) DESC
+            LIMIT %s
+        """
+        params.append(limit)
+        with get_cursor() as cur:
+            cur.execute(query, params)
+            for row in cur.fetchall():
+                rows.append(
+                    {
+                        "channel": "web",
+                        "id": row["id"],
+                        "display_name": row["full_name"],
+                        "identifier": row["email"],
+                        "status": row["status"],
+                        "status_reason": row["status_reason"],
+                        "status_changed_at": row["status_changed_at"],
+                        "status_changed_by": row["status_changed_by"],
+                        "last_activity": row["last_login"] or row["created_at"],
+                        "created_at": row["created_at"],
+                        "extra": {"access_tier": row["access_tier"]},
+                    }
+                )
+
+    if fetch_telegram:
+        conditions = []
+        params = []
+        if normalized_status:
+            conditions.append("status = %s")
+            params.append(normalized_status)
+        if normalized_search:
+            conditions.append("(username ILIKE %s OR CAST(telegram_user_id AS TEXT) ILIKE %s)")
+            term = f"%{normalized_search}%"
+            params.extend([term, term])
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        query = f"""
+            SELECT
+                telegram_user_id,
+                username,
+                first_seen_at,
+                last_seen_at,
+                status,
+                status_reason,
+                status_changed_at,
+                status_changed_by,
+                last_message_preview
+            FROM telegram_users
+            {where_clause}
+            ORDER BY COALESCE(last_seen_at, first_seen_at) DESC
+            LIMIT %s
+        """
+        params.append(limit)
+        with get_cursor() as cur:
+            cur.execute(query, params)
+            for row in cur.fetchall():
+                rows.append(
+                    {
+                        "channel": "telegram",
+                        "id": row["telegram_user_id"],
+                        "display_name": row["username"] or f"ID {row['telegram_user_id']}",
+                        "identifier": f"@{row['username']}" if row["username"] else row["telegram_user_id"],
+                        "status": row["status"],
+                        "status_reason": row["status_reason"],
+                        "status_changed_at": row["status_changed_at"],
+                        "status_changed_by": row["status_changed_by"],
+                        "last_activity": row["last_seen_at"] or row["first_seen_at"],
+                        "created_at": row["first_seen_at"],
+                        "extra": {"last_message_preview": row["last_message_preview"]},
+                    }
+                )
+
+    rows.sort(key=lambda item: item.get("last_activity") or item.get("created_at") or datetime.min, reverse=True)
+    return rows[:limit]
+
+
+def summarize_aska_users() -> Dict[str, Dict[str, int]]:
+    """Hitung total user per status untuk web dan Telegram."""
+    summary = {
+        "web": {status: 0 for status in ACCOUNT_STATUS_CHOICES},
+        "telegram": {status: 0 for status in ACCOUNT_STATUS_CHOICES},
+    }
+    with get_cursor() as cur:
+        cur.execute("SELECT status, COUNT(*) FROM web_users GROUP BY status")
+        for status, total in cur.fetchall():
+            summary["web"][status] = int(total)
+        cur.execute("SELECT status, COUNT(*) FROM telegram_users GROUP BY status")
+        for status, total in cur.fetchall():
+            summary["telegram"][status] = int(total)
+    for scope in summary.values():
+        scope["total"] = sum(scope.get(status, 0) for status in ACCOUNT_STATUS_CHOICES)
+    summary["combined"] = {
+        status: summary["web"].get(status, 0) + summary["telegram"].get(status, 0)
+        for status in ACCOUNT_STATUS_CHOICES
+    }
+    summary["combined"]["total"] = summary["web"].get("total", 0) + summary["telegram"].get("total", 0)
+    return summary
+
+
+def update_web_user_status(user_id: int, status: str, reason: Optional[str], *, changed_by: str) -> bool:
+    normalized = _normalize_status_filter(status)
+    if normalized is None:
+        raise ValueError("Status tidak valid.")
+    cleaned_reason = (reason or "").strip() or None
+    if cleaned_reason:
+        cleaned_reason = cleaned_reason[:500]
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE web_users
+            SET status = %s,
+                status_reason = %s,
+                status_changed_at = NOW(),
+                status_changed_by = %s
+            WHERE id = %s
+            """,
+            (normalized, cleaned_reason, changed_by, user_id),
+        )
+        return cur.rowcount > 0
+
+
+def update_telegram_user_status(user_id: int, status: str, reason: Optional[str], *, changed_by: str) -> bool:
+    normalized = _normalize_status_filter(status)
+    if normalized is None:
+        raise ValueError("Status tidak valid.")
+    cleaned_reason = (reason or "").strip() or None
+    if cleaned_reason:
+        cleaned_reason = cleaned_reason[:500]
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE telegram_users
+            SET status = %s,
+                status_reason = %s,
+                status_changed_at = NOW(),
+                status_changed_by = %s
+            WHERE telegram_user_id = %s
+            """,
+            (normalized, cleaned_reason, changed_by, user_id),
         )
         return cur.rowcount > 0

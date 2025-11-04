@@ -112,6 +112,26 @@ CREATE INDEX IF NOT EXISTS idx_twitter_worker_logs_level
 ON twitter_worker_logs (level);
 """
 
+_TELEGRAM_USERS_SQL = """
+CREATE TABLE IF NOT EXISTS telegram_users (
+    id SERIAL PRIMARY KEY,
+    telegram_user_id BIGINT UNIQUE NOT NULL,
+    username TEXT,
+    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_message_preview TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','under_review')),
+    status_reason TEXT,
+    status_changed_at TIMESTAMPTZ,
+    status_changed_by TEXT,
+    metadata JSONB
+);
+"""
+
+_TELEGRAM_USERS_INDEX_STATUS = """
+CREATE INDEX IF NOT EXISTS idx_telegram_users_status ON telegram_users (status);
+"""
+
 
 def ensure_dashboard_schema() -> None:
     """Create core dashboard tables when they do not yet exist."""
@@ -127,6 +147,8 @@ def ensure_dashboard_schema() -> None:
         _TWITTER_LOGS_SQL,
         _TWITTER_LOGS_INDEX_CREATED,
         _TWITTER_LOGS_INDEX_LEVEL,
+        _TELEGRAM_USERS_SQL,
+        _TELEGRAM_USERS_INDEX_STATUS,
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS severity TEXT",

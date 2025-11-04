@@ -14,8 +14,14 @@ from db import (
     get_corruption_report,
     get_chat_quota_status,
     consume_chat_quota,
+    get_web_user_status,
     DEFAULT_LIMITED_QUOTA,
     DEFAULT_LIMITED_REASON,
+)
+from account_status import (
+    BLOCKING_STATUSES,
+    build_status_notice,
+    ACCOUNT_STATUS_ACTIVE,
 )
 from responses import detect_bullying_category, is_corruption_report_intent
 from utils import normalize_input, replace_bot_mentions
@@ -85,6 +91,34 @@ def create_app() -> Flask:
         session["user"] = user_data
         session.modified = True
 
+    def _sync_session_status(status_state: dict | None) -> None:
+        if "user" not in session or not status_state:
+            return
+        user_data = dict(session["user"])
+        status_value = status_state.get("status") or ACCOUNT_STATUS_ACTIVE
+        user_data["status"] = status_value
+        user_data["status_reason"] = status_state.get("status_reason")
+        changed_at = status_state.get("status_changed_at")
+        if hasattr(changed_at, "isoformat"):
+            changed_at = changed_at.isoformat()
+        user_data["status_changed_at"] = changed_at
+        user_data["status_changed_by"] = status_state.get("status_changed_by")
+        session["user"] = user_data
+        session.modified = True
+
+    def _prepare_status_notice(user_id: int):
+        status_state = get_web_user_status(user_id)
+        _sync_session_status(status_state)
+        status_value = (status_state or {}).get("status")
+        notice = None
+        if status_value in BLOCKING_STATUSES:
+            notice = build_status_notice(
+                status_value,
+                reason=(status_state or {}).get("status_reason"),
+                channel="web",
+            )
+        return notice, status_state
+
     def _is_quota_exempt_message(user_id: int, message: str) -> bool:
         if not message:
             return False
@@ -118,13 +152,16 @@ def create_app() -> Flask:
         user_id = user.get('id')
         quota_status = get_chat_quota_status(user_id)
         _sync_session_quota(quota_status)
+        status_notice, _ = _prepare_status_notice(user_id)
         initial_chats = get_chat_history(user_id, limit=10, offset=0)
 
+        status_payload = status_notice.__dict__ if status_notice else None
         return render_template(
             "chat.html",
             user=session.get("user"),
             initial_chats=initial_chats,
             quota=_serialize_quota_payload(quota_status),
+             status_notice=status_payload,
             server_time=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -210,6 +247,9 @@ def create_app() -> Flask:
                 user_dict['quota_reset_at'] = reset_at.isoformat()
             # Maintain compatibility with templates expecting `user.picture`
             user_dict['picture'] = user_dict.get('photo_url') or userinfo.get('picture')
+            status_changed_at = user_dict.get('status_changed_at')
+            if hasattr(status_changed_at, 'isoformat'):
+                user_dict['status_changed_at'] = status_changed_at.isoformat()
 
         # Save user in session
         session['user'] = user_dict
@@ -239,6 +279,22 @@ def create_app() -> Flask:
         if not message:
             return jsonify({"error": "Message is required"}), 400
 
+        status_notice, status_state = _prepare_status_notice(user_id)
+        status_payload = status_notice.__dict__ if status_notice else None
+        if status_notice:
+            quota_state = get_chat_quota_status(user_id)
+            _sync_session_quota(quota_state)
+            server_now = datetime.now(timezone.utc).isoformat()
+            return jsonify({
+                "response": status_notice.message,
+                "blocked": True,
+                "blockType": "status",
+                "statusBlock": status_payload,
+                "exempt": False,
+                "quota": _serialize_quota_payload(quota_state),
+                "serverTime": server_now,
+            })
+
         is_exempt = _is_quota_exempt_message(user_id, message)
         if is_exempt:
             quota_state = get_chat_quota_status(user_id)
@@ -257,8 +313,10 @@ def create_app() -> Flask:
             return jsonify({
                 "response": LIMIT_BLOCK_MESSAGE,
                 "blocked": True,
+                "blockType": "quota",
                 "exempt": False,
                 "quota": quota_payload,
+                "statusBlock": None,
                 "serverTime": server_now,
             })
 
@@ -275,6 +333,8 @@ def create_app() -> Flask:
             "response": response,
             "blocked": False,
             "exempt": is_exempt,
+            "blockType": None,
+            "statusBlock": status_payload,
             "quota": quota_payload,
             "serverTime": server_now,
         })

@@ -12,7 +12,7 @@ def initialize_main_schemas():
         # Importing the 'db' module executes its top-level schema creation
         import db
         print("   -> Sukses: Skema utama telah diperiksa/dibuat.")
-        print("      - chat_logs, bullying_reports, psych_reports, web_users, corruption_reports, twitter_worker_logs")
+        print("      - chat_logs (+channel), bullying_reports, psych_reports, web_users, telegram_users, corruption_reports, twitter_worker_logs")
     except Exception as e:
         print(f"   -> Gagal menginisialisasi skema utama: {e}", file=sys.stderr)
         traceback.print_exc()

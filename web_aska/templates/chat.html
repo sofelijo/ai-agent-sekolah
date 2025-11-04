@@ -181,6 +181,24 @@
             filter: invert(40%);
         }
 
+        .status-banner {
+            margin: 12px 18px 0;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(234, 67, 53, 0.25);
+            background: rgba(234, 67, 53, 0.08);
+            color: #8a1c13;
+        }
+        .status-banner-title {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .status-banner-message {
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
         .chat-container { 
             width: 100%; 
             max-width: 600px; 
@@ -462,6 +480,11 @@
         body.dark-mode .quota-panel .btn-close {
             filter: invert(85%);
         }
+        body.dark-mode .status-banner {
+            border-color: rgba(255, 193, 7, 0.35);
+            background: rgba(255, 193, 7, 0.12);
+            color: #ffecb3;
+        }
         /* Jump button */
         .jump-bottom { position: absolute; right: 18px; bottom: 82px; z-index: 10; display: none; }
         .jump-bottom.show { display: inline-flex; }
@@ -480,6 +503,7 @@
 
     {% set raw_limit = quota.quotaLimit if quota and quota.quotaLimit is not none else 3 %}
     {% set raw_remaining = quota.quotaRemaining if quota and quota.quotaRemaining is not none else raw_limit %}
+    {% set status_notice = status_notice or None %}
 
     <div class="chat-container">
         <div class="chat-header">
@@ -547,6 +571,16 @@
                     </div>
                 </div>
             </nav>
+        </div>
+        <div id="status-block-banner" class="status-banner{% if not status_notice %} d-none{% endif %}">
+            <div class="status-banner-title" id="status-block-title">
+                {{ status_notice.title if status_notice else '' }}
+            </div>
+            <p class="status-banner-message" id="status-block-message">
+                {% if status_notice %}
+                    {{ status_notice.message|e|replace('\n', '<br>')|safe }}
+                {% endif %}
+            </p>
         </div>
         <div class="quota-panel{% if quota.accessTier == 'limited' %} show{% endif %}"
              id="quotaNotice"
@@ -624,8 +658,8 @@
         </div>
         <button id="jumpBottom" class="btn btn-primary btn-sm jump-bottom" type="button">Ke pesan terbaru</button>
         <form class="chat-input" id="chat-form">
-            <textarea id="message-input" placeholder="Ketik pesan... (Shift+Enter untuk baris baru)" rows="1" autocomplete="off" aria-label="Ketik pesan"></textarea>
-            <button type="submit" id="send-button" class="send-button" aria-label="Kirim">
+            <textarea id="message-input" placeholder="Ketik pesan... (Shift+Enter untuk baris baru)" rows="1" autocomplete="off" aria-label="Ketik pesan" {% if status_notice %}disabled{% endif %}></textarea>
+            <button type="submit" id="send-button" class="send-button" aria-label="Kirim" {% if status_notice %}disabled{% endif %}>
                 <lord-icon
                     src="https://cdn.lordicon.com/gqjpawbc.json"
                     trigger="hover"
@@ -655,6 +689,9 @@
         const quotaNoticeText = document.getElementById('quotaNoticeText');
         const quotaNoticeReason = document.getElementById('quotaNoticeReason');
         const quotaNoticeClose = document.getElementById('quotaNoticeClose');
+        const statusBlockBanner = document.getElementById('status-block-banner');
+        const statusBlockTitle = document.getElementById('status-block-title');
+        const statusBlockMessage = document.getElementById('status-block-message');
 
         let quotaState = {{ (quota or {})|tojson }};
         let serverOffsetMs = 0;
@@ -676,6 +713,8 @@
         let typingInterval;
         let isSending = false;
         let telegramCtaShown = false;
+        let activeStatusBlock = {{ status_notice|tojson }};
+        let statusBlockAcknowledged = Boolean(activeStatusBlock);
 
         function updateServerOffset(serverTimeIso) {
             if (!serverTimeIso) return;
@@ -695,6 +734,37 @@
             const seconds = String(totalSeconds % 60).padStart(2, '0');
             return `${hours}:${minutes}:${seconds}`;
         }
+
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value ?? '';
+            return div.innerHTML;
+        }
+
+        function applyStatusBlock(block) {
+            activeStatusBlock = block || null;
+            if (!statusBlockBanner) return;
+            if (!activeStatusBlock) {
+                statusBlockBanner.classList.add('d-none');
+                if (!isSending && messageInput && sendButton) {
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                }
+                return;
+            }
+            statusBlockBanner.classList.remove('d-none');
+            if (statusBlockTitle) {
+                statusBlockTitle.textContent = activeStatusBlock.title || 'Status akun';
+            }
+            if (statusBlockMessage) {
+                const safeMessage = escapeHtml(activeStatusBlock.message || '').replace(/\n/g, '<br>');
+                statusBlockMessage.innerHTML = safeMessage;
+            }
+            if (messageInput) messageInput.disabled = true;
+            if (sendButton) sendButton.disabled = true;
+        }
+
+        applyStatusBlock(activeStatusBlock);
 
         let quotaPanelDismissed = !(quotaNotice && quotaNotice.classList.contains('show'));
 
@@ -768,6 +838,10 @@
 
         function enforceQuotaLock() {
             if (!sendButton) return;
+             if (activeStatusBlock) {
+                 sendButton.disabled = true;
+                 return;
+             }
             const shouldDisable = isSending || !(messageInput && messageInput.value.trim());
             sendButton.disabled = shouldDisable;
         }
@@ -1076,6 +1150,13 @@
             e.preventDefault();
             const message = messageInput.value.trim();
             if (!message || isSending) return;
+            if (activeStatusBlock) {
+                if (!statusBlockAcknowledged && activeStatusBlock.message) {
+                    appendMessage(activeStatusBlock.message, 'bot');
+                    statusBlockAcknowledged = true;
+                }
+                return;
+            }
             isSending = true;
             enforceQuotaLock();
             messageInput.disabled = true;
@@ -1112,8 +1193,12 @@
                 if (data.quota) {
                     updateQuotaUI(data.quota);
                 }
+                if (Object.prototype.hasOwnProperty.call(data, 'statusBlock')) {
+                    applyStatusBlock(data.statusBlock);
+                    statusBlockAcknowledged = Boolean(data.statusBlock);
+                }
                 appendMessage(data.response, 'bot');
-                if (data.blocked) {
+                if (data.blocked && data.blockType !== 'status') {
                     appendTelegramCTA();
                 }
 
@@ -1123,9 +1208,17 @@
                 appendMessage('Maaf, terjadi kesalahan. Coba lagi nanti.', 'bot');
             } finally {
                 isSending = false;
-                messageInput.disabled = false;
+                if (activeStatusBlock) {
+                    if (messageInput) messageInput.disabled = true;
+                    if (sendButton) sendButton.disabled = true;
+                } else {
+                    if (messageInput) {
+                        messageInput.disabled = false;
+                        messageInput.focus();
+                    }
+                    if (sendButton) sendButton.disabled = false;
+                }
                 enforceQuotaLock();
-                messageInput.focus();
             }
         });
 

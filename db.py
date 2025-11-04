@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 from dotenv import load_dotenv
+from account_status import ACCOUNT_STATUS_CHOICES, ACCOUNT_STATUS_ACTIVE
 
 # Muat variabel dari file .env
 load_dotenv()
@@ -48,12 +49,18 @@ if DB_SSLMODE:
 conn = psycopg2.connect(**conn_args)
 
 _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
+_CHAT_CHANNEL_AVAILABLE: Optional[bool] = None
 MAX_TWITTER_LOG_ROWS = max(0, int(os.getenv("TWITTER_LOG_MAX_ROWS", "100") or 100))
 DEFAULT_LIMITED_QUOTA = 3
 LIMIT_COOLDOWN_HOURS = 24
 DEFAULT_LIMITED_REASON = (
     "Akses Gmail: maksimal 3 chat per 24 jam. "
     "Kalau mau unlimited, pakai akun belajar.id atau Telegram."
+)
+STATUS_ENUM_SQL = ", ".join(f"'{status}'" for status in ACCOUNT_STATUS_CHOICES)
+CHAT_CHANNEL_EXPRESSION = (
+    "COALESCE(channel, CASE WHEN topic = 'web' THEN 'web' "
+    "WHEN topic = 'twitter' THEN 'twitter' ELSE 'telegram' END)"
 )
 
 
@@ -79,9 +86,29 @@ def _chat_logs_has_topic_column(force_refresh: bool = False) -> bool:
         _CHAT_TOPIC_AVAILABLE = cur.fetchone() is not None
     return _CHAT_TOPIC_AVAILABLE
 
+
+def _chat_logs_has_channel_column(force_refresh: bool = False) -> bool:
+    """Cek keberadaan kolom channel pada chat_logs."""
+    global _CHAT_CHANNEL_AVAILABLE
+    if _CHAT_CHANNEL_AVAILABLE is not None and not force_refresh:
+        return _CHAT_CHANNEL_AVAILABLE
+
+    query = """
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'chat_logs'
+          AND column_name = 'channel'
+        LIMIT 1
+    """
+    with conn.cursor() as cur:
+        cur.execute(query)
+        _CHAT_CHANNEL_AVAILABLE = cur.fetchone() is not None
+    return _CHAT_CHANNEL_AVAILABLE
+
 def _ensure_chat_logs_schema() -> None:
     """Pastikan tabel chat_logs dan semua kolomnya tersedia."""
-    global _CHAT_TOPIC_AVAILABLE
+    global _CHAT_TOPIC_AVAILABLE, _CHAT_CHANNEL_AVAILABLE
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -100,6 +127,21 @@ def _ensure_chat_logs_schema() -> None:
         if not _chat_logs_has_topic_column(force_refresh=True):
             cur.execute("ALTER TABLE chat_logs ADD COLUMN topic TEXT")
             _CHAT_TOPIC_AVAILABLE = True  # Update cache
+        if not _chat_logs_has_channel_column(force_refresh=True):
+            cur.execute("ALTER TABLE chat_logs ADD COLUMN channel TEXT")
+            cur.execute(
+                """
+                UPDATE chat_logs
+                SET channel = CASE
+                    WHEN topic = 'web' THEN 'web'
+                    WHEN topic = 'twitter' THEN 'twitter'
+                    ELSE 'telegram'
+                END
+                WHERE channel IS NULL
+                """
+            )
+            cur.execute("ALTER TABLE chat_logs ALTER COLUMN channel SET DEFAULT 'telegram'")
+            _CHAT_CHANNEL_AVAILABLE = True
     conn.commit()
 
 def _ensure_bullying_schema() -> None:
@@ -181,6 +223,22 @@ def _ensure_column(table: str, column: str, ddl: str) -> bool:
     return True
 
 
+def _constraint_exists(table: str, constraint: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.table_constraints
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+              AND constraint_name = %s
+            LIMIT 1
+            """,
+            (table, constraint),
+        )
+        return cur.fetchone() is not None
+
+
 def _ensure_user_schema() -> None:
     """Pastikan tabel untuk pengguna web (web_users) tersedia."""
     with conn.cursor() as cur:
@@ -198,9 +256,16 @@ def _ensure_user_schema() -> None:
                 quota_limit INTEGER,
                 quota_remaining INTEGER,
                 quota_reset_at TIMESTAMPTZ,
-                limited_reason TEXT
+                limited_reason TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                status_reason TEXT,
+                status_changed_at TIMESTAMPTZ,
+                status_changed_by TEXT,
+                metadata JSONB,
+                CONSTRAINT web_users_status_check CHECK (status IN (%s))
             );
             """
+            % STATUS_ENUM_SQL
         )
     conn.commit()
     # Tambahkan kolom baru jika belum ada (untuk versi lama)
@@ -235,6 +300,31 @@ def _ensure_user_schema() -> None:
         "limited_reason",
         "limited_reason TEXT",
     )
+    altered |= _ensure_column(
+        "web_users",
+        "status",
+        f"status TEXT NOT NULL DEFAULT '{ACCOUNT_STATUS_ACTIVE}'",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "status_reason",
+        "status_reason TEXT",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "status_changed_at",
+        "status_changed_at TIMESTAMPTZ",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "status_changed_by",
+        "status_changed_by TEXT",
+    )
+    altered |= _ensure_column(
+        "web_users",
+        "metadata",
+        "metadata JSONB",
+    )
     if altered:
         with conn.cursor() as cur:
             cur.execute(
@@ -244,6 +334,117 @@ def _ensure_user_schema() -> None:
                 """
             )
         conn.commit()
+    if not _constraint_exists("web_users", "web_users_status_check"):
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                ALTER TABLE web_users
+                ADD CONSTRAINT web_users_status_check
+                CHECK (status IN ({STATUS_ENUM_SQL}))
+                """
+            )
+        conn.commit()
+
+
+def _backfill_telegram_users() -> None:
+    """Buat data user Telegram dari chat_logs jika table kosong/belum lengkap."""
+    _ensure_chat_logs_schema()
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            INSERT INTO telegram_users (
+                telegram_user_id,
+                username,
+                first_seen_at,
+                last_seen_at
+            )
+            SELECT
+                user_id,
+                MAX(username) FILTER (WHERE username IS NOT NULL),
+                MIN(created_at),
+                MAX(created_at)
+            FROM chat_logs
+            WHERE user_id IS NOT NULL
+              AND {CHAT_CHANNEL_EXPRESSION} = 'telegram'
+            GROUP BY user_id
+            ON CONFLICT (telegram_user_id) DO NOTHING
+            """
+        )
+    conn.commit()
+
+
+def _ensure_telegram_user_schema() -> None:
+    """Pastikan tabel telegram_users tersedia dan terisi dari chat_logs."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS telegram_users (
+                id SERIAL PRIMARY KEY,
+                telegram_user_id BIGINT UNIQUE NOT NULL,
+                username TEXT,
+                first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_message_preview TEXT,
+                status TEXT NOT NULL DEFAULT '{ACCOUNT_STATUS_ACTIVE}',
+                status_reason TEXT,
+                status_changed_at TIMESTAMPTZ,
+                status_changed_by TEXT,
+                metadata JSONB,
+                CONSTRAINT telegram_users_status_check CHECK (status IN ({STATUS_ENUM_SQL}))
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_users_user
+            ON telegram_users (telegram_user_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_telegram_users_status
+            ON telegram_users (status)
+            """
+        )
+    conn.commit()
+    _backfill_telegram_users()
+
+
+def _sync_telegram_user_profile(
+    telegram_user_id: Optional[int],
+    username: Optional[str],
+    last_message: Optional[str],
+) -> None:
+    """Upsert profil telegram berdasarkan chat terbaru."""
+    if not telegram_user_id:
+        return
+    _ensure_telegram_user_schema()
+    clean_username = (username or "").strip() or None
+    preview = (last_message or "").strip()
+    if preview:
+        preview = preview[:280]
+    else:
+        preview = None
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO telegram_users (
+                telegram_user_id,
+                username,
+                last_message_preview
+            )
+            VALUES (%s, %s, %s)
+            ON CONFLICT (telegram_user_id) DO UPDATE
+            SET
+                username = COALESCE(EXCLUDED.username, telegram_users.username),
+                last_seen_at = NOW(),
+                last_message_preview = COALESCE(
+                    EXCLUDED.last_message_preview,
+                    telegram_users.last_message_preview
+                )
+            """,
+            (telegram_user_id, clean_username, preview),
+        )
 
 def _calculate_due_at(category: str) -> datetime:
     base = datetime.now(timezone.utc)
@@ -350,6 +551,16 @@ def record_bullying_report(
     conn.commit()
     return report_id
 
+
+def _resolve_channel(topic: Optional[str]) -> str:
+    value = (topic or "").strip().lower()
+    if value == "web":
+        return "web"
+    if value == "twitter":
+        return "twitter"
+    return "telegram"
+
+
 def save_chat(
     user_id: Optional[int],
     username: Optional[str],
@@ -365,17 +576,68 @@ def save_chat(
         normalized_topic = clean_topic or None
 
     use_topic = _chat_logs_has_topic_column()
+    use_channel = _chat_logs_has_channel_column()
+    channel_value = _resolve_channel(normalized_topic)
     inserted_id: Optional[int] = None
 
     with conn.cursor() as cur:
-        if use_topic:
+        if use_topic and use_channel:
+            cur.execute(
+                """
+                INSERT INTO chat_logs (
+                    user_id,
+                    username,
+                    text,
+                    role,
+                    topic,
+                    channel,
+                    created_at,
+                    response_time_ms
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s)
+                RETURNING id
+                """,
+                (
+                    user_id,
+                    username,
+                    message,
+                    role,
+                    normalized_topic,
+                    channel_value,
+                    response_time_ms,
+                ),
+            )
+        elif use_topic:
             cur.execute(
                 """
                 INSERT INTO chat_logs (user_id, username, text, role, topic, created_at, response_time_ms)
                 VALUES (%s, %s, %s, %s, %s, NOW(), %s)
                 RETURNING id
                 """,
-                (user_id, username, message, role, normalized_topic, response_time_ms),
+                (
+                    user_id,
+                    username,
+                    message,
+                    role,
+                    normalized_topic,
+                    response_time_ms,
+                ),
+            )
+        elif use_channel:
+            cur.execute(
+                """
+                INSERT INTO chat_logs (user_id, username, text, role, channel, created_at, response_time_ms)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
+                RETURNING id
+                """,
+                (
+                    user_id,
+                    username,
+                    message,
+                    role,
+                    channel_value,
+                    response_time_ms,
+                ),
             )
         else:
             cur.execute(
@@ -404,6 +666,9 @@ def save_chat(
                     "UPDATE chat_logs SET topic = %s WHERE id = %s",
                     (normalized_topic, inserted_id),
                 )
+    if channel_value == "telegram" and role == "user" and user_id is not None:
+        _sync_telegram_user_profile(user_id, username, message)
+
     conn.commit()
     return inserted_id
 
@@ -459,7 +724,9 @@ def get_or_create_web_user(
             SELECT
                 id, email, full_name, photo_url, last_login,
                 auth_provider, access_tier, quota_limit,
-                quota_remaining, quota_reset_at, limited_reason
+                quota_remaining, quota_reset_at, limited_reason,
+                status, status_reason, status_changed_at,
+                status_changed_by, metadata
             FROM web_users
             WHERE email = %s
             """,
@@ -514,7 +781,9 @@ def get_or_create_web_user(
                 RETURNING
                     id, email, full_name, photo_url, last_login,
                     auth_provider, access_tier, quota_limit,
-                    quota_remaining, quota_reset_at, limited_reason
+                    quota_remaining, quota_reset_at, limited_reason,
+                    status, status_reason, status_changed_at,
+                    status_changed_by, metadata
             """
             params.append(email)
             cur.execute(query, params)
@@ -540,7 +809,9 @@ def get_or_create_web_user(
             RETURNING
                 id, email, full_name, photo_url, last_login,
                 auth_provider, access_tier, quota_limit,
-                quota_remaining, quota_reset_at, limited_reason
+                quota_remaining, quota_reset_at, limited_reason,
+                status, status_reason, status_changed_at,
+                status_changed_by, metadata
             """,
             (
                 email,
@@ -612,6 +883,67 @@ def _maybe_reset_quota(
         updated = True
 
     return row, updated
+
+
+def get_web_user_status(user_id: int) -> Dict[str, Any]:
+    """Ambil status akun web terbaru."""
+    _ensure_user_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                email,
+                full_name,
+                status,
+                status_reason,
+                status_changed_at,
+                status_changed_by
+            FROM web_users
+            WHERE id = %s
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return {
+            "id": user_id,
+            "status": ACCOUNT_STATUS_ACTIVE,
+            "status_reason": None,
+            "status_changed_at": None,
+            "status_changed_by": None,
+        }
+    return dict(row)
+
+
+def get_telegram_user_status(user_id: int) -> Dict[str, Any]:
+    """Ambil status akun Telegram berdasarkan telegram_user_id."""
+    _ensure_telegram_user_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                telegram_user_id,
+                username,
+                status,
+                status_reason,
+                status_changed_at,
+                status_changed_by
+            FROM telegram_users
+            WHERE telegram_user_id = %s
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return {
+            "telegram_user_id": user_id,
+            "status": ACCOUNT_STATUS_ACTIVE,
+            "status_reason": None,
+            "status_changed_at": None,
+            "status_changed_by": None,
+        }
+    return dict(row)
 
 
 def get_chat_quota_status(user_id: int) -> Dict[str, Any]:
@@ -927,5 +1259,6 @@ _ensure_chat_logs_schema()
 _ensure_bullying_schema()
 _ensure_psych_schema()
 _ensure_user_schema()
+_ensure_telegram_user_schema()
 _ensure_corruption_schema()
 _ensure_twitter_log_schema()

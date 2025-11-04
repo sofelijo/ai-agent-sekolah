@@ -11,8 +11,12 @@ from telegram.ext import ContextTypes
 from dotenv import load_dotenv
 
 from ai_core import build_qa_chain
-from db import save_chat, get_chat_history
-from responses import ASKA_NO_DATA_RESPONSE, ASKA_TECHNICAL_ISSUE_RESPONSE
+from db import save_chat, get_chat_history, get_telegram_user_status
+from responses import (
+    ASKA_NO_DATA_RESPONSE,
+    ASKA_TECHNICAL_ISSUE_RESPONSE,
+    ASKA_RATE_LIMIT_RESPONSE,
+)
 from utils import (
     IMG_MD,
     normalize_input,
@@ -30,12 +34,52 @@ from utils import (
     resolve_target_message,
     prepare_group_query,
 )
+from account_status import BLOCKING_STATUSES, build_status_notice
 from flows.safety_flow import handle_bullying
 from flows.corruption_flow import handle_corruption
 from flows.psych_flow import handle_psych
 from flows.teacher_flow import handle_teacher
 from flows.smalltalk_flow import handle_smalltalk
 from voice_handlers import handle_voice
+
+
+try:
+    from openai import RateLimitError as OpenAIRateLimitError  # type: ignore
+except ImportError:  # pragma: no cover - compatibility layer
+    try:
+        from openai.error import RateLimitError as OpenAIRateLimitError  # type: ignore
+    except (ImportError, AttributeError):  # pragma: no cover - fallback if API changes
+        OpenAIRateLimitError = None
+
+
+def _iter_exception_chain(exc: BaseException):
+    seen = set()
+    current = exc
+    while current and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    if exc is None:
+        return False
+
+    keywords = (
+        "rate limit",
+        "quota",
+        "limit reached",
+        "too many requests",
+        "exceeded your current quota",
+    )
+
+    for candidate in _iter_exception_chain(exc):
+        if OpenAIRateLimitError and isinstance(candidate, OpenAIRateLimitError):
+            return True
+        message = str(candidate).lower()
+        if any(keyword in message for keyword in keywords):
+            return True
+    return False
 
 
 load_dotenv()
@@ -60,6 +104,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_typing_once(context.bot, update.effective_chat.id)
 
     user = update.effective_user
+    status_info = get_telegram_user_status(user.id)
+    status_value = (status_info or {}).get("status")
+    if status_value in BLOCKING_STATUSES:
+        notice = build_status_notice(
+            status_value,
+            reason=(status_info or {}).get("status_reason"),
+            channel="telegram",
+        )
+        if notice:
+            await update.message.reply_text(notice.message)
+            return
     name = user.first_name or user.username or "bestie"
     response = (
         f"Yoo, {name}! ??\n"
@@ -114,6 +169,8 @@ async def handle_user_query(
     if reply_message is None:
         return False
 
+    topic = source if source != "text" else None
+
     try:
         raw_input = user_input or ""
         bot_username = getattr(context.bot, "username", None)
@@ -152,8 +209,29 @@ async def handle_user_query(
             return True
         recent_messages[normalized_input] = now_ts
 
+        status_info = get_telegram_user_status(user_id) if user_id is not None else None
+        status_value = (status_info or {}).get("status")
+        if status_value in BLOCKING_STATUSES:
+            notice = build_status_notice(
+                status_value,
+                reason=(status_info or {}).get("status_reason"),
+                channel="telegram",
+            )
+            chat_log_id = save_chat(
+                user_id,
+                username,
+                normalized_input,
+                role="user",
+                topic=topic,
+            )
+            if notice:
+                await reply_message.reply_text(notice.message)
+                save_chat(user_id, "ASKA", notice.message, role="aska", topic=topic)
+                if responded_store is not None and responded_key is not None:
+                    responded_store.add(responded_key)
+                return True
+
         # Persist user message
-        topic = source if source != "text" else None
         chat_log_id = save_chat(user_id, username, normalized_input, role="user", topic=topic)
 
         def mark_responded():
@@ -313,9 +391,15 @@ async def handle_user_query(
             if isinstance(e, NetworkError):
                 print(f"[{now_str()}] [WARN] Skipping error reply due to network issue: {e}")
             else:
+                rate_limited = _is_rate_limit_error(e)
+                fallback_message = (
+                    ASKA_RATE_LIMIT_RESPONSE if rate_limited else ASKA_TECHNICAL_ISSUE_RESPONSE
+                )
+                if rate_limited:
+                    print(f"[{now_str()}] [WARN] Rate limit detected, sending notice to user.")
                 try:
                     await target_for_error.reply_text(
-                        ASKA_TECHNICAL_ISSUE_RESPONSE,
+                        fallback_message,
                         parse_mode="Markdown",
                     )
                 except NetworkError as send_exc:

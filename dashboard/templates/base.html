@@ -73,8 +73,22 @@
                     </a>
                 </li>
                 {% if current_user and current_user.role == 'admin' %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'auth.manage_users' %}active{% endif %}" href="{{ url_for('auth.manage_users') }}"><i class="bi bi-gear nav-icon"></i>Manajemen User</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.endpoint in ['auth.manage_users', 'auth.manage_aska_users'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-gear nav-icon"></i>Manajemen
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item {% if request.endpoint == 'auth.manage_users' %}active{% endif %}" href="{{ url_for('auth.manage_users') }}">
+                                Admin Dashboard
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {% if request.endpoint == 'auth.manage_aska_users' %}active{% endif %}" href="{{ url_for('auth.manage_aska_users') }}">
+                                User ASKA
+                            </a>
+                        </li>
+                    </ul>
                 </li>
                 {% endif %}
             </ul>

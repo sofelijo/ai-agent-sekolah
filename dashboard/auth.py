@@ -5,6 +5,7 @@ from flask import (
     Blueprint,
     Response,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -18,6 +19,15 @@ from .queries import (
     get_user_by_email,
     list_dashboard_users,
     update_last_login,
+    fetch_aska_users,
+    summarize_aska_users,
+    update_web_user_status,
+    update_telegram_user_status,
+)
+from account_status import (
+    ACCOUNT_STATUS_CHOICES,
+    ACCOUNT_STATUS_LABELS,
+    ACCOUNT_STATUS_BADGES,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -116,3 +126,64 @@ def manage_users() -> Response:
 
     users = list_dashboard_users()
     return render_template("manage_users.html", users=users)
+
+
+@auth_bp.route("/settings/aska-users")
+@role_required("admin")
+def manage_aska_users() -> Response:
+    source = (request.args.get("source") or "web").strip().lower()
+    if source not in {"web", "telegram", "all"}:
+        source = "web"
+    status_filter = (request.args.get("status") or "all").strip().lower()
+    normalized_status = status_filter if status_filter in ACCOUNT_STATUS_CHOICES else None
+    search = (request.args.get("q") or "").strip()
+
+    users = fetch_aska_users(source, normalized_status, search or None)
+    stats = summarize_aska_users()
+
+    return render_template(
+        "aska_users.html",
+        users=users,
+        filter_source=source,
+        status_filter=status_filter,
+        search_query=search,
+        status_choices=ACCOUNT_STATUS_CHOICES,
+        status_labels=ACCOUNT_STATUS_LABELS,
+        status_badges=ACCOUNT_STATUS_BADGES,
+        stats=stats,
+    )
+
+
+@auth_bp.route("/settings/aska-users/status", methods=["POST"])
+@role_required("admin")
+def update_aska_user_status() -> Response:
+    payload = request.get_json(silent=True) or {}
+    channel = (payload.get("channel") or "").strip().lower()
+    status = (payload.get("status") or "").strip().lower()
+    user_id = payload.get("userId")
+    if user_id is None:
+        return jsonify({"success": False, "message": "ID user wajib diisi."}), 400
+    reason = payload.get("reason")
+    normalized_status = status if status in ACCOUNT_STATUS_CHOICES else None
+    if not normalized_status:
+        return jsonify({"success": False, "message": "Status tidak dikenal."}), 400
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "ID user tidak valid."}), 400
+
+    admin = current_user() or {}
+    actor = admin.get("email") or admin.get("full_name") or "dashboard"
+    try:
+        if channel == "web":
+            updated = update_web_user_status(user_id_int, normalized_status, reason, changed_by=actor)
+        elif channel == "telegram":
+            updated = update_telegram_user_status(user_id_int, normalized_status, reason, changed_by=actor)
+        else:
+            return jsonify({"success": False, "message": "Channel tidak dikenal."}), 400
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+
+    if not updated:
+        return jsonify({"success": False, "message": "User tidak ditemukan."}), 404
+    return jsonify({"success": True})

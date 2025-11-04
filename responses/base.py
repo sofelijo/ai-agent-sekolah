@@ -8,3 +8,8 @@ ASKA_TECHNICAL_ISSUE_RESPONSE = (
     "⚠️ Maaf, lagi ada gangguan teknis 🛠️\n"
     "🤖 Coba tanya *ASKA* nanti ya~ 🙏"
 )
+
+ASKA_RATE_LIMIT_RESPONSE = (
+    "🚦 Server lagi penuh jadi *ASKA* ke-limit sementara.\n"
+    "⏳ Tunggu sebentar lalu coba chat lagi ya, makasih sudah sabar 🙏"
+)

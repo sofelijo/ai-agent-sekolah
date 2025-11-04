@@ -40,10 +40,12 @@ pip install -r requirements.txt
 cat > .env <<'EOF'
 TELEGRAM_BOT_TOKEN=ISI_TOKEN_DARI_BOTFATHER
 GROQ_API_KEY=ISI_API_KEY_GROQ
-# Opsional (untuk embedding RAG & STT suara, tetap bisa pakai OpenAI Whisper/Embeddings)
+# Opsional (aktifkan endpoint OpenAI-compatible bila butuh)
 OPENAI_API_KEY=ISI_API_KEY_OPENAI
 ASKA_EMBEDDING_API_KEY=ISI_API_KEY_OPENAI
 ASKA_STT_API_KEY=ISI_API_KEY_OPENAI
+# Embedding default GRATIS (HuggingFace)
+ASKA_EMBEDDING_MODEL_LOCAL=sentence-transformers/all-MiniLM-L6-v2
 
 # Koneksi PostgreSQL (bot + dashboard)
 DB_NAME=nama_database
@@ -52,6 +54,10 @@ DB_PASS=password
 DB_HOST=127.0.0.1
 DB_PORT=5432
 # Opsional kalau provider butuh TLS: DB_SSLMODE=require
+
+# Cache vectorstore (opsional)
+ASKA_VECTORSTORE_PATH=.aska_vectorstore
+ASKA_VECTORSTORE_INDEX=kecerdasan
 
 # Integrasi Twitter/X (opsional)
 TWITTER_BEARER_TOKEN=ISI_DARI_PORTAL_DEVELOPER_X
@@ -71,6 +77,8 @@ DASHBOARD_SECRET_KEY=ganti-dengan-string-acak-minimal-32-karakter
 DASHBOARD_SESSION_DAYS=14
 DASHBOARD_DB_MAX_CONN=8
 EOF
+
+> Catatan: mulai sekarang embedding default-nya memakai model lokal HuggingFace (`sentence-transformers/all-MiniLM-L6-v2`) sehingga tidak menguras kuota OpenAI. Isi `ASKA_EMBEDDING_API_KEY` hanya jika ingin tetap memakai layanan berbayar OpenAI-compatible. Setelah pull terbaru, jalankan `pip install -r requirements.txt` untuk meng-install dependensi tambahan (`langchain-huggingface`, `sentence-transformers`, dan pin `numpy<2` agar kompatibel dengan PyTorch). Embedding apa pun yang sudah sukses dibuat otomatis dicache ke folder `.aska_vectorstore`, sehingga token OpenAI tidak akan terkuras lagi setiap kali service restart. Jika ingin mengatur ulang potongan dokumen, gunakan variabel `ASKA_CHUNK_SIZE` dan `ASKA_CHUNK_OVERLAP` atau hapus folder cache tersebut.
 
 # 6. Inisialisasi Database
 # Skrip ini akan membuat semua tabel dan skema yang dibutuhkan oleh bot dan dashboard.

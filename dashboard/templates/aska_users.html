@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% block title %}Pengguna ASKA - ASKA Insights{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-person-check"></i>
+        </span>
+        <div>
+            <h1 class="h4 fw-bold page-title mb-0">Pengguna ASKA</h1>
+            <p class="page-subtitle">Kelola akses pengguna web ASKAnet dan bot Telegram dalam satu tempat.</p>
+        </div>
+    </div>
+</section>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted text-uppercase small mb-1">Web ASKA</div>
+                        <div class="h4 fw-bold mb-0">{{ stats.web.total or 0 }} user</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge text-bg-success mb-1">Aktif: {{ stats.web.active or 0 }}</div>
+                        <div class="badge text-bg-danger">Suspend: {{ stats.web.suspended or 0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted text-uppercase small mb-1">Telegram</div>
+                        <div class="h4 fw-bold mb-0">{{ stats.telegram.total or 0 }} user</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge text-bg-success mb-1">Aktif: {{ stats.telegram.active or 0 }}</div>
+                        <div class="badge text-bg-warning text-dark">Review: {{ stats.telegram.under_review or 0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-muted text-uppercase small mb-1">Total Non-Aktif</div>
+                        <div class="h4 fw-bold mb-0">{{ (stats.combined.suspended or 0) + (stats.combined.under_review or 0) }} user</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge text-bg-danger mb-1">Suspend: {{ stats.combined.suspended or 0 }}</div>
+                        <div class="badge text-bg-warning text-dark">Review: {{ stats.combined.under_review or 0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="row g-3 align-items-end mb-4">
+    <div class="col-md-3">
+        <label class="form-label text-muted text-uppercase small">Channel</label>
+        <select class="form-select" name="source">
+            <option value="all" {{ 'selected' if filter_source == 'all' }}>Web & Telegram</option>
+            <option value="web" {{ 'selected' if filter_source == 'web' }}>Web ASKA</option>
+            <option value="telegram" {{ 'selected' if filter_source == 'telegram' }}>Telegram</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label text-muted text-uppercase small">Status</label>
+        <select class="form-select" name="status">
+            <option value="all" {{ 'selected' if status_filter == 'all' }}>Semua status</option>
+            {% for status in status_choices %}
+            <option value="{{ status }}" {{ 'selected' if status_filter == status }}>
+                {{ status_labels[status] }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label text-muted text-uppercase small">Cari</label>
+        <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Nama, email, username atau ID">
+    </div>
+    <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-filter me-1"></i>Filter
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('auth.manage_aska_users') }}">
+            Reset
+        </a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h2 class="h5 fw-bold mb-0">Daftar Pengguna</h2>
+                <p class="text-muted mb-0 small">{{ users|length }} user ditampilkan</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Pengguna</th>
+                        <th>Channel</th>
+                        <th>Status</th>
+                        <th>Aktivitas Terakhir</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ user.display_name or '-' }}</div>
+                            <div class="text-muted small">{{ user.identifier }}</div>
+                        </td>
+                        <td>
+                            <span class="badge text-bg-info text-capitalize">{{ user.channel }}</span>
+                        </td>
+                        <td>
+                            <span class="badge text-bg-{{ status_badges.get(user.status, 'secondary') }} text-uppercase">
+                                {{ status_labels.get(user.status, user.status) }}
+                            </span>
+                            {% if user.status_reason %}
+                            <div class="text-muted small mt-1">
+                                Catatan: {{ user.status_reason }}
+                            </div>
+                            {% endif %}
+                            {% if user.status_changed_at %}
+                            <div class="text-muted small">
+                                Update: {{ user.status_changed_at|jakarta('%d %b %Y %H:%M') }}
+                            </div>
+                            {% endif %}
+                            {% if user.status_changed_by %}
+                            <div class="text-muted small">
+                                Oleh: {{ user.status_changed_by }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ user.last_activity|jakarta('%d %b %Y %H:%M') if user.last_activity }}</div>
+                            <div class="text-muted small">
+                                Dibuat {{ user.created_at|jakarta('%d %b %Y') if user.created_at }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2 flex-wrap">
+                                {% if user.status != 'suspended' %}
+                                <button class="btn btn-outline-danger btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#statusModal"
+                                        data-user-id="{{ user.id }}"
+                                        data-channel="{{ user.channel }}"
+                                        data-user-label="{{ user.display_name or user.identifier }}"
+                                        data-next-status="suspended"
+                                        data-action-label="Suspend"
+                                        data-current-status="{{ user.status }}">
+                                    <i class="bi bi-shield-x"></i> Suspend
+                                </button>
+                                {% endif %}
+                                {% if user.status not in ['under_review', 'suspended'] %}
+                                <button class="btn btn-outline-warning btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#statusModal"
+                                        data-user-id="{{ user.id }}"
+                                        data-channel="{{ user.channel }}"
+                                        data-user-label="{{ user.display_name or user.identifier }}"
+                                        data-next-status="under_review"
+                                        data-action-label="Tandai Review"
+                                        data-current-status="{{ user.status }}">
+                                    <i class="bi bi-clipboard-pulse"></i> Review
+                                </button>
+                                {% endif %}
+                                {% if user.status != 'active' %}
+                                <button class="btn btn-outline-success btn-sm"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#statusModal"
+                                        data-user-id="{{ user.id }}"
+                                        data-channel="{{ user.channel }}"
+                                        data-user-label="{{ user.display_name or user.identifier }}"
+                                        data-next-status="active"
+                                        data-action-label="Aktifkan"
+                                        data-current-status="{{ user.status }}"
+                                        data-prefill-reason="{{ user.status_reason or '' }}">
+                                    <i class="bi bi-check-circle"></i> Aktifkan
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Belum ada user dengan filter ini.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusModalTitle">Perbarui Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="statusModalSummary"></p>
+                <div class="mb-3">
+                    <label class="form-label">Catatan untuk user</label>
+                    <textarea class="form-control" rows="3" id="statusModalReason" placeholder="Alasan atau instruksi tambahan"></textarea>
+                    <div class="form-text">Pesan ini akan tersimpan sebagai catatan sekolah.</div>
+                </div>
+                <div class="alert alert-warning small mb-0" id="statusModalHint">
+                    Pastikan keputusan sudah sesuai kebijakan sekolah.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <input type="hidden" id="statusModalUserId">
+                <input type="hidden" id="statusModalChannel">
+                <input type="hidden" id="statusModalNextStatus">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="statusModalSubmit">
+                    Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const statusModal = document.getElementById('statusModal');
+        if (!statusModal) {
+            return;
+        }
+        const summaryEl = document.getElementById('statusModalSummary');
+        const reasonEl = document.getElementById('statusModalReason');
+        const submitBtn = document.getElementById('statusModalSubmit');
+        const userIdInput = document.getElementById('statusModalUserId');
+        const channelInput = document.getElementById('statusModalChannel');
+        const nextStatusInput = document.getElementById('statusModalNextStatus');
+        const endpoint = "{{ url_for('auth.update_aska_user_status') }}";
+        let currentAction = null;
+
+        statusModal.addEventListener('show.bs.modal', (event) => {
+            const trigger = event.relatedTarget;
+            if (!trigger) return;
+            const userName = trigger.getAttribute('data-user-label') || 'user';
+            const actionLabel = trigger.getAttribute('data-action-label') || 'Perbarui';
+            const nextStatus = trigger.getAttribute('data-next-status');
+            const channel = trigger.getAttribute('data-channel');
+            const prefill = trigger.getAttribute('data-prefill-reason') || '';
+            userIdInput.value = trigger.getAttribute('data-user-id') || '';
+            channelInput.value = channel;
+            nextStatusInput.value = nextStatus;
+            reasonEl.value = prefill;
+            summaryEl.textContent = `${actionLabel} akses ${userName}?`;
+            submitBtn.textContent = actionLabel;
+            currentAction = actionLabel;
+        });
+
+        async function submitStatusChange() {
+            const payload = {
+                userId: userIdInput.value,
+                channel: channelInput.value,
+                status: nextStatusInput.value,
+                reason: reasonEl.value.trim(),
+            };
+            if (!payload.userId) {
+                alert('ID user tidak ditemukan.');
+                return;
+            }
+            if (payload.status !== 'active' && !payload.reason) {
+                alert('Catatan wajib diisi untuk status non-aktif.');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Gagal memperbarui status user.');
+                }
+                window.location.reload();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = currentAction || 'Simpan';
+            }
+        }
+
+        submitBtn.addEventListener('click', submitStatusChange);
+    })();
+</script>
+{% endblock %}
