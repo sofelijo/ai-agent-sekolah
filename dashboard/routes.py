@@ -192,6 +192,13 @@ def _load_twitter_runtime() -> dict:
     return runtime
 
 
+@main_bp.before_request
+def restrict_teacher_access():
+    user = current_user()
+    if user and user.get("role") == "guru":
+        return redirect(url_for("attendance.dashboard"))
+
+
 @main_bp.route("/profile/no-tester", methods=["POST"])
 @login_required
 def toggle_no_tester() -> Response:

@@ -19,6 +19,72 @@ CREATE TABLE IF NOT EXISTS dashboard_users (
 );
 """
 
+_SCHOOL_CLASSES_SQL = """
+CREATE TABLE IF NOT EXISTS school_classes (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    academic_year TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_STUDENTS_SQL = """
+CREATE TABLE IF NOT EXISTS students (
+    id SERIAL PRIMARY KEY,
+    class_id INTEGER NOT NULL REFERENCES school_classes(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL,
+    student_number TEXT,
+    sequence INTEGER,
+    nisn TEXT,
+    gender TEXT,
+    birth_place TEXT,
+    birth_date DATE,
+    religion TEXT,
+    address_line TEXT,
+    rt TEXT,
+    rw TEXT,
+    kelurahan TEXT,
+    kecamatan TEXT,
+    father_name TEXT,
+    mother_name TEXT,
+    nik TEXT,
+    kk_number TEXT,
+    metadata JSONB,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (class_id, full_name)
+);
+"""
+
+_STUDENTS_CLASS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_students_class_id
+ON students (class_id);
+"""
+
+_ATTENDANCE_RECORDS_SQL = """
+CREATE TABLE IF NOT EXISTS attendance_records (
+    id SERIAL PRIMARY KEY,
+    attendance_date DATE NOT NULL,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    class_id INTEGER NOT NULL REFERENCES school_classes(id) ON DELETE CASCADE,
+    teacher_id INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL,
+    note TEXT,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (attendance_date, student_id),
+    CONSTRAINT attendance_records_status_check CHECK (status IN ('masuk', 'alpa', 'izin', 'sakit'))
+);
+"""
+
+_ATTENDANCE_CLASS_DATE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date
+ON attendance_records (class_id, attendance_date);
+"""
+
 _BULLYING_REPORTS_SQL = """
 CREATE TABLE IF NOT EXISTS bullying_reports (
     id SERIAL PRIMARY KEY,
@@ -137,6 +203,11 @@ def ensure_dashboard_schema() -> None:
     """Create core dashboard tables when they do not yet exist."""
     statements: Iterable[str] = (
         _DASHBOARD_USERS_SQL,
+        _SCHOOL_CLASSES_SQL,
+        _STUDENTS_SQL,
+        _STUDENTS_CLASS_INDEX_SQL,
+        _ATTENDANCE_RECORDS_SQL,
+        _ATTENDANCE_CLASS_DATE_INDEX_SQL,
         _BULLYING_REPORTS_SQL,
         _BULLYING_STATUS_INDEX_SQL,
         _BULLYING_EVENTS_SQL,
@@ -159,6 +230,22 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS escalated BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE bullying_reports DROP CONSTRAINT IF EXISTS bullying_reports_status_check",
         "ALTER TABLE bullying_reports ADD CONSTRAINT bullying_reports_status_check CHECK (status IN ('pending', 'in_progress', 'resolved', 'spam'))",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS assigned_class_id INTEGER REFERENCES school_classes(id) ON DELETE SET NULL",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS nisn TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS sequence INTEGER",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS birth_place TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS birth_date DATE",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS religion TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS address_line TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS rt TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS rw TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS kelurahan TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS kecamatan TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS father_name TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_name TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS nik TEXT",
+        "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:

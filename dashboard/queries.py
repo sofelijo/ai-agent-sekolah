@@ -1679,7 +1679,15 @@ def get_user_by_email(email: str) -> Optional[DictRow]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT id, email, password_hash, full_name, role, no_tester_enabled, last_login_at
+            SELECT
+                id,
+                email,
+                password_hash,
+                full_name,
+                role,
+                no_tester_enabled,
+                assigned_class_id,
+                last_login_at
             FROM dashboard_users
             WHERE email = %s
             LIMIT 1
@@ -1693,7 +1701,15 @@ def list_dashboard_users() -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT id, email, full_name, role, no_tester_enabled, created_at, last_login_at
+            SELECT
+                id,
+                email,
+                full_name,
+                role,
+                no_tester_enabled,
+                assigned_class_id,
+                created_at,
+                last_login_at
             FROM dashboard_users
             ORDER BY created_at ASC
             """

@@ -1,0 +1,232 @@
+{% extends "attendance/base.html" %}
+{% block title %}Statistik Absensi{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .metric-card {
+        border-radius: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Ringkasan Absensi</h1>
+        <p class="text-muted mb-0">Pantau keaktifan siswa dan progres pencatatan absensi seluruh kelas.</p>
+    </div>
+    <div class="text-end">
+        <span class="badge text-bg-primary-subtle text-primary px-3 py-2 d-inline-flex align-items-center gap-2">
+            <i class="bi bi-clock-history"></i>
+            Diperbarui {{ generated_at|jakarta('%d %b %Y %H:%M') }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Total Kelas</div>
+                <div class="display-6 fw-bold">{{ overview.total_classes }}</div>
+                <div class="text-muted small">Kelas terdaftar dalam sistem.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Total Siswa</div>
+                <div class="display-6 fw-bold">{{ overview.total_students }}</div>
+                <div class="text-muted small">Siswa aktif yang siap diabsen.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Guru Terdaftar</div>
+                <div class="display-6 fw-bold">{{ overview.total_guru }}</div>
+                <div class="text-muted small">Akun guru pada dashboard.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Guru Dengan Kelas</div>
+                <div class="display-6 fw-bold">{{ overview.total_assigned_guru }}</div>
+                <div class="text-muted small">Guru yang telah memilih kelas.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Tren Kehadiran 7 Hari Terakhir</h2>
+                        <p class="text-muted small mb-0">Lihat perbandingan status kehadiran siswa setiap hari.</p>
+                    </div>
+                </div>
+                <canvas id="attendanceTrendChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Ringkasan Hari Ini</h2>
+                        <p class="text-muted small mb-0">{{ today_label }}</p>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <div class="p-3 border rounded bg-success-subtle text-success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Masuk</span>
+                            <span class="fs-4 fw-bold">{{ totals_today.masuk }}</span>
+                        </div>
+                    </div>
+                    <div class="p-3 border rounded bg-danger-subtle text-danger">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Alpa</span>
+                            <span class="fs-4 fw-bold">{{ totals_today.alpa }}</span>
+                        </div>
+                    </div>
+                    <div class="p-3 border rounded bg-warning-subtle text-warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Izin</span>
+                            <span class="fs-4 fw-bold">{{ totals_today.izin }}</span>
+                        </div>
+                    </div>
+                    <div class="p-3 border rounded bg-info-subtle text-info">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Sakit</span>
+                            <span class="fs-4 fw-bold">{{ totals_today.sakit }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="h5 mb-1">Aktivitas Absensi Terbaru</h2>
+                <p class="text-muted small mb-0">Daftar verifikasi absensi yang paling baru disimpan.</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Kelas</th>
+                        <th>Tanggal Terakhir</th>
+                        <th>Diverifikasi Oleh</th>
+                        <th>Jumlah Entri</th>
+                        <th>Diperbarui</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in recent_records %}
+                    <tr>
+                        <td class="fw-semibold">{{ record.class_name }}</td>
+                        <td>{{ record.last_date|jakarta('%d %b %Y') if record.last_date }}</td>
+                        <td>{{ record.teacher_name or record.teacher_email or '—' }}</td>
+                        <td>{{ record.total_records or 0 }}</td>
+                        <td>{{ record.updated_at|jakarta('%d %b %Y %H:%M') if record.updated_at }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">Belum ada data absensi yang tercatat.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var trendCanvas = document.getElementById("attendanceTrendChart");
+    if (!trendCanvas) {
+        return;
+    }
+    var chart = new Chart(trendCanvas, {
+        type: "line",
+        data: {
+            labels: {{ chart_labels|tojson }},
+            datasets: [
+                {
+                    label: "Masuk",
+                    data: {{ chart_series.masuk|tojson }},
+                    fill: false,
+                    borderColor: "#198754",
+                    backgroundColor: "#198754",
+                    tension: 0.3,
+                    borderWidth: 2
+                },
+                {
+                    label: "Alpa",
+                    data: {{ chart_series.alpa|tojson }},
+                    fill: false,
+                    borderColor: "#dc3545",
+                    backgroundColor: "#dc3545",
+                    tension: 0.3,
+                    borderWidth: 2
+                },
+                {
+                    label: "Izin",
+                    data: {{ chart_series.izin|tojson }},
+                    fill: false,
+                    borderColor: "#ffc107",
+                    backgroundColor: "#ffc107",
+                    tension: 0.3,
+                    borderWidth: 2
+                },
+                {
+                    label: "Sakit",
+                    data: {{ chart_series.sakit|tojson }},
+                    fill: false,
+                    borderColor: "#0dcaf0",
+                    backgroundColor: "#0dcaf0",
+                    tension: 0.3,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: "bottom"
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

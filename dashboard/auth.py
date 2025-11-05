@@ -56,8 +56,11 @@ def role_required(*roles: str) -> Callable:
             if not user:
                 flash("Silakan login terlebih dahulu.", "warning")
                 return redirect(url_for("auth.login", next=request.path))
-            if user.get("role") not in roles:
+            role = user.get("role")
+            if role not in roles:
                 flash("Anda tidak memiliki akses ke fitur ini.", "danger")
+                if role == "guru":
+                    return redirect(url_for("attendance.dashboard"))
                 return redirect(url_for("main.dashboard"))
             return view(*args, **kwargs)
 
@@ -68,7 +71,10 @@ def role_required(*roles: str) -> Callable:
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login() -> Response:
-    if current_user():
+    existing = current_user()
+    if existing:
+        if existing.get("role") == "guru":
+            return redirect(url_for("attendance.dashboard"))
         return redirect(url_for("main.dashboard"))
 
     if request.method == "POST":
@@ -81,17 +87,29 @@ def login() -> Response:
             flash("Email atau password tidak valid.", "danger")
             return render_template("login.html", email=email)
 
+        raw_assigned_class = user.get("assigned_class_id")
+        assigned_class_id = None
+        if raw_assigned_class is not None:
+            try:
+                assigned_class_id = int(raw_assigned_class)
+            except (TypeError, ValueError):
+                assigned_class_id = None
+
         session["user"] = {
             "id": user["id"],
             "email": email,
             "full_name": user["full_name"],
             "role": user["role"],
             "no_tester_enabled": bool(user.get("no_tester_enabled")),
+            "assigned_class_id": assigned_class_id,
         }
         session.permanent = remember
         update_last_login(user["id"])
         flash("Selamat datang kembali!", "success")
-        redirect_target = request.args.get("next") or url_for("main.dashboard")
+        if user["role"] == "guru":
+            redirect_target = url_for("attendance.dashboard")
+        else:
+            redirect_target = request.args.get("next") or url_for("main.dashboard")
         return redirect(redirect_target)
 
     return render_template("login.html")

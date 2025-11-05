@@ -1,0 +1,245 @@
+{% extends "attendance/base.html" %}
+{% block title %}Data Master Absensi{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Pengelolaan Data Master</h1>
+        <p class="text-muted mb-0">Tambah atau perbarui data kelas dan siswa untuk mendukung proses absensi.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge text-primary bg-primary-subtle"><i class="bi bi-building"></i></span>
+                    <h2 class="h5 mb-0">Tambah Kelas</h2>
+                </div>
+                <form method="post" class="d-grid gap-3">
+                    <input type="hidden" name="action" value="create_class">
+                    <div>
+                        <label class="form-label">Nama Kelas</label>
+                        <input type="text" class="form-control" name="class_name" placeholder="Contoh: 1C" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Tahun Ajaran</label>
+                        <input type="text" class="form-control" name="academic_year" placeholder="2024/2025">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Simpan Kelas
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge text-success bg-success-subtle"><i class="bi bi-person-plus"></i></span>
+                    <h2 class="h5 mb-0">Tambah Siswa</h2>
+                </div>
+                <form method="post" class="d-grid gap-3">
+                    <input type="hidden" name="action" value="create_student">
+                    <div>
+                        <label class="form-label">Kelas</label>
+                        <select class="form-select" name="student_class_id" required>
+                            <option value="">-- Pilih kelas --</option>
+                            {% for class_item in classes %}
+                            <option value="{{ class_item.id }}">{{ class_item.name }}{% if class_item.academic_year %} • {{ class_item.academic_year }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Nama Siswa</label>
+                        <input type="text" class="form-control" name="student_name" placeholder="Nama lengkap siswa" required>
+                    </div>
+                    <div>
+                        <label class="form-label">NIS (Nomor Induk)</label>
+                        <input type="text" class="form-control" name="student_number" placeholder="Nomor induk siswa">
+                    </div>
+                    <div>
+                        <label class="form-label">NISN</label>
+                        <input type="text" class="form-control" name="student_nisn" placeholder="Nomor Induk Siswa Nasional">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Jenis Kelamin</label>
+                            <select class="form-select" name="student_gender">
+                                <option value="">-- Pilih --</option>
+                                <option value="L">Laki-laki (L)</option>
+                                <option value="P">Perempuan (P)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Agama</label>
+                            <input type="text" class="form-control" name="student_religion" placeholder="Contoh: Islam">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Tempat Lahir</label>
+                            <input type="text" class="form-control" name="student_birth_place" placeholder="Kota lahir">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tanggal Lahir</label>
+                            <input type="date" class="form-control" name="student_birth_date">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Alamat Jalan</label>
+                        <input type="text" class="form-control" name="student_address" placeholder="Nama jalan / perumahan">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label">RT</label>
+                            <input type="text" class="form-control" name="student_rt" placeholder="RT">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">RW</label>
+                            <input type="text" class="form-control" name="student_rw" placeholder="RW">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kelurahan</label>
+                            <input type="text" class="form-control" name="student_kelurahan" placeholder="Kelurahan">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Kecamatan</label>
+                        <input type="text" class="form-control" name="student_kecamatan" placeholder="Kecamatan">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Ayah</label>
+                            <input type="text" class="form-control" name="student_father" placeholder="Nama ayah">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Ibu</label>
+                            <input type="text" class="form-control" name="student_mother" placeholder="Nama ibu">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">NIK</label>
+                            <input type="text" class="form-control" name="student_nik" placeholder="NIK keluarga">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">No. KK</label>
+                            <input type="text" class="form-control" name="student_kk" placeholder="Nomor Kartu Keluarga">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check2-circle me-2"></i>Simpan Siswa
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge text-info bg-info-subtle"><i class="bi bi-info-circle"></i></span>
+                    <h2 class="h5 mb-0">Tips Pengelolaan</h2>
+                </div>
+                <ul class="list-unstyled small text-muted d-grid gap-2 mb-0">
+                    <li><i class="bi bi-dot"></i> Pastikan nama kelas unik agar guru dapat memilih wali kelas dengan mudah.</li>
+                    <li><i class="bi bi-dot"></i> Bila nama siswa sama, gunakan kolom NIS untuk membedakan.</li>
+                    <li><i class="bi bi-dot"></i> Data siswa dapat diperbarui dengan mengisi ulang form dengan nama yang sama.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h2 class="h5 mb-1">Daftar Kelas &amp; Siswa</h2>
+                <p class="text-muted small mb-0">Daftar ini menampilkan struktur kelas beserta siswa terdaftar.</p>
+            </div>
+        </div>
+        <div class="accordion" id="classAccordion">
+            {% for class_item in classes %}
+            {% set class_id = class_item.id|int %}
+            {% set students = students_by_class.get(class_id, []) %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ class_id }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ class_id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ class_id }}">
+                        <div class="d-flex flex-column">
+                            <span class="fw-semibold">{{ class_item.name }}</span>
+                            <span class="text-muted small">{{ students|length }} siswa terdaftar{% if class_item.academic_year %} • {{ class_item.academic_year }}{% endif %}</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse-{{ class_id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ class_id }}" data-bs-parent="#classAccordion">
+                    <div class="accordion-body">
+                        {% if students %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Nama Siswa</th>
+                                        <th>NIS / NISN</th>
+                                        <th>JK</th>
+                                        <th>TTL</th>
+                                        <th>Alamat</th>
+                                        <th>Orang Tua</th>
+                                        <th>NIK / KK</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                    <tr>
+                                        <td>{{ student.sequence or loop.index }}</td>
+                                        <td>{{ student.full_name }}</td>
+                                        <td>
+                                            <div>{{ student.student_number or '—' }}</div>
+                                            <div class="text-muted small">{{ student.nisn|default('-', true) }}</div>
+                                        </td>
+                                        <td>{{ student.gender or '—' }}</td>
+                                        <td>
+                                            <div>{{ student.birth_place or '—' }}</div>
+                                            <div class="text-muted small">{{ student.birth_date|default('-', true) }}</div>
+                                        </td>
+                                        <td>
+                                            <div>{{ student.address_line or '—' }}</div>
+                                            <div class="text-muted small">RT {{ student.rt or '-' }} / RW {{ student.rw or '-' }}</div>
+                                            <div class="text-muted small">{{ student.kelurahan or '-' }} • {{ student.kecamatan or '-' }}</div>
+                                        </td>
+                                        <td>
+                                            <div>{{ student.father_name or '—' }}</div>
+                                            <div class="text-muted small">{{ student.mother_name|default('-', true) }}</div>
+                                        </td>
+                                        <td>
+                                            <div>{{ student.nik or '—' }}</div>
+                                            <div class="text-muted small">{{ student.kk_number|default('-', true) }}</div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                            Belum ada siswa pada kelas ini.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-collection fs-1 d-block mb-3"></i>
+                Belum ada data kelas. Tambahkan kelas terlebih dahulu.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
