@@ -871,4 +871,67 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 
+-- Tendik import generated from DUK SEMBAR 01 (1).xlsx
+-- Default password untuk seluruh tendik: 'Tendik123!' (harap diganti setelah login)
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('fajarsaa@gmail.com', 'MH Ainun Fajar', 'pbkdf2:sha256:260000$JrdfuMcKfSP6$XjYIbPgfkgY++i7CL49prNkovQeu+Bl68eDjSKDf44w=', 'tendik', '222294', '199806282025061005', 'PENATA KELOLA SISTEM DAN TEKNOLOGI INFORMASI', NULL, 'S.Kom', NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('dewiendaratna@gmail.com', 'Enda Ratna Dewi', 'pbkdf2:sha256:260000$Dm01Tp8aJ0cE$HSVMtqiQAXmhMbdq/bxydESEM4PgaHPrGHVtpaxnJa4=', 'tendik', NULL, NULL, 'TENAGA ADMINISTARSI', NULL, NULL, NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('yulimiladiah97@gmail.com', 'Yuli Miladiah', 'pbkdf2:sha256:260000$R0FG3b1mvXEL$jdoI6PsPVUjrtm6q4NlmETm0+Wfgfu0QvmL7SJ3bb2A=', 'tendik', NULL, NULL, 'TENAGA ADMINISTARSI', NULL, NULL, NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('yeyen2990@gmail.com', 'Muhyin', 'pbkdf2:sha256:260000$muIk1ruR2FfQ$AUiV7FxvYDHqyKKTM4NFX3K5UWxSimThbphD4qORDR4=', 'tendik', NULL, NULL, 'TENAGA KEBERSIHAN', NULL, NULL, NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('donimulyanto210@gmail.com', 'Doni Mulyanto', 'pbkdf2:sha256:260000$Xfh57sqakCWB$Vc6qoos55H26ahn+904weUZwL6yZvFhl+QjPfqXzIdE=', 'tendik', NULL, NULL, 'TENAGA KEBERSIHAN', NULL, NULL, NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
+VALUES ('mariyam1703@gmail.com', 'Mariyam', 'pbkdf2:sha256:260000$mpxADLujLqBL$z+IgwjyWsZvG7MonC8+Kv5wUdPMOh4+ExDjlgOc6M4o=', 'tendik', NULL, NULL, 'TENAGA KEBERSIHAN', NULL, NULL, NULL)
+ON CONFLICT (email) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    nrk = EXCLUDED.nrk,
+    nip = EXCLUDED.nip,
+    jabatan = EXCLUDED.jabatan,
+    degree_prefix = EXCLUDED.degree_prefix,
+    degree_suffix = EXCLUDED.degree_suffix,
+    assigned_class_id = EXCLUDED.assigned_class_id;
+
 COMMIT;

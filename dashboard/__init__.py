@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from flask import Flask
 
-from .auth import auth_bp, current_user
+from .auth import auth_bp, current_user, init_oauth
 from .routes import main_bp
 from .attendance import attendance_bp
 from .db_access import shutdown_pool
@@ -30,6 +30,7 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(attendance_bp)
+    init_oauth(app)
 
     try:
         ensure_dashboard_schema()

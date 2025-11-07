@@ -746,7 +746,8 @@ def fetch_school_identity() -> Dict[str, Optional[str]]:
     if row:
         identity.update({key: row.get(key) for key in identity.keys() if key in row})
 
-    if not identity.get("headmaster_name"):
+    needs_headmaster_detail = not identity.get("headmaster_name") or not identity.get("headmaster_nip") or not identity.get("headmaster_degree_prefix") or not identity.get("headmaster_degree_suffix")
+    if needs_headmaster_detail:
         with get_cursor() as cur:
             try:
                 cur.execute(
@@ -792,10 +793,14 @@ def fetch_school_identity() -> Dict[str, Optional[str]]:
                 )
             head_row = cur.fetchone()
         if head_row:
-            identity["headmaster_name"] = head_row.get("full_name")
-            identity["headmaster_nip"] = head_row.get("nip") or identity.get("headmaster_nip")
-            identity["headmaster_degree_prefix"] = head_row.get("degree_prefix") or identity.get("headmaster_degree_prefix")
-            identity["headmaster_degree_suffix"] = head_row.get("degree_suffix") or identity.get("headmaster_degree_suffix")
+            if not identity.get("headmaster_name"):
+                identity["headmaster_name"] = head_row.get("full_name")
+            if not identity.get("headmaster_nip"):
+                identity["headmaster_nip"] = head_row.get("nip")
+            if not identity.get("headmaster_degree_prefix"):
+                identity["headmaster_degree_prefix"] = head_row.get("degree_prefix")
+            if not identity.get("headmaster_degree_suffix"):
+                identity["headmaster_degree_suffix"] = head_row.get("degree_suffix")
 
     return identity
 

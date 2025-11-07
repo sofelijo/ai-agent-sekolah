@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash
 
 from utils import (
@@ -15,6 +15,7 @@ from utils import (
 
 from ..auth import current_user, login_required, role_required
 from . import attendance_bp
+from .duk_degrees import resolve_degree_from_duk
 from .queries import (
     ATTENDANCE_STATUSES,
     DEFAULT_ATTENDANCE_STATUS,
@@ -411,6 +412,7 @@ def laporan_harian() -> str:
     class_rows = fetch_class_attendance_breakdown(selected_date)
     teacher_absences = fetch_teacher_absence_for_date(selected_date)
     school_identity = fetch_school_identity()
+    duk_source_path = current_app.config.get("ATTENDANCE_DUK_PATH")
     monthly_overview = fetch_monthly_attendance_overview(month_reference.year, month_reference.month)
     available_month_dates = list_attendance_months(limit=12)
 
@@ -429,7 +431,32 @@ def laporan_harian() -> str:
                 display = suffix_clean
         return display or None
 
+    if school_identity.get("headmaster_name"):
+        head_prefix_missing = not school_identity.get("headmaster_degree_prefix")
+        head_suffix_missing = not school_identity.get("headmaster_degree_suffix")
+        if head_prefix_missing or head_suffix_missing:
+            duk_prefix, duk_suffix = resolve_degree_from_duk(
+                school_identity.get("headmaster_name"),
+                source_path=duk_source_path,
+            )
+            if duk_prefix and head_prefix_missing:
+                school_identity["headmaster_degree_prefix"] = duk_prefix
+            if duk_suffix and head_suffix_missing:
+                school_identity["headmaster_degree_suffix"] = duk_suffix
+
     for entry in teacher_absences:
+        if entry.get("full_name"):
+            prefix_missing = not entry.get("degree_prefix")
+            suffix_missing = not entry.get("degree_suffix")
+            if prefix_missing or suffix_missing:
+                duk_prefix, duk_suffix = resolve_degree_from_duk(
+                    entry.get("full_name"),
+                    source_path=duk_source_path,
+                )
+                if duk_prefix and prefix_missing:
+                    entry["degree_prefix"] = duk_prefix
+                if duk_suffix and suffix_missing:
+                    entry["degree_suffix"] = duk_suffix
         entry["display_name"] = _compose_with_degree(
             entry.get("full_name"),
             entry.get("degree_prefix"),

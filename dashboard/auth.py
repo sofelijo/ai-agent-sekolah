@@ -1,6 +1,9 @@
-﻿from functools import wraps
+﻿import os
+import secrets
+from functools import wraps
 from typing import Callable, Optional
 
+from authlib.integrations.flask_client import OAuth
 from flask import (
     Blueprint,
     Response,
@@ -11,6 +14,7 @@ from flask import (
     request,
     session,
     url_for,
+    current_app,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -31,6 +35,32 @@ from account_status import (
 )
 
 auth_bp = Blueprint("auth", __name__)
+oauth = OAuth()
+
+GMAIL_ALLOWED_DOMAINS = {"gmail.com", "googlemail.com"}
+_OAUTH_REGISTERED = False
+
+
+def init_oauth(app) -> None:
+    """Initialize Google OAuth for the dashboard app."""
+    global _OAUTH_REGISTERED
+    oauth.init_app(app)
+    if _OAUTH_REGISTERED:
+        return
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        return
+
+    oauth.register(
+        name="google",
+        client_id=client_id,
+        client_secret=client_secret,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+    _OAUTH_REGISTERED = True
 
 
 def current_user() -> Optional[dict]:
@@ -69,6 +99,37 @@ def role_required(*roles: str) -> Callable:
     return decorator
 
 
+def _establish_session(user: dict, *, remember: bool = False, email_override: Optional[str] = None) -> None:
+    """Populate the Flask session with the logged-in dashboard user."""
+    raw_assigned_class = user.get("assigned_class_id")
+    assigned_class_id = None
+    if raw_assigned_class is not None:
+        try:
+            assigned_class_id = int(raw_assigned_class)
+        except (TypeError, ValueError):
+            assigned_class_id = None
+
+    email_value = (email_override or user.get("email") or "").strip().lower()
+
+    session["user"] = {
+        "id": user["id"],
+        "email": email_value,
+        "full_name": user.get("full_name"),
+        "role": user.get("role"),
+        "no_tester_enabled": bool(user.get("no_tester_enabled")),
+        "assigned_class_id": assigned_class_id,
+    }
+    session.permanent = remember
+    update_last_login(user["id"])
+
+
+def _redirect_after_login(user: dict, fallback: Optional[str] = None) -> str:
+    """Determine the appropriate redirect destination after login."""
+    if user.get("role") == "guru":
+        return url_for("attendance.dashboard")
+    return fallback or url_for("main.dashboard")
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login() -> Response:
     existing = current_user()
@@ -87,30 +148,9 @@ def login() -> Response:
             flash("Email atau password tidak valid.", "danger")
             return render_template("login.html", email=email)
 
-        raw_assigned_class = user.get("assigned_class_id")
-        assigned_class_id = None
-        if raw_assigned_class is not None:
-            try:
-                assigned_class_id = int(raw_assigned_class)
-            except (TypeError, ValueError):
-                assigned_class_id = None
-
-        session["user"] = {
-            "id": user["id"],
-            "email": email,
-            "full_name": user["full_name"],
-            "role": user["role"],
-            "no_tester_enabled": bool(user.get("no_tester_enabled")),
-            "assigned_class_id": assigned_class_id,
-        }
-        session.permanent = remember
-        update_last_login(user["id"])
+        _establish_session(user, remember=remember, email_override=email)
         flash("Selamat datang kembali!", "success")
-        if user["role"] == "guru":
-            redirect_target = url_for("attendance.dashboard")
-        else:
-            redirect_target = request.args.get("next") or url_for("main.dashboard")
-        return redirect(redirect_target)
+        return redirect(_redirect_after_login(user, request.args.get("next")))
 
     return render_template("login.html")
 
@@ -121,6 +161,77 @@ def logout() -> Response:
     session.clear()
     flash("Anda telah logout.", "info")
     return redirect(url_for("auth.login"))
+
+
+@auth_bp.route("/login/google/<provider>")
+def google_login(provider: str) -> Response:
+    normalized_provider = (provider or "belajar").strip().lower()
+    if normalized_provider not in {"belajar", "gmail"}:
+        normalized_provider = "belajar"
+
+    oauth_client = oauth.create_client("google")
+    if not oauth_client:
+        flash("Login Google belum dikonfigurasi oleh admin.", "danger")
+        return redirect(url_for("auth.login"))
+
+    session.pop("post_login_redirect", None)
+    next_url = request.args.get("next")
+    if next_url:
+        session["post_login_redirect"] = next_url
+    session["dashboard_oauth_provider"] = normalized_provider
+    nonce = secrets.token_urlsafe(24)
+    session["dashboard_oauth_nonce"] = nonce
+    redirect_uri = url_for("auth.google_callback", _external=True)
+    return oauth_client.authorize_redirect(redirect_uri, prompt="select_account", nonce=nonce)
+
+
+@auth_bp.route("/login/google/callback")
+def google_callback() -> Response:
+    oauth_client = oauth.create_client("google")
+    if not oauth_client:
+        flash("Login Google belum dikonfigurasi oleh admin.", "danger")
+        return redirect(url_for("auth.login"))
+
+    try:
+        token = oauth_client.authorize_access_token()
+        nonce = session.get("dashboard_oauth_nonce")
+        userinfo = oauth_client.parse_id_token(token, nonce=nonce)
+    except Exception:
+        current_app.logger.exception("Google OAuth callback gagal diproses.")
+        flash("Gagal memproses respons Google. Silakan coba lagi.", "danger")
+        return redirect(url_for("auth.login"))
+    finally:
+        session.pop("dashboard_oauth_nonce", None)
+
+    email = (userinfo or {}).get("email")
+    if not email:
+        flash("Google tidak mengirimkan email pengguna.", "danger")
+        return redirect(url_for("auth.login"))
+
+    email = email.strip().lower()
+    provider = session.pop("dashboard_oauth_provider", "belajar")
+    domain = email.split("@")[-1].lower()
+
+    if provider == "belajar":
+        valid_domain = domain == "belajar.id" or domain.endswith(".belajar.id")
+        error_message = "Login belajar.id memerlukan email dengan domain @belajar.id."
+    else:
+        valid_domain = domain in GMAIL_ALLOWED_DOMAINS
+        error_message = "Login Gmail hanya menerima alamat @gmail.com."
+
+    if not valid_domain:
+        flash(error_message, "danger")
+        return redirect(url_for("auth.login"))
+
+    user = get_user_by_email(email)
+    if not user:
+        flash("Email tersebut belum terdaftar pada dashboard. Hubungi admin untuk mendapatkan akses.", "danger")
+        return redirect(url_for("auth.login"))
+
+    _establish_session(user, remember=True, email_override=email)
+    flash("Autentikasi Google berhasil.", "success")
+    next_url = session.pop("post_login_redirect", None)
+    return redirect(_redirect_after_login(user, next_url))
 
 
 @auth_bp.route("/settings/users", methods=["GET", "POST"])

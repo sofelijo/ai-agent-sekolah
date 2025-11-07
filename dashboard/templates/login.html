@@ -1,10 +1,40 @@
 {% extends 'base.html' %}
 {% block title %}Login - ASKA Dashboard{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<style>
+    .login-card .separator {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        color: #adb5bd;
+        font-size: 0.95rem;
+        margin: 24px 0 18px;
+    }
+
+    .login-card .separator::before,
+    .login-card .separator::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .login-card .separator:not(:empty)::before {
+        margin-right: .75em;
+    }
+
+    .login-card .separator:not(:empty)::after {
+        margin-left: .75em;
+    }
+
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-5">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 login-card">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3 mb-3">
                     <span class="icon-badge feature-icon text-primary">
@@ -23,7 +53,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="password">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="togglePasswordButton" aria-label="Tampilkan password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                         <div class="invalid-feedback">Password wajib diisi.</div>
                     </div>
                     <div class="form-check mb-3">
@@ -35,6 +70,30 @@
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
                     </button>
+                    <div class="separator">atau</div>
+                    <div class="d-grid gap-2">
+                        <a class="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2"
+                           href="{{ url_for('auth.google_login', provider='belajar', next=request.args.get('next')) }}"
+                           role="button"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           title="Gunakan kredensial belajar.id yang sudah disinkronkan oleh admin.">
+                            <i class="bi bi-mortarboard-fill"></i>
+                            <span>Login via belajar.id</span>
+                        </a>
+                        <a class="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2"
+                           href="{{ url_for('auth.google_login', provider='gmail', next=request.args.get('next')) }}"
+                           role="button"
+                           data-bs-toggle="tooltip"
+                           data-bs-placement="top"
+                           title="Gunakan akun Gmail yang sudah diverifikasi admin.">
+                            <i class="bi bi-google"></i>
+                            <span>Login via Gmail</span>
+                        </a>
+                    </div>
+                    <p class="text-center text-muted small mt-3 mb-0">
+                        Hanya akun yang terdaftar yang dapat mengakses dashboard ini.
+                    </p>
                 </form>
             </div>
         </div>
@@ -43,4 +102,35 @@
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var toggleButton = document.getElementById('togglePasswordButton');
+    var passwordInput = document.getElementById('password');
+    if (!toggleButton || !passwordInput) {
+        return;
+    }
+
+    var icon = toggleButton.querySelector('i');
+
+    toggleButton.addEventListener('click', function () {
+        var currentlyHidden = passwordInput.type === 'password';
+        passwordInput.type = currentlyHidden ? 'text' : 'password';
+
+        if (currentlyHidden) {
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+            toggleButton.setAttribute('aria-label', 'Sembunyikan password');
+        } else {
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+            toggleButton.setAttribute('aria-label', 'Tampilkan password');
+        }
+    });
+});
+</script>
+
 {% endblock %}
