@@ -144,8 +144,12 @@ def login() -> Response:
         remember = request.form.get("remember") == "on"
 
         user = get_user_by_email(email)
-        if not user or not check_password_hash(user["password_hash"], password):
-            flash("Email atau password tidak valid.", "danger")
+        if not user:
+            flash("Email belum terdaftar. Hubungi admin untuk membuat akun.", "danger")
+            return render_template("login.html", email=email)
+
+        if not check_password_hash(user["password_hash"], password):
+            flash("Salah password, hubungi admin untuk reset akses.", "danger")
             return render_template("login.html", email=email)
 
         _establish_session(user, remember=remember, email_override=email)
