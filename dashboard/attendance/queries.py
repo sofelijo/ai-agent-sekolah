@@ -711,6 +711,30 @@ def fetch_monthly_attendance_overview(year: int, month: int) -> List[Dict[str, A
     return [dict(row) for row in rows]
 
 
+def fetch_class_month_attendance_entries(class_id: int, year: int, month: int) -> List[Dict[str, Any]]:
+    """Ambil seluruh entri absensi untuk satu kelas pada bulan tertentu.
+
+    Mengembalikan list dict dengan kolom: attendance_date, student_id, status.
+    """
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                attendance_date,
+                student_id,
+                status
+            FROM attendance_records
+            WHERE class_id = %s
+              AND EXTRACT(YEAR FROM attendance_date) = %s
+              AND EXTRACT(MONTH FROM attendance_date) = %s
+            ORDER BY attendance_date ASC
+            """,
+            (class_id, year, month),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 def fetch_school_identity() -> Dict[str, Optional[str]]:
     """
     Ambil identitas sekolah dan kepala sekolah bila tersedia.

@@ -1,0 +1,269 @@
+{% extends "attendance/base.html" %}
+{% block title %}Lembar Presensi Bulanan{% endblock %}
+
+{% block content %}
+<div class="container py-3 report-page">
+    <div class="page-toolbar d-print-none d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h5 mb-1">Lembar Presensi Bulanan (Per Kelas)</h1>
+            <div class="text-muted small">Format siap cetak seperti buku absen kelas.</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="downloadButton">
+                <i class="bi bi-file-earmark-arrow-down me-1"></i> Download PDF
+            </button>
+            <button type="button" class="btn btn-primary" id="printButton">
+                <i class="bi bi-printer me-1"></i> Cetak
+            </button>
+        </div>
+    </div>
+
+    <div class="filter-card d-print-none">
+        <form class="row gy-2 gx-2 align-items-end" method="get" action="{{ url_for('attendance.lembar_bulanan') }}">
+            <div class="col-12 col-md-5">
+                <label class="form-label fw-semibold">Kelas</label>
+                <select class="form-select" name="class_id" required>
+                    <option value="">-- Pilih kelas --</option>
+                    {% for c in class_options %}
+                    <option value="{{ c.id }}" {% if selected_class_id == c.id %}selected{% endif %}>{{ c.name }}{% if c.academic_year %} • {{ c.academic_year }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold">Bulan</label>
+                <select class="form-select" name="month">
+                    {% for option in available_months|sort(attribute='value')|reverse %}
+                    <option value="{{ option.value }}" {% if option.value == selected_month.strftime('%Y-%m') %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <button class="btn btn-outline-primary w-100" type="submit">
+                    <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div id="printArea" class="sheet-wrapper" data-month="{{ selected_month.strftime('%Y-%m') }}">
+        <section class="monthly-sheet">
+            <header class="sheet-header text-center">
+                <div class="title">DAFTAR HADIR PESERTA DIDIK</div>
+                <div class="school">{{ school_identity.school_name or 'SDN' }}</div>
+                <div class="year">TAHUN PELAJARAN {{ school_identity.academic_year or (selected_month.year ~ ' / ' ~ (selected_month.year + 1)) }}</div>
+            </header>
+
+            <div class="meta-row">
+                <div><strong>KELAS</strong>: {{ class_detail.name if class_detail else '-' }}</div>
+                <div><strong>Bulan</strong>: {{ selected_month_label }}</div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="sheet-table">
+                    <thead>
+                        <tr>
+                            <th class="col-no">NO</th>
+                            <th class="col-name">NAMA SISWA</th>
+                            <th class="col-gender">L/P</th>
+                            {% for day in range(1, days_in_month + 1) %}
+                            <th class="col-day {% if weekday_flags[day-1] %}weekend{% endif %}">{{ '%02d' % day }}</th>
+                            {% endfor %}
+                            <th class="col-total">HADIR</th>
+                            <th class="col-total">SAKIT</th>
+                            <th class="col-total">IZIN</th>
+                            <th class="col-total">ALFA</th>
+                            <th class="col-percent">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in students %}
+                        <tr>
+                            <td class="text-center">{{ s.no }}</td>
+                            <td class="text-start">{{ s.name }}</td>
+                            <td class="text-center">{{ s.gender }}</td>
+                            {% for symbol in s.days %}
+                            <td class="text-center">{{ symbol }}</td>
+                            {% endfor %}
+                            <td class="text-center">{{ s.totals.masuk }}</td>
+                            <td class="text-center">{{ s.totals.sakit }}</td>
+                            <td class="text-center">{{ s.totals.izin }}</td>
+                            <td class="text-center">{{ s.totals.alpa }}</td>
+                            <td class="text-center">{{ s.present_percent }}</td>
+                        </tr>
+                        {% endfor %}
+
+                        {% set min_rows = 26 %}
+                        {% for i in range(students|length + 1, min_rows + 1) %}
+                        <tr>
+                            <td class="text-center">{{ i }}</td>
+                            <td></td>
+                            <td></td>
+                            {% for _ in range(1, days_in_month + 1) %}
+                            <td></td>
+                            {% endfor %}
+                            <td></td><td></td><td></td><td></td><td></td>
+                        </tr>
+                        {% endfor %}
+
+                        <tr class="summary-row">
+                            <td colspan="3" class="text-end fw-bold">JUMLAH SISWA HADIR</td>
+                            {% for d in range(1, days_in_month + 1) %}
+                            <td class="text-center fw-bold {% if weekday_flags[d-1] %}weekend{% endif %}">{{ daily_recap[d].masuk }}</td>
+                            {% endfor %}
+                            <td class="text-center fw-bold">{{ students|map(attribute='totals')|map(attribute='masuk')|sum }}</td>
+                            <td class="text-center fw-bold">{{ students|map(attribute='totals')|map(attribute='sakit')|sum }}</td>
+                            <td class="text-center fw-bold">{{ students|map(attribute='totals')|map(attribute='izin')|sum }}</td>
+                            <td class="text-center fw-bold">{{ students|map(attribute='totals')|map(attribute='alpa')|sum }}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <section class="recap-daily">
+                <div class="recap-title">REKAPITULASI KETIDAKHADIRAN TIAP HARI</div>
+                <table class="recap-table">
+                    <thead>
+                        <tr>
+                            <th class="label">KET</th>
+                            {% for d in range(1, days_in_month + 1) %}
+                            <th class="text-center {% if weekday_flags[d-1] %}weekend{% endif %}">{{ '%02d' % d }}</th>
+                            {% endfor %}
+                            <th class="text-center">JUMLAH</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="label">SAKIT</td>
+                            {% for d in range(1, days_in_month + 1) %}
+                            <td class="text-center {% if weekday_flags[d-1] %}weekend{% endif %}">{{ daily_recap[d].sakit }}</td>
+                            {% endfor %}
+                            <td class="text-center fw-bold">{{ daily_recap.values()|map(attribute='sakit')|sum }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">IZIN</td>
+                            {% for d in range(1, days_in_month + 1) %}
+                            <td class="text-center {% if weekday_flags[d-1] %}weekend{% endif %}">{{ daily_recap[d].izin }}</td>
+                            {% endfor %}
+                            <td class="text-center fw-bold">{{ daily_recap.values()|map(attribute='izin')|sum }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">ALFA</td>
+                            {% for d in range(1, days_in_month + 1) %}
+                            <td class="text-center {% if weekday_flags[d-1] %}weekend{% endif %}">{{ daily_recap[d].alpa }}</td>
+                            {% endfor %}
+                            <td class="text-center fw-bold">{{ daily_recap.values()|map(attribute='alpa')|sum }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <div class="footer-meta">
+                <div class="box">
+                    <div><strong>Hari Efektif</strong>: {{ effective_days }}</div>
+                    <div><strong>Laki-laki</strong>: {{ male_count }}</div>
+                    <div><strong>Perempuan</strong>: {{ female_count }}</div>
+                    <div><strong>Jumlah Siswa</strong>: {{ total_students }}</div>
+                </div>
+                <div class="ttd">
+                    <div>{{ school_identity.school_name or '' }}, {{ today|jakarta('%d %B %Y') }}</div>
+                    <div class="mt-1">Guru Kelas</div>
+                    <div class="space"></div>
+                    <div class="name">{{ current_user.full_name }}</div>
+                </div>
+                <div class="ttd">
+                    <div>Mengetahui,</div>
+                    <div class="mt-1">Kepala Sekolah</div>
+                    <div class="space"></div>
+                    <div class="name">{{ school_identity.headmaster_display_name or school_identity.headmaster_name }}</div>
+                    {% if school_identity.headmaster_nip %}
+                    <div class="nip">NIP. {{ school_identity.headmaster_nip }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+/* Layout wrappers */
+.filter-card{background:#fff;border:1px solid #e4e4e4;border-radius:.75rem;padding:1rem;box-shadow:0 12px 28px rgba(15,34,58,.08)}
+.sheet-wrapper{background:#fff;border:1px solid #d0d7de;padding:.6rem}
+.monthly-sheet{color:#000;font-family:"Times New Roman",serif}
+.sheet-header{margin-bottom:.25rem}
+.sheet-header .title{font-weight:700;letter-spacing:.05em}
+.sheet-header .school{font-weight:700;text-transform:uppercase}
+.sheet-header .year{font-size:.9rem}
+.sheet-header .title{font-size:1rem}
+.sheet-header .school{font-size:.95rem}
+.meta-row{display:flex;justify-content:space-between;gap:1rem;margin:.35rem 0 .4rem 0;font-size:.9rem}
+
+/* Main table */
+.sheet-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.sheet-table th,.sheet-table td{border:1px solid #000;padding:.04rem .06rem;font-size:.64rem}
+.sheet-table thead th{font-weight:700;text-transform:uppercase;text-align:center;font-size:.62rem}
+.sheet-table .col-no{width:28px}
+.sheet-table .col-name{width:200px;text-align:center}
+.sheet-table .col-gender{width:30px;text-align:center}
+.sheet-table .col-total{width:40px;text-align:center}
+.sheet-table .col-percent{width:34px;text-align:center}
+.sheet-table .col-day{width:18px}
+.sheet-table .weekend{background:#f8d7da}
+.sheet-table .summary-row td{background:#e9f2ff}
+
+/* Recap per day */
+.recap-daily{margin-top:.6rem}
+.recap-title{background:#6f42c1;color:#fff;text-align:center;font-weight:700;padding:.2rem .3rem;margin-bottom:.2rem;font-size:.8rem}
+.recap-table{width:100%;border-collapse:collapse}
+.recap-table td{border:1px solid #000;padding:.04rem .06rem;font-size:.64rem}
+.recap-table .label{width:70px;font-weight:700;text-align:center}
+.recap-table .weekend{background:#f8d7da}
+.recap-table .sum{width:70px}
+
+/* Footer meta */
+.footer-meta{display:flex;justify-content:space-between;gap:1rem;align-items:flex-end;margin-top:.6rem}
+.footer-meta .box{border:1px solid #000;padding:.2rem .3rem;font-size:.72rem}
+.footer-meta .ttd{min-width:200px;text-align:center;font-size:.76rem}
+.footer-meta .ttd .space{height:56px}
+.footer-meta .ttd .name{font-weight:700}
+
+@media print{
+  body{background:#fff!important;font-family:"Times New Roman",serif!important}
+  .navbar,.d-print-none{display:none!important}
+  .sheet-wrapper{border:none;padding:0}
+  .container.report-page{max-width:100%!important;padding:0!important}
+  @page{margin:6mm}
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var printButton = document.getElementById("printButton");
+    var downloadButton = document.getElementById("downloadButton");
+    var printArea = document.getElementById("printArea");
+    if (printButton) printButton.addEventListener("click", function(){ window.print(); });
+    if (downloadButton && printArea) {
+        downloadButton.addEventListener("click", function(){
+            var jsPDF = (window.jspdf || {}).jsPDF; if (!jsPDF) return;
+            downloadButton.disabled = true; downloadButton.classList.add("disabled");
+            html2canvas(printArea, {scale: 2, useCORS: true}).then(function(canvas){
+                var pdf = new jsPDF('l','mm','a4');
+                var img = canvas.toDataURL('image/png');
+                var w = pdf.internal.pageSize.getWidth();
+                var h = (canvas.height * w) / canvas.width;
+                pdf.addImage(img, 'PNG', 0, 0, w, h);
+                var fname = 'lembar-presensi-' + (printArea.getAttribute('data-month') || 'bulan') + '.pdf';
+                pdf.save(fname);
+            }).finally(function(){ downloadButton.disabled = false; downloadButton.classList.remove("disabled"); });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -5,26 +5,31 @@
 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
     <div>
         <h1 class="h4 mb-1">Laporan Guru Piket Bulanan</h1>
-        <p class="text-muted mb-0">Pantau rekap kehadiran selama {{ selected_month_label }}. Fitur cetak akan tersedia pada pembaruan berikutnya.</p>
+        <p class="text-muted mb-0">Pantau rekap kehadiran selama {{ selected_month_label }}. Untuk cetak format kelas, gunakan tombol "Cetak per Kelas".</p>
     </div>
 </div>
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <form class="row gy-3 gx-3 align-items-end" method="get" action="{{ url_for('attendance.laporan_bulanan') }}">
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">Pilih Bulan</label>
-                <select class="form-select" name="month">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form class="row gy-3 gx-3 align-items-end" method="get" action="{{ url_for('attendance.laporan_bulanan') }}">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Pilih Bulan</label>
+                    <select class="form-select" name="month">
                     {% for option in available_months|sort(attribute='value')|reverse %}
                     <option value="{{ option.value }}" {% if option.value == selected_month.strftime('%Y-%m') %}selected{% endif %}>{{ option.label }}</option>
                     {% endfor %}
                 </select>
-            </div>
+                </div>
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Tindakan</label>
-                <button type="submit" class="btn btn-outline-primary w-100">
-                    <i class="bi bi-arrow-repeat me-1"></i>Tampilkan
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-arrow-repeat me-1"></i>Tampilkan
+                    </button>
+                    <a class="btn btn-primary w-100" href="{{ url_for('attendance.lembar_bulanan', month=selected_month.strftime('%Y-%m')) }}">
+                        <i class="bi bi-printer me-1"></i>Cetak per Kelas
+                    </a>
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Status</label>

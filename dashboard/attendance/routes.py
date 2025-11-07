@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import calendar
 from typing import Any, Dict, List, Optional
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
@@ -30,6 +31,7 @@ from .queries import (
     fetch_daily_attendance,
     fetch_master_data_overview,
     fetch_monthly_attendance_overview,
+    fetch_class_month_attendance_entries,
     fetch_recent_attendance,
     fetch_school_identity,
     fetch_students_for_class,
@@ -412,6 +414,22 @@ def laporan_harian() -> str:
     class_rows = fetch_class_attendance_breakdown(selected_date)
     teacher_absences = fetch_teacher_absence_for_date(selected_date)
     school_identity = fetch_school_identity()
+    def _compose_with_degree(name: Optional[str], prefix: Optional[str], suffix: Optional[str]) -> Optional[str]:
+        parts: List[str] = []
+        for v in (prefix, name):
+            vv = (v or "").strip()
+            if vv and vv != "-":
+                parts.append(vv)
+        display = " ".join(parts)
+        suffix_clean = (suffix or "").strip()
+        if suffix_clean and suffix_clean != "-":
+            display = (display + ", " if display else "") + suffix_clean
+        return display or None
+    school_identity["headmaster_display_name"] = _compose_with_degree(
+        school_identity.get("headmaster_name"),
+        school_identity.get("headmaster_degree_prefix"),
+        school_identity.get("headmaster_degree_suffix"),
+    ) or school_identity.get("headmaster_name")
     duk_source_path = current_app.config.get("ATTENDANCE_DUK_PATH")
     monthly_overview = fetch_monthly_attendance_overview(month_reference.year, month_reference.month)
     available_month_dates = list_attendance_months(limit=12)
@@ -610,6 +628,151 @@ def laporan_bulanan() -> str:
         available_months=available_months,
         school_identity=school_identity,
         status_labels=STATUS_LABELS,
+        today=today,
+    )
+
+
+@attendance_bp.route("/absen/lembar-bulanan", methods=["GET"], endpoint="lembar_bulanan")
+@login_required
+@role_required("guru", "admin")
+def lembar_bulanan() -> str:
+    """Cetak lembar absensi bulanan per kelas (tiap siswa per hari)."""
+    user = current_user()
+    if not user:
+        return redirect(url_for("auth.login"))
+
+    today = current_jakarta_time()
+    month_reference = _resolve_month_reference(request.args.get("month"), today.date())
+    selected_month_label = _format_month_label(month_reference)
+
+    # Resolve class selection
+    class_options = list_school_classes()
+    class_lookup = {int(c["id"]): c for c in class_options}
+    raw_class_id = request.args.get("class_id")
+    selected_class_id: Optional[int] = None
+    if raw_class_id:
+        try:
+            selected_class_id = int(raw_class_id)
+        except (TypeError, ValueError):
+            selected_class_id = None
+    if selected_class_id is None:
+        teacher_class = fetch_teacher_assigned_class(user["id"]) or {}
+        selected_class_id = int(teacher_class.get("assigned_class_id") or 0) or None
+
+    students = fetch_students_for_class(selected_class_id) if selected_class_id else []
+    school_identity = fetch_school_identity()
+
+    # Build matrix only if class selected
+    days_in_month = calendar.monthrange(month_reference.year, month_reference.month)[1]
+    day_list = [date(month_reference.year, month_reference.month, d) for d in range(1, days_in_month + 1)]
+    weekday_flags = [d.weekday() >= 5 for d in day_list]  # True if weekend
+
+    entries = (
+        fetch_class_month_attendance_entries(selected_class_id, month_reference.year, month_reference.month)
+        if selected_class_id
+        else []
+    )
+    # Build quick lookup: (student_id, day) -> status
+    entry_map: Dict[tuple[int, int], str] = {}
+    for row in entries:
+        try:
+            sid = int(row.get("student_id"))
+        except (TypeError, ValueError):
+            continue
+        day_num = None
+        dt_val = row.get("attendance_date")
+        if isinstance(dt_val, date):
+            day_num = dt_val.day
+        else:
+            try:
+                day_num = date.fromisoformat(str(dt_val)).day
+            except Exception:
+                day_num = None
+        if day_num is None:
+            continue
+        status = _normalize_status(row.get("status"))
+        entry_map[(sid, int(day_num))] = status
+
+    # Daily recap counters
+    daily_recap = {d: {"masuk": 0, "sakit": 0, "izin": 0, "alpa": 0} for d in range(1, days_in_month + 1)}
+
+    students_view: List[Dict[str, Any]] = []
+    male_count = 0
+    female_count = 0
+    for idx, student in enumerate(students, start=1):
+        gender = (student.get("gender") or "").strip().upper()
+        if gender.startswith("L"):
+            male_count += 1
+        elif gender.startswith("P"):
+            female_count += 1
+
+        day_cells: List[str] = []
+        counters = {"masuk": 0, "sakit": 0, "izin": 0, "alpa": 0}
+        for d in range(1, days_in_month + 1):
+            status = entry_map.get((int(student["id"]), d))
+            symbol = ""
+            if status == "masuk":
+                symbol = "✓"
+            elif status == "sakit":
+                symbol = "S"
+            elif status == "izin":
+                symbol = "I"
+            elif status == "alpa":
+                symbol = "A"
+            if status:
+                counters[status] += 1
+                daily_recap[d][status] += 1
+            day_cells.append(symbol)
+
+        students_view.append(
+            {
+                "no": idx,
+                "id": int(student["id"]),
+                "name": student.get("full_name"),
+                "gender": (student.get("gender") or "").strip().upper(),
+                "days": day_cells,
+                "totals": counters,
+            }
+        )
+
+    # Effective days are days with any record (any status) for the class
+    effective_days = 0
+    hadir_per_hari = []
+    for d in range(1, days_in_month + 1):
+        rec = daily_recap[d]
+        day_total = rec["masuk"] + rec["sakit"] + rec["izin"] + rec["alpa"]
+        if day_total > 0:
+            effective_days += 1
+        hadir_per_hari.append(rec["masuk"])
+
+    # Add percentage to students_view based on effective days
+    for student in students_view:
+        hadir = student["totals"]["masuk"]
+        student["present_percent"] = round((hadir / effective_days) * 100) if effective_days else 0
+
+    available_month_dates = list_attendance_months(limit=12)
+    available_months = _build_month_options(available_month_dates, month_reference)
+
+    return render_template(
+        "attendance/report_class_monthly.html",
+        attendance_active_tab="lembar_bulanan",
+        selected_month=month_reference,
+        selected_month_label=selected_month_label,
+        class_options=class_options,
+        selected_class_id=selected_class_id,
+        class_detail=class_lookup.get(selected_class_id) if selected_class_id else None,
+        students=students_view,
+        days_in_month=days_in_month,
+        day_list=day_list,
+        weekday_flags=weekday_flags,
+        daily_recap=daily_recap,
+        hadir_per_hari=hadir_per_hari,
+        effective_days=effective_days,
+        male_count=male_count,
+        female_count=female_count,
+        total_students=len(students_view),
+        available_months=available_months,
+        school_identity=school_identity,
         today=today,
     )
 

@@ -65,7 +65,7 @@
                         {% endif %}
                     </ul>
                 </li>
-                {% set laporan_active = attendance_active_tab in ['laporan_harian', 'laporan_bulanan'] %}
+                {% set laporan_active = attendance_active_tab in ['laporan_harian', 'laporan_bulanan', 'lembar_bulanan'] %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if laporan_active %}active{% endif %}" href="#" id="navLaporanDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="{{ 'true' if laporan_active else 'false' }}">
                         <i class="bi bi-printer nav-icon"></i>Laporan Piket
@@ -79,6 +79,11 @@
                         <li>
                             <a class="dropdown-item {% if attendance_active_tab == 'laporan_bulanan' %}active{% endif %}" href="{{ url_for('attendance.laporan_bulanan') }}">
                                 Laporan Bulanan
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {% if attendance_active_tab == 'lembar_bulanan' %}active{% endif %}" href="{{ url_for('attendance.lembar_bulanan') }}">
+                                Lembar Bulanan (Kelas)
                             </a>
                         </li>
                     </ul>
