@@ -4,9 +4,10 @@ import sys
 
 from werkzeug.security import generate_password_hash
 
-from .queries import create_dashboard_user
+from .queries import create_dashboard_user, get_user_by_email, upsert_dashboard_user
 from .schema import ensure_dashboard_schema
 from .attendance.importer import import_attendance_from_excel
+from .attendance.teacher_importer import load_teacher_rows
 
 
 def _handle_create_user(args: argparse.Namespace) -> None:
@@ -35,6 +36,45 @@ def _handle_import_attendance(args: argparse.Namespace) -> None:
     import_attendance_from_excel(args.file, academic_year=args.academic_year)
 
 
+def _handle_import_teachers(args: argparse.Namespace) -> None:
+    ensure_dashboard_schema()
+    teachers = load_teacher_rows(args.file)
+    if not teachers:
+        print("Tidak ada data guru yang ditemukan pada file tersebut.")
+        return
+
+    password = args.password or "tes"
+    password_hash = generate_password_hash(password, method="pbkdf2:sha256", salt_length=12)
+
+    inserted = 0
+    updated = 0
+    skipped = 0
+    for teacher in teachers:
+        email = (teacher.email or "").strip().lower()
+        if not email:
+            skipped += 1
+            print(f"Melewati baris tanpa email: {teacher.full_name}")
+            continue
+        existing = get_user_by_email(email)
+        upsert_dashboard_user(
+            email=email,
+            full_name=teacher.full_name,
+            password_hash=password_hash,
+            role="guru",
+            nrk=teacher.nrk,
+            nip=teacher.nip,
+            jabatan=teacher.jabatan,
+            degree_prefix=teacher.degree_prefix,
+            degree_suffix=teacher.degree_suffix,
+        )
+        if existing:
+            updated += 1
+        else:
+            inserted += 1
+
+    print(f"Import guru selesai. Ditambahkan: {inserted}, diperbarui: {updated}, dilewati: {skipped}.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dashboard management CLI")
     subparsers = parser.add_subparsers(dest="command")
@@ -56,6 +96,10 @@ def main() -> None:
     import_cmd.add_argument("file", help="Path to Excel workbook")
     import_cmd.add_argument("--academic-year", help="Override academic year label (auto-detected when tersedia)")
 
+    teacher_cmd = subparsers.add_parser("import-teachers", help="Import teacher users from Excel")
+    teacher_cmd.add_argument("file", help="Path to Excel workbook")
+    teacher_cmd.add_argument("--password", help='Password default untuk semua guru (default: "tes")', default="tes")
+
     args = parser.parse_args()
 
     if args.command == "create-user":
@@ -64,6 +108,8 @@ def main() -> None:
         _handle_init_db(args)
     elif args.command == "import-attendance":
         _handle_import_attendance(args)
+    elif args.command == "import-teachers":
+        _handle_import_teachers(args)
     else:
         parser.print_help()
         sys.exit(0)

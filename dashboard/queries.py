@@ -1685,6 +1685,11 @@ def get_user_by_email(email: str) -> Optional[DictRow]:
                 password_hash,
                 full_name,
                 role,
+                nrk,
+                nip,
+                jabatan,
+                degree_prefix,
+                degree_suffix,
                 no_tester_enabled,
                 assigned_class_id,
                 last_login_at
@@ -1706,6 +1711,11 @@ def list_dashboard_users() -> List[Dict[str, Any]]:
                 email,
                 full_name,
                 role,
+                nrk,
+                nip,
+                jabatan,
+                degree_prefix,
+                degree_suffix,
                 no_tester_enabled,
                 assigned_class_id,
                 created_at,
@@ -1722,18 +1732,59 @@ def create_dashboard_user(
     full_name: str,
     password_hash: str,
     role: str = "viewer",
+    *,
+    nrk: Optional[str] = None,
+    nip: Optional[str] = None,
+    jabatan: Optional[str] = None,
+    degree_prefix: Optional[str] = None,
+    degree_suffix: Optional[str] = None,
 ) -> int:
     with get_cursor(commit=True) as cur:
         cur.execute(
             """
-            INSERT INTO dashboard_users (email, full_name, password_hash, role)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (email, full_name, password_hash, role),
+            (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix),
         )
         new_id = cur.fetchone()[0]
     return int(new_id)
+
+
+def upsert_dashboard_user(
+    email: str,
+    full_name: str,
+    password_hash: str,
+    role: str,
+    *,
+    nrk: Optional[str] = None,
+    nip: Optional[str] = None,
+    jabatan: Optional[str] = None,
+    degree_prefix: Optional[str] = None,
+    degree_suffix: Optional[str] = None,
+) -> int:
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (email) DO UPDATE
+                SET full_name = EXCLUDED.full_name,
+                    password_hash = EXCLUDED.password_hash,
+                    role = EXCLUDED.role,
+                    nrk = EXCLUDED.nrk,
+                    nip = EXCLUDED.nip,
+                    jabatan = EXCLUDED.jabatan,
+                    degree_prefix = EXCLUDED.degree_prefix,
+                    degree_suffix = EXCLUDED.degree_suffix,
+                    last_login_at = dashboard_users.last_login_at
+            RETURNING id
+            """,
+            (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix),
+        )
+        row = cur.fetchone()
+    return int(row[0])
 
 def update_last_login(user_id: int) -> None:
     with get_cursor(commit=True) as cur:

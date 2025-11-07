@@ -70,6 +70,9 @@
                                 <th><i class="bi bi-person"></i>Nama</th>
                                 <th><i class="bi bi-envelope"></i>Email</th>
                                 <th><i class="bi bi-shield-check"></i>Role</th>
+                                <th><i class="bi bi-briefcase"></i>Jabatan</th>
+                                <th><i class="bi bi-card-text"></i>NIP</th>
+                                <th><i class="bi bi-hash"></i>NRK</th>
                                 <th><i class="bi bi-calendar-event"></i>Dibuat</th>
                                 <th><i class="bi bi-clock-history"></i>Login Terakhir</th>
                             </tr>
@@ -80,12 +83,15 @@
                                 <td>{{ user.full_name }}</td>
                                 <td>{{ user.email }}</td>
                                 <td><span class="badge text-bg-secondary text-uppercase">{{ user.role }}</span></td>
+                                <td>{{ user.jabatan or '-' }}</td>
+                                <td>{{ user.nip or '-' }}</td>
+                                <td>{{ user.nrk or '-' }}</td>
                                 <td>{{ user.created_at|jakarta('%d %b %Y %H:%M') if user.created_at }}</td>
                                 <td>{{ user.last_login_at|jakarta('%d %b %Y %H:%M') if user.last_login_at else '-' }}</td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted">Belum ada user.</td>
+                                <td colspan="8" class="text-center text-muted">Belum ada user.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

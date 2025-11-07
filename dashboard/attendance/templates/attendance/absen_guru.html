@@ -1,0 +1,134 @@
+{% extends "attendance/base.html" %}
+{% block title %}Absensi Guru{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Absensi Guru</h1>
+        <p class="text-muted mb-0">Pantau kehadiran guru dan tenaga kependidikan setiap hari.</p>
+    </div>
+    <div class="text-lg-end">
+        <span class="badge text-bg-primary-subtle text-primary d-inline-flex align-items-center gap-2 px-3 py-2">
+            <i class="bi bi-calendar-event"></i>
+            {{ selected_date_label }}
+        </span>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body d-flex flex-column gap-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+            <div>
+                <h2 class="h5 mb-2">Tanggal Absensi</h2>
+                <form class="d-flex align-items-center gap-2" method="get" action="{{ url_for('attendance.guru') }}">
+                    <input type="date" class="form-control" name="date" value="{{ selected_date.isoformat() }}" max="{{ today.date().isoformat() }}">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
+                    </button>
+                </form>
+                <div class="text-muted small mt-2">
+                    {% if latest_submission_at %}
+                    Terakhir diperbarui: <strong>{{ latest_submission_at|jakarta("%d %b %Y %H:%M") }}</strong>
+                    {% else %}
+                    Belum ada data absensi yang tersimpan untuk tanggal ini.
+                    {% endif %}
+                </div>
+            </div>
+            <div class="border rounded px-3 py-2 bg-body-tertiary">
+                <div class="small text-uppercase text-muted fw-semibold mb-2">Ringkasan Hari Ini</div>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge text-bg-success-subtle text-success">Masuk: {{ status_counts.masuk }}</span>
+                    <span class="badge text-bg-danger-subtle text-danger">Alpa: {{ status_counts.alpa }}</span>
+                    <span class="badge text-bg-warning-subtle text-warning">Izin: {{ status_counts.izin }}</span>
+                    <span class="badge text-bg-info-subtle text-info">Sakit: {{ status_counts.sakit }}</span>
+                </div>
+                <div class="small text-muted mt-2">Total guru: {{ total_teachers }}</div>
+            </div>
+        </div>
+        <div class="text-muted small">
+            Pastikan Anda menyimpan perubahan setelah memperbarui status kehadiran guru.
+        </div>
+    </div>
+</div>
+
+{% if teachers %}
+<form method="post" action="{{ url_for('attendance.guru') }}" class="card shadow-sm">
+    <div class="card-header d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2">
+        <div>
+            <h2 class="h5 mb-0">Daftar Kehadiran Guru</h2>
+            <div class="text-muted small">Status default setiap guru adalah <strong>masuk</strong>.</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save me-1"></i> Simpan Absensi
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <input type="hidden" name="attendance_date" value="{{ selected_date.isoformat() }}">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;">No</th>
+                        <th>Nama Guru</th>
+                        <th style="width: 180px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr>
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ teacher.name }}</div>
+                            <div class="small text-muted">
+                                {% if teacher.jabatan %}<span class="text-uppercase">{{ teacher.jabatan }}</span>{% endif %}
+                                {% if teacher.jabatan and teacher.email %} • {% endif %}
+                                {% if teacher.email %}{{ teacher.email }}{% endif %}
+                            </div>
+                            <div class="small text-muted">
+                                {% if teacher.nip %}NIP: {{ teacher.nip }}{% endif %}
+                                {% if teacher.nip and teacher.nrk %} • {% endif %}
+                                {% if teacher.nrk %}NRK: {{ teacher.nrk }}{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <select class="form-select" name="status_{{ teacher.id }}">
+                                {% for status in attendance_statuses %}
+                                <option value="{{ status }}" {% if status == teacher.status %}selected{% endif %}>
+                                    {{ status_labels[status] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-clipboard-check me-1"></i> Simpan Absensi
+        </button>
+    </div>
+</form>
+{% else %}
+<div class="card shadow-sm border-0 text-center py-5">
+    <div class="card-body">
+        <i class="bi bi-person-badge fs-1 text-muted mb-3"></i>
+        <h2 class="h5">Belum ada data guru</h2>
+        <p class="text-muted small mb-0">Tambahkan data guru pada menu Manajemen User untuk mulai melakukan absensi.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .text-bg-primary-subtle {
+        background-color: rgba(13, 110, 253, 0.1) !important;
+    }
+</style>
+{% endblock %}

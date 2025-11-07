@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS dashboard_users (
     full_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'viewer',
+    nrk TEXT,
+    nip TEXT,
+    jabatan TEXT,
+    degree_prefix TEXT,
+    degree_suffix TEXT,
     no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_login_at TIMESTAMPTZ
@@ -83,6 +88,26 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 _ATTENDANCE_CLASS_DATE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date
 ON attendance_records (class_id, attendance_date);
+"""
+
+_TEACHER_ATTENDANCE_SQL = """
+CREATE TABLE IF NOT EXISTS teacher_attendance_records (
+    id SERIAL PRIMARY KEY,
+    attendance_date DATE NOT NULL,
+    teacher_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    note TEXT,
+    recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (attendance_date, teacher_id),
+    CONSTRAINT teacher_attendance_records_status_check CHECK (status IN ('masuk', 'alpa', 'izin', 'sakit'))
+);
+"""
+
+_TEACHER_ATTENDANCE_DATE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_teacher_attendance_records_date
+ON teacher_attendance_records (attendance_date);
 """
 
 _BULLYING_REPORTS_SQL = """
@@ -208,6 +233,8 @@ def ensure_dashboard_schema() -> None:
         _STUDENTS_CLASS_INDEX_SQL,
         _ATTENDANCE_RECORDS_SQL,
         _ATTENDANCE_CLASS_DATE_INDEX_SQL,
+        _TEACHER_ATTENDANCE_SQL,
+        _TEACHER_ATTENDANCE_DATE_INDEX_SQL,
         _BULLYING_REPORTS_SQL,
         _BULLYING_STATUS_INDEX_SQL,
         _BULLYING_EVENTS_SQL,
@@ -221,6 +248,11 @@ def ensure_dashboard_schema() -> None:
         _TELEGRAM_USERS_SQL,
         _TELEGRAM_USERS_INDEX_STATUS,
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nrk TEXT",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nip TEXT",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS jabatan TEXT",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS degree_prefix TEXT",
+        "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS degree_suffix TEXT",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS severity TEXT",
         "ALTER TABLE bullying_reports ADD COLUMN IF NOT EXISTS metadata JSONB",

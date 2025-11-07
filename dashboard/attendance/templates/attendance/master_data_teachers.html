@@ -1,0 +1,271 @@
+{% extends "attendance/base.html" %}
+{% block title %}Data Guru{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Pengelolaan Data Guru</h1>
+        <p class="text-muted mb-0">Tambah atau perbarui akun guru beserta kelas binaannya.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="icon-badge text-primary bg-primary-subtle"><i class="bi bi-person-workspace"></i></span>
+                            <div>
+                                <h2 class="h5 mb-0">Tambah / Perbarui Guru</h2>
+                                <p class="text-muted small mb-0">Klik baris guru pada tabel untuk mengisi formulir ini.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary" id="teacherFormMode">Mode Tambah</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="teacherFormReset" hidden>Reset Form</button>
+                        </div>
+                    </div>
+                </div>
+                <form id="teacherForm" method="post" class="d-grid gap-3">
+                    <input type="hidden" name="action" id="teacherFormAction" value="create_teacher">
+                    <input type="hidden" name="teacher_id" id="teacherIdInput">
+                    <div>
+                        <label class="form-label">Nama Guru</label>
+                        <input type="text" class="form-control" name="teacher_name" placeholder="Nama lengkap guru" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="teacher_email" placeholder="Email login guru" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="teacher_password" placeholder="Minimal 6 karakter">
+                        <div class="form-text">Wajib diisi saat menambah guru baru. Kosongkan bila tidak ingin mengubah password.</div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">NRK</label>
+                            <input type="text" class="form-control" name="teacher_nrk" placeholder="NRK">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">NIP</label>
+                            <input type="text" class="form-control" name="teacher_nip" placeholder="NIP">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Jabatan</label>
+                        <input type="text" class="form-control" name="teacher_jabatan" placeholder="Contoh: Guru Kelas 1A">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Gelar Depan</label>
+                            <input type="text" class="form-control" name="teacher_degree_prefix" placeholder="Contoh: Drs.">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gelar Belakang</label>
+                            <input type="text" class="form-control" name="teacher_degree_suffix" placeholder="Contoh: S.Pd">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Kelas Binaan</label>
+                        <select class="form-select" name="teacher_assigned_class">
+                            <option value="">— Tidak ada kelas —</option>
+                            {% for class_item in classes %}
+                            <option value="{{ class_item.id }}">{{ class_item.name }}{% if class_item.academic_year %} • {{ class_item.academic_year }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="teacherFormSubmit" data-default-label="Simpan Guru" data-update-label="Perbarui Guru">
+                        <i class="bi bi-person-check-fill me-2"></i><span class="teacher-form-submit-label">Simpan Guru</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Daftar Guru Terdaftar</h2>
+                        <p class="text-muted small mb-0">Total guru: {{ teachers|length }} • Klik baris guru untuk mengedit.</p>
+                    </div>
+                </div>
+                {% if teachers %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">No</th>
+                                <th>Nama</th>
+                                <th>Kontak</th>
+                                <th>Identitas</th>
+                                <th>Kelas Binaan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for teacher in teachers %}
+                            {% set teacher_payload = {
+                                "id": teacher.id,
+                                "teacher_name": teacher.full_name,
+                                "teacher_email": teacher.email,
+                                "teacher_nrk": teacher.nrk or '',
+                                "teacher_nip": teacher.nip or '',
+                                "teacher_jabatan": teacher.jabatan or '',
+                                "teacher_degree_prefix": teacher.degree_prefix or '',
+                                "teacher_degree_suffix": teacher.degree_suffix or '',
+                                "teacher_assigned_class": teacher.assigned_class_id or ''
+                            } %}
+                            <tr class="teacher-row" role="button" data-teacher='{{ teacher_payload | tojson | safe }}' style="cursor: pointer;">
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ teacher.full_name }}</div>
+                                    {% if teacher.jabatan %}
+                                    <div class="text-muted small">{{ teacher.jabatan }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ teacher.email }}</div>
+                                    <div class="text-muted small">NRK {{ teacher.nrk or '—' }}</div>
+                                </td>
+                                <td>
+                                    <div>NIP {{ teacher.nip or '—' }}</div>
+                                    <div class="text-muted small">
+                                        {% if teacher.degree_prefix %}{{ teacher.degree_prefix }} {% endif %}
+                                        {% if teacher.degree_suffix %}{{ teacher.degree_suffix }}{% endif %}
+                                    </div>
+                                </td>
+                                <td>{{ teacher.assigned_class_name or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-people fs-1 d-block mb-3"></i>
+                    <p class="mb-0">Belum ada guru terdaftar.</p>
+                    <p class="small mb-0">Tambahkan guru melalui formulir di sisi kiri.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var teacherRows = document.querySelectorAll(".teacher-row[data-teacher]");
+    var teacherForm = document.getElementById("teacherForm");
+    if (!teacherForm) {
+        return;
+    }
+    var actionInput = document.getElementById("teacherFormAction");
+    var teacherIdInput = document.getElementById("teacherIdInput");
+    var modeBadge = document.getElementById("teacherFormMode");
+    var resetButton = document.getElementById("teacherFormReset");
+    var submitButton = document.getElementById("teacherFormSubmit");
+    var submitLabel = submitButton ? submitButton.querySelector(".teacher-form-submit-label") : null;
+    var defaultLabel = submitButton ? (submitButton.getAttribute("data-default-label") || "Simpan Guru") : "Simpan Guru";
+    var updateLabel = submitButton ? (submitButton.getAttribute("data-update-label") || "Perbarui Guru") : "Perbarui Guru";
+    var passwordInput = teacherForm.querySelector('input[name="teacher_password"]');
+
+    function setMode(isEdit) {
+        if (modeBadge) {
+            if (isEdit) {
+                modeBadge.classList.remove("bg-primary-subtle", "text-primary");
+                modeBadge.classList.add("bg-warning-subtle", "text-warning");
+                modeBadge.textContent = "Mode Edit";
+            } else {
+                modeBadge.classList.remove("bg-warning-subtle", "text-warning");
+                modeBadge.classList.add("bg-primary-subtle", "text-primary");
+                modeBadge.textContent = "Mode Tambah";
+            }
+        }
+        if (submitLabel) {
+            submitLabel.textContent = isEdit ? updateLabel : defaultLabel;
+        }
+        if (resetButton) {
+            resetButton.hidden = !isEdit;
+        }
+    }
+
+    function fillForm(payload) {
+        Object.keys(payload).forEach(function (key) {
+            if (!key.startsWith("teacher_") || key === "teacher_password") {
+                return;
+            }
+            var input = teacherForm.querySelector('[name="' + key + '"]');
+            if (!input) {
+                return;
+            }
+            var value = payload[key];
+            if (value === null || value === undefined) {
+                value = "";
+            }
+            if (input.tagName === "SELECT") {
+                input.value = value;
+            } else {
+                input.value = value;
+            }
+        });
+        if (passwordInput) {
+            passwordInput.value = "";
+        }
+    }
+
+    function handleRowClick(event) {
+        var row = event.currentTarget;
+        var raw = row.getAttribute("data-teacher");
+        if (!raw) {
+            return;
+        }
+        var payload;
+        try {
+            payload = JSON.parse(raw);
+        } catch (error) {
+            return;
+        }
+        if (!payload.id) {
+            return;
+        }
+        if (actionInput) {
+            actionInput.value = "update_teacher";
+        }
+        if (teacherIdInput) {
+            teacherIdInput.value = payload.id;
+        }
+        fillForm(payload);
+        setMode(true);
+        teacherForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    teacherRows.forEach(function (row) {
+        row.addEventListener("click", handleRowClick);
+    });
+
+    if (resetButton) {
+        resetButton.addEventListener("click", function () {
+            teacherForm.reset();
+            if (actionInput) {
+                actionInput.value = "create_teacher";
+            }
+            if (teacherIdInput) {
+                teacherIdInput.value = "";
+            }
+            if (passwordInput) {
+                passwordInput.value = "";
+            }
+            setMode(false);
+        });
+    }
+
+    setMode(false);
+});
+</script>
+{% endblock %}

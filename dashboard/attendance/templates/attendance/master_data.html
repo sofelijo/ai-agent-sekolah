@@ -37,12 +37,24 @@
     <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <span class="icon-badge text-success bg-success-subtle"><i class="bi bi-person-plus"></i></span>
-                    <h2 class="h5 mb-0">Tambah Siswa</h2>
+                <div class="d-flex flex-column gap-2 mb-3">
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="icon-badge text-success bg-success-subtle"><i class="bi bi-person-plus"></i></span>
+                            <div>
+                                <h2 class="h5 mb-0">Tambah / Perbarui Siswa</h2>
+                                <p class="text-muted small mb-0">Klik baris siswa pada daftar di bawah untuk mengisi formulir ini.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary" id="studentFormMode">Mode Tambah</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="studentFormReset" hidden>Reset Form</button>
+                        </div>
+                    </div>
                 </div>
-                <form method="post" class="d-grid gap-3">
-                    <input type="hidden" name="action" value="create_student">
+                <form id="studentForm" method="post" class="d-grid gap-3">
+                    <input type="hidden" name="action" id="studentFormAction" value="create_student">
+                    <input type="hidden" name="student_id" id="studentIdInput">
                     <div>
                         <label class="form-label">Kelas</label>
                         <select class="form-select" name="student_class_id" required>
@@ -130,8 +142,8 @@
                             <input type="text" class="form-control" name="student_kk" placeholder="Nomor Kartu Keluarga">
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check2-circle me-2"></i>Simpan Siswa
+                    <button type="submit" class="btn btn-success" id="studentFormSubmit" data-default-label="Simpan Siswa" data-update-label="Perbarui Siswa">
+                        <i class="bi bi-check2-circle me-2"></i><span class="student-form-submit-label">Simpan Siswa</span>
                     </button>
                 </form>
             </div>
@@ -160,6 +172,7 @@
             <div>
                 <h2 class="h5 mb-1">Daftar Kelas &amp; Siswa</h2>
                 <p class="text-muted small mb-0">Daftar ini menampilkan struktur kelas beserta siswa terdaftar.</p>
+                <p class="text-muted small mb-0">Klik baris siswa untuk menyalin data ke formulir di atas.</p>
             </div>
         </div>
         <div class="accordion" id="classAccordion">
@@ -194,7 +207,27 @@
                                 </thead>
                                 <tbody>
                                     {% for student in students %}
-                                    <tr>
+                                    {% set student_payload = {
+                                        "id": student.id,
+                                        "student_class_id": class_id,
+                                        "student_name": student.full_name,
+                                        "student_number": student.student_number or '',
+                                        "student_nisn": student.nisn or '',
+                                        "student_gender": student.gender or '',
+                                        "student_birth_place": student.birth_place or '',
+                                        "student_birth_date": student.birth_date.isoformat() if student.birth_date else '',
+                                        "student_religion": student.religion or '',
+                                        "student_address": student.address_line or '',
+                                        "student_rt": student.rt or '',
+                                        "student_rw": student.rw or '',
+                                        "student_kelurahan": student.kelurahan or '',
+                                        "student_kecamatan": student.kecamatan or '',
+                                        "student_father": student.father_name or '',
+                                        "student_mother": student.mother_name or '',
+                                        "student_nik": student.nik or '',
+                                        "student_kk": student.kk_number or ''
+                                    } %}
+                                    <tr class="student-row" role="button" data-student='{{ student_payload | tojson | safe }}' style="cursor: pointer;">
                                         <td>{{ student.sequence or loop.index }}</td>
                                         <td>{{ student.full_name }}</td>
                                         <td>
@@ -240,6 +273,113 @@
             </div>
             {% endfor %}
         </div>
-    </div>
 </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var studentRows = document.querySelectorAll(".student-row[data-student]");
+    var studentForm = document.getElementById("studentForm");
+    if (!studentForm) {
+        return;
+    }
+    var actionInput = document.getElementById("studentFormAction");
+    var studentIdInput = document.getElementById("studentIdInput");
+    var modeBadge = document.getElementById("studentFormMode");
+    var resetButton = document.getElementById("studentFormReset");
+    var submitButton = document.getElementById("studentFormSubmit");
+    var submitLabel = submitButton ? submitButton.querySelector(".student-form-submit-label") : null;
+    var defaultLabel = submitButton ? (submitButton.getAttribute("data-default-label") || "Simpan Siswa") : "Simpan Siswa";
+    var updateLabel = submitButton ? (submitButton.getAttribute("data-update-label") || "Perbarui Siswa") : "Perbarui Siswa";
+
+    function setMode(isEdit) {
+        if (modeBadge) {
+            if (isEdit) {
+                modeBadge.classList.remove("bg-primary-subtle", "text-primary");
+                modeBadge.classList.add("bg-warning-subtle", "text-warning");
+                modeBadge.textContent = "Mode Edit";
+            } else {
+                modeBadge.classList.remove("bg-warning-subtle", "text-warning");
+                modeBadge.classList.add("bg-primary-subtle", "text-primary");
+                modeBadge.textContent = "Mode Tambah";
+            }
+        }
+        if (submitLabel) {
+            submitLabel.textContent = isEdit ? updateLabel : defaultLabel;
+        }
+        if (resetButton) {
+            resetButton.hidden = !isEdit;
+        }
+    }
+
+    function fillForm(payload) {
+        Object.keys(payload).forEach(function (key) {
+            if (!key.startsWith("student_")) {
+                return;
+            }
+            var input = studentForm.querySelector('[name="' + key + '"]');
+            if (!input) {
+                return;
+            }
+            var value = payload[key];
+            if (value === null || value === undefined) {
+                value = "";
+            }
+            if (input.tagName === "SELECT") {
+                input.value = value;
+            } else {
+                input.value = value;
+            }
+        });
+    }
+
+    function handleRowClick(event) {
+        var row = event.currentTarget;
+        var raw = row.getAttribute("data-student");
+        if (!raw) {
+            return;
+        }
+        var payload;
+        try {
+            payload = JSON.parse(raw);
+        } catch (error) {
+            return;
+        }
+        if (!payload.id) {
+            return;
+        }
+        if (actionInput) {
+            actionInput.value = "update_student";
+        }
+        if (studentIdInput) {
+            studentIdInput.value = payload.id;
+        }
+        fillForm(payload);
+        setMode(true);
+        studentForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    studentRows.forEach(function (row) {
+        row.addEventListener("click", handleRowClick);
+    });
+
+    if (resetButton) {
+        resetButton.addEventListener("click", function () {
+            studentForm.reset();
+            if (actionInput) {
+                actionInput.value = "create_student";
+            }
+            if (studentIdInput) {
+                studentIdInput.value = "";
+            }
+            setMode(false);
+        });
+    }
+
+    setMode(false);
+});
+</script>
 {% endblock %}

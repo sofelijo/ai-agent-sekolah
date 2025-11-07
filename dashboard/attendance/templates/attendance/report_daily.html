@@ -1,0 +1,434 @@
+{% extends "attendance/base.html" %}
+{% block title %}Laporan Guru Piket{% endblock %}
+
+{% block content %}
+<div class="container py-4 report-page">
+    <div class="page-toolbar d-print-none">
+        <div>
+            <h1 class="h4 mb-1">Laporan Guru Piket</h1>
+            <p class="text-muted mb-0">Unduh atau cetak formulir piket harian sesuai format standar.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="downloadButton">
+                <i class="bi bi-file-earmark-arrow-down me-1"></i> Download PDF
+            </button>
+            <button type="button" class="btn btn-primary" id="printButton">
+                <i class="bi bi-printer me-1"></i> Cetak
+            </button>
+        </div>
+    </div>
+
+    <div class="filter-card d-print-none">
+        <form class="row gy-3 gx-3 align-items-end" method="get" action="{{ url_for('attendance.laporan_harian') }}">
+            <div class="col-12 col-md-4">
+                <label for="dateInput" class="form-label fw-semibold">Tanggal Laporan</label>
+                <input type="date" class="form-control" id="dateInput" name="date" value="{{ selected_date.isoformat() }}" max="{{ today.date().isoformat() }}">
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="monthSelect" class="form-label fw-semibold">Rekap Bulanan</label>
+                <select class="form-select" id="monthSelect" name="month">
+                    {% for option in available_months|sort(attribute='value')|reverse %}
+                    <option value="{{ option.value }}" {% if option.value == selected_month.strftime('%Y-%m') %}selected{% endif %}>
+                        {{ option.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="sheet-wrapper">
+        <section class="attendance-sheet" id="printArea" data-date="{{ selected_date.isoformat() }}">
+            <header class="sheet-header text-center">
+                <div class="sheet-title">LAPORAN GURU PIKET</div>
+                <div class="sheet-school">{{ school_identity.school_name or 'SDN SEMPER BARAT 01' }}</div>
+                <div class="sheet-year">Tahun Ajaran {{ school_identity.academic_year or default_academic_year }}</div>
+            </header>
+
+            <div class="sheet-meta-line">
+                <span class="meta-label">HARI/TANGGAL</span>
+                <span class="meta-colon">:</span>
+                <span class="meta-value">{{ selected_date_label }}</span>
+            </div>
+
+            <section class="sheet-section">
+                <div class="section-heading">GURU TIDAK HADIR</div>
+                <table class="grid-table teacher-absence">
+                    <thead>
+                        <tr>
+                            <th class="col-number">No</th>
+                            <th>Guru Tidak Hadir</th>
+                            <th>Tugas</th>
+                            <th>Alasan</th>
+                            <th>Guru Pengganti</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set base_rows = 5 %}
+                        {% set total_rows = teacher_absences|length if teacher_absences|length > base_rows else base_rows %}
+                        {% for idx in range(total_rows) %}
+                            {% set guru = teacher_absences[idx] if idx < teacher_absences|length else None %}
+                        <tr>
+                            <td class="text-center">{{ idx + 1 }}</td>
+                            <td>{{ guru.display_name if guru else '' }}</td>
+                            <td>{{ guru.jabatan if guru else '' }}</td>
+                            <td>
+                                {% if guru %}
+                                    {% if guru.note %}
+                                        {{ guru.note }}
+                                    {% else %}
+                                        {{ status_labels[guru.status] if guru.status in status_labels else guru.status|capitalize }}
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="sheet-section">
+                <div class="section-heading">REKAP ABSENSI SISWA</div>
+                <table class="grid-table rekap-table">
+                    <thead>
+                        <tr>
+                            <th class="col-status"></th>
+                            {% for kelas in class_columns %}
+                            <th>{{ kelas }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th class="row-label">S</th>
+                            {% for kelas in class_columns %}
+                            <td>{{ class_grid["s"].get(kelas, 0) }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th class="row-label">I</th>
+                            {% for kelas in class_columns %}
+                            <td>{{ class_grid["i"].get(kelas, 0) }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th class="row-label">A</th>
+                            {% for kelas in class_columns %}
+                            <td>{{ class_grid["a"].get(kelas, 0) }}</td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="sheet-section">
+                <div class="section-heading">CATATAN GURU YANG TERLAMBAT</div>
+                <table class="grid-table notes-table">
+                    <thead>
+                        <tr>
+                            <th class="col-number">No</th>
+                            <th>Nama Guru</th>
+                            <th>Kelas</th>
+                            <th>Waktu</th>
+                            <th>Alasan Terlambat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in range(1, 5) %}
+                        <tr>
+                            <td class="text-center">{{ i }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="sheet-section">
+                <div class="section-heading">CATATAN SISWA YANG TERLAMBAT</div>
+                <table class="grid-table notes-table">
+                    <thead>
+                        <tr>
+                            <th class="col-number">No</th>
+                            <th>Nama Siswa</th>
+                            <th>Kelas</th>
+                            <th>Waktu</th>
+                            <th>Alasan Terlambat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in range(1, 11) %}
+                        <tr>
+                            <td class="text-center">{{ i }}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <footer class="sheet-footer">
+                <div class="signature-left">
+                    <div class="signature-text">Kepala {{ school_identity.school_name or 'SDN Semper Barat 01' }}</div>
+                    <div class="signature-space"></div>
+                    <div class="signature-name">{{ school_identity.headmaster_display_name or school_identity.headmaster_name or 'KARTIKA, S.Pd' }}</div>
+                    <div class="signature-nip">NIP. {{ school_identity.headmaster_nip or '197710172008012029' }}</div>
+                </div>
+                <div class="signature-right">
+                    <div class="signature-box-title">NAMA GURU PIKET</div>
+                    <table class="signature-box-table">
+                        <tbody>
+                            {% for i in range(1, 7) %}
+                            <tr>
+                                <td class="number">{{ i }}.</td>
+                                <td class="line"></td>
+                                <td class="ttd">TTD</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </footer>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    @page {
+        margin: 12mm 15mm;
+    }
+    .report-page {
+        max-width: 980px;
+    }
+    .page-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .filter-card {
+        background: #fff;
+        border: 1px solid #e4e4e4;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        box-shadow: 0 12px 28px rgba(15, 34, 58, 0.08);
+        margin-bottom: 1.5rem;
+    }
+    .sheet-wrapper {
+        background: #fff;
+        border: 1px solid #c2c2c2;
+        padding: 2.2rem 2.4rem;
+    }
+    .attendance-sheet {
+        color: #000;
+        font-family: "Times New Roman", serif;
+    }
+    .sheet-header {
+        margin-bottom: 1.1rem;
+    }
+    .sheet-title {
+        font-size: 1.4rem;
+        letter-spacing: 0.16em;
+        font-weight: 700;
+    }
+    .sheet-school {
+        font-size: 1.05rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .sheet-year {
+        font-size: 0.95rem;
+        margin-top: 0.15rem;
+    }
+    .sheet-meta-line {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 1.3rem;
+    }
+    .sheet-meta-line .meta-label {
+        letter-spacing: 0.02em;
+    }
+    .sheet-meta-line .meta-colon {
+        width: auto;
+    }
+    .sheet-meta-line .meta-value {
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+    .sheet-section {
+        margin-bottom: 1.8rem;
+    }
+    .section-heading {
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .grid-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+    .grid-table th,
+    .grid-table td {
+        border: 1px solid #000;
+        padding: 0.32rem 0.35rem;
+        font-size: 0.9rem;
+    }
+    .grid-table th {
+        font-weight: 700;
+        text-transform: uppercase;
+        text-align: center;
+        font-size: 0.85rem;
+    }
+    .col-number {
+        width: 6%;
+    }
+    .col-status {
+        width: 6%;
+    }
+    .row-label {
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .rekap-table th,
+    .rekap-table td {
+        font-size: 0.78rem;
+        padding: 0.25rem 0.2rem;
+        text-align: center;
+    }
+    .notes-table th,
+    .notes-table td {
+        font-size: 0.88rem;
+    }
+    .sheet-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    .signature-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        font-size: 0.92rem;
+        width: 60%;
+    }
+    .signature-space {
+        height: 80px;
+        border-bottom: 1px solid #000;
+        width: 65%;
+    }
+    .signature-name {
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .signature-right {
+        border: 1px solid #000;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.9rem;
+        min-width: 210px;
+    }
+    .signature-box-title {
+        font-weight: 700;
+        text-transform: uppercase;
+        text-align: center;
+        margin-bottom: 0.45rem;
+        font-size: 0.92rem;
+    }
+    .signature-box-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .signature-box-table td {
+        border: 1px solid #000;
+        font-size: 0.85rem;
+        padding: 0.3rem 0.35rem;
+    }
+    .signature-box-table .line {
+        min-width: 110px;
+    }
+    @media print {
+        body {
+            background: #fff !important;
+            font-family: "Times New Roman", serif !important;
+        }
+        .navbar,
+        .d-print-none {
+            display: none !important;
+        }
+        .sheet-wrapper {
+            box-shadow: none;
+            border: none;
+            padding: 0;
+        }
+        .container.report-page {
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-Ua75izaQw5HYEcCkZBHwGrmCWLX/ldpC8sHbQIV3TvpDMAYA9Yg3gCBXlI3Vzsu4" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-0laTdv6bVjJAnYXhYzu3/n6PvJEa3TBUnIFVWMGryuVKy7jH9MuNoMylk13NHa9V" crossorigin="anonymous"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var printButton = document.getElementById("printButton");
+    var downloadButton = document.getElementById("downloadButton");
+    var printArea = document.getElementById("printArea");
+
+    if (printButton) {
+        printButton.addEventListener("click", function () {
+            window.print();
+        });
+    }
+
+    if (downloadButton && printArea) {
+        downloadButton.addEventListener("click", function () {
+            var pdfLib = window.jspdf || {};
+            var jsPDF = pdfLib.jsPDF;
+            if (!jsPDF) {
+                return;
+            }
+            downloadButton.disabled = true;
+            downloadButton.classList.add("disabled");
+            html2canvas(printArea, { scale: 2, useCORS: true }).then(function (canvas) {
+                var pdf = new jsPDF("p", "mm", "a4");
+                var imgData = canvas.toDataURL("image/png");
+                var pdfWidth = pdf.internal.pageSize.getWidth();
+                var pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+                var filenameDate = printArea.getAttribute("data-date") || "laporan";
+                pdf.save("laporan-guru-piket-" + filenameDate + ".pdf");
+            }).finally(function () {
+                downloadButton.disabled = false;
+                downloadButton.classList.remove("disabled");
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

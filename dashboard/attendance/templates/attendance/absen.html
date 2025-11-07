@@ -102,6 +102,9 @@
                             <span class="badge text-bg-info-subtle text-info">Sakit: {{ status_counts.sakit }}</span>
                         </div>
                         <div class="small text-muted mt-2">Total siswa: {{ total_students }}</div>
+                        <a class="btn btn-outline-secondary btn-sm mt-3" href="{{ url_for('attendance.laporan_harian', date=selected_date.isoformat()) }}" target="_blank" rel="noopener">
+                            <i class="bi bi-printer me-1"></i> Laporan Piket
+                        </a>
                     </div>
                 </div>
                 <div class="text-muted small">

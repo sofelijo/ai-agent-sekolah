@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from psycopg2 import errors
+
 from psycopg2.extras import DictRow
 
 from ..db_access import get_cursor
@@ -115,6 +117,244 @@ def fetch_attendance_for_date(class_id: int, attendance_date: date) -> Dict[int,
         )
         rows = cur.fetchall()
     return {int(row["student_id"]): dict(row) for row in rows}
+
+
+def fetch_active_teachers() -> List[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                email,
+                jabatan,
+                nrk,
+                nip,
+                degree_prefix,
+                degree_suffix
+            FROM dashboard_users
+            WHERE role = 'guru'
+            ORDER BY full_name ASC
+            """
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def fetch_teacher_master_data() -> List[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                email,
+                nrk,
+                nip,
+                jabatan,
+                degree_prefix,
+                degree_suffix,
+                assigned_class_id
+            FROM dashboard_users
+            WHERE role = 'guru'
+            ORDER BY full_name ASC
+            """
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def create_teacher_user(
+    email: str,
+    full_name: str,
+    password_hash: str,
+    *,
+    nrk: Optional[str] = None,
+    nip: Optional[str] = None,
+    jabatan: Optional[str] = None,
+    degree_prefix: Optional[str] = None,
+    degree_suffix: Optional[str] = None,
+    assigned_class_id: Optional[int] = None,
+) -> int:
+    clean_email = (email or "").strip().lower()
+    clean_name = (full_name or "").strip()
+    if not clean_email:
+        raise ValueError("Email guru wajib diisi.")
+    if not clean_name:
+        raise ValueError("Nama guru wajib diisi.")
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO dashboard_users (
+                email,
+                full_name,
+                password_hash,
+                role,
+                nrk,
+                nip,
+                jabatan,
+                degree_prefix,
+                degree_suffix,
+                assigned_class_id
+            )
+            VALUES (%s, %s, %s, 'guru', %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                clean_email,
+                clean_name,
+                password_hash,
+                (nrk or "").strip() or None,
+                (nip or "").strip() or None,
+                (jabatan or "").strip() or None,
+                (degree_prefix or "").strip() or None,
+                (degree_suffix or "").strip() or None,
+                assigned_class_id,
+            ),
+        )
+        new_id = cur.fetchone()[0]
+    return int(new_id)
+
+
+def update_teacher_user(
+    teacher_id: int,
+    *,
+    email: str,
+    full_name: str,
+    nrk: Optional[str] = None,
+    nip: Optional[str] = None,
+    jabatan: Optional[str] = None,
+    degree_prefix: Optional[str] = None,
+    degree_suffix: Optional[str] = None,
+    assigned_class_id: Optional[int] = None,
+    password_hash: Optional[str] = None,
+) -> bool:
+    if teacher_id <= 0:
+        raise ValueError("ID guru tidak valid.")
+    clean_email = (email or "").strip().lower()
+    clean_name = (full_name or "").strip()
+    if not clean_email:
+        raise ValueError("Email guru wajib diisi.")
+    if not clean_name:
+        raise ValueError("Nama guru wajib diisi.")
+    assignments = [
+        ("email", clean_email),
+        ("full_name", clean_name),
+        ("nrk", (nrk or "").strip() or None),
+        ("nip", (nip or "").strip() or None),
+        ("jabatan", (jabatan or "").strip() or None),
+        ("degree_prefix", (degree_prefix or "").strip() or None),
+        ("degree_suffix", (degree_suffix or "").strip() or None),
+        ("assigned_class_id", assigned_class_id),
+    ]
+    if password_hash:
+        assignments.append(("password_hash", password_hash))
+    set_clause = ", ".join(f"{column} = %s" for column, _ in assignments)
+    params = [value for _, value in assignments]
+    params.append(teacher_id)
+    query = f"""
+        UPDATE dashboard_users
+        SET {set_clause}
+        WHERE id = %s AND role = 'guru'
+    """
+    with get_cursor(commit=True) as cur:
+        cur.execute(query, params)
+        return cur.rowcount > 0
+
+
+def fetch_teacher_attendance_for_date(attendance_date: date) -> Dict[int, Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                teacher_id,
+                status,
+                note,
+                recorded_by,
+                recorded_at,
+                updated_at
+            FROM teacher_attendance_records
+            WHERE attendance_date = %s
+            """,
+            (attendance_date,),
+        )
+        rows = cur.fetchall()
+    return {int(row["teacher_id"]): dict(row) for row in rows}
+
+
+def fetch_teacher_absence_for_date(attendance_date: date) -> List[Dict[str, Any]]:
+    """Ambil daftar guru yang tidak berstatus 'masuk' pada tanggal tertentu."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                tar.teacher_id,
+                du.full_name,
+                du.jabatan,
+                du.nip,
+                du.nrk,
+                du.degree_prefix,
+                du.degree_suffix,
+                tar.status,
+                tar.note
+            FROM teacher_attendance_records tar
+            JOIN dashboard_users du ON du.id = tar.teacher_id
+            WHERE tar.attendance_date = %s
+              AND tar.status <> 'masuk'
+            ORDER BY du.full_name ASC
+            """,
+            (attendance_date,),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def upsert_teacher_attendance_entries(
+    *,
+    attendance_date: date,
+    recorded_by: int,
+    entries: Iterable[Dict[str, Any]],
+) -> None:
+    with get_cursor(commit=True) as cur:
+        for entry in entries:
+            teacher_id = entry.get("teacher_id")
+            if teacher_id is None:
+                raise ValueError("teacher_id wajib diisi untuk setiap entri absensi guru.")
+            try:
+                teacher_id_int = int(teacher_id)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("teacher_id harus berupa integer.") from exc
+
+            raw_status = (entry.get("status") or DEFAULT_ATTENDANCE_STATUS).strip().lower()
+            if raw_status not in ATTENDANCE_STATUSES:
+                raise ValueError(f"Status absensi tidak dikenal: {raw_status}")
+
+            note = entry.get("note")
+
+            cur.execute(
+                """
+                INSERT INTO teacher_attendance_records (
+                    attendance_date,
+                    teacher_id,
+                    status,
+                    note,
+                    recorded_by
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (attendance_date, teacher_id)
+                DO UPDATE SET
+                    status = EXCLUDED.status,
+                    note = EXCLUDED.note,
+                    recorded_by = EXCLUDED.recorded_by,
+                    updated_at = NOW()
+                """,
+                (
+                    attendance_date,
+                    teacher_id_int,
+                    raw_status,
+                    note,
+                    recorded_by,
+                ),
+            )
 
 
 def create_school_class(name: str, academic_year: Optional[str] = None) -> int:
@@ -230,6 +470,111 @@ def create_student(
     return int(new_id)
 
 
+def fetch_student_by_id(student_id: int) -> Optional[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                class_id,
+                full_name,
+                student_number,
+                nisn,
+                gender,
+                birth_place,
+                birth_date,
+                religion,
+                address_line,
+                rt,
+                rw,
+                kelurahan,
+                kecamatan,
+                father_name,
+                mother_name,
+                nik,
+                kk_number
+            FROM students
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (student_id,),
+        )
+        row: Optional[DictRow] = cur.fetchone()
+    return dict(row) if row else None
+
+
+def update_student_record(
+    student_id: int,
+    *,
+    class_id: int,
+    full_name: str,
+    student_number: Optional[str] = None,
+    nisn: Optional[str] = None,
+    gender: Optional[str] = None,
+    birth_place: Optional[str] = None,
+    birth_date: Optional[date] = None,
+    religion: Optional[str] = None,
+    address_line: Optional[str] = None,
+    rt: Optional[str] = None,
+    rw: Optional[str] = None,
+    kelurahan: Optional[str] = None,
+    kecamatan: Optional[str] = None,
+    father_name: Optional[str] = None,
+    mother_name: Optional[str] = None,
+    nik: Optional[str] = None,
+    kk_number: Optional[str] = None,
+) -> bool:
+    if not full_name or not full_name.strip():
+        raise ValueError("Nama siswa wajib diisi.")
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE students
+            SET
+                class_id = %s,
+                full_name = %s,
+                student_number = %s,
+                nisn = %s,
+                gender = %s,
+                birth_place = %s,
+                birth_date = %s,
+                religion = %s,
+                address_line = %s,
+                rt = %s,
+                rw = %s,
+                kelurahan = %s,
+                kecamatan = %s,
+                father_name = %s,
+                mother_name = %s,
+                nik = %s,
+                kk_number = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (
+                class_id,
+                full_name.strip(),
+                (student_number or "").strip() or None,
+                (nisn or "").strip() or None,
+                (gender or "").strip() or None,
+                (birth_place or "").strip() or None,
+                birth_date,
+                (religion or "").strip() or None,
+                (address_line or "").strip() or None,
+                (rt or "").strip() or None,
+                (rw or "").strip() or None,
+                (kelurahan or "").strip() or None,
+                (kecamatan or "").strip() or None,
+                (father_name or "").strip() or None,
+                (mother_name or "").strip() or None,
+                (nik or "").strip() or None,
+                (kk_number or "").strip() or None,
+                student_id,
+            ),
+        )
+        return cur.rowcount > 0
+
+
 def fetch_master_data_overview() -> Dict[str, Any]:
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS total_classes FROM school_classes")
@@ -311,6 +656,165 @@ def fetch_attendance_totals_for_date(target_date: date) -> Dict[str, int]:
     if not row:
         return {status: 0 for status in ATTENDANCE_STATUSES}
     return {status: int(row[status] or 0) for status in ATTENDANCE_STATUSES}
+
+
+def fetch_class_attendance_breakdown(attendance_date: date) -> List[Dict[str, Any]]:
+    """Berikan rekap jumlah status per kelas untuk tanggal tertentu."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                sc.id,
+                sc.name,
+                sc.academic_year,
+                COALESCE(SUM(CASE WHEN ar.status = 'sakit' THEN 1 ELSE 0 END), 0) AS sakit,
+                COALESCE(SUM(CASE WHEN ar.status = 'izin' THEN 1 ELSE 0 END), 0) AS izin,
+                COALESCE(SUM(CASE WHEN ar.status = 'alpa' THEN 1 ELSE 0 END), 0) AS alpa,
+                COALESCE(SUM(CASE WHEN ar.status = 'masuk' THEN 1 ELSE 0 END), 0) AS masuk,
+                COUNT(s.id) FILTER (WHERE s.active IS TRUE) AS total_students
+            FROM school_classes sc
+            LEFT JOIN students s ON s.class_id = sc.id AND s.active IS TRUE
+            LEFT JOIN attendance_records ar
+                ON ar.class_id = sc.id
+               AND ar.attendance_date = %s
+               AND ar.student_id = s.id
+            GROUP BY sc.id, sc.name, sc.academic_year
+            ORDER BY sc.name ASC
+            """,
+            (attendance_date,),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_monthly_attendance_overview(year: int, month: int) -> List[Dict[str, Any]]:
+    """Rekap absensi per hari dalam satu bulan (total semua kelas)."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                ar.attendance_date,
+                SUM(CASE WHEN ar.status = 'sakit' THEN 1 ELSE 0 END) AS sakit,
+                SUM(CASE WHEN ar.status = 'izin' THEN 1 ELSE 0 END) AS izin,
+                SUM(CASE WHEN ar.status = 'alpa' THEN 1 ELSE 0 END) AS alpa,
+                SUM(CASE WHEN ar.status = 'masuk' THEN 1 ELSE 0 END) AS masuk,
+                COUNT(*) AS total
+            FROM attendance_records ar
+            WHERE EXTRACT(YEAR FROM ar.attendance_date) = %s
+              AND EXTRACT(MONTH FROM ar.attendance_date) = %s
+            GROUP BY ar.attendance_date
+            ORDER BY ar.attendance_date ASC
+            """,
+            (year, month),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def fetch_school_identity() -> Dict[str, Optional[str]]:
+    """
+    Ambil identitas sekolah dan kepala sekolah bila tersedia.
+    Mengembalikan nilai None bila data tidak ditemukan.
+    """
+    identity: Dict[str, Optional[str]] = {
+        "school_name": None,
+        "academic_year": None,
+        "headmaster_name": None,
+        "headmaster_nip": None,
+        "headmaster_degree_prefix": None,
+        "headmaster_degree_suffix": None,
+    }
+
+    with get_cursor() as cur:
+        try:
+            cur.execute(
+                """
+                SELECT
+                    school_name,
+                    academic_year,
+                    headmaster_name,
+                    headmaster_nip,
+                    headmaster_degree_prefix,
+                    headmaster_degree_suffix
+                FROM school_profile
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+        except (errors.UndefinedTable, errors.UndefinedColumn):
+            row = None
+    if row:
+        identity.update({key: row.get(key) for key in identity.keys() if key in row})
+
+    if not identity.get("headmaster_name"):
+        with get_cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    SELECT
+                        full_name,
+                        nip,
+                        jabatan,
+                        degree_prefix,
+                        degree_suffix
+                    FROM dashboard_users
+                    WHERE role IN ('admin', 'guru')
+                    ORDER BY
+                        CASE
+                            WHEN jabatan ILIKE '%%kepala%%' THEN 0
+                            ELSE 1
+                        END,
+                        created_at ASC,
+                        full_name ASC
+                    LIMIT 1
+                    """
+                )
+            except errors.UndefinedColumn:
+                cur.execute(
+                    """
+                    SELECT
+                        full_name,
+                        nip,
+                        jabatan,
+                        NULL AS degree_prefix,
+                        NULL AS degree_suffix
+                    FROM dashboard_users
+                    WHERE role IN ('admin', 'guru')
+                    ORDER BY
+                        CASE
+                            WHEN jabatan ILIKE '%%kepala%%' THEN 0
+                            ELSE 1
+                        END,
+                        created_at ASC,
+                        full_name ASC
+                    LIMIT 1
+                    """
+                )
+            head_row = cur.fetchone()
+        if head_row:
+            identity["headmaster_name"] = head_row.get("full_name")
+            identity["headmaster_nip"] = head_row.get("nip") or identity.get("headmaster_nip")
+            identity["headmaster_degree_prefix"] = head_row.get("degree_prefix") or identity.get("headmaster_degree_prefix")
+            identity["headmaster_degree_suffix"] = head_row.get("degree_suffix") or identity.get("headmaster_degree_suffix")
+
+    return identity
+
+
+def list_attendance_months(limit: int = 12) -> List[date]:
+    """Daftar bulan yang memiliki data absensi (untuk pilihan filter)."""
+    limit = max(1, limit)
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT DATE_TRUNC('month', attendance_date)::date AS month_start
+            FROM attendance_records
+            ORDER BY month_start DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+    return [row["month_start"] for row in rows]
 
 
 def fetch_recent_attendance(limit: int = 10) -> List[Dict[str, Any]]:

@@ -1,0 +1,119 @@
+{% extends "attendance/base.html" %}
+{% block title %}Laporan Piket Bulanan{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
+    <div>
+        <h1 class="h4 mb-1">Laporan Guru Piket Bulanan</h1>
+        <p class="text-muted mb-0">Pantau rekap kehadiran selama {{ selected_month_label }}. Fitur cetak akan tersedia pada pembaruan berikutnya.</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form class="row gy-3 gx-3 align-items-end" method="get" action="{{ url_for('attendance.laporan_bulanan') }}">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Pilih Bulan</label>
+                <select class="form-select" name="month">
+                    {% for option in available_months|sort(attribute='value')|reverse %}
+                    <option value="{{ option.value }}" {% if option.value == selected_month.strftime('%Y-%m') %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Tindakan</label>
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-arrow-repeat me-1"></i>Tampilkan
+                </button>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Status</label>
+                <div class="badge text-bg-info-subtle text-info text-wrap w-100">Rekap otomatis diperbarui per hari.</div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Hari Terdata</div>
+                <div class="display-6 fw-bold">{{ total_hari_tercatat }}</div>
+                <div class="text-muted small">Hari dalam bulan {{ selected_month_label|lower }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Total Entri</div>
+                <div class="display-6 fw-bold">{{ total_absen }}</div>
+                <div class="text-muted small">Jumlah status siswa tercatat</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold">Ringkasan Status</div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <span class="badge text-bg-success-subtle text-success">Masuk: {{ monthly_totals.masuk }}</span>
+                    <span class="badge text-bg-info-subtle text-info">Sakit: {{ monthly_totals.sakit }}</span>
+                    <span class="badge text-bg-warning-subtle text-warning">Izin: {{ monthly_totals.izin }}</span>
+                    <span class="badge text-bg-danger-subtle text-danger">Alpa: {{ monthly_totals.alpa }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1">Rekap {{ selected_month_label }}</h2>
+                <p class="text-muted small mb-0">Data diambil dari absensi kelas yang tersimpan pada aplikasi ini.</p>
+            </div>
+            <div class="text-muted small">
+                Terakhir diperbarui: {{ today|jakarta("%d %b %Y %H:%M") }}
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">No</th>
+                        <th>Tanggal</th>
+                        <th class="text-center">Masuk</th>
+                        <th class="text-center">Sakit</th>
+                        <th class="text-center">Izin</th>
+                        <th class="text-center">Alpa</th>
+                        <th class="text-center">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if monthly_rows %}
+                    {% for row in monthly_rows %}
+                    {% set day_total = row.masuk + row.sakit + row.izin + row.alpa %}
+                    <tr>
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td class="fw-semibold">{{ row.label }}</td>
+                        <td class="text-center text-success fw-semibold">{{ row.masuk }}</td>
+                        <td class="text-center text-info fw-semibold">{{ row.sakit }}</td>
+                        <td class="text-center text-warning fw-semibold">{{ row.izin }}</td>
+                        <td class="text-center text-danger fw-semibold">{{ row.alpa }}</td>
+                        <td class="text-center fw-semibold">{{ day_total }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Belum ada data absensi pada bulan ini.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
