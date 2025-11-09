@@ -65,29 +65,41 @@
                         <i class="bi bi-twitter nav-icon"></i>Twitter Ops
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.psych_reports' %}active{% endif %}" href="{{ url_for('main.psych_reports') }}">
-                        <i class="bi bi-journal-medical nav-icon"></i>Konseling
-                        {% if pending_psych_count %}
-                        <span class="badge rounded-pill text-bg-danger ms-2">{{ pending_psych_count }}</span>
+                {% set report_endpoints = ['main.psych_reports', 'main.bullying_reports', 'main.corruption_reports'] %}
+                {% set total_report_notifications = (pending_psych_count|default(0)) + (pending_bullying_count|default(0)) + (pending_corruption_count|default(0)) %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {% if request.endpoint in report_endpoints %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-flag nav-icon"></i>Laporan
+                        {% if total_report_notifications %}
+                        <span class="badge rounded-pill text-bg-danger ms-2">{{ total_report_notifications }}</span>
                         {% endif %}
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.bullying_reports' %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">
-                        <i class="bi bi-shield-check nav-icon"></i>Bullying
-                        {% if pending_bullying_count %}
-                        <span class="badge rounded-pill text-bg-danger ms-2">{{ pending_bullying_count }}</span>
-                        {% endif %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.corruption_reports' %}active{% endif %}" href="{{ url_for('main.corruption_reports') }}">
-                        <i class="bi bi-cash-stack nav-icon"></i>Korupsi
-                        {% if pending_corruption_count %}
-                        <span class="badge rounded-pill text-bg-danger ms-2">{{ pending_corruption_count }}</span>
-                        {% endif %}
-                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.psych_reports' %}active{% endif %}" href="{{ url_for('main.psych_reports') }}">
+                                <span><i class="bi bi-journal-medical me-2 text-primary"></i>Konseling</span>
+                                {% if pending_psych_count %}
+                                <span class="badge text-bg-danger">{{ pending_psych_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.bullying_reports' %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">
+                                <span><i class="bi bi-shield-check me-2 text-primary"></i>Bullying</span>
+                                {% if pending_bullying_count %}
+                                <span class="badge text-bg-danger">{{ pending_bullying_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.corruption_reports' %}active{% endif %}" href="{{ url_for('main.corruption_reports') }}">
+                                <span><i class="bi bi-cash-stack me-2 text-primary"></i>Korupsi</span>
+                                {% if pending_corruption_count %}
+                                <span class="badge text-bg-danger">{{ pending_corruption_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
                 </li>
                 {% if is_admin %}
                 <li class="nav-item dropdown">
