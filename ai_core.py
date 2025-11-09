@@ -13,6 +13,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from knowledge_loader import load_kecerdasan
+
 try:  # opsional, hanya dipakai bila backend lokal diaktifkan
     from langchain_huggingface import HuggingFaceEmbeddings
 except Exception:  # pragma: no cover - optional dependency
@@ -142,8 +144,7 @@ def build_qa_chain():
             "api_base": embedding_api_base,
         }
 
-    with open("kecerdasan.md", "r", encoding="utf-8") as f:
-        content = f.read()
+    content = load_kecerdasan()
 
     chunk_size = int(os.getenv("ASKA_CHUNK_SIZE", "500"))
     chunk_overlap = int(os.getenv("ASKA_CHUNK_OVERLAP", "50"))

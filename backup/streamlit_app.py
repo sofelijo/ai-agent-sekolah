@@ -1,4 +1,7 @@
 import os
+import sys
+from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -12,6 +15,12 @@ from langchain_core.prompts import (
 )
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
+
+from knowledge_loader import load_kecerdasan  # noqa: E402
 
 # === Load API Key ===
 load_dotenv()
@@ -32,7 +41,7 @@ st.caption("Asisten AI resmi sekolah. Silakan ajukan pertanyaan.")
 # === Cache vectorstore dari kecerdasan.md
 @st.cache_resource
 def buat_vectorstore():
-    isi = baca_file("kecerdasan.md")
+    isi = load_kecerdasan()
     doc = Document(page_content=isi, metadata={"sumber": "kecerdasan.md"})
     embedding = OpenAIEmbeddings(model="text-embedding-3-small")
     return FAISS.from_documents([doc], embedding)
