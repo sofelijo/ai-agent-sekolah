@@ -598,10 +598,10 @@ INSERT INTO students (class_id, full_name, sequence, student_number, nisn, gende
 INSERT INTO students (class_id, full_name, sequence, student_number, nisn, gender, birth_place, birth_date, religion, address_line, rt, rw, kelurahan, kecamatan, father_name, mother_name, nik, kk_number) VALUES ((SELECT id FROM school_classes WHERE name='6C'), 'SITI MEILA YUANITA', 21, '5191', '3132822141', 'P', 'JAKARTA', '2013-05-06'::DATE, 'Islam', 'JLN LAGOA TRS GG II D I', '4', '1', 'LAGOA', 'Kec. Koja', 'ADANG SUDJANA', 'ROSIDAH', '3172034605131010', '3172031301094601') ON CONFLICT (class_id, full_name) DO UPDATE SET sequence = EXCLUDED.sequence, student_number = EXCLUDED.student_number, nisn = EXCLUDED.nisn, gender = EXCLUDED.gender, birth_place = EXCLUDED.birth_place, birth_date = EXCLUDED.birth_date, religion = EXCLUDED.religion, address_line = EXCLUDED.address_line, rt = EXCLUDED.rt, rw = EXCLUDED.rw, kelurahan = EXCLUDED.kelurahan, kecamatan = EXCLUDED.kecamatan, father_name = EXCLUDED.father_name, mother_name = EXCLUDED.mother_name, nik = EXCLUDED.nik, kk_number = EXCLUDED.kk_number;
 INSERT INTO students (class_id, full_name, sequence, student_number, nisn, gender, birth_place, birth_date, religion, address_line, rt, rw, kelurahan, kecamatan, father_name, mother_name, nik, kk_number) VALUES ((SELECT id FROM school_classes WHERE name='6C'), 'TRI WAHYU SAPUTRA', 22, '5193', '3137528161', 'L', 'JAKARTA', '2013-04-03'::DATE, 'Islam', 'KMP BETING', '4', '9', 'SEMPER BARAT', 'Kec. Cilincing', 'PURWANTO', 'PARTIYAH', '3172040304131012', '3172041501093791') ON CONFLICT (class_id, full_name) DO UPDATE SET sequence = EXCLUDED.sequence, student_number = EXCLUDED.student_number, nisn = EXCLUDED.nisn, gender = EXCLUDED.gender, birth_place = EXCLUDED.birth_place, birth_date = EXCLUDED.birth_date, religion = EXCLUDED.religion, address_line = EXCLUDED.address_line, rt = EXCLUDED.rt, rw = EXCLUDED.rw, kelurahan = EXCLUDED.kelurahan, kecamatan = EXCLUDED.kecamatan, father_name = EXCLUDED.father_name, mother_name = EXCLUDED.mother_name, nik = EXCLUDED.nik, kk_number = EXCLUDED.kk_number;
 
--- Guru import generated from DUK SEMBAR 01 (1).xlsx
--- Default password untuk seluruh guru: 'Guru123!' (harap diganti setelah login)
+-- Staff import generated from DUK SEMBAR 01 (1).xlsx
+-- Default password untuk seluruh staff: 'Guru123!' (harap diganti setelah login)
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('tikakartika31@gmail.com', 'Kartika', 'pbkdf2:sha256:260000$wyajeRJrgQhu$qitJHpxSTTlv31zJ+A2qosj/rfM6V7O8Ct4S9wVHMHM=', 'guru', '173851', '197710172008012029', 'KEPALA SEKOLAH', NULL, 'S.Pd', NULL)
+VALUES ('tikakartika31@gmail.com', 'Kartika', 'pbkdf2:sha256:260000$wyajeRJrgQhu$qitJHpxSTTlv31zJ+A2qosj/rfM6V7O8Ct4S9wVHMHM=', 'staff', '173851', '197710172008012029', 'KEPALA SEKOLAH', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -611,7 +611,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('ilanlesdoka@gmail.com', 'Ilan Lesdoka', 'pbkdf2:sha256:260000$ioNQZ4km2MH1$ZHmYkszfsjpgu+ycFf0DajapOnFYTQIFl4AiaNEYWsA=', 'guru', '184858', '198603242015041002', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 A'))
+VALUES ('ilanlesdoka@gmail.com', 'Ilan Lesdoka', 'pbkdf2:sha256:260000$ioNQZ4km2MH1$ZHmYkszfsjpgu+ycFf0DajapOnFYTQIFl4AiaNEYWsA=', 'staff', '184858', '198603242015041002', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 A'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -621,7 +621,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 5 A
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('dewisembar01@gmail.com', 'Dewi Rahmawati', 'pbkdf2:sha256:260000$OdHTErJhaEIS$MODA9CtPnf2tbDxb48nL+aa0lTGq1oEAeypZNXb4OT0=', 'guru', '211561', '198312302022212025', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='4 A'))
+VALUES ('dewisembar01@gmail.com', 'Dewi Rahmawati', 'pbkdf2:sha256:260000$OdHTErJhaEIS$MODA9CtPnf2tbDxb48nL+aa0lTGq1oEAeypZNXb4OT0=', 'staff', '211561', '198312302022212025', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='4 A'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -631,7 +631,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 4 A
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('nhiez19@gmail.com', 'Maharani', 'pbkdf2:sha256:260000$aYHorq57lxqe$svt+SeBVVL+/8lpM/7p+2vIKXQvLEDbrgVTeCAQvahw=', 'guru', '204189', '198503182022212023', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 B'))
+VALUES ('nhiez19@gmail.com', 'Maharani', 'pbkdf2:sha256:260000$aYHorq57lxqe$svt+SeBVVL+/8lpM/7p+2vIKXQvLEDbrgVTeCAQvahw=', 'staff', '204189', '198503182022212023', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 B'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -641,7 +641,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 5 B
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('septiarum24@gmail.com', 'Septi Kusumaningrum', 'pbkdf2:sha256:260000$9sV3BZeBr8rc$3AA8hh1jGCif+gaakVIDuYQ0Z01eCw4BY+qnxP1Zx1o=', 'guru', '207984', '199309242022212006', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 B'))
+VALUES ('septiarum24@gmail.com', 'Septi Kusumaningrum', 'pbkdf2:sha256:260000$9sV3BZeBr8rc$3AA8hh1jGCif+gaakVIDuYQ0Z01eCw4BY+qnxP1Zx1o=', 'staff', '207984', '199309242022212006', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 B'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -651,7 +651,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 3 B
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('smawar22.smawar22@gmail.com', 'Siti Mawar', 'pbkdf2:sha256:260000$qHCTvO54QNiB$j5cP+6AvdxsAuyVAoIEA4jkpuLoS+XqKauRSnyMBkgQ=', 'guru', '211584', '198110222022212016', 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('smawar22.smawar22@gmail.com', 'Siti Mawar', 'pbkdf2:sha256:260000$qHCTvO54QNiB$j5cP+6AvdxsAuyVAoIEA4jkpuLoS+XqKauRSnyMBkgQ=', 'staff', '211584', '198110222022212016', 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -661,7 +661,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('tomosembar01@gmail.com', 'Hutomo Insani', 'pbkdf2:sha256:260000$IglYxCTfZfDx$t9dB3xMOWUqycxSgkdUKn3N4nR5zAVD+N9aNegkeQ2Y=', 'guru', '207612', '198312182022211002', 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('tomosembar01@gmail.com', 'Hutomo Insani', 'pbkdf2:sha256:260000$IglYxCTfZfDx$t9dB3xMOWUqycxSgkdUKn3N4nR5zAVD+N9aNegkeQ2Y=', 'staff', '207612', '198312182022211002', 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -671,7 +671,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('emirusmiati14@gmail.com', 'Emi Rusmiati', 'pbkdf2:sha256:260000$8YQfYLGzCUbO$2L6ikS2UBOkJXkW1Wz/ybVqf/5G1dlp+uQm6dx4WJrY=', 'guru', '203018', '199404142022212005', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 B'))
+VALUES ('emirusmiati14@gmail.com', 'Emi Rusmiati', 'pbkdf2:sha256:260000$8YQfYLGzCUbO$2L6ikS2UBOkJXkW1Wz/ybVqf/5G1dlp+uQm6dx4WJrY=', 'staff', '203018', '199404142022212005', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 B'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -681,7 +681,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 5 B
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('yunirahman433@gmail.com', 'Yuniyati Rahman', 'pbkdf2:sha256:260000$fZrtLGCPuqrC$xA/+2EIU4F7NB8UYK0txYZ2nCXQIzOKbeaySYkSFhBY=', 'guru', '206142', '199106112022212012', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='4 B'))
+VALUES ('yunirahman433@gmail.com', 'Yuniyati Rahman', 'pbkdf2:sha256:260000$fZrtLGCPuqrC$xA/+2EIU4F7NB8UYK0txYZ2nCXQIzOKbeaySYkSFhBY=', 'staff', '206142', '199106112022212012', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='4 B'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -691,7 +691,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 4 B
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('lutfiana27@gmail.com', 'Lutfiana Rahmawati', 'pbkdf2:sha256:260000$qgt6kisJHl72$2/cH3ucsJwHHYiABI/h7dVpVGGySVURibz62Ep6Ulrk=', 'guru', '212419', '199607272022212011', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='6 A'))
+VALUES ('lutfiana27@gmail.com', 'Lutfiana Rahmawati', 'pbkdf2:sha256:260000$qgt6kisJHl72$2/cH3ucsJwHHYiABI/h7dVpVGGySVURibz62Ep6Ulrk=', 'staff', '212419', '199607272022212011', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='6 A'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -701,7 +701,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 6 A
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('tatajaya44@gmail.com', 'Masta Wijaya', 'pbkdf2:sha256:260000$n9Wg7nTyi0p1$6JIuZC/fBfH2KrRYhYuGdJgAHY92nJsTVnFhXE0Ja6I=', 'guru', '205930', '196805222022211002', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 C'))
+VALUES ('tatajaya44@gmail.com', 'Masta Wijaya', 'pbkdf2:sha256:260000$n9Wg7nTyi0p1$6JIuZC/fBfH2KrRYhYuGdJgAHY92nJsTVnFhXE0Ja6I=', 'staff', '205930', '196805222022211002', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='5 C'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -711,7 +711,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 5 C
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('dwituti7@gmail.com', 'Puji Dwi Astuti', 'pbkdf2:sha256:260000$uGNjRoIkogzr$wcoOxfRkwRygMJF8ZvVc89vWWVIDatRN5pb34WK5K5U=', 'guru', '211417', '19890215202221023', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='6C'))
+VALUES ('dwituti7@gmail.com', 'Puji Dwi Astuti', 'pbkdf2:sha256:260000$uGNjRoIkogzr$wcoOxfRkwRygMJF8ZvVc89vWWVIDatRN5pb34WK5K5U=', 'staff', '211417', '19890215202221023', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='6C'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -721,7 +721,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 6C
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('kurniawatiningsih77@gmail.com', 'Kurniawati Ningsih', 'pbkdf2:sha256:260000$EjOyTZNp432z$rhXKf9tnopzHWW3qIuMPwyGXuPlt8zOc5pP3JqNvoDc=', 'guru', '216715', '197702102023212012', 'GURU', NULL, 'S.Ag', NULL)
+VALUES ('kurniawatiningsih77@gmail.com', 'Kurniawati Ningsih', 'pbkdf2:sha256:260000$EjOyTZNp432z$rhXKf9tnopzHWW3qIuMPwyGXuPlt8zOc5pP3JqNvoDc=', 'staff', '216715', '197702102023212012', 'GURU', NULL, 'S.Ag', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -731,7 +731,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('buibuamnah@gmail.com', 'Amnah', 'pbkdf2:sha256:260000$hUccaOWY0y99$UJENtXfDfZ0neoW2E09HNXdLknEx/b50muojHqeOnKo=', 'guru', '218369', '196902042023212002', 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('buibuamnah@gmail.com', 'Amnah', 'pbkdf2:sha256:260000$hUccaOWY0y99$UJENtXfDfZ0neoW2E09HNXdLknEx/b50muojHqeOnKo=', 'staff', '218369', '196902042023212002', 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -741,7 +741,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('aan_f2@hotmail.co.id', 'Saefurrohman', 'pbkdf2:sha256:260000$KLXuST4pb8zF$uNW8acHx3b/ENQPepowIxRuCyt3cE6hX25Xh6yx65Xc=', 'guru', '214534', '198208152023211016', 'GURU', NULL, 'S.Pd.I', NULL)
+VALUES ('aan_f2@hotmail.co.id', 'Saefurrohman', 'pbkdf2:sha256:260000$KLXuST4pb8zF$uNW8acHx3b/ENQPepowIxRuCyt3cE6hX25Xh6yx65Xc=', 'staff', '214534', '198208152023211016', 'GURU', NULL, 'S.Pd.I', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -751,7 +751,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('adynugros23@gmail.com', 'Setyo Adi Nugroho', 'pbkdf2:sha256:260000$zSbUPBbF3flj$hxWtI1jnGfjqL0vR1Qkl36nPB/ZnDBQ2QhdRtGMma74=', 'guru', '213531', '199311032023211019', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 C'))
+VALUES ('adynugros23@gmail.com', 'Setyo Adi Nugroho', 'pbkdf2:sha256:260000$zSbUPBbF3flj$hxWtI1jnGfjqL0vR1Qkl36nPB/ZnDBQ2QhdRtGMma74=', 'staff', '213531', '199311032023211019', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 C'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -761,7 +761,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 3 C
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('sarah.sondang@yahoo.com', 'Sarah Sondang', 'pbkdf2:sha256:260000$1v81sfMA36CH$OB1+0JbxqWx7QfS2H5RiAzx+zxkofCEi1p79zYBf0ZE=', 'guru', '216380', '199502022023212037', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='2 B'))
+VALUES ('sarah.sondang@yahoo.com', 'Sarah Sondang', 'pbkdf2:sha256:260000$1v81sfMA36CH$OB1+0JbxqWx7QfS2H5RiAzx+zxkofCEi1p79zYBf0ZE=', 'staff', '216380', '199502022023212037', 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='2 B'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -771,7 +771,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 2 B
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('idasamidah150972@gmail.com', 'Samidah', 'pbkdf2:sha256:260000$WgkWM0wI6lzq$KUYiv8YfychjcLbWvLThBSY/DJzak4Ggw+64ICtUGIs=', 'guru', '219239', '197109152024212003', 'GURU', NULL, 'S.Pd.', NULL)
+VALUES ('idasamidah150972@gmail.com', 'Samidah', 'pbkdf2:sha256:260000$WgkWM0wI6lzq$KUYiv8YfychjcLbWvLThBSY/DJzak4Ggw+64ICtUGIs=', 'staff', '219239', '197109152024212003', 'GURU', NULL, 'S.Pd.', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -781,7 +781,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('ai.rukoyah3@gmail.com', 'Ai Rukoyah', 'pbkdf2:sha256:260000$Gxed1XppHQZD$UFKU1m/JG5yyVa1khqhGl+FBVcmBzto4YugpvcmvdBk=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('ai.rukoyah3@gmail.com', 'Ai Rukoyah', 'pbkdf2:sha256:260000$Gxed1XppHQZD$UFKU1m/JG5yyVa1khqhGl+FBVcmBzto4YugpvcmvdBk=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -791,7 +791,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('syaepudinrahman02@gmail.com', 'Syaepudin Rahman', 'pbkdf2:sha256:260000$hfPaU912GbHm$gjmLVD9SOCNRe1nBDSQ42SEHnzGuR7N0Py7oZWRnWXE=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('syaepudinrahman02@gmail.com', 'Syaepudin Rahman', 'pbkdf2:sha256:260000$hfPaU912GbHm$gjmLVD9SOCNRe1nBDSQ42SEHnzGuR7N0Py7oZWRnWXE=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -801,7 +801,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('ariyapurnomo898@gmail.com', 'Ariyadi Purnomo', 'pbkdf2:sha256:260000$I8dGX2PKnVAI$NOdEREKpJ6I73otPM3HNITakRLO8SOaPqvfe/udmjfo=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 D'))
+VALUES ('ariyapurnomo898@gmail.com', 'Ariyadi Purnomo', 'pbkdf2:sha256:260000$I8dGX2PKnVAI$NOdEREKpJ6I73otPM3HNITakRLO8SOaPqvfe/udmjfo=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='3 D'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -811,7 +811,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 3 D
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('nuramaliarhay@gmail.com', 'Nur Amalia Sari', 'pbkdf2:sha256:260000$8I3gSFpiJdqX$dsgTonWzHAXns62JeQK+l7nlrOmxtxcr/hbE3OPm1JU=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('nuramaliarhay@gmail.com', 'Nur Amalia Sari', 'pbkdf2:sha256:260000$8I3gSFpiJdqX$dsgTonWzHAXns62JeQK+l7nlrOmxtxcr/hbE3OPm1JU=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -821,7 +821,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('husnunazhara25@gmail.com', 'Husnun Azhariyah', 'pbkdf2:sha256:260000$1qSPWYtuE7uD$HpFpegf8fQhxF9ma9s7rb1C1LmZl00o0cfUwoZ0OeVo=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='2 A'))
+VALUES ('husnunazhara25@gmail.com', 'Husnun Azhariyah', 'pbkdf2:sha256:260000$1qSPWYtuE7uD$HpFpegf8fQhxF9ma9s7rb1C1LmZl00o0cfUwoZ0OeVo=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd', (SELECT id FROM school_classes WHERE name='2 A'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -831,7 +831,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 2 A
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('fouzyevelin@gmail.com', 'Fouzy Eveline Ade Lon', 'pbkdf2:sha256:260000$3JonBXJtatwu$WUNMqAmAUcYXfzNof3Qqdjg9jbxoCIn5b8uYrtZz+p8=', 'guru', NULL, NULL, 'GURU', NULL, 'S.PAK', NULL)
+VALUES ('fouzyevelin@gmail.com', 'Fouzy Eveline Ade Lon', 'pbkdf2:sha256:260000$3JonBXJtatwu$WUNMqAmAUcYXfzNof3Qqdjg9jbxoCIn5b8uYrtZz+p8=', 'staff', NULL, NULL, 'GURU', NULL, 'S.PAK', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -841,7 +841,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('xvi.ariefn@gmail.com', 'Arief Nurdiantono', 'pbkdf2:sha256:260000$iXi5Gx8cl58F$58Lym5jnZDvrsQEPd6XLgW3MiKGevCQE9rOxL8Ll47M=', 'guru', NULL, NULL, 'GURU', NULL, 'S.Pd.', NULL)
+VALUES ('xvi.ariefn@gmail.com', 'Arief Nurdiantono', 'pbkdf2:sha256:260000$iXi5Gx8cl58F$58Lym5jnZDvrsQEPd6XLgW3MiKGevCQE9rOxL8Ll47M=', 'staff', NULL, NULL, 'GURU', NULL, 'S.Pd.', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -851,7 +851,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id;
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('rossieyuniar@gmail.com', 'Rosidah', 'pbkdf2:sha256:260000$CklvAin6Bxpu$bzQpkHWksCit64AkNG2eth3tsmnpHrc0Ztg6E+ff6VA=', 'guru', '224211', '198506122025212040', 'GURU', NULL, 'S.S', (SELECT id FROM school_classes WHERE name='3 C'))
+VALUES ('rossieyuniar@gmail.com', 'Rosidah', 'pbkdf2:sha256:260000$CklvAin6Bxpu$bzQpkHWksCit64AkNG2eth3tsmnpHrc0Ztg6E+ff6VA=', 'staff', '224211', '198506122025212040', 'GURU', NULL, 'S.S', (SELECT id FROM school_classes WHERE name='3 C'))
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,
@@ -861,7 +861,7 @@ ON CONFLICT (email) DO UPDATE SET
     degree_suffix = EXCLUDED.degree_suffix,
     assigned_class_id = EXCLUDED.assigned_class_id; -- 3 C
 INSERT INTO dashboard_users (email, full_name, password_hash, role, nrk, nip, jabatan, degree_prefix, degree_suffix, assigned_class_id)
-VALUES ('iyansopyanhadi86@gmail.com', 'Iyan Sopyan Hadi', 'pbkdf2:sha256:260000$aHfuNsHWgnv9$WYPlM+GsD9ApL/YPn2VE7zAg8wCEqRR9VlzU2yYp4E4=', 'guru', '227490', '198609232025211036', 'GURU', NULL, 'S.Pd', NULL)
+VALUES ('iyansopyanhadi86@gmail.com', 'Iyan Sopyan Hadi', 'pbkdf2:sha256:260000$aHfuNsHWgnv9$WYPlM+GsD9ApL/YPn2VE7zAg8wCEqRR9VlzU2yYp4E4=', 'staff', '227490', '198609232025211036', 'GURU', NULL, 'S.Pd', NULL)
 ON CONFLICT (email) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     nrk = EXCLUDED.nrk,

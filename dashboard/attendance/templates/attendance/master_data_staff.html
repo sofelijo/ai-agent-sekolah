@@ -1,11 +1,11 @@
 {% extends "attendance/base.html" %}
-{% block title %}Data Guru{% endblock %}
+{% block title %}Data Staff{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
     <div>
-        <h1 class="h3 mb-1">Pengelolaan Data Guru</h1>
-        <p class="text-muted mb-0">Tambah atau perbarui akun guru beserta kelas binaannya.</p>
+        <h1 class="h3 mb-1">Pengelolaan Data Staff</h1>
+        <p class="text-muted mb-0">Tambah atau perbarui akun staff beserta kelas atau penugasannya.</p>
     </div>
 </div>
 
@@ -18,8 +18,8 @@
                         <div class="d-flex align-items-center gap-3">
                             <span class="icon-badge text-primary bg-primary-subtle"><i class="bi bi-person-workspace"></i></span>
                             <div>
-                                <h2 class="h5 mb-0">Tambah / Perbarui Guru</h2>
-                                <p class="text-muted small mb-0">Klik baris guru pada tabel untuk mengisi formulir ini.</p>
+                                <h2 class="h5 mb-0">Tambah / Perbarui Staff</h2>
+                                <p class="text-muted small mb-0">Klik baris staff pada tabel untuk mengisi formulir ini.</p>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
@@ -32,17 +32,17 @@
                     <input type="hidden" name="action" id="teacherFormAction" value="create_teacher">
                     <input type="hidden" name="teacher_id" id="teacherIdInput">
                     <div>
-                        <label class="form-label">Nama Guru</label>
-                        <input type="text" class="form-control" name="teacher_name" placeholder="Nama lengkap guru" required>
+                        <label class="form-label">Nama Staff</label>
+                        <input type="text" class="form-control" name="teacher_name" placeholder="Nama lengkap staff" required>
                     </div>
                     <div>
                         <label class="form-label">Email</label>
-                        <input type="email" class="form-control" name="teacher_email" placeholder="Email login guru" required>
+                        <input type="email" class="form-control" name="teacher_email" placeholder="Email login staff" required>
                     </div>
                     <div>
                         <label class="form-label">Password</label>
                         <input type="password" class="form-control" name="teacher_password" placeholder="Minimal 6 karakter">
-                        <div class="form-text">Wajib diisi saat menambah guru baru. Kosongkan bila tidak ingin mengubah password.</div>
+                        <div class="form-text">Wajib diisi saat menambah staff baru. Kosongkan bila tidak ingin mengubah password.</div>
                     </div>
                     <div class="row g-2">
                         <div class="col-md-6">
@@ -56,7 +56,7 @@
                     </div>
                     <div>
                         <label class="form-label">Jabatan</label>
-                        <input type="text" class="form-control" name="teacher_jabatan" placeholder="Contoh: Guru Kelas 1A">
+                        <input type="text" class="form-control" name="teacher_jabatan" placeholder="Contoh: Wali Kelas 1A">
                     </div>
                     <div class="row g-2">
                         <div class="col-md-6">
@@ -77,8 +77,8 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary" id="teacherFormSubmit" data-default-label="Simpan Guru" data-update-label="Perbarui Guru">
-                        <i class="bi bi-person-check-fill me-2"></i><span class="teacher-form-submit-label">Simpan Guru</span>
+                    <button type="submit" class="btn btn-primary" id="teacherFormSubmit" data-default-label="Simpan Staff" data-update-label="Perbarui Staff">
+                        <i class="bi bi-person-check-fill me-2"></i><span class="teacher-form-submit-label">Simpan Staff</span>
                     </button>
                 </form>
             </div>
@@ -89,8 +89,8 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div>
-                        <h2 class="h5 mb-1">Daftar Guru Terdaftar</h2>
-                        <p class="text-muted small mb-0">Total guru: {{ teachers|length }} • Klik baris guru untuk mengedit.</p>
+                        <h2 class="h5 mb-1">Daftar Staff Terdaftar</h2>
+                        <p class="text-muted small mb-0">Total staff: {{ teachers|length }} • Klik baris staff untuk mengedit.</p>
                     </div>
                 </div>
                 {% if teachers %}
@@ -146,8 +146,8 @@
                 {% else %}
                 <div class="text-center text-muted py-5">
                     <i class="bi bi-people fs-1 d-block mb-3"></i>
-                    <p class="mb-0">Belum ada guru terdaftar.</p>
-                    <p class="small mb-0">Tambahkan guru melalui formulir di sisi kiri.</p>
+                    <p class="mb-0">Belum ada staff terdaftar.</p>
+                    <p class="small mb-0">Tambahkan staff melalui formulir di sisi kiri.</p>
                 </div>
                 {% endif %}
             </div>
@@ -171,8 +171,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var resetButton = document.getElementById("teacherFormReset");
     var submitButton = document.getElementById("teacherFormSubmit");
     var submitLabel = submitButton ? submitButton.querySelector(".teacher-form-submit-label") : null;
-    var defaultLabel = submitButton ? (submitButton.getAttribute("data-default-label") || "Simpan Guru") : "Simpan Guru";
-    var updateLabel = submitButton ? (submitButton.getAttribute("data-update-label") || "Perbarui Guru") : "Perbarui Guru";
+    var defaultLabel = submitButton ? (submitButton.getAttribute("data-default-label") || "Simpan Staff") : "Simpan Staff";
+    var updateLabel = submitButton ? (submitButton.getAttribute("data-update-label") || "Perbarui Staff") : "Perbarui Staff";
     var passwordInput = teacherForm.querySelector('input[name="teacher_password"]');
 
     function setMode(isEdit) {

@@ -195,7 +195,7 @@ def _load_twitter_runtime() -> dict:
 @main_bp.before_request
 def restrict_teacher_access():
     user = current_user()
-    if user and user.get("role") == "guru":
+    if user and user.get("role") == "staff":
         return redirect(url_for("attendance.dashboard"))
 
 

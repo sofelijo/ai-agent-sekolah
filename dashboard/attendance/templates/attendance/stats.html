@@ -10,6 +10,36 @@
     .progress-thin {
         height: 0.4rem;
     }
+    #trendControlBar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+        width: 100%;
+    }
+    #trendControlBar > * {
+        width: 100%;
+    }
+    #trendControlBar .btn-group {
+        width: 100%;
+    }
+    #trendControlBar .form-select {
+        width: 100%;
+    }
+    @media (min-width: 992px) {
+        #trendControlBar {
+            grid-template-columns: repeat(auto-fit, minmax(180px, auto));
+            align-items: center;
+        }
+        #trendControlBar > * {
+            width: auto;
+        }
+        #trendControlBar .btn-group {
+            width: auto;
+        }
+        #trendControlBar .form-select {
+            width: auto;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -39,6 +69,17 @@
     {"key": "izin", "label": "Izin", "wrapper": "bg-warning-subtle text-warning", "bar": "bg-warning"},
     {"key": "sakit", "label": "Sakit", "wrapper": "bg-info-subtle text-info", "bar": "bg-info"}
  ] %}
+{% set class_submission_status = class_submission_status or {"submitted": [], "pending": []} %}
+{% set submitted_classes = class_submission_status.get('submitted', []) %}
+{% set pending_classes = class_submission_status.get('pending', []) %}
+{% set total_class_count = overview.total_classes or (submitted_classes|length + pending_classes|length) %}
+{% set submission_rate = (submitted_classes|length / total_class_count * 100) if total_class_count else 0 %}
+{% set chart_zero_totals = chart_zero_totals or [] %}
+{% set monthly_chart_options = monthly_chart_options or [] %}
+{% set monthly_chart_default_key = monthly_chart_default_key or (monthly_chart_options[0].value if monthly_chart_options) %}
+{% set academic_year_options = academic_year_options or [] %}
+{% set academic_year_default_key = academic_year_default_key or (academic_year_options[0].value if academic_year_options) %}
+{% set class_attendance_map = class_attendance_map or {} %}
 {% set best_present = namespace(count=0, label="Belum ada data") %}
 {% set highest_absence = namespace(count=0, label="Belum ada data") %}
 {% for row in daily_rows %}
@@ -90,38 +131,176 @@
     <div class="col-md-3">
         <div class="card metric-card shadow-sm border-0">
             <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold">Guru Terdaftar</div>
-                <div class="display-6 fw-bold">{{ overview.total_guru }}</div>
-                <div class="text-muted small">Akun guru pada dashboard.</div>
+                <div class="text-muted small text-uppercase fw-semibold mb-1">Total Staff</div>
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                    <div>
+                        <div class="display-6 fw-bold">{{ overview.total_staff }}</div>
+                        <div class="text-muted small">Pada dashboard.</div>
+                    </div>
+                    {% set staff_breakdown = overview.staff_breakdown or [] %}
+                    {% if staff_breakdown %}
+                    <div class="text-end small text-muted">
+                        {% for item in staff_breakdown %}
+                        <div class="text-nowrap">
+                            <span>{{ item.jabatan }}</span>
+                            <span class="fw-semibold text-dark ms-1">{{ item.total }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card metric-card shadow-sm border-0">
             <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold">Guru Dengan Kelas</div>
-                <div class="display-6 fw-bold">{{ overview.total_assigned_guru }}</div>
-                <div class="text-muted small">Guru yang telah memilih kelas.</div>
+                <div class="text-muted small text-uppercase fw-semibold">Staff Dengan Kelas</div>
+                <div class="display-6 fw-bold">{{ overview.total_assigned_staff }}</div>
+                <div class="text-muted small">Staff yang telah memilih kelas.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3 gap-3">
+            <div>
+                <h2 class="h5 mb-1">Progress Pengisian Kelas Hari Ini</h2>
+                <p class="text-muted small mb-0">Pemantauan absensi kelas untuk {{ today_label }}.</p>
+            </div>
+            <span class="badge text-bg-primary-subtle text-primary px-3 py-2">
+                {{ submitted_classes|length }} / {{ total_class_count }} kelas sudah mengisi
+            </span>
+        </div>
+        <div class="row g-3 align-items-stretch">
+            <div class="col-lg-4">
+                <div class="border rounded h-100 p-3">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Persentase Pengisian</div>
+                    <div class="display-6 fw-bold">{{ submission_rate|round(0) }}%</div>
+                    <p class="text-muted small mb-3">Kelas telah melaporkan absensi hari ini.</p>
+                    <div class="progress progress-thin bg-light mb-2">
+                        <div class="progress-bar bg-primary" style="width: {{ submission_rate }}%"></div>
+                    </div>
+                    <div class="small text-muted">Belum mengisi: {{ pending_classes|length }} kelas</div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="border rounded h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h3 class="h6 mb-0">Sudah Mengisi</h3>
+                        <span class="badge text-bg-success-subtle text-success">{{ submitted_classes|length }}</span>
+                    </div>
+                    {% if submitted_classes %}
+                    <div class="small" style="max-height: 200px; overflow-y: auto;">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for cls in submitted_classes %}
+                            <span class="badge rounded-pill bg-success-subtle text-success class-submitted-badge"
+                                data-class-id="{{ cls.id }}"
+                                data-class-name="{{ cls.name }}"
+                                role="button"
+                                tabindex="0">
+                                {{ cls.name }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-top small">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="fw-semibold" id="classSubmissionDetailTitle">Pilih kelas untuk melihat detail</div>
+                            </div>
+                        </div>
+                        <div id="classSubmissionStats" class="d-flex flex-wrap gap-2">
+                            <span class="text-muted">Belum ada kelas yang dipilih.</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Belum ada kelas yang mengirim absensi.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="border rounded h-100 p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h3 class="h6 mb-0">Belum Mengisi</h3>
+                        <span class="badge text-bg-danger-subtle text-danger">{{ pending_classes|length }}</span>
+                    </div>
+                    {% if pending_classes %}
+                    <div class="small" style="max-height: 220px; overflow-y: auto;">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for cls in pending_classes %}
+                            <span class="badge rounded-pill bg-danger-subtle text-danger">{{ cls.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Seluruh kelas telah melaporkan absensi.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-lg-7">
+    <div class="col-lg-8">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                        <h2 class="h5 mb-1">Tren Kehadiran 7 Hari Terakhir</h2>
-                        <p class="text-muted small mb-0">Lihat perbandingan status kehadiran siswa setiap hari.</p>
+                    <div class="d-flex flex-column flex-xl-row align-items-xl-center justify-content-between mb-3 gap-3">
+                        <div class="flex-grow-1">
+                            <h2 class="h5 mb-1">Tren Kehadiran</h2>
+                            <p class="text-muted small mb-0">Pilih rentang harian, bulanan, atau rekapan tahun ajaran.</p>
+                        </div>
+                        <div id="trendControlBar">
+                        <div class="btn-group btn-group-sm flex-shrink-0" role="group" aria-label="Rentang grafik" id="trendRangeGroup">
+                            <input type="radio" class="btn-check" name="trendRange" id="trendRangeWeekly" value="weekly" checked>
+                            <label class="btn btn-outline-secondary" for="trendRangeWeekly">7 Hari</label>
+                            <input type="radio" class="btn-check" name="trendRange" id="trendRangeMonthly" value="monthly">
+                            <label class="btn btn-outline-secondary" for="trendRangeMonthly">Bulanan</label>
+                            <input type="radio" class="btn-check" name="trendRange" id="trendRangeAcademic" value="academic">
+                            <label class="btn btn-outline-secondary" for="trendRangeAcademic">Tahun Ajaran</label>
+                        </div>
+                        <div id="trendMonthlySelector" class="d-none flex-shrink-0">
+                            <select id="monthlyRangeSelect" class="form-select form-select-sm" aria-label="Pilih bulan" style="min-width: 160px;">
+                                {% if monthly_chart_options %}
+                                    {% for option in monthly_chart_options %}
+                                    <option value="{{ option.value }}" {% if option.value == monthly_chart_default_key %}selected{% endif %}>{{ option.label }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                <option value="" selected>Belum ada data bulan</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div id="trendAcademicSelector" class="d-none flex-shrink-0">
+                            <select id="academicYearSelect" class="form-select form-select-sm" aria-label="Pilih tahun ajaran" style="min-width: 140px;">
+                                {% if academic_year_options %}
+                                    {% for option in academic_year_options %}
+                                    <option value="{{ option.value }}" {% if option.value == academic_year_default_key %}selected{% endif %}>{{ option.label }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                <option value="" selected>Tidak ada data tahun ajaran</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="toggleWeekendDays">
+                                <label class="form-check-label small" for="toggleWeekendDays">Tanpa weekend</label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="toggleMasukSeries">
+                                <label class="form-check-label small" for="toggleMasukSeries">Tanpa data Masuk</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <canvas id="attendanceTrendChart" height="220"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -322,57 +501,41 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!trendCanvas) {
         return;
     }
+    var trendWeekly = {{ trend_weekly_payload|tojson }};
+    var trendMonthly = {{ trend_monthly_payload|tojson }};
+    var trendAcademic = {{ trend_academic_payload|tojson }};
+    var STATUS_CONFIG = [
+        { key: "masuk", label: "Masuk", color: "#198754" },
+        { key: "alpa", label: "Alpa", color: "#dc3545" },
+        { key: "izin", label: "Izin", color: "#ffc107" },
+        { key: "sakit", label: "Sakit", color: "#0dcaf0" }
+    ];
+    var datasets = STATUS_CONFIG.map(function (config) {
+        var initialValues = (trendWeekly.series && trendWeekly.series[config.key]) || [];
+        return {
+            label: config.label,
+            data: initialValues.slice(),
+            fill: false,
+            borderColor: config.color,
+            backgroundColor: config.color,
+            tension: 0.3,
+            borderWidth: 2
+        };
+    });
     var chart = new Chart(trendCanvas, {
         type: "line",
         data: {
-            labels: {{ chart_labels|tojson }},
-            datasets: [
-                {
-                    label: "Masuk",
-                    data: {{ chart_series.masuk|tojson }},
-                    fill: false,
-                    borderColor: "#198754",
-                    backgroundColor: "#198754",
-                    tension: 0.3,
-                    borderWidth: 2
-                },
-                {
-                    label: "Alpa",
-                    data: {{ chart_series.alpa|tojson }},
-                    fill: false,
-                    borderColor: "#dc3545",
-                    backgroundColor: "#dc3545",
-                    tension: 0.3,
-                    borderWidth: 2
-                },
-                {
-                    label: "Izin",
-                    data: {{ chart_series.izin|tojson }},
-                    fill: false,
-                    borderColor: "#ffc107",
-                    backgroundColor: "#ffc107",
-                    tension: 0.3,
-                    borderWidth: 2
-                },
-                {
-                    label: "Sakit",
-                    data: {{ chart_series.sakit|tojson }},
-                    fill: false,
-                    borderColor: "#0dcaf0",
-                    backgroundColor: "#0dcaf0",
-                    tension: 0.3,
-                    borderWidth: 2
-                }
-            ]
+            labels: (trendWeekly.labels || []).slice(),
+            datasets: datasets
         },
         options: {
             responsive: true,
             scales: {
                 y: {
-                    beginAtZero: true,
                     ticks: {
                         precision: 0
-                    }
+                    },
+                    beginAtZero: true
                 }
             },
             plugins: {
@@ -382,6 +545,222 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
         }
+    });
+    var toggleMasukSwitch = document.getElementById("toggleMasukSeries");
+    var toggleWeekendSwitch = document.getElementById("toggleWeekendDays");
+    var monthlySelect = document.getElementById("monthlyRangeSelect");
+    var academicSelect = document.getElementById("academicYearSelect");
+    var monthlySelectorWrap = document.getElementById("trendMonthlySelector");
+    var academicSelectorWrap = document.getElementById("trendAcademicSelector");
+    var MASUK_DATASET_INDEX = 0;
+    if (toggleMasukSwitch) {
+        toggleMasukSwitch.addEventListener("change", function () {
+            var meta = chart.getDatasetMeta(MASUK_DATASET_INDEX);
+            if (!meta) {
+                return;
+            }
+            meta.hidden = toggleMasukSwitch.checked ? true : null;
+            chart.update();
+        });
+    }
+    var trendState = {
+        mode: "weekly",
+        hideWeekend: false,
+        selectedMonth: monthlySelect ? monthlySelect.value : (trendMonthly ? trendMonthly.default : null),
+        selectedAcademic: academicSelect ? academicSelect.value : (trendAcademic ? trendAcademic.default : null)
+    };
+    function ensureSelections() {
+        if (trendMonthly && trendMonthly.datasets) {
+            if (!trendState.selectedMonth || !trendMonthly.datasets[trendState.selectedMonth]) {
+                var fallback = trendMonthly.default;
+                if (!fallback || !trendMonthly.datasets[fallback]) {
+                    var monthKeys = Object.keys(trendMonthly.datasets);
+                    fallback = monthKeys.length ? monthKeys[0] : null;
+                }
+                trendState.selectedMonth = fallback;
+                if (monthlySelect && fallback) {
+                    monthlySelect.value = fallback;
+                }
+            }
+        }
+        if (trendAcademic && trendAcademic.datasets) {
+            if (!trendState.selectedAcademic || !trendAcademic.datasets[trendState.selectedAcademic]) {
+                var yearFallback = trendAcademic.default;
+                if (!yearFallback || !trendAcademic.datasets[yearFallback]) {
+                    var yearKeys = Object.keys(trendAcademic.datasets);
+                    yearFallback = yearKeys.length ? yearKeys[0] : null;
+                }
+                trendState.selectedAcademic = yearFallback;
+                if (academicSelect && yearFallback) {
+                    academicSelect.value = yearFallback;
+                }
+            }
+        }
+    }
+    function getDatasetForMode() {
+        ensureSelections();
+        if (trendState.mode === "weekly") {
+            return trendWeekly || { labels: [], series: {}, zero_mask: [] };
+        }
+        if (trendState.mode === "monthly") {
+            if (trendMonthly && trendMonthly.datasets) {
+                return trendMonthly.datasets[trendState.selectedMonth] || { labels: [], series: {}, zero_mask: [] };
+            }
+            return { labels: [], series: {}, zero_mask: [] };
+        }
+        if (trendAcademic && trendAcademic.datasets) {
+            return trendAcademic.datasets[trendState.selectedAcademic] || { labels: [], series: {}, zero_mask: [] };
+        }
+        return { labels: [], series: {}, zero_mask: [] };
+    }
+    function renderTrendChart() {
+        var dataset = getDatasetForMode();
+        var labels = Array.isArray(dataset.labels) ? dataset.labels.slice() : [];
+        var zeroMask = Array.isArray(dataset.zero_mask) ? dataset.zero_mask.slice() : [];
+        var applyWeekend = trendState.hideWeekend && trendState.mode !== "academic";
+        var maskMatches = zeroMask.length === labels.length;
+        var indexes = [];
+        if (labels.length) {
+            labels.forEach(function (_, idx) {
+                if (applyWeekend && maskMatches && zeroMask[idx]) {
+                    return;
+                }
+                indexes.push(idx);
+            });
+        }
+        if (!indexes.length && labels.length && (!applyWeekend || !maskMatches)) {
+            indexes = labels.map(function (_, idx) {
+                return idx;
+            });
+        }
+        chart.data.labels = indexes.map(function (idx) {
+            return labels[idx];
+        });
+        STATUS_CONFIG.forEach(function (config, datasetIndex) {
+            var values = (dataset.series && dataset.series[config.key]) ? dataset.series[config.key] : [];
+            var filtered = indexes.map(function (idx) {
+                return values[idx] || 0;
+            });
+            chart.data.datasets[datasetIndex].data = filtered;
+        });
+        chart.update();
+    }
+    function updateRangeVisibility() {
+        var showMonthly = trendState.mode === "monthly";
+        if (monthlySelectorWrap) {
+            monthlySelectorWrap.classList.toggle("d-none", !showMonthly);
+        }
+        var showAcademic = trendState.mode === "academic";
+        if (academicSelectorWrap) {
+            academicSelectorWrap.classList.toggle("d-none", !showAcademic);
+        }
+        if (toggleWeekendSwitch) {
+            var disableWeekend = trendState.mode === "academic";
+            toggleWeekendSwitch.disabled = disableWeekend;
+            if (disableWeekend && toggleWeekendSwitch.checked) {
+                toggleWeekendSwitch.checked = false;
+                trendState.hideWeekend = false;
+            }
+        }
+    }
+    var rangeRadios = document.querySelectorAll("input[name='trendRange']");
+    rangeRadios.forEach(function (radio) {
+        radio.addEventListener("change", function () {
+            if (!this.checked) {
+                return;
+            }
+            trendState.mode = this.value;
+            updateRangeVisibility();
+            renderTrendChart();
+        });
+    });
+    if (monthlySelect) {
+        monthlySelect.addEventListener("change", function () {
+            trendState.selectedMonth = this.value;
+            renderTrendChart();
+        });
+    }
+    if (academicSelect) {
+        academicSelect.addEventListener("change", function () {
+            trendState.selectedAcademic = this.value;
+            renderTrendChart();
+        });
+    }
+    if (toggleWeekendSwitch) {
+        toggleWeekendSwitch.addEventListener("change", function () {
+            trendState.hideWeekend = toggleWeekendSwitch.checked;
+            renderTrendChart();
+        });
+    }
+    updateRangeVisibility();
+    renderTrendChart();
+
+    var classAttendanceMap = {{ class_attendance_map|tojson }};
+    var classBadges = document.querySelectorAll(".class-submitted-badge");
+    var classDetailTitle = document.getElementById("classSubmissionDetailTitle");
+    var classDetailMeta = document.getElementById("classSubmissionMeta");
+    var classDetailStats = document.getElementById("classSubmissionStats");
+    function renderClassDetail(classId, fallbackName) {
+        if (!classDetailTitle || !classDetailStats) {
+            return;
+        }
+        var detail = classAttendanceMap[classId];
+        if (!detail) {
+            classDetailTitle.textContent = fallbackName || "Detail kelas tidak ditemukan";
+            if (classDetailMeta) {
+                classDetailMeta.textContent = "Data absensi tidak tersedia untuk kelas ini.";
+            }
+            classDetailStats.innerHTML = '<span class="text-muted">Tidak ada data yang bisa ditampilkan.</span>';
+            return;
+        }
+        var displayName = fallbackName || detail.name || "Detail Kelas";
+        classDetailTitle.textContent = displayName;
+        if (classDetailMeta) {
+            var metaParts = [];
+            if (detail.total_students) {
+                metaParts.push(detail.total_students + " siswa terdaftar");
+            }
+            if (detail.academic_year) {
+                metaParts.push("TA " + detail.academic_year);
+            }
+            classDetailMeta.textContent = metaParts.join(" • ") || "—";
+        }
+        var statusOrder = ["masuk", "sakit", "izin", "alpa"];
+        var statusLabels = {
+            masuk: "Masuk",
+            sakit: "Sakit",
+            izin: "Izin",
+            alpa: "Alpa"
+        };
+        var badgeClasses = {
+            masuk: "bg-success-subtle text-success",
+            sakit: "bg-info-subtle text-info",
+            izin: "bg-warning-subtle text-warning",
+            alpa: "bg-danger-subtle text-danger"
+        };
+        var htmlParts = statusOrder.map(function (key) {
+            var value = detail[key] || 0;
+            var label = statusLabels[key] || key;
+            var badge = badgeClasses[key] || "bg-light text-muted";
+            return '<span class="badge rounded-pill ' + badge + '">' + label + ': <strong>' + value + "</strong></span>";
+        });
+        classDetailStats.innerHTML = htmlParts.join(" ");
+    }
+    classBadges.forEach(function (badge) {
+        badge.addEventListener("click", function () {
+            var classId = this.getAttribute("data-class-id");
+            var className = this.getAttribute("data-class-name");
+            if (!classId) {
+                return;
+            }
+            renderClassDetail(classId, className);
+        });
+        badge.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                this.click();
+            }
+        });
     });
 });
 </script>

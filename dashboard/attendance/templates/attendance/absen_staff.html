@@ -1,11 +1,11 @@
 {% extends "attendance/base.html" %}
-{% block title %}Absensi Guru{% endblock %}
+{% block title %}Absensi Staff{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
     <div>
-        <h1 class="h3 mb-1">Absensi Guru</h1>
-        <p class="text-muted mb-0">Pantau kehadiran guru dan tenaga kependidikan setiap hari.</p>
+        <h1 class="h3 mb-1">Absensi Staff</h1>
+        <p class="text-muted mb-0">Pantau kehadiran seluruh staff dan tenaga kependidikan setiap hari.</p>
     </div>
     <div class="text-lg-end">
         <span class="badge text-bg-primary-subtle text-primary d-inline-flex align-items-center gap-2 px-3 py-2">
@@ -20,7 +20,7 @@
         <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
             <div>
                 <h2 class="h5 mb-2">Tanggal Absensi</h2>
-                <form class="d-flex align-items-center gap-2" method="get" action="{{ url_for('attendance.guru') }}">
+                <form class="d-flex align-items-center gap-2" method="get" action="{{ url_for('attendance.staff') }}">
                     <input type="date" class="form-control" name="date" value="{{ selected_date.isoformat() }}" max="{{ today.date().isoformat() }}">
                     <button type="submit" class="btn btn-outline-primary">
                         <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
@@ -42,21 +42,21 @@
                     <span class="badge text-bg-warning-subtle text-warning">Izin: {{ status_counts.izin }}</span>
                     <span class="badge text-bg-info-subtle text-info">Sakit: {{ status_counts.sakit }}</span>
                 </div>
-                <div class="small text-muted mt-2">Total guru: {{ total_teachers }}</div>
+                <div class="small text-muted mt-2">Total staff: {{ total_staff }}</div>
             </div>
         </div>
         <div class="text-muted small">
-            Pastikan Anda menyimpan perubahan setelah memperbarui status kehadiran guru.
+            Pastikan Anda menyimpan perubahan setelah memperbarui status kehadiran staff.
         </div>
     </div>
 </div>
 
 {% if teachers %}
-<form method="post" action="{{ url_for('attendance.guru') }}" class="card shadow-sm">
+<form method="post" action="{{ url_for('attendance.staff') }}" class="card shadow-sm">
     <div class="card-header d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2">
         <div>
-            <h2 class="h5 mb-0">Daftar Kehadiran Guru</h2>
-            <div class="text-muted small">Status default setiap guru adalah <strong>masuk</strong>.</div>
+            <h2 class="h5 mb-0">Daftar Kehadiran Staff</h2>
+            <div class="text-muted small">Status default setiap staff adalah <strong>masuk</strong>.</div>
         </div>
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
@@ -71,7 +71,7 @@
                 <thead class="table-light">
                     <tr>
                         <th style="width: 60px;">No</th>
-                        <th>Nama Guru</th>
+                        <th>Nama Staff</th>
                         <th style="width: 180px;">Status</th>
                     </tr>
                 </thead>
@@ -117,8 +117,8 @@
 <div class="card shadow-sm border-0 text-center py-5">
     <div class="card-body">
         <i class="bi bi-person-badge fs-1 text-muted mb-3"></i>
-        <h2 class="h5">Belum ada data guru</h2>
-        <p class="text-muted small mb-0">Tambahkan data guru pada menu Manajemen User untuk mulai melakukan absensi.</p>
+        <h2 class="h5">Belum ada data staff</h2>
+        <p class="text-muted small mb-0">Tambahkan data staff pada menu Data Master untuk mulai melakukan absensi.</p>
     </div>
 </div>
 {% endif %}

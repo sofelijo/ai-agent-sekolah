@@ -40,7 +40,7 @@ def _handle_import_teachers(args: argparse.Namespace) -> None:
     ensure_dashboard_schema()
     teachers = load_teacher_rows(args.file)
     if not teachers:
-        print("Tidak ada data guru yang ditemukan pada file tersebut.")
+        print("Tidak ada data staff yang ditemukan pada file tersebut.")
         return
 
     password = args.password or "tes"
@@ -60,7 +60,7 @@ def _handle_import_teachers(args: argparse.Namespace) -> None:
             email=email,
             full_name=teacher.full_name,
             password_hash=password_hash,
-            role="guru",
+            role="staff",
             nrk=teacher.nrk,
             nip=teacher.nip,
             jabatan=teacher.jabatan,
@@ -72,7 +72,7 @@ def _handle_import_teachers(args: argparse.Namespace) -> None:
         else:
             inserted += 1
 
-    print(f"Import guru selesai. Ditambahkan: {inserted}, diperbarui: {updated}, dilewati: {skipped}.")
+    print(f"Import staff selesai. Ditambahkan: {inserted}, diperbarui: {updated}, dilewati: {skipped}.")
 
 
 def main() -> None:
@@ -85,7 +85,7 @@ def main() -> None:
     create.add_argument(
         "--role",
         default="admin",
-        choices=["admin", "editor", "viewer", "guru"],
+        choices=["admin", "editor", "viewer", "staff"],
         help="Role for the user",
     )
     create.add_argument("--password", help="Plain password. If omitted, prompt securely.")
@@ -96,9 +96,9 @@ def main() -> None:
     import_cmd.add_argument("file", help="Path to Excel workbook")
     import_cmd.add_argument("--academic-year", help="Override academic year label (auto-detected when tersedia)")
 
-    teacher_cmd = subparsers.add_parser("import-teachers", help="Import teacher users from Excel")
+    teacher_cmd = subparsers.add_parser("import-teachers", help="Import staff users from Excel")
     teacher_cmd.add_argument("file", help="Path to Excel workbook")
-    teacher_cmd.add_argument("--password", help='Password default untuk semua guru (default: "tes")', default="tes")
+    teacher_cmd.add_argument("--password", help='Password default untuk semua staff (default: "tes")', default="tes")
 
     args = parser.parse_args()
 

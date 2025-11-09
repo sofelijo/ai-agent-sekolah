@@ -45,7 +45,7 @@
                         <i class="bi bi-graph-up nav-icon"></i>Statistik
                     </a>
                 </li>
-                {% set absensi_active = attendance_active_tab in ['kelas', 'guru'] %}
+                {% set absensi_active = attendance_active_tab in ['kelas', 'staff'] %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if absensi_active %}active{% endif %}" href="#" id="navAbsensiDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="{{ 'true' if absensi_active else 'false' }}">
                         <i class="bi bi-clipboard-check nav-icon"></i>Absensi
@@ -58,8 +58,8 @@
                         </li>
                         {% if current_user and current_user.role == 'admin' %}
                         <li>
-                            <a class="dropdown-item {% if attendance_active_tab == 'guru' %}active{% endif %}" href="{{ url_for('attendance.guru') }}">
-                                Absensi Guru
+                            <a class="dropdown-item {% if attendance_active_tab == 'staff' %}active{% endif %}" href="{{ url_for('attendance.staff') }}">
+                                Absensi Staff
                             </a>
                         </li>
                         {% endif %}
@@ -88,7 +88,7 @@
                         </li>
                     </ul>
                 </li>
-                {% set master_active = attendance_active_tab in ['master_siswa', 'master_guru'] %}
+                {% set master_active = attendance_active_tab in ['master_siswa', 'master_staff'] %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle {% if master_active %}active{% endif %}" href="#" id="navMasterDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="{{ 'true' if master_active else 'false' }}">
                         <i class="bi bi-database-add nav-icon"></i>Data Master
@@ -101,14 +101,14 @@
                         </li>
                         {% if current_user and current_user.role == 'admin' %}
                         <li>
-                            <a class="dropdown-item {% if attendance_active_tab == 'master_guru' %}active{% endif %}" href="{{ url_for('attendance.master_guru') }}">
-                                Data Guru
+                            <a class="dropdown-item {% if attendance_active_tab == 'master_staff' %}active{% endif %}" href="{{ url_for('attendance.master_staff') }}">
+                                Data Staff
                             </a>
                         </li>
                         {% endif %}
                     </ul>
                 </li>
-                {% if current_user and current_user.role != 'guru' %}
+                {% if current_user and current_user.role != 'staff' %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                         <i class="bi bi-columns-gap nav-icon"></i>Dashboard ASKA

@@ -89,7 +89,7 @@ def role_required(*roles: str) -> Callable:
             role = user.get("role")
             if role not in roles:
                 flash("Anda tidak memiliki akses ke fitur ini.", "danger")
-                if role == "guru":
+                if role == "staff":
                     return redirect(url_for("attendance.dashboard"))
                 return redirect(url_for("main.dashboard"))
             return view(*args, **kwargs)
@@ -125,7 +125,7 @@ def _establish_session(user: dict, *, remember: bool = False, email_override: Op
 
 def _redirect_after_login(user: dict, fallback: Optional[str] = None) -> str:
     """Determine the appropriate redirect destination after login."""
-    if user.get("role") == "guru":
+    if user.get("role") == "staff":
         return url_for("attendance.dashboard")
     return fallback or url_for("main.dashboard")
 
@@ -134,7 +134,7 @@ def _redirect_after_login(user: dict, fallback: Optional[str] = None) -> str:
 def login() -> Response:
     existing = current_user()
     if existing:
-        if existing.get("role") == "guru":
+        if existing.get("role") == "staff":
             return redirect(url_for("attendance.dashboard"))
         return redirect(url_for("main.dashboard"))
 

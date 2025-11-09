@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import calendar
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash
@@ -28,6 +28,7 @@ from .queries import (
     fetch_attendance_for_date,
     fetch_attendance_totals_for_date,
     fetch_class_attendance_breakdown,
+    fetch_class_submission_status_for_date,
     fetch_daily_attendance,
     fetch_master_data_overview,
     fetch_monthly_attendance_overview,
@@ -62,6 +63,8 @@ STATUS_BADGES: Dict[str, str] = {
     "izin": "warning",
     "sakit": "info",
 }
+
+ACADEMIC_MONTH_SEQUENCE: Tuple[int, ...] = (7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6)
 
 
 def _resolve_attendance_date(raw_value: Optional[str]) -> date:
@@ -146,6 +149,20 @@ def _build_month_options(available_months: List[date], selected_month: date) -> 
     return options
 
 
+def _resolve_academic_year_key(month_value: date) -> Tuple[str, int]:
+    start_year = month_value.year if month_value.month >= 7 else month_value.year - 1
+    return f"{start_year}-{start_year + 1}", start_year
+
+
+def _build_academic_year_labels(start_year: int) -> List[str]:
+    labels: List[str] = []
+    for month in ACADEMIC_MONTH_SEQUENCE:
+        year_value = start_year if month >= 7 else start_year + 1
+        month_label = INDONESIAN_MONTH_NAMES.get(month, calendar.month_name[month])
+        labels.append(f"{month_label} {year_value}")
+    return labels
+
+
 def _extract_student_form_payload(form_data) -> Dict[str, Any]:
     raw_class_id = form_data.get("student_class_id")
     if not raw_class_id:
@@ -181,7 +198,7 @@ def _extract_student_form_payload(form_data) -> Dict[str, Any]:
 
 @attendance_bp.route("/absen", methods=["GET"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def dashboard() -> str:
     now = current_jakarta_time()
     today = now.date()
@@ -194,6 +211,7 @@ def dashboard() -> str:
     chart_alpa: List[int] = []
     chart_izin: List[int] = []
     chart_sakit: List[int] = []
+    chart_zero_totals: List[bool] = []
     for row in daily_rows:
         day_value = row.get("attendance_date")
         if isinstance(day_value, date):
@@ -204,12 +222,153 @@ def dashboard() -> str:
             except Exception:
                 label = str(day_value)
         chart_labels.append(label)
-        chart_masuk.append(int(row.get("masuk") or 0))
-        chart_alpa.append(int(row.get("alpa") or 0))
-        chart_izin.append(int(row.get("izin") or 0))
-        chart_sakit.append(int(row.get("sakit") or 0))
+        present = int(row.get("masuk") or 0)
+        alpa = int(row.get("alpa") or 0)
+        izin = int(row.get("izin") or 0)
+        sakit = int(row.get("sakit") or 0)
+        chart_masuk.append(present)
+        chart_alpa.append(alpa)
+        chart_izin.append(izin)
+        chart_sakit.append(sakit)
+        total_entries = present + alpa + izin + sakit
+        chart_zero_totals.append(total_entries == 0)
+
+    monthly_source_months = list_attendance_months(limit=18)
+    normalized_months: List[date] = []
+    observed_month_keys: set[str] = set()
+    for month_entry in monthly_source_months:
+        if not isinstance(month_entry, date):
+            try:
+                month_entry = date.fromisoformat(str(month_entry))
+            except Exception:
+                continue
+        month_key = month_entry.strftime("%Y-%m")
+        if month_key in observed_month_keys:
+            continue
+        observed_month_keys.add(month_key)
+        normalized_months.append(month_entry)
+    if not normalized_months:
+        normalized_months.append(today.replace(day=1))
+
+    monthly_chart_options: List[Dict[str, str]] = []
+    monthly_chart_data: Dict[str, Any] = {}
+    month_totals_info: List[Dict[str, Any]] = []
+    for month_date in normalized_months:
+        month_key = month_date.strftime("%Y-%m")
+        monthly_chart_options.append(
+            {
+                "value": month_key,
+                "label": _format_month_label(month_date),
+            }
+        )
+        month_rows = fetch_monthly_attendance_overview(month_date.year, month_date.month)
+        rows_map: Dict[date, Dict[str, Any]] = {}
+        for row in month_rows:
+            day_value = row.get("attendance_date")
+            if isinstance(day_value, date):
+                row_key = day_value
+            else:
+                try:
+                    row_key = date.fromisoformat(str(day_value))
+                except Exception:
+                    continue
+            rows_map[row_key] = row
+        days_in_month = calendar.monthrange(month_date.year, month_date.month)[1]
+        labels: List[str] = []
+        zero_mask: List[bool] = []
+        series_map: Dict[str, List[int]] = {status: [] for status in ATTENDANCE_STATUSES}
+        month_totals = {status: 0 for status in ATTENDANCE_STATUSES}
+        for day in range(1, days_in_month + 1):
+            day_date = date(month_date.year, month_date.month, day)
+            row = rows_map.get(day_date)
+            labels.append(day_date.strftime("%d/%m"))
+            day_total = 0
+            for status in ATTENDANCE_STATUSES:
+                value = int(row.get(status) or 0) if row else 0
+                series_map[status].append(value)
+                month_totals[status] += value
+                day_total += value
+            zero_mask.append(day_total == 0)
+        monthly_chart_data[month_key] = {
+            "labels": labels,
+            "series": series_map,
+            "zero_mask": zero_mask,
+        }
+        month_totals_info.append(
+            {
+                "key": month_key,
+                "date": month_date,
+                "totals": month_totals,
+            }
+        )
+    monthly_chart_default_key = monthly_chart_options[0]["value"] if monthly_chart_options else None
+
+    academic_year_buckets: Dict[str, Dict[str, Any]] = {}
+    for entry in month_totals_info:
+        month_date = entry["date"]
+        year_key, start_year = _resolve_academic_year_key(month_date)
+        bucket = academic_year_buckets.setdefault(
+            year_key,
+            {
+                "label": f"{start_year}/{start_year + 1}",
+                "start_year": start_year,
+                "labels": _build_academic_year_labels(start_year),
+                "series": {status: [0] * len(ACADEMIC_MONTH_SEQUENCE) for status in ATTENDANCE_STATUSES},
+            },
+        )
+        month_index = ACADEMIC_MONTH_SEQUENCE.index(month_date.month)
+        for status in ATTENDANCE_STATUSES:
+            bucket["series"][status][month_index] = entry["totals"][status]
+
+    current_month_anchor = today.replace(day=1)
+    current_year_key, current_start_year = _resolve_academic_year_key(current_month_anchor)
+    if current_year_key not in academic_year_buckets:
+        academic_year_buckets[current_year_key] = {
+            "label": f"{current_start_year}/{current_start_year + 1}",
+            "start_year": current_start_year,
+            "labels": _build_academic_year_labels(current_start_year),
+            "series": {status: [0] * len(ACADEMIC_MONTH_SEQUENCE) for status in ATTENDANCE_STATUSES},
+        }
+
+    academic_year_options_raw = sorted(
+        (
+            {"value": key, "label": bucket["label"], "start_year": bucket["start_year"]}
+            for key, bucket in academic_year_buckets.items()
+        ),
+        key=lambda item: item["start_year"],
+        reverse=True,
+    )
+    academic_year_options: List[Dict[str, str]] = [
+        {"value": item["value"], "label": item["label"]} for item in academic_year_options_raw
+    ]
+    academic_year_chart_data = {
+        key: {"labels": bucket["labels"], "series": bucket["series"]}
+        for key, bucket in academic_year_buckets.items()
+    }
+    academic_year_default_key = (
+        current_year_key if current_year_key in academic_year_chart_data else (
+            academic_year_options[0]["value"] if academic_year_options else None
+        )
+    )
 
     recent_records = fetch_recent_attendance(limit=8)
+    class_submission_status = fetch_class_submission_status_for_date(today)
+    class_attendance_rows = fetch_class_attendance_breakdown(today)
+    class_attendance_map: Dict[int, Dict[str, Any]] = {}
+    for row in class_attendance_rows:
+        try:
+            class_id = int(row.get("id"))
+        except (TypeError, ValueError):
+            continue
+        class_attendance_map[class_id] = {
+            "name": row.get("name"),
+            "academic_year": row.get("academic_year"),
+            "masuk": int(row.get("masuk") or 0),
+            "alpa": int(row.get("alpa") or 0),
+            "izin": int(row.get("izin") or 0),
+            "sakit": int(row.get("sakit") or 0),
+            "total_students": int(row.get("total_students") or 0),
+        }
 
     return render_template(
         "attendance/stats.html",
@@ -223,8 +382,35 @@ def dashboard() -> str:
             "izin": chart_izin,
             "sakit": chart_sakit,
         },
+        chart_zero_totals=chart_zero_totals,
+        trend_weekly_payload={
+            "labels": chart_labels,
+            "series": {
+                "masuk": chart_masuk,
+                "alpa": chart_alpa,
+                "izin": chart_izin,
+                "sakit": chart_sakit,
+            },
+            "zero_mask": chart_zero_totals,
+        },
+        trend_monthly_payload={
+            "default": monthly_chart_default_key,
+            "options": monthly_chart_options,
+            "datasets": monthly_chart_data,
+        },
+        trend_academic_payload={
+            "default": academic_year_default_key,
+            "options": academic_year_options,
+            "datasets": academic_year_chart_data,
+        },
+        monthly_chart_options=monthly_chart_options,
+        monthly_chart_default_key=monthly_chart_default_key,
+        academic_year_options=academic_year_options,
+        academic_year_default_key=academic_year_default_key,
+        class_attendance_map=class_attendance_map,
         daily_rows=daily_rows,
         recent_records=recent_records,
+        class_submission_status=class_submission_status,
         generated_at=now,
         today_label=_format_indonesian_date(today),
         status_labels=STATUS_LABELS,
@@ -234,7 +420,7 @@ def dashboard() -> str:
 
 @attendance_bp.route("/absen/kelas", methods=["GET"], endpoint="kelas")
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def absen() -> str:
     user = current_user()
     if not user:
@@ -310,10 +496,10 @@ def absen() -> str:
     )
 
 
-@attendance_bp.route("/absen/guru", methods=["GET", "POST"])
+@attendance_bp.route("/absen/staff", methods=["GET", "POST"])
 @login_required
 @role_required("admin")
-def guru() -> str:
+def staff() -> str:
     user = current_user()
     if not user:
         return redirect(url_for("auth.login"))
@@ -338,8 +524,8 @@ def guru() -> str:
                 recorded_by=user["id"],
                 entries=entries,
             )
-            flash("Absensi guru berhasil disimpan.", "success")
-            return redirect(url_for("attendance.guru", date=selected_date.isoformat()))
+            flash("Absensi staff berhasil disimpan.", "success")
+            return redirect(url_for("attendance.staff", date=selected_date.isoformat()))
         except ValueError as exc:
             flash(str(exc), "danger")
 
@@ -378,13 +564,13 @@ def guru() -> str:
             }
         )
 
-    total_teachers = len(teachers_view)
-    if total_teachers and not any(status_counts.values()):
-        status_counts[DEFAULT_ATTENDANCE_STATUS] = total_teachers
+    total_staff = len(teachers_view)
+    if total_staff and not any(status_counts.values()):
+        status_counts[DEFAULT_ATTENDANCE_STATUS] = total_staff
 
     return render_template(
-        "attendance/absen_guru.html",
-        attendance_active_tab="guru",
+        "attendance/absen_staff.html",
+        attendance_active_tab="staff",
         selected_date=selected_date,
         selected_date_label=selected_date_label,
         teachers=teachers_view,
@@ -392,7 +578,7 @@ def guru() -> str:
         status_badges=STATUS_BADGES,
         attendance_statuses=ATTENDANCE_STATUSES,
         status_counts=status_counts,
-        total_teachers=total_teachers,
+        total_staff=total_staff,
         latest_submission_at=latest_submission_at,
         today=current_jakarta_time(),
     )
@@ -400,7 +586,7 @@ def guru() -> str:
 
 @attendance_bp.route("/absen/laporan-harian", methods=["GET"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def laporan_harian() -> str:
     user = current_user()
     if not user:
@@ -577,7 +763,7 @@ def laporan_harian() -> str:
 
 @attendance_bp.route("/absen/laporan-bulanan", methods=["GET"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def laporan_bulanan() -> str:
     user = current_user()
     if not user:
@@ -634,7 +820,7 @@ def laporan_bulanan() -> str:
 
 @attendance_bp.route("/absen/lembar-bulanan", methods=["GET"], endpoint="lembar_bulanan")
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def lembar_bulanan() -> str:
     """Cetak lembar absensi bulanan per kelas (tiap siswa per hari)."""
     user = current_user()
@@ -779,7 +965,7 @@ def lembar_bulanan() -> str:
 
 @attendance_bp.route("/absen/pilih-kelas", methods=["POST"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def pilih_kelas() -> str:
     user = current_user()
     if not user:
@@ -819,7 +1005,7 @@ def pilih_kelas() -> str:
 
 @attendance_bp.route("/absen/simpan", methods=["POST"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def simpan_absen() -> str:
     user = current_user()
     if not user:
@@ -867,7 +1053,7 @@ def simpan_absen() -> str:
 
 @attendance_bp.route("/absen/master", methods=["GET", "POST"])
 @login_required
-@role_required("guru", "admin")
+@role_required("staff", "admin")
 def master_data() -> str:
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
@@ -942,10 +1128,10 @@ def master_data() -> str:
     )
 
 
-@attendance_bp.route("/absen/master/guru", methods=["GET", "POST"])
+@attendance_bp.route("/absen/master/staff", methods=["GET", "POST"])
 @login_required
 @role_required("admin")
-def master_guru() -> str:
+def master_staff() -> str:
     classes = list_school_classes()
     class_lookup = {int(c["id"]): c for c in classes}
 
@@ -966,7 +1152,7 @@ def master_guru() -> str:
             if action == "create_teacher":
                 password = request.form.get("teacher_password")
                 if not password:
-                    raise ValueError("Password awal guru wajib diisi.")
+                    raise ValueError("Password awal staff wajib diisi.")
                 assigned_class_id = _resolve_class_id(request.form.get("teacher_assigned_class"))
                 create_teacher_user(
                     email=request.form.get("teacher_email"),
@@ -979,15 +1165,15 @@ def master_guru() -> str:
                     degree_suffix=request.form.get("teacher_degree_suffix"),
                     assigned_class_id=assigned_class_id,
                 )
-                flash("Data guru baru berhasil disimpan.", "success")
+                flash("Data staff baru berhasil disimpan.", "success")
             elif action == "update_teacher":
                 raw_teacher_id = request.form.get("teacher_id")
                 if not raw_teacher_id:
-                    raise ValueError("ID guru tidak ditemukan.")
+                    raise ValueError("ID staff tidak ditemukan.")
                 try:
                     teacher_id = int(raw_teacher_id)
                 except (TypeError, ValueError) as exc:
-                    raise ValueError("ID guru tidak valid.") from exc
+                    raise ValueError("ID staff tidak valid.") from exc
                 assigned_class_id = _resolve_class_id(request.form.get("teacher_assigned_class"))
                 password = request.form.get("teacher_password") or None
                 password_hash = (
@@ -1008,16 +1194,16 @@ def master_guru() -> str:
                     password_hash=password_hash,
                 )
                 if not updated:
-                    flash("Data guru tidak ditemukan.", "warning")
+                    flash("Data staff tidak ditemukan.", "warning")
                 else:
-                    flash("Data guru berhasil diperbarui.", "success")
+                    flash("Data staff berhasil diperbarui.", "success")
             else:
                 flash("Aksi tidak dikenal.", "warning")
         except ValueError as exc:
             flash(str(exc), "danger")
         except Exception as exc:
-            flash(f"Gagal menyimpan data guru: {exc}", "danger")
-        return redirect(url_for("attendance.master_guru"))
+            flash(f"Gagal menyimpan data staff: {exc}", "danger")
+        return redirect(url_for("attendance.master_staff"))
 
     teachers = fetch_teacher_master_data()
     for teacher in teachers:
@@ -1034,8 +1220,8 @@ def master_guru() -> str:
             teacher["assigned_class_name"] = None
 
     return render_template(
-        "attendance/master_data_teachers.html",
-        attendance_active_tab="master_guru",
+        "attendance/master_data_staff.html",
+        attendance_active_tab="master_staff",
         teachers=teachers,
         classes=classes,
         class_lookup=class_lookup,

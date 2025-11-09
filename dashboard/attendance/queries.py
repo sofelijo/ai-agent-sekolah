@@ -133,7 +133,7 @@ def fetch_active_teachers() -> List[Dict[str, Any]]:
                 degree_prefix,
                 degree_suffix
             FROM dashboard_users
-            WHERE role = 'guru'
+            WHERE role = 'staff'
             ORDER BY full_name ASC
             """
         )
@@ -155,7 +155,7 @@ def fetch_teacher_master_data() -> List[Dict[str, Any]]:
                 degree_suffix,
                 assigned_class_id
             FROM dashboard_users
-            WHERE role = 'guru'
+            WHERE role = 'staff'
             ORDER BY full_name ASC
             """
         )
@@ -178,9 +178,9 @@ def create_teacher_user(
     clean_email = (email or "").strip().lower()
     clean_name = (full_name or "").strip()
     if not clean_email:
-        raise ValueError("Email guru wajib diisi.")
+        raise ValueError("Email staff wajib diisi.")
     if not clean_name:
-        raise ValueError("Nama guru wajib diisi.")
+        raise ValueError("Nama staff wajib diisi.")
     with get_cursor(commit=True) as cur:
         cur.execute(
             """
@@ -196,7 +196,7 @@ def create_teacher_user(
                 degree_suffix,
                 assigned_class_id
             )
-            VALUES (%s, %s, %s, 'guru', %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, 'staff', %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
@@ -229,13 +229,13 @@ def update_teacher_user(
     password_hash: Optional[str] = None,
 ) -> bool:
     if teacher_id <= 0:
-        raise ValueError("ID guru tidak valid.")
+        raise ValueError("ID staff tidak valid.")
     clean_email = (email or "").strip().lower()
     clean_name = (full_name or "").strip()
     if not clean_email:
-        raise ValueError("Email guru wajib diisi.")
+        raise ValueError("Email staff wajib diisi.")
     if not clean_name:
-        raise ValueError("Nama guru wajib diisi.")
+        raise ValueError("Nama staff wajib diisi.")
     assignments = [
         ("email", clean_email),
         ("full_name", clean_name),
@@ -254,7 +254,7 @@ def update_teacher_user(
     query = f"""
         UPDATE dashboard_users
         SET {set_clause}
-        WHERE id = %s AND role = 'guru'
+        WHERE id = %s AND role = 'staff'
     """
     with get_cursor(commit=True) as cur:
         cur.execute(query, params)
@@ -282,7 +282,7 @@ def fetch_teacher_attendance_for_date(attendance_date: date) -> Dict[int, Dict[s
 
 
 def fetch_teacher_absence_for_date(attendance_date: date) -> List[Dict[str, Any]]:
-    """Ambil daftar guru yang tidak berstatus 'masuk' pada tanggal tertentu."""
+    """Ambil daftar staff yang tidak berstatus 'masuk' pada tanggal tertentu."""
     with get_cursor() as cur:
         cur.execute(
             """
@@ -318,7 +318,7 @@ def upsert_teacher_attendance_entries(
         for entry in entries:
             teacher_id = entry.get("teacher_id")
             if teacher_id is None:
-                raise ValueError("teacher_id wajib diisi untuk setiap entri absensi guru.")
+                raise ValueError("teacher_id wajib diisi untuk setiap entri absensi staff.")
             try:
                 teacher_id_int = int(teacher_id)
             except (TypeError, ValueError) as exc:
@@ -585,27 +585,52 @@ def fetch_master_data_overview() -> Dict[str, Any]:
 
         cur.execute(
             """
-            SELECT COUNT(*) AS total_guru
+            SELECT COUNT(*) AS total_staff
             FROM dashboard_users
-            WHERE role = 'guru'
+            WHERE role = 'staff'
             """
         )
-        total_guru = int(cur.fetchone()["total_guru"])
+        total_staff = int(cur.fetchone()["total_staff"])
 
         cur.execute(
             """
             SELECT COUNT(*) AS total_assigned
             FROM dashboard_users
-            WHERE role = 'guru' AND assigned_class_id IS NOT NULL
+            WHERE role = 'staff' AND assigned_class_id IS NOT NULL
             """
         )
         total_assigned = int(cur.fetchone()["total_assigned"])
 
+        cur.execute(
+            """
+            SELECT
+                CASE
+                    WHEN COALESCE(jabatan, '') ILIKE '%%guru%%'
+                         OR COALESCE(jabatan, '') ILIKE '%%kepala%%'
+                    THEN 'Guru'
+                    ELSE 'Tenaga Pendidikan'
+                END AS category,
+                COUNT(*) AS total
+            FROM dashboard_users
+            WHERE role = 'staff'
+            GROUP BY category
+            ORDER BY category ASC
+            """
+        )
+        staff_breakdown = [
+            {
+                "jabatan": row["category"],
+                "total": int(row["total"] or 0),
+            }
+            for row in cur.fetchall()
+        ]
+
     return {
         "total_classes": total_classes,
         "total_students": total_students,
-        "total_guru": total_guru,
-        "total_assigned_guru": total_assigned,
+        "total_staff": total_staff,
+        "total_assigned_staff": total_assigned,
+        "staff_breakdown": staff_breakdown,
     }
 
 
@@ -656,6 +681,45 @@ def fetch_attendance_totals_for_date(target_date: date) -> Dict[str, int]:
     if not row:
         return {status: 0 for status in ATTENDANCE_STATUSES}
     return {status: int(row[status] or 0) for status in ATTENDANCE_STATUSES}
+
+
+def fetch_class_submission_status_for_date(target_date: date) -> Dict[str, List[Dict[str, Any]]]:
+    """Daftar kelas yang sudah/belum mengisi absensi pada tanggal tertentu."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                sc.id,
+                sc.name,
+                COUNT(ar.id) AS total_entries,
+                MAX(ar.updated_at) AS last_updated_at,
+                MAX(ar.recorded_at) AS last_recorded_at
+            FROM school_classes sc
+            LEFT JOIN attendance_records ar
+              ON ar.class_id = sc.id
+             AND ar.attendance_date = %s
+            GROUP BY sc.id, sc.name
+            ORDER BY sc.name ASC
+            """,
+            (target_date,),
+        )
+        rows = cur.fetchall()
+
+    submitted: List[Dict[str, Any]] = []
+    pending: List[Dict[str, Any]] = []
+    for raw in rows:
+        entries = int(raw["total_entries"] or 0)
+        item = {
+            "id": int(raw["id"]),
+            "name": raw["name"],
+            "entries": entries,
+            "last_activity": raw["last_updated_at"] or raw["last_recorded_at"],
+        }
+        if entries > 0:
+            submitted.append(item)
+        else:
+            pending.append(item)
+    return {"submitted": submitted, "pending": pending}
 
 
 def fetch_class_attendance_breakdown(attendance_date: date) -> List[Dict[str, Any]]:
@@ -783,7 +847,7 @@ def fetch_school_identity() -> Dict[str, Optional[str]]:
                         degree_prefix,
                         degree_suffix
                     FROM dashboard_users
-                    WHERE role IN ('admin', 'guru')
+                    WHERE role IN ('admin', 'staff')
                     ORDER BY
                         CASE
                             WHEN jabatan ILIKE '%%kepala%%' THEN 0
@@ -804,7 +868,7 @@ def fetch_school_identity() -> Dict[str, Optional[str]]:
                         NULL AS degree_prefix,
                         NULL AS degree_suffix
                     FROM dashboard_users
-                    WHERE role IN ('admin', 'guru')
+                    WHERE role IN ('admin', 'staff')
                     ORDER BY
                         CASE
                             WHEN jabatan ILIKE '%%kepala%%' THEN 0

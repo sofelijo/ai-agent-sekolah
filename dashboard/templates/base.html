@@ -29,7 +29,7 @@
 <body style="font-family: 'Plus Jakarta Sans', sans-serif;">
 <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('attendance.dashboard') if current_user and current_user.role == 'guru' else url_for('main.dashboard') }}">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('attendance.dashboard') if current_user and current_user.role == 'staff' else url_for('main.dashboard') }}">
             <span class="icon-badge brand-icon text-primary">
                 <i class="bi bi-stars"></i>
             </span>
@@ -40,7 +40,7 @@
         </button>
         <div class="collapse navbar-collapse" id="navMenu">
             {% set current_role = current_user.role if current_user else None %}
-            {% set is_teacher = current_role == 'guru' %}
+            {% set is_teacher = current_role == 'staff' %}
             {% set is_admin = current_role == 'admin' %}
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 {% if is_teacher %}
