@@ -22,6 +22,7 @@ from .queries import (
     DEFAULT_ATTENDANCE_STATUS,
     create_school_class,
     create_student,
+    deactivate_student,
     create_teacher_user,
     fetch_active_teachers,
     fetch_all_students,
@@ -1099,6 +1100,19 @@ def master_data() -> str:
                     flash("Data siswa tidak ditemukan.", "warning")
                 else:
                     flash("Data siswa berhasil diperbarui.", "success")
+            elif action == "delete_student":
+                raw_student_id = request.form.get("student_id")
+                if not raw_student_id:
+                    raise ValueError("ID siswa tidak ditemukan.")
+                try:
+                    student_id = int(raw_student_id)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("ID siswa tidak valid.") from exc
+                removed = deactivate_student(student_id)
+                if not removed:
+                    flash("Data siswa tidak ditemukan atau sudah dihapus.", "warning")
+                else:
+                    flash("Data siswa berhasil dihapus.", "success")
             else:
                 flash("Aksi tidak dikenal.", "warning")
         except ValueError as exc:

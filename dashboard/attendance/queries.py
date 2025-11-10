@@ -575,6 +575,22 @@ def update_student_record(
         return cur.rowcount > 0
 
 
+def deactivate_student(student_id: int) -> bool:
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE students
+            SET
+                active = FALSE,
+                updated_at = NOW()
+            WHERE id = %s
+              AND active IS TRUE
+            """,
+            (student_id,),
+        )
+        return cur.rowcount > 0
+
+
 def fetch_master_data_overview() -> Dict[str, Any]:
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS total_classes FROM school_classes")
@@ -963,6 +979,7 @@ def fetch_all_students() -> List[Dict[str, Any]]:
                 sc.name AS class_name
             FROM students s
             JOIN school_classes sc ON sc.id = s.class_id
+            WHERE s.active IS TRUE
             ORDER BY sc.name ASC, COALESCE(s.sequence, 9999) ASC, s.full_name ASC
             """
         )

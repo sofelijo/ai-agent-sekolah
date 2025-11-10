@@ -43,7 +43,7 @@
                             <span class="icon-badge text-success bg-success-subtle"><i class="bi bi-person-plus"></i></span>
                             <div>
                                 <h2 class="h5 mb-0">Tambah / Perbarui Siswa</h2>
-                                <p class="text-muted small mb-0">Klik baris siswa pada daftar di bawah untuk mengisi formulir ini.</p>
+                                <p class="text-muted small mb-0">Klik baris siswa pada daftar di bawah untuk mengisi formulir ini; kartu akan berubah menjadi mode edit/hapus.</p>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
@@ -142,9 +142,14 @@
                             <input type="text" class="form-control" name="student_kk" placeholder="Nomor Kartu Keluarga">
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-success" id="studentFormSubmit" data-default-label="Simpan Siswa" data-update-label="Perbarui Siswa">
-                        <i class="bi bi-check2-circle me-2"></i><span class="student-form-submit-label">Simpan Siswa</span>
-                    </button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-success" id="studentFormSubmit" data-default-label="Simpan Siswa" data-update-label="Perbarui Siswa">
+                            <i class="bi bi-check2-circle me-2"></i><span class="student-form-submit-label">Simpan Siswa</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" id="studentFormDelete" data-action="delete_student" hidden formnovalidate>
+                            <i class="bi bi-trash me-2"></i>Hapus Siswa
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -181,14 +186,14 @@
             {% set students = students_by_class.get(class_id, []) %}
             <div class="accordion-item">
                 <h2 class="accordion-header" id="heading-{{ class_id }}">
-                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ class_id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ class_id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ class_id }}" aria-expanded="false" aria-controls="collapse-{{ class_id }}">
                         <div class="d-flex flex-column">
                             <span class="fw-semibold">{{ class_item.name }}</span>
                             <span class="text-muted small">{{ students|length }} siswa terdaftar{% if class_item.academic_year %} • {{ class_item.academic_year }}{% endif %}</span>
                         </div>
                     </button>
                 </h2>
-                <div id="collapse-{{ class_id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ class_id }}" data-bs-parent="#classAccordion">
+                <div id="collapse-{{ class_id }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ class_id }}" data-bs-parent="#classAccordion">
                     <div class="accordion-body">
                         {% if students %}
                         <div class="table-responsive">
@@ -294,6 +299,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var submitLabel = submitButton ? submitButton.querySelector(".student-form-submit-label") : null;
     var defaultLabel = submitButton ? (submitButton.getAttribute("data-default-label") || "Simpan Siswa") : "Simpan Siswa";
     var updateLabel = submitButton ? (submitButton.getAttribute("data-update-label") || "Perbarui Siswa") : "Perbarui Siswa";
+    var deleteButton = document.getElementById("studentFormDelete");
 
     function setMode(isEdit) {
         if (modeBadge) {
@@ -312,6 +318,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (resetButton) {
             resetButton.hidden = !isEdit;
+        }
+        if (deleteButton) {
+            deleteButton.hidden = !isEdit;
         }
     }
 
@@ -365,6 +374,24 @@ document.addEventListener("DOMContentLoaded", function () {
     studentRows.forEach(function (row) {
         row.addEventListener("click", handleRowClick);
     });
+
+    if (deleteButton) {
+        deleteButton.addEventListener("click", function (event) {
+            event.preventDefault();
+            if (!studentIdInput || !studentIdInput.value) {
+                return;
+            }
+            var confirmed = window.confirm("Yakin ingin menghapus siswa ini? Aksi tidak dapat dibatalkan.");
+            if (!confirmed) {
+                return;
+            }
+            var targetAction = deleteButton.dataset.action || "delete_student";
+            if (actionInput) {
+                actionInput.value = targetAction;
+            }
+            studentForm.submit();
+        });
+    }
 
     if (resetButton) {
         resetButton.addEventListener("click", function () {
