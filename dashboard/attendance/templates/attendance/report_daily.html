@@ -1,11 +1,11 @@
 {% extends "attendance/base.html" %}
-{% block title %}Laporan Staff Piket{% endblock %}
+{% block title %}Laporan Guru Piket{% endblock %}
 
 {% block content %}
 <div class="container py-4 report-page">
     <div class="page-toolbar d-print-none">
         <div>
-            <h1 class="h4 mb-1">Laporan Staff Piket</h1>
+            <h1 class="h4 mb-1">Laporan GURU Piket</h1>
             <p class="text-muted mb-0">Unduh atau cetak formulir piket harian sesuai format standar.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
@@ -45,7 +45,7 @@
     <div class="sheet-wrapper">
         <section class="attendance-sheet" id="printArea" data-date="{{ selected_date.isoformat() }}">
             <header class="sheet-header text-center">
-                <div class="sheet-title">LAPORAN STAFF PIKET</div>
+                <div class="sheet-title">LAPORAN GURU PIKET</div>
                 <div class="sheet-school">{{ school_identity.school_name or 'SDN SEMPER BARAT 01' }}</div>
                 <div class="sheet-year">Tahun Ajaran {{ school_identity.academic_year or default_academic_year }}</div>
             </header>
@@ -61,10 +61,10 @@
                     <thead>
                         <tr>
                             <th class="col-number">No</th>
-                            <th>Staff Tidak Hadir</th>
+                            <th>Guru Tidak Hadir</th>
                             <th>Tugas</th>
                             <th>Alasan</th>
-                            <th>Staff Pengganti</th>
+                            <th>Guru Pengganti</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,12 +127,12 @@
             </section>
 
             <section class="sheet-section">
-                <div class="section-heading">CATATAN STAFF YANG TERLAMBAT</div>
+                <div class="section-heading">CATATAN GURU YANG TERLAMBAT</div>
                 <table class="grid-table notes-table">
                     <thead>
                         <tr>
                             <th class="col-number">No</th>
-                            <th>Nama Staff</th>
+                            <th>Nama Guru</th>
                             <th class="col-class">Kelas</th>
                             <th class="col-time">Waktu</th>
                             <th>Alasan Terlambat</th>
@@ -228,7 +228,7 @@
                     <div class="signature-nip">NIP. {{ school_identity.headmaster_nip or '197710172008012029' }}</div>
                 </div>
                 <div class="signature-right">
-                    <div class="signature-box-title">NAMA STAFF PIKET</div>
+                    <div class="signature-box-title">NAMA GURU PIKET</div>
                     <table class="signature-box-table">
                         <tbody>
                             {% for i in range(1, 7) %}
@@ -495,7 +495,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                 pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
                 var filenameDate = printArea.getAttribute("data-date") || "laporan";
-                pdf.save("laporan-staff-piket-" + filenameDate + ".pdf");
+                pdf.save("laporan-guru-piket-" + filenameDate + ".pdf");
             }).finally(function () {
                 downloadButton.disabled = false;
                 downloadButton.classList.remove("disabled");
