@@ -308,6 +308,80 @@ def fetch_teacher_absence_for_date(attendance_date: date) -> List[Dict[str, Any]
     return [dict(row) for row in rows]
 
 
+def fetch_late_students_for_date(attendance_date: date, *, class_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    with get_cursor() as cur:
+        params = [attendance_date]
+        where_clause = "WHERE als.attendance_date = %s"
+        if class_id is not None:
+            where_clause += " AND als.class_id = %s"
+            params.append(class_id)
+        cur.execute(
+            f"""
+            SELECT
+                als.id,
+                als.student_name,
+                COALESCE(NULLIF(als.class_label, ''), cls.name) AS class_label,
+                als.arrival_time,
+                als.reason
+            FROM attendance_late_students als
+            LEFT JOIN school_classes cls ON cls.id = als.class_id
+            {where_clause}
+            ORDER BY als.created_at ASC, als.id ASC
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def replace_late_students_for_date(
+    *,
+    attendance_date: date,
+    class_id: Optional[int],
+    entries: Iterable[Dict[str, Any]],
+    recorded_by: Optional[int] = None,
+) -> None:
+    delete_params = [attendance_date]
+    delete_clause = "DELETE FROM attendance_late_students WHERE attendance_date = %s"
+    if class_id is not None:
+        delete_clause += " AND class_id = %s"
+        delete_params.append(class_id)
+    else:
+        delete_clause += " AND class_id IS NULL"
+    with get_cursor(commit=True) as cur:
+        cur.execute(delete_clause, tuple(delete_params))
+        for entry in entries:
+            student_name = (entry.get("student_name") or "").strip()
+            if not student_name:
+                continue
+            class_label = (entry.get("class_label") or "").strip()
+            arrival_time = (entry.get("arrival_time") or "").strip() or None
+            reason = (entry.get("reason") or "").strip() or None
+            cur.execute(
+                """
+                INSERT INTO attendance_late_students (
+                    attendance_date,
+                    class_id,
+                    student_name,
+                    class_label,
+                    arrival_time,
+                    reason,
+                    recorded_by
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    attendance_date,
+                    class_id,
+                    student_name,
+                    class_label or None,
+                    arrival_time,
+                    reason,
+                    recorded_by,
+                ),
+            )
+
+
 def upsert_teacher_attendance_entries(
     *,
     attendance_date: date,

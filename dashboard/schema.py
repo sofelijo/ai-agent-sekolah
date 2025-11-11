@@ -110,6 +110,31 @@ CREATE INDEX IF NOT EXISTS idx_teacher_attendance_records_date
 ON teacher_attendance_records (attendance_date);
 """
 
+_ATTENDANCE_LATE_STUDENTS_SQL = """
+CREATE TABLE IF NOT EXISTS attendance_late_students (
+    id SERIAL PRIMARY KEY,
+    attendance_date DATE NOT NULL,
+    class_id INTEGER REFERENCES school_classes(id) ON DELETE SET NULL,
+    student_name TEXT NOT NULL,
+    class_label TEXT,
+    arrival_time TEXT,
+    reason TEXT,
+    recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_ATTENDANCE_LATE_DATE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_attendance_late_date
+ON attendance_late_students (attendance_date);
+"""
+
+_ATTENDANCE_LATE_CLASS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_attendance_late_class
+ON attendance_late_students (class_id);
+"""
+
 _BULLYING_REPORTS_SQL = """
 CREATE TABLE IF NOT EXISTS bullying_reports (
     id SERIAL PRIMARY KEY,
@@ -235,6 +260,9 @@ def ensure_dashboard_schema() -> None:
         _ATTENDANCE_CLASS_DATE_INDEX_SQL,
         _TEACHER_ATTENDANCE_SQL,
         _TEACHER_ATTENDANCE_DATE_INDEX_SQL,
+        _ATTENDANCE_LATE_STUDENTS_SQL,
+        _ATTENDANCE_LATE_DATE_INDEX_SQL,
+        _ATTENDANCE_LATE_CLASS_INDEX_SQL,
         _BULLYING_REPORTS_SQL,
         _BULLYING_STATUS_INDEX_SQL,
         _BULLYING_EVENTS_SQL,

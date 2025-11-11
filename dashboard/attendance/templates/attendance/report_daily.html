@@ -165,13 +165,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for i in range(1, 9) %}
+                        {% set student_late_entries = late_students or [] %}
+                        {% set late_row_count = student_late_entries|length if student_late_entries|length > 8 else 8 %}
+                        {% for i in range(1, late_row_count + 1) %}
+                        {% set entry = student_late_entries[i - 1] if i <= student_late_entries|length else None %}
                         <tr>
                             <td class="text-center">{{ i }}</td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
+                            <td>{{ entry.student_name if entry else '' }}</td>
+                            <td>{{ entry.class_label if entry else '' }}</td>
+                            <td>{{ entry.arrival_time if entry else '' }}</td>
+                            <td>{{ entry.reason if entry else '' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

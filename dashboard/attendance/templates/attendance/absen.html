@@ -2,6 +2,8 @@
 {% block title %}Absensi Siswa{% endblock %}
 
 {% block content %}
+{% set default_class_label = teacher_class.class_name if teacher_class and teacher_class.class_name else '' %}
+{% set late_entries_list = late_entries or [] %}
 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
     <div>
         <h1 class="h3 mb-1">Absensi Siswa</h1>
@@ -165,6 +167,103 @@
                 </table>
             </div>
         </div>
+        <div class="card-body border-top">
+            <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-between gap-3 mb-2">
+                <div>
+                    <h2 class="h5 mb-1">Catatan Siswa Terlambat</h2>
+                    <p class="text-muted small mb-0">Isikan siswa yang datang terlambat agar tampil di laporan piket harian.</p>
+                </div>
+                <button type="button" id="addLateEntryButton" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i> Tambah baris
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm late-entries-table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nama</th>
+                            <th>Kelas</th>
+                            <th>Waktu</th>
+                            <th>Alasan</th>
+                            <th class="text-end" style="width: 1%;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lateEntriesBody">
+                        {% for entry in late_entries_list %}
+                        <tr>
+                            <td>
+                                <input type="text" name="late_name[]" class="form-control form-control-sm" list="studentNamesList" value="{{ entry.student_name or '' }}" placeholder="Nama siswa">
+                            </td>
+                            <td>
+                                <input type="text" name="late_class[]" class="form-control form-control-sm" value="{{ entry.class_label or default_class_label }}" placeholder="Kelas">
+                            </td>
+                            <td>
+                                <input type="time" name="late_time[]" class="form-control form-control-sm" value="{{ entry.arrival_time or '' }}">
+                            </td>
+                            <td>
+                                <input type="text" name="late_reason[]" class="form-control form-control-sm" value="{{ entry.reason or '' }}" placeholder="Alasan (opsional)">
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-late-row">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not late_entries_list %}
+                        <tr>
+                            <td>
+                                <input type="text" name="late_name[]" class="form-control form-control-sm" list="studentNamesList" placeholder="Nama siswa">
+                            </td>
+                            <td>
+                                <input type="text" name="late_class[]" class="form-control form-control-sm" value="{{ default_class_label }}" placeholder="Kelas">
+                            </td>
+                            <td>
+                                <input type="time" name="late_time[]" class="form-control form-control-sm">
+                            </td>
+                            <td>
+                                <input type="text" name="late_reason[]" class="form-control form-control-sm" placeholder="Alasan (opsional)">
+                            </td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-late-row">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+                Kosongkan nama agar baris tidak disimpan. Waktu ditulis dalam format HH:MM.
+            </p>
+            <datalist id="studentNamesList">
+                {% for student in students %}
+                <option value="{{ student.name }}"></option>
+                {% endfor %}
+            </datalist>
+            <template id="lateEntryRowTemplate">
+                <tr>
+                    <td>
+                        <input type="text" name="late_name[]" class="form-control form-control-sm" list="studentNamesList" placeholder="Nama siswa">
+                    </td>
+                    <td>
+                        <input type="text" name="late_class[]" class="form-control form-control-sm" value="{{ default_class_label }}" placeholder="Kelas">
+                    </td>
+                    <td>
+                        <input type="time" name="late_time[]" class="form-control form-control-sm">
+                    </td>
+                    <td>
+                        <input type="text" name="late_reason[]" class="form-control form-control-sm" placeholder="Alasan (opsional)">
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-late-row">
+                            <i class="bi bi-dash-lg"></i>
+                        </button>
+                    </td>
+                </tr>
+            </template>
+        </div>
         <div class="card-footer d-flex justify-content-end">
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-clipboard-check me-1"></i> Simpan Absensi
@@ -226,6 +325,38 @@ document.addEventListener("DOMContentLoaded", function () {
             event.preventDefault();
         }
     });
+    var lateEntriesBody = document.getElementById("lateEntriesBody");
+    var lateEntryTemplate = document.getElementById("lateEntryRowTemplate");
+    var addLateEntryButton = document.getElementById("addLateEntryButton");
+    var defaultClassLabel = {{ default_class_label|default("", true)|tojson }};
+    if (lateEntriesBody && lateEntryTemplate && addLateEntryButton) {
+        addLateEntryButton.addEventListener("click", function () {
+            lateEntriesBody.appendChild(lateEntryTemplate.content.cloneNode(true));
+        });
+        lateEntriesBody.addEventListener("click", function (event) {
+            var trigger = event.target.closest(".remove-late-row");
+            if (!trigger) {
+                return;
+            }
+            var row = trigger.closest("tr");
+            if (!row) {
+                return;
+            }
+            var rows = lateEntriesBody.querySelectorAll("tr");
+            if (rows.length <= 1) {
+                var inputs = row.querySelectorAll("input");
+                Array.prototype.forEach.call(inputs, function (input) {
+                    if (input.name === "late_class[]") {
+                        input.value = defaultClassLabel;
+                    } else {
+                        input.value = "";
+                    }
+                });
+                return;
+            }
+            row.remove();
+        });
+    }
 });
 </script>
 {% endblock %}

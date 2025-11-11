@@ -37,6 +37,7 @@ from .queries import (
     fetch_recent_attendance,
     fetch_school_identity,
     fetch_students_for_class,
+    fetch_late_students_for_date,
     fetch_teacher_absence_for_date,
     fetch_teacher_assigned_class,
     fetch_teacher_attendance_for_date,
@@ -48,6 +49,7 @@ from .queries import (
     update_teacher_assigned_class,
     update_teacher_user,
     upsert_attendance_entries,
+    replace_late_students_for_date,
     upsert_teacher_attendance_entries,
 )
 
@@ -478,6 +480,10 @@ def absen() -> str:
     if total_students and not any(status_counts.values()):
         status_counts[DEFAULT_ATTENDANCE_STATUS] = total_students
 
+    late_entries: List[Dict[str, Any]] = []
+    if selected_class_id:
+        late_entries = fetch_late_students_for_date(selected_date, class_id=selected_class_id)
+
     return render_template(
         "attendance/absen.html",
         attendance_active_tab="kelas",
@@ -494,6 +500,7 @@ def absen() -> str:
         latest_submission_at=latest_submission_at,
         today=current_jakarta_time(),
         selected_date_label=selected_date_label,
+        late_entries=late_entries,
     )
 
 
@@ -600,6 +607,7 @@ def laporan_harian() -> str:
 
     class_rows = fetch_class_attendance_breakdown(selected_date)
     teacher_absences = fetch_teacher_absence_for_date(selected_date)
+    late_students = fetch_late_students_for_date(selected_date)
     school_identity = fetch_school_identity()
     def _compose_with_degree(name: Optional[str], prefix: Optional[str], suffix: Optional[str]) -> Optional[str]:
         parts: List[str] = []
@@ -759,6 +767,7 @@ def laporan_harian() -> str:
         status_labels=STATUS_LABELS,
         default_academic_year=default_academic_year,
         today=current_jakarta_time(),
+        late_students=late_students,
     )
 
 
@@ -1037,6 +1046,30 @@ def simpan_absen() -> str:
         status = _normalize_status(request.form.get(f"status_{student_id}"))
         entries.append({"student_id": student_id, "status": status})
 
+    late_names = request.form.getlist("late_name[]")
+    late_classes = request.form.getlist("late_class[]")
+    late_times = request.form.getlist("late_time[]")
+    late_reasons = request.form.getlist("late_reason[]")
+    default_class_label = (teacher_class.get("class_name") or "").strip()
+    field_counts = [len(late_names), len(late_classes), len(late_times), len(late_reasons)]
+    max_rows = max(field_counts) if field_counts else 0
+    late_entries_payload: List[Dict[str, Any]] = []
+    for idx in range(max_rows):
+        student_name = (late_names[idx] if idx < len(late_names) else "").strip()
+        class_label = (late_classes[idx] if idx < len(late_classes) else "").strip() or default_class_label
+        arrival_time = (late_times[idx] if idx < len(late_times) else "").strip()
+        reason = (late_reasons[idx] if idx < len(late_reasons) else "").strip()
+        if not student_name:
+            continue
+        late_entries_payload.append(
+            {
+                "student_name": student_name,
+                "class_label": class_label,
+                "arrival_time": arrival_time or None,
+                "reason": reason or None,
+            }
+        )
+
     try:
         upsert_attendance_entries(
             class_id=class_id,
@@ -1044,8 +1077,17 @@ def simpan_absen() -> str:
             attendance_date=selected_date,
             entries=entries,
         )
+        replace_late_students_for_date(
+            attendance_date=selected_date,
+            class_id=class_id,
+            entries=late_entries_payload,
+            recorded_by=user["id"],
+        )
     except ValueError as exc:
         flash(str(exc), "danger")
+        return redirect(url_for("attendance.kelas"))
+    except Exception as exc:
+        flash(f"Gagal menyimpan data: {exc}", "danger")
         return redirect(url_for("attendance.kelas"))
 
     flash("Absensi berhasil disimpan.", "success")
