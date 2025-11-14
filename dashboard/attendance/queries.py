@@ -319,6 +319,7 @@ def fetch_late_students_for_date(attendance_date: date, *, class_id: Optional[in
             f"""
             SELECT
                 als.id,
+                als.class_id,
                 als.student_name,
                 COALESCE(NULLIF(als.class_label, ''), cls.name) AS class_label,
                 als.arrival_time,
@@ -337,24 +338,28 @@ def fetch_late_students_for_date(attendance_date: date, *, class_id: Optional[in
 def replace_late_students_for_date(
     *,
     attendance_date: date,
-    class_id: Optional[int],
     entries: Iterable[Dict[str, Any]],
     recorded_by: Optional[int] = None,
 ) -> None:
-    delete_params = [attendance_date]
-    delete_clause = "DELETE FROM attendance_late_students WHERE attendance_date = %s"
-    if class_id is not None:
-        delete_clause += " AND class_id = %s"
-        delete_params.append(class_id)
-    else:
-        delete_clause += " AND class_id IS NULL"
     with get_cursor(commit=True) as cur:
-        cur.execute(delete_clause, tuple(delete_params))
+        cur.execute(
+            "DELETE FROM attendance_late_students WHERE attendance_date = %s",
+            (attendance_date,),
+        )
         for entry in entries:
             student_name = (entry.get("student_name") or "").strip()
             if not student_name:
                 continue
-            class_label = (entry.get("class_label") or "").strip()
+            class_id = entry.get("class_id")
+            resolved_class_id: Optional[int]
+            if class_id is None or (isinstance(class_id, str) and not class_id.strip()):
+                resolved_class_id = None
+            else:
+                try:
+                    resolved_class_id = int(class_id)
+                except (TypeError, ValueError):
+                    resolved_class_id = None
+            class_label = (entry.get("class_label") or "").strip() or None
             arrival_time = (entry.get("arrival_time") or "").strip() or None
             reason = (entry.get("reason") or "").strip() or None
             cur.execute(
@@ -372,9 +377,9 @@ def replace_late_students_for_date(
                 """,
                 (
                     attendance_date,
-                    class_id,
+                    resolved_class_id,
                     student_name,
-                    class_label or None,
+                    class_label,
                     arrival_time,
                     reason,
                     recorded_by,

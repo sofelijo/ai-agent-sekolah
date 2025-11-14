@@ -2,6 +2,19 @@
 {% block title %}Laporan Guru Piket{% endblock %}
 
 {% block content %}
+{% set late_students_list = late_students or [] %}
+{% set student_options_list = student_options or [] %}
+{% set class_options = [] %}
+{% set seen_class_ids = [] %}
+{% for student in student_options_list %}
+    {% set class_id = student.class_id %}
+    {% if class_id is not none and class_id not in seen_class_ids %}
+        {% set _ = seen_class_ids.append(class_id) %}
+        {% set class_label = (student.class_name or '')|trim %}
+        {% set _ = class_options.append({'id': class_id, 'label': class_label}) %}
+    {% endif %}
+{% endfor %}
+{% set class_option_ids = class_options | map(attribute='id') | list %}
 <div class="container py-4 report-page">
     <div class="page-toolbar d-print-none">
         <div>
@@ -39,6 +52,200 @@
                     <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
                 </button>
             </div>
+        </form>
+    </div>
+
+    <div class="card mb-4 d-print-none">
+        <form method="post" action="{{ url_for('attendance.laporan_harian') }}" class="card-body">
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Catatan Siswa Terlambat</h2>
+                    <p class="text-muted small mb-0">Isi nama siswa terlambat untuk semua kelas agar tercetak di laporan.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" id="addLateStudentRow" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i> Tambah baris
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i> Simpan catatan
+                    </button>
+                </div>
+            </div>
+            <input type="hidden" name="date" value="{{ selected_date.isoformat() }}">
+            <input type="hidden" name="month" value="{{ selected_month.strftime('%Y-%m') }}">
+            <div class="table-responsive late-student-table">
+                <table class="table table-sm table-borderless align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nama Siswa</th>
+                            <th>Kelas</th>
+                            <th>Waktu</th>
+                            <th>Alasan</th>
+                            <th class="text-end" style="width: 1%;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lateStudentRows">
+                        {% for entry in late_students_list %}
+                        {% set entry_class_id = (entry.class_id|string) if entry.class_id is not none else '' %}
+                        {% set entry_class_known = True if entry.class_id in class_option_ids else False %}
+                        <tr>
+                            <td data-label="Nama Siswa">
+                                <input type="text"
+                                       name="late_name[]"
+                                       class="form-control form-control-sm late-name-input"
+                                       value="{{ entry.student_name or '' }}"
+                                       placeholder="Nama siswa"
+                                       autocomplete="off"
+                                       inputmode="search"
+                                       {% if entry_class_id and entry_class_known %}list="studentList-{{ entry_class_id }}"{% endif %}
+                                       {% if not entry_class_id %}disabled{% endif %}>
+                            </td>
+                            <td data-label="Kelas">
+                                <input type="hidden" name="late_class_id[]" value="{{ entry.class_id or '' }}">
+                                <input type="hidden" name="late_class_label[]" value="{{ entry.class_label or '' }}">
+                                <select class="form-select form-select-sm late-class-select">
+                                    <option value="">Pilih kelas...</option>
+                                    {% for class_option in class_options %}
+                                    {% set option_value = class_option.id|string %}
+                                    <option value="{{ option_value }}"
+                                            data-class-label="{{ class_option.label }}"
+                                            data-student-list-id="studentList-{{ class_option.id }}"
+                                            {% if option_value == entry_class_id %}selected{% endif %}>
+                                        {{ class_option.label }}
+                                    </option>
+                                    {% endfor %}
+                                    {% if entry_class_id and not entry_class_known %}
+                                    <option value="{{ entry_class_id }}"
+                                            data-class-label="{{ entry.class_label or '' }}"
+                                            data-student-list-id=""
+                                            selected>
+                                        {{ entry.class_label or ('Kelas ' ~ entry_class_id) }}
+                                    </option>
+                                    {% endif %}
+                                </select>
+                            </td>
+                            <td data-label="Waktu">
+                                <input type="time" name="late_time[]" class="form-control form-control-sm" value="{{ entry.arrival_time or '' }}">
+                            </td>
+                            <td data-label="Alasan">
+                                <input type="text" name="late_reason[]" class="form-control form-control-sm" value="{{ entry.reason or '' }}" placeholder="Alasan (opsional)">
+                            </td>
+                            <td class="text-end" data-label="Aksi">
+                                <div class="late-row-actions">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-late-student-row">
+                                        <i class="bi bi-dash-lg"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm save-row-mobile">
+                                        Simpan
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not late_students_list %}
+                        <tr>
+                            <td data-label="Nama Siswa">
+                                <input type="text"
+                                       name="late_name[]"
+                                       class="form-control form-control-sm late-name-input"
+                                       placeholder="Nama siswa"
+                                       autocomplete="off"
+                                       inputmode="search"
+                                       disabled>
+                            </td>
+                            <td data-label="Kelas">
+                                <input type="hidden" name="late_class_id[]" value="">
+                                <input type="hidden" name="late_class_label[]" value="">
+                                <select class="form-select form-select-sm late-class-select">
+                                    <option value="">Pilih kelas...</option>
+                                    {% for class_option in class_options %}
+                                    <option value="{{ class_option.id }}"
+                                            data-class-label="{{ class_option.label }}"
+                                            data-student-list-id="studentList-{{ class_option.id }}">
+                                        {{ class_option.label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td data-label="Waktu">
+                                <input type="time" name="late_time[]" class="form-control form-control-sm">
+                            </td>
+                            <td data-label="Alasan">
+                                <input type="text" name="late_reason[]" class="form-control form-control-sm" placeholder="Alasan (opsional)">
+                            </td>
+                            <td class="text-end" data-label="Aksi">
+                                <div class="late-row-actions">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-late-student-row">
+                                        <i class="bi bi-dash-lg"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm save-row-mobile">
+                                        Simpan
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <template id="lateStudentRowTemplate">
+                <tr>
+                    <td data-label="Nama Siswa">
+                        <input type="text"
+                               name="late_name[]"
+                               class="form-control form-control-sm late-name-input"
+                               placeholder="Nama siswa"
+                               autocomplete="off"
+                               inputmode="search"
+                               disabled>
+                    </td>
+                    <td data-label="Kelas">
+                        <input type="hidden" name="late_class_id[]" value="">
+                        <input type="hidden" name="late_class_label[]" value="">
+                        <select class="form-select form-select-sm late-class-select">
+                            <option value="">Pilih kelas...</option>
+                            {% for class_option in class_options %}
+                            <option value="{{ class_option.id }}"
+                                    data-class-label="{{ class_option.label }}"
+                                    data-student-list-id="studentList-{{ class_option.id }}">
+                                {{ class_option.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td data-label="Waktu">
+                        <input type="time" name="late_time[]" class="form-control form-control-sm">
+                    </td>
+                    <td data-label="Alasan">
+                        <input type="text" name="late_reason[]" class="form-control form-control-sm" placeholder="Alasan (opsional)">
+                    </td>
+                    <td class="text-end" data-label="Aksi">
+                        <div class="late-row-actions">
+                            <button type="button" class="btn btn-outline-danger btn-sm remove-late-student-row">
+                                <i class="bi bi-dash-lg"></i>
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm save-row-mobile">
+                                Simpan
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </template>
+            {% for class_option in class_options %}
+            <datalist id="studentList-{{ class_option.id }}">
+                {% for student in student_options_list %}
+                    {% if student.class_id == class_option.id %}
+                        {% set student_name = (student.full_name or '')|trim %}
+                        {% if student_name %}
+                        <option value="{{ student_name }}"></option>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </datalist>
+            {% endfor %}
+            <p class="text-muted small mt-2 mb-0">
+                Kosongkan nama agar baris tidak disimpan. Kelas bisa dipilih dari daftar atau ketik label manually.
+            </p>
         </form>
     </div>
 
@@ -171,10 +378,10 @@
                         {% set entry = student_late_entries[i - 1] if i <= student_late_entries|length else None %}
                         <tr>
                             <td class="text-center">{{ i }}</td>
-                            <td>{{ entry.student_name if entry else '' }}</td>
-                            <td>{{ entry.class_label if entry else '' }}</td>
-                            <td>{{ entry.arrival_time if entry else '' }}</td>
-                            <td>{{ entry.reason if entry else '' }}</td>
+                            <td>{{ entry.student_name|default('', true) if entry else '' }}</td>
+                            <td>{{ entry.class_label|default('', true) if entry else '' }}</td>
+                            <td>{{ entry.arrival_time|default('', true) if entry else '' }}</td>
+                            <td>{{ entry.reason|default('', true) if entry else '' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -278,6 +485,74 @@
         background: #fff;
         border: 1px solid #c2c2c2;
         padding: 0.9rem 1.1rem;
+    }
+    .late-row-actions {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    @media (max-width: 576px) {
+        .late-student-table table,
+        .late-student-table tbody,
+        .late-student-table tr,
+        .late-student-table td {
+            display: block;
+            width: 100%;
+        }
+        .late-student-table thead {
+            display: none;
+        }
+        .late-student-table tbody tr {
+            border: 1px solid #e4e7ec;
+            border-radius: 0.85rem;
+            padding: 0.9rem 0.85rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            box-shadow: 0 10px 25px rgba(15, 34, 58, 0.08);
+        }
+        .late-student-table tbody td {
+            border: none !important;
+            padding: 0 !important;
+        }
+        .late-student-table tbody td + td {
+            margin-top: 0.85rem;
+        }
+        .late-student-table tbody td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475467;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .late-student-table tbody td.text-end {
+            text-align: left !important;
+        }
+        .late-student-table .late-row-actions {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+        }
+        .late-student-table .late-row-actions .btn {
+            flex: 1 1 50%;
+            width: auto;
+        }
+        .late-student-table .save-row-mobile {
+            display: block;
+        }
+    }
+    @media (min-width: 577px) {
+        .late-student-table .save-row-mobile {
+            display: none;
+        }
+        .late-row-actions {
+            display: inline-flex;
+            gap: 0.4rem;
+            align-items: center;
+        }
     }
     .attendance-sheet {
         color: #000;
@@ -475,13 +750,11 @@ document.addEventListener("DOMContentLoaded", function () {
     var printButton = document.getElementById("printButton");
     var downloadButton = document.getElementById("downloadButton");
     var printArea = document.getElementById("printArea");
-
     if (printButton) {
         printButton.addEventListener("click", function () {
             window.print();
         });
     }
-
     if (downloadButton && printArea) {
         downloadButton.addEventListener("click", function () {
             var pdfLib = window.jspdf || {};
@@ -505,6 +778,205 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
+});
+</script>
+<script>
+{% set clean_student_options = [] %}
+{% for s in student_options_list %}
+    {% set _ = clean_student_options.append({
+        'id': s.id if s.id is not none else '',
+        'full_name': s.full_name if s.full_name is not none else '',
+        'class_id': s.class_id if s.class_id is not none else '',
+        'class_name': s.class_name if s.class_name is not none else ''
+    }) %}
+{% endfor %}
+window.studentOptionsList = {{ clean_student_options|tojson|safe }};
+document.addEventListener("DOMContentLoaded", function () {
+    var addRowButton = document.getElementById("addLateStudentRow");
+    var rowsBody = document.getElementById("lateStudentRows");
+    var rowTemplate = document.getElementById("lateStudentRowTemplate");
+
+    var normalizeStudentName = function (value) {
+        return (value || "").replace(/\s+/g, " ").trim();
+    };
+    var buildLookupKey = function (value) {
+        return normalizeStudentName(value).toLowerCase();
+    };
+
+    var studentDataset = (window.studentOptionsList || []).map(function (student) {
+        var displayName = normalizeStudentName(student.full_name || "");
+        if (!displayName) return null;
+        return {
+            id: student.id || "",
+            class_id: student.class_id || "",
+            class_label: student.class_name || "",
+            full_name: displayName,
+            key: buildLookupKey(displayName)
+        };
+    }).filter(Boolean);
+
+    var studentsByClass = {};
+    studentDataset.forEach(function (student) {
+        var classKey = String(student.class_id || "");
+        if (!studentsByClass[classKey]) {
+            studentsByClass[classKey] = {};
+        }
+        studentsByClass[classKey][student.key] = student;
+    });
+
+    var setClassInfo = function (row, classId, classLabel) {
+        if (!row) return;
+        var idInput = row.querySelector('input[name="late_class_id[]"]');
+        var labelInput = row.querySelector('input[name="late_class_label[]"]');
+        if (idInput) idInput.value = classId || "";
+        if (labelInput) labelInput.value = classLabel || "";
+    };
+
+    var syncNameInputState = function (row) {
+        if (!row) return;
+        var classSelect = row.querySelector(".late-class-select");
+        var nameInput = row.querySelector(".late-name-input");
+        if (!nameInput || !classSelect) return;
+        var option = classSelect.selectedOptions && classSelect.selectedOptions[0];
+        if (option && option.value) {
+            nameInput.disabled = false;
+            var listId = option.getAttribute("data-student-list-id");
+            if (listId) {
+                nameInput.setAttribute("list", listId);
+            } else {
+                nameInput.removeAttribute("list");
+            }
+        } else {
+            nameInput.value = "";
+            nameInput.disabled = true;
+            nameInput.removeAttribute("list");
+        }
+    };
+
+    var syncClassSelection = function (row, select) {
+        if (!row || !select) return;
+        var option = select.selectedOptions && select.selectedOptions[0];
+        if (option && option.value) {
+            setClassInfo(row, option.value, option.getAttribute("data-class-label") || "");
+        } else {
+            setClassInfo(row, "", "");
+        }
+    };
+
+    var applyStudentClass = function (input) {
+        if (!input) return;
+        var row = input.closest("tr");
+        if (!row) return;
+        var classSelect = row.querySelector(".late-class-select");
+        var classId = classSelect ? String(classSelect.value || "") : "";
+        if (!classId) {
+            return;
+        }
+        var classMap = studentsByClass[classId];
+        if (!classMap) {
+            return;
+        }
+        var info = classMap[buildLookupKey(input.value)];
+        if (info) {
+            var option = classSelect.selectedOptions && classSelect.selectedOptions[0];
+            var classLabel = option ? option.getAttribute("data-class-label") : info.class_label;
+            setClassInfo(row, info.class_id, classLabel || info.class_label || "");
+        }
+    };
+
+    var initRow = function (row) {
+        if (!row) return;
+        var classSelect = row.querySelector(".late-class-select");
+        var nameInput = row.querySelector(".late-name-input");
+
+        if (classSelect && !classSelect.dataset.bound) {
+            classSelect.dataset.bound = "true";
+            classSelect.addEventListener("change", function () {
+                syncClassSelection(row, classSelect);
+                syncNameInputState(row);
+                if (nameInput) {
+                    nameInput.value = "";
+                    nameInput.focus();
+                }
+            });
+        }
+
+        if (nameInput && !nameInput.dataset.bound) {
+            nameInput.dataset.bound = "true";
+            nameInput.setAttribute("autocomplete", "off");
+            nameInput.addEventListener("input", function () {
+                applyStudentClass(nameInput);
+            });
+            nameInput.addEventListener("change", function () {
+                applyStudentClass(nameInput);
+            });
+        }
+
+        syncClassSelection(row, classSelect);
+        syncNameInputState(row);
+    };
+
+    if (!rowsBody || !rowTemplate) {
+        return;
+    }
+
+    var addNewLateRow = function () {
+        if (!rowTemplate || !rowsBody) return null;
+        var fragment = rowTemplate.content.cloneNode(true);
+        var newRow = fragment.querySelector("tr");
+        rowsBody.appendChild(fragment);
+        if (newRow) {
+            initRow(newRow);
+            return newRow;
+        }
+        return null;
+    };
+
+    rowsBody.querySelectorAll("tr").forEach(initRow);
+
+    if (addRowButton) {
+        addRowButton.addEventListener("click", function () {
+            var created = addNewLateRow();
+            if (created) {
+                var classSelect = created.querySelector(".late-class-select");
+                if (classSelect) {
+                    classSelect.focus();
+                }
+            }
+        });
+    }
+
+    rowsBody.addEventListener("click", function (event) {
+        var saveButton = event.target.closest(".save-row-mobile");
+        if (saveButton) {
+            var newRow = addNewLateRow();
+            if (newRow) {
+                var classSelect = newRow.querySelector(".late-class-select");
+                if (classSelect) {
+                    classSelect.focus();
+                }
+            }
+            return;
+        }
+        var trigger = event.target.closest(".remove-late-student-row");
+        if (!trigger) return;
+        var row = trigger.closest("tr");
+        if (!row) return;
+        var allRows = rowsBody.querySelectorAll("tr");
+        if (allRows.length <= 1) {
+            row.querySelectorAll("input").forEach(function (input) {
+                input.value = "";
+            });
+            var classSelect = row.querySelector(".late-class-select");
+            if (classSelect) {
+                classSelect.selectedIndex = 0;
+            }
+            syncClassSelection(row, classSelect);
+            syncNameInputState(row);
+            return;
+        }
+        row.remove();
+    });
 });
 </script>
 {% endblock %}
