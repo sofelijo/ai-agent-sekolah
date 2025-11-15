@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from .db_access import get_cursor
+from tka_schema import ensure_tka_schema as ensure_tka_schema_tables
 
 _DASHBOARD_USERS_SQL = """
 CREATE TABLE IF NOT EXISTS dashboard_users (
@@ -310,6 +311,7 @@ def ensure_dashboard_schema() -> None:
     with get_cursor(commit=True) as cur:
         for statement in statements:
             cur.execute(statement)
+        ensure_tka_schema_tables(cur)
 
 
 __all__ = ["ensure_dashboard_schema"]

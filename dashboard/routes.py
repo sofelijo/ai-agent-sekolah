@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 from datetime import datetime, timedelta, timezone
 from math import ceil
 from typing import Optional
@@ -17,7 +19,10 @@ from flask import (
     request,
     url_for,
     session,
+    current_app,
 )
+from langchain_openai import ChatOpenAI
+from db import DEFAULT_TKA_PRESET_KEY
 from werkzeug.datastructures import MultiDict
 
 from .auth import current_user, login_required, role_required
@@ -57,6 +62,16 @@ from .queries import (
     chat_topic_available,
     fetch_twitter_worker_logs,
     update_no_tester_preference,
+    fetch_tka_subjects,
+    fetch_tka_questions,
+    create_tka_subject,
+    create_tka_questions,
+    delete_tka_question,
+    fetch_tka_subject,
+    fetch_tka_attempts,
+    update_tka_question,
+    update_tka_subject_difficulty,
+    has_tka_question_with_prompt,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -64,6 +79,25 @@ PAGE_SIZE = 50
 REPORT_PAGE_SIZE = 25
 TWITTER_PAGE_SIZE = 25
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_TKA_AI_CHAIN = None
+_TKA_AI_CHAIN_FAILED = False
+TKA_PRESET_LABELS = {
+    "mudah": "Mudah",
+    "sedang": "Sedang",
+    "susah": "Susah",
+    "custom": "Kustom",
+}
+GRADE_LABELS = {
+    "sd6": "Kelas 6 SD",
+    "smp3": "Kelas 3 SMP",
+    "sma": "SMA",
+}
+GRADE_LEVEL_HINTS = {
+    "sd6": "siswa kelas 6 SD",
+    "smp3": "siswa kelas 3 SMP",
+    "sma": "siswa SMA",
+}
+VALID_GRADE_LEVELS = set(GRADE_LABELS.keys())
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -190,6 +224,218 @@ def _load_twitter_runtime() -> dict:
         runtime["last_autopost_local"] = None
 
     return runtime
+
+
+def _get_tka_ai_chain():
+    """Lazy-load LLM khusus generator soal dengan temperatur fleksibel."""
+    global _TKA_AI_CHAIN, _TKA_AI_CHAIN_FAILED
+    if _TKA_AI_CHAIN_FAILED:
+        return None
+    if _TKA_AI_CHAIN is None:
+        try:
+            api_key = os.getenv("ASKA_TKA_GENERATOR_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise RuntimeError("API key untuk generator TKA belum disetel.")
+
+            api_base = (
+                os.getenv("ASKA_TKA_GENERATOR_API_BASE")
+                or os.getenv("ASKA_OPENAI_API_BASE")
+                or os.getenv("OPENAI_API_BASE")
+                or os.getenv("ASKA_GROQ_API_BASE")
+                or "https://api.groq.com/openai/v1"
+            )
+            model_name = os.getenv("ASKA_TKA_GENERATOR_MODEL") or os.getenv("ASKA_QA_MODEL", "llama-3.1-8b-instant")
+            temperature = float(os.getenv("ASKA_TKA_GENERATOR_TEMPERATURE", os.getenv("ASKA_QA_TEMPERATURE", "0.7")))
+            max_tokens = int(os.getenv("ASKA_TKA_GENERATOR_MAX_TOKENS", "600"))
+
+            _TKA_AI_CHAIN = ChatOpenAI(
+                temperature=temperature,
+                model=model_name,
+                openai_api_key=api_key,
+                openai_api_base=api_base,
+                max_tokens=max_tokens,
+            )
+        except Exception as exc:
+            current_app.logger.error("Gagal menyiapkan model AI untuk Latihan TKA: %s", exc)
+            _TKA_AI_CHAIN_FAILED = True
+            return None
+    return _TKA_AI_CHAIN
+
+
+def _strip_code_fences(text: str) -> str:
+    cleaned = (text or "").strip()
+    delimiter = "```"
+    if delimiter in cleaned:
+        parts = cleaned.split(delimiter)
+        if len(parts) >= 3:
+            cleaned = parts[1].strip()
+        else:
+            cleaned = cleaned.replace(delimiter, "").strip()
+    cleaned_lower = cleaned.lower()
+    if cleaned_lower.startswith("json"):
+        cleaned = cleaned[4:].strip()
+        cleaned_lower = cleaned.lower()
+    idx_json = cleaned_lower.find("\njson")
+    if idx_json != -1:
+        cleaned = cleaned[idx_json + 5 :].strip()
+    cleaned = _extract_json_payload(cleaned)
+    return cleaned
+
+
+def _extract_json_payload(text: str) -> str:
+    """Ambil substring JSON dari teks bebas, mendukung objek atau array."""
+    if not text:
+        return text
+    start = None
+    opening = None
+    for idx, ch in enumerate(text):
+        if ch in "{[":
+            start = idx
+            opening = ch
+            break
+    if start is None:
+        return text
+    closing = "}" if opening == "{" else "]"
+    depth = 0
+    in_string = False
+    escape = False
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == opening:
+            depth += 1
+        elif ch == closing:
+            depth -= 1
+            if depth == 0:
+                return text[start : idx + 1]
+    return text[start:]
+
+
+def _normalize_jsonish_text(text: str) -> str:
+    replacements = {
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2018": "'",
+        "\u2019": "'",
+    }
+    for key, value in replacements.items():
+        text = text.replace(key, value)
+    return text
+
+
+def _repair_split_question_arrays(text: str) -> str:
+    if not text:
+        return text
+    text = re.sub(r"}\s*],\s*\[{", "},{", text)
+    text = re.sub(r"]\s*,\s*\[{", ",{", text)
+    return text
+
+
+def _close_unbalanced_json(text: str) -> str:
+    if not text:
+        return text
+    stack: list[str] = []
+    in_string = False
+    escape = False
+    for ch in text:
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+    closing = ""
+    for opener in reversed(stack):
+        closing += '}' if opener == '{' else ']'
+    return text + closing
+
+
+def _repair_trailing_commas(text: str) -> str:
+    if not text:
+        return text
+    return re.sub(r",(?=\s*[}\]])", "", text)
+
+
+def _normalize_generated_questions(payload, fallback_topic: str, fallback_difficulty: str) -> list[dict]:
+    questions: list[dict] = []
+    if isinstance(payload, dict):
+        raw_items = payload.get("questions") or payload.get("soal") or []
+    elif isinstance(payload, list):
+        raw_items = payload
+    else:
+        raw_items = payload
+    if not isinstance(raw_items, list):
+        return questions
+    fallback_topic = (fallback_topic or "").strip()
+    fallback_difficulty = (fallback_difficulty or "easy").strip().lower()
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        prompt = (item.get("prompt") or item.get("question") or "").strip()
+        if not prompt:
+            continue
+        topic = (item.get("topic") or fallback_topic).strip()
+        difficulty = (item.get("difficulty") or fallback_difficulty).strip().lower()
+        if difficulty not in {"easy", "medium", "hard"}:
+            difficulty = fallback_difficulty
+        options_raw = item.get("options") or item.get("choices") or item.get("opsi")
+        options: list[dict] = []
+        if isinstance(options_raw, dict):
+            for key, value in options_raw.items():
+                options.append({"key": str(key).strip().upper(), "text": str(value).strip()})
+        elif isinstance(options_raw, list):
+            for idx, option in enumerate(options_raw):
+                if isinstance(option, dict):
+                    key = option.get("key") or option.get("label") or option.get("huruf") or ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}")
+                    text = option.get("text") or option.get("value") or option.get("content") or ""
+                else:
+                    key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}"
+                    text = str(option)
+                options.append({"key": str(key).strip().upper(), "text": text.strip()})
+        if len(options) < 2:
+            continue
+        answer = (
+            item.get("answer")
+            or item.get("correct_answer")
+            or item.get("kunci")
+            or item.get("jawaban")
+            or options[0]["key"]
+        )
+        answer_key = str(answer).strip().upper()
+        if answer_key not in {opt["key"] for opt in options}:
+            answer_key = options[0]["key"]
+        explanation = (item.get("explanation") or item.get("rationale") or item.get("pembahasan") or "").strip()
+        questions.append(
+            {
+                "prompt": prompt,
+                "topic": topic,
+                "difficulty": difficulty,
+                "options": options,
+                "correct_key": answer_key,
+                "explanation": explanation,
+            }
+        )
+    return questions
 
 
 @main_bp.before_request
@@ -982,3 +1228,291 @@ def export_chats() -> Response:
     response = Response(buffer.getvalue(), mimetype="text/csv")
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return response
+
+
+# --- Latihan TKA admin routes -----------------------------------------------
+
+
+@main_bp.route("/latihan-tka")
+@login_required
+@role_required("admin")
+def latihan_tka_bank():
+    subjects = fetch_tka_subjects(include_inactive=True)
+    return render_template("latihan_tka.html", subjects=subjects, grade_labels=GRADE_LABELS)
+
+
+@main_bp.route("/latihan-tka/hasil")
+@login_required
+@role_required("admin")
+def latihan_tka_results():
+    subjects = fetch_tka_subjects(include_inactive=True)
+    return render_template("latihan_tka_results.html", subjects=subjects, grade_labels=GRADE_LABELS)
+
+
+@main_bp.route("/latihan-tka/subjects", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_create_subject():
+    payload = request.get_json(silent=True) or {}
+    try:
+        subject = create_tka_subject(
+            name=payload.get("name"),
+            description=payload.get("description"),
+            time_limit_minutes=int(payload.get("time_limit_minutes") or 15),
+            difficulty_mix=payload.get("difficulty_mix"),
+            is_active=bool(payload.get("is_active", True)),
+            grade_level=payload.get("grade_level"),
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        main_bp.logger.error("Gagal membuat mapel TKA: %s", exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan mapel."}), 500
+    return jsonify({"success": True, "subject": subject})
+
+
+@main_bp.route("/latihan-tka/questions")
+@login_required
+@role_required("admin")
+def latihan_tka_questions():
+    subject_id = request.args.get("subject_id", type=int)
+    if not subject_id:
+        return jsonify({"success": False, "message": "subject_id wajib diisi."}), 400
+    difficulty = request.args.get("difficulty") or None
+    topic = request.args.get("topic") or None
+    questions = fetch_tka_questions(
+        subject_id,
+        difficulty=difficulty or None,
+        topic=topic or None,
+    )
+    return jsonify({"success": True, "questions": questions})
+
+
+@main_bp.route("/latihan-tka/questions", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_store_questions():
+    payload = request.get_json(silent=True) or {}
+    subject_id = payload.get("subject_id")
+    questions = payload.get("questions")
+    user = current_user() or {}
+    created_by = user.get("id")
+    if not subject_id or not questions:
+        return jsonify({"success": False, "message": "Payload soal belum lengkap."}), 400
+    try:
+        inserted = create_tka_questions(subject_id, questions, created_by=created_by)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        main_bp.logger.error("Gagal menyimpan soal TKA: %s", exc)
+        return jsonify({"success": False, "message": "Terjadi kesalahan saat menyimpan soal."}), 500
+    return jsonify({"success": True, "inserted": inserted})
+
+
+@main_bp.route("/latihan-tka/questions/<int:question_id>", methods=["DELETE"])
+@login_required
+@role_required("admin")
+def latihan_tka_delete_question(question_id: int):
+    try:
+        success = delete_tka_question(question_id)
+    except Exception as exc:
+        main_bp.logger.error("Gagal menghapus soal %s: %s", question_id, exc)
+        return jsonify({"success": False, "message": "Gagal menghapus soal."}), 500
+    if not success:
+        return jsonify({"success": False, "message": "Soal tidak ditemukan."}), 404
+    return jsonify({"success": True})
+
+
+@main_bp.route("/latihan-tka/questions/<int:question_id>", methods=["PUT"])
+@login_required
+@role_required("admin")
+def latihan_tka_update_question(question_id: int):
+    payload = request.get_json(silent=True) or {}
+    try:
+        updated = update_tka_question(question_id, payload)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal memperbarui soal %s: %s", question_id, exc)
+        return jsonify({"success": False, "message": "Gagal memperbarui soal."}), 500
+    if not updated:
+        return jsonify({"success": False, "message": "Soal tidak ditemukan."}), 404
+    return jsonify({"success": True})
+
+
+@main_bp.route("/latihan-tka/questions/check-duplicate", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_check_duplicate():
+    payload = request.get_json(silent=True) or {}
+    subject_id = payload.get("subject_id")
+    prompt = (payload.get("prompt") or "").strip()
+    if not subject_id or not prompt:
+        return jsonify({"success": False, "message": "subject_id dan prompt wajib diisi."}), 400
+    try:
+        exists = has_tka_question_with_prompt(subject_id, prompt)
+    except Exception as exc:
+        current_app.logger.error("Gagal mengecek duplikat soal: %s", exc)
+        return jsonify({"success": False, "message": "Gagal mengecek duplikat."}), 500
+    return jsonify({"success": True, "exists": exists})
+
+
+@main_bp.route("/latihan-tka/subjects/<int:subject_id>/difficulty", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_update_subject_difficulty(subject_id: int):
+    payload = request.get_json(silent=True) or {}
+    preset = payload.get("preset") or DEFAULT_TKA_PRESET_KEY
+    custom_mix = payload.get("custom") if isinstance(payload.get("custom"), dict) else None
+    try:
+        subject = update_tka_subject_difficulty(subject_id, preset, custom_mix=custom_mix)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal memperbarui preset TKA %s: %s", subject_id, exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan pengaturan komposisi."}), 500
+    if not subject:
+        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+    return jsonify({"success": True, "subject": subject})
+
+
+@main_bp.route("/latihan-tka/generate", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_generate():
+    data = request.get_json(silent=True) or {}
+    subject_id = data.get("subject_id")
+    topic = (data.get("topic") or "").strip()
+    style_example = (data.get("example") or "").strip()
+    difficulty = (data.get("difficulty") or "easy").strip().lower()
+    grade_level = (data.get("grade_level") or "").strip().lower()
+    question_type = (data.get("question_type") or "story").strip().lower()
+    style_similarity = (data.get("style_similarity") or "50").strip()
+    amount = data.get("amount") or 3
+    try:
+        amount = max(1, min(int(amount), 10))
+    except (TypeError, ValueError):
+        amount = 3
+
+    subject = fetch_tka_subject(subject_id)
+    if not subject:
+        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+
+    if not topic:
+        return jsonify({"success": False, "message": "Topik wajib diisi untuk generator."}), 400
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "easy"
+    if question_type not in {"story", "direct"}:
+        question_type = "story"
+
+    chain = _get_tka_ai_chain()
+    if chain is None:
+        return jsonify({"success": False, "message": "Model ASKA belum siap. Coba sebentar lagi."}), 503
+
+    difficulty_label = {"easy": "mudah", "medium": "sedang", "hard": "susah"}[difficulty]
+    grade_descriptor = GRADE_LEVEL_HINTS.get(grade_level)
+    grade_clause = f" Soal harus relevan untuk {grade_descriptor}, gunakan konteks dan angka yang sesuai tingkat tersebut." if grade_descriptor else ""
+    if question_type == "direct":
+        question_style_clause = (
+            "Setiap soal HARUS berupa pernyataan matematika ringkas tanpa cerita atau tokoh (contoh: 'Hitung 2/4 + 1/2 = ...'). "
+            "Gunakan ekspresi pecahan, persentase, aljabar sederhana, atau perbandingan secara langsung dan to the point. "
+            "JANGAN menambahkan narasi panjang—cukup jelaskan operasi matematikanya, lalu sediakan 4 opsi jawaban dan pembahasan singkat."
+        )
+    else:
+        question_style_clause = (
+            "Setiap soal harus berupa cerita pendek atau situasi nyata yang melibatkan penalaran multi-langkah, bukan sekedar 'berapa hasil 2 + 5'. "
+        )
+    uniqueness_hint = secrets.token_hex(8)
+    style_block = ""
+    if style_example:
+        try:
+            similarity_value = int(style_similarity)
+        except ValueError:
+            similarity_value = 50
+        similarity_value = max(10, min(similarity_value, 100))
+        style_block = (
+            "\nContoh gaya/struktur rujukan:\n"
+            f"{style_example.strip()}\n"
+            f"Tingkat kemiripan yang diinginkan: sekitar {similarity_value}%. Sesuaikan instruksi ini, jangan menyalin mentah.\n"
+        )
+    prompt = (
+        f"Anda adalah ASKA, guru pembuat soal yang kreatif. Buat {amount} soal matematika mata pelajaran {subject['name']} "
+        f"dengan topik {topic}. Tingkat kesulitan setiap soal adalah {difficulty_label}. "
+        f"{question_style_clause}"
+        f"{grade_clause}"
+        "Gunakan bahasa Indonesia formal yang tetap ringan, dan gunakan nama tokoh atau konteks kehidupan sehari-hari agar menarik. "
+        "Setiap soal wajib memiliki 4 opsi jawaban (A-D) dan berikan pembahasan yang menjelaskan langkah penalarannya. "
+        f"{style_block}"
+        f"Pastikan setiap soal benar-benar berbeda dari sesi sebelumnya (hindari menyalin pertanyaan atau angka yang sama persis). Tambahkan kalimat \\\"Kode: {uniqueness_hint}\\\" di akhir setiap penjelasan agar sistem dapat mengenali versi unik ini. "
+        "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
+        '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", '
+        '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"..."}]}'
+    )
+    try:
+        result = chain.invoke(prompt)
+        if hasattr(result, "content"):
+            raw_output = result.content
+        elif isinstance(result, dict) and "answer" in result:
+            raw_output = result["answer"]
+        else:
+            raw_output = str(result)
+        cleaned = _strip_code_fences(str(raw_output))
+        normalized = _close_unbalanced_json(_repair_split_question_arrays(_repair_trailing_commas(_normalize_jsonish_text(cleaned))))
+        parsed = json.loads(normalized)
+    except json.JSONDecodeError:
+        try:
+            fallback_payload = _extract_json_payload(cleaned)
+            normalized = _close_unbalanced_json(_repair_split_question_arrays(_repair_trailing_commas(_normalize_jsonish_text(fallback_payload))))
+            parsed = json.loads(normalized)
+        except Exception as exc:
+            preview = cleaned.strip().replace("```", "")[:300]
+            current_app.logger.error("ASKA generator output tidak dapat diparse: %s | error=%s", cleaned, exc)
+            return jsonify({
+                "success": False,
+                "message": f"ASKA mengirim format yang belum bisa dipahami. Cuplikan: {preview}"
+            }), 422
+    except Exception as exc:
+        current_app.logger.error("Generator TKA error: %s", exc)
+        return jsonify({"success": False, "message": "ASKA gagal menghasilkan soal."}), 500
+
+    if isinstance(parsed, list):
+        parsed = {"questions": parsed}
+    questions = _normalize_generated_questions(parsed, topic, difficulty)
+    if not questions:
+        return jsonify({"success": False, "message": "ASKA belum menghasilkan soal valid."}), 422
+
+    return jsonify({"success": True, "questions": questions, "prompt": prompt})
+
+
+@main_bp.route("/latihan-tka/results/data")
+@login_required
+@role_required("admin")
+def latihan_tka_results_data():
+    subject_id = request.args.get("subject_id", type=int)
+    status = request.args.get("status")
+    search = request.args.get("search")
+    attempts = fetch_tka_attempts(
+        subject_id=subject_id,
+        status=status,
+        search=search,
+        limit=200,
+    )
+    for attempt in attempts:
+        for field in ("started_at", "completed_at", "updated_at", "analysis_sent_at"):
+            value = attempt.get(field)
+            if hasattr(value, "isoformat"):
+                attempt[field] = value.isoformat()
+        breakdown = attempt.get("difficulty_breakdown")
+        if isinstance(breakdown, dict):
+            attempt["difficulty_breakdown"] = breakdown
+        else:
+            attempt["difficulty_breakdown"] = {}
+        preset_value = attempt.get("difficulty_preset")
+        if preset_value:
+            preset_key = str(preset_value).strip().lower()
+            attempt["difficulty_preset_label"] = TKA_PRESET_LABELS.get(preset_key, preset_value.title())
+        else:
+            attempt["difficulty_preset_label"] = "-"
+        grade_value = attempt.get("grade_level")
+        attempt["grade_label"] = GRADE_LABELS.get((grade_value or "").strip().lower(), GRADE_LABELS["sd6"])
+    return jsonify({"success": True, "attempts": attempts})

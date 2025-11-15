@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Latihan TKA · Hasil Nilai{% endblock %}
+{% block head_extra %}
+<style>
+    .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
+    .results-table th { white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Latihan TKA · Hasil Nilai</h1>
+            <p class="text-muted mb-0">Pantau progres siswa dan sesi yang sedang berjalan.</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted" id="resultsUpdated">Auto refresh setiap 1 menit.</small>
+        </div>
+    </div>
+
+    <div class="card p-3">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Mapel</label>
+                <select class="form-select" id="resultsSubject">
+                    <option value="">Semua mapel</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="resultsStatus">
+                    <option value="all">Semua</option>
+                    <option value="in_progress">Sedang dikerjakan</option>
+                    <option value="completed">Selesai</option>
+                    <option value="repeat">Mengulang</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Cari nama / email</label>
+                <input type="text" class="form-control" id="resultsSearch" placeholder="Ketik lalu Enter">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-outline-primary w-100" id="resultsRefresh">
+                    <i class="bi bi-arrow-repeat me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive mt-4">
+            <table class="table align-middle results-table">
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Mapel</th>
+                        <th>Jenjang</th>
+                        <th>Preset</th>
+                        <th>Status</th>
+                        <th>Skor</th>
+                        <th>Benar/Soal</th>
+                        <th>Kesulitan</th>
+                        <th>Waktu</th>
+                        <th>Label</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                    <tr><td colspan="10" class="text-center text-muted py-4">Belum ada data.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const resultsSubjectSelect = document.getElementById('resultsSubject');
+    const resultsStatusSelect = document.getElementById('resultsStatus');
+    const resultsSearchInput = document.getElementById('resultsSearch');
+    const resultsRefreshBtn = document.getElementById('resultsRefresh');
+    const resultsTable = document.getElementById('resultsTable');
+    const resultsUpdated = document.getElementById('resultsUpdated');
+    let autoTimer = null;
+    const PRESET_LABELS = { mudah: 'Mudah', sedang: 'Sedang', susah: 'Susah', custom: 'Kustom' };
+    const GRADE_LABELS = {{ grade_labels|tojson }};
+
+    function formatDifficultySummary(breakdown) {
+        if (!breakdown || typeof breakdown !== 'object') {
+            return '-';
+        }
+        const levels = ['easy', 'medium', 'hard'];
+        return levels.map(level => {
+            const stats = breakdown[level] || {};
+            const total = stats.total ?? 0;
+            const correct = stats.correct ?? 0;
+            const label = level === 'easy' ? 'M' : level === 'medium' ? 'S' : 'H';
+            return `${label} ${correct}/${total}`;
+        }).join('<br>');
+    }
+
+    function formatDateRange(startIso, endIso) {
+        if (!startIso) {
+            return '-';
+        }
+        const startDate = new Date(startIso);
+        const endDate = endIso ? new Date(endIso) : null;
+        const formatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+        const startText = formatter.format(startDate);
+        if (!endDate) {
+            return `${startText} → …`;
+        }
+        return `${startText} → ${formatter.format(endDate)}`;
+    }
+
+    function formatPresetLabel(rawValue) {
+        if (!rawValue) return '-';
+        const key = String(rawValue).trim().toLowerCase();
+        return PRESET_LABELS[key] || rawValue;
+    }
+
+    function renderResultsRows(attempts) {
+        if (!attempts.length) {
+            resultsTable.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Belum ada data pada filter ini.</td></tr>';
+            return;
+        }
+        const formatter = new Intl.NumberFormat('id-ID');
+        resultsTable.innerHTML = attempts.map(item => {
+            const status = (item.status || '').replace('_', ' ');
+            const score = item.score != null ? formatter.format(item.score) : '-';
+            const correctInfo = `${item.correct_count ?? 0}/${item.question_count ?? 0}`;
+            const diffSummary = formatDifficultySummary(item.difficulty_breakdown);
+            const range = formatDateRange(item.started_at, item.completed_at);
+            const repeatLabel = item.is_repeat ? `Mengulang (${item.repeat_iteration || 1} kali)` : '-';
+            const presetLabel = item.difficulty_preset_label || formatPresetLabel(item.difficulty_preset);
+            const gradeLabel = item.grade_label || GRADE_LABELS[item.grade_level] || GRADE_LABELS.sd6 || '-';
+            return `
+                <tr>
+                    <td>
+                        <div class="fw-semibold">${item.full_name || 'Anonim'}</div>
+                        <div class="text-muted small">${item.email || '-'}</div>
+                    </td>
+                    <td>${item.subject_name || '-'}</td>
+                    <td>${gradeLabel}</td>
+                    <td>${presetLabel}</td>
+                    <td><span class="badge text-bg-light text-capitalize">${status}</span></td>
+                    <td>${score}</td>
+                    <td>${correctInfo}</td>
+                    <td>${diffSummary}</td>
+                    <td class="small">${range}</td>
+                    <td>${repeatLabel}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadResults(showFeedback = false) {
+        const params = new URLSearchParams({
+            subject_id: resultsSubjectSelect.value || '',
+            status: resultsStatusSelect.value || 'all',
+            search: resultsSearchInput.value.trim()
+        });
+        try {
+            const response = await fetch(`/latihan-tka/results/data?${params.toString()}`);
+            const data = await response.json();
+            if (data.success) {
+                renderResultsRows(data.attempts || []);
+                if (resultsUpdated) {
+                    const now = new Date();
+                    resultsUpdated.textContent = `Terakhir diperbarui: ${now.toLocaleTimeString('id-ID')}`;
+                }
+            } else if (showFeedback) {
+                alert(data.message || 'Gagal memuat hasil.');
+            }
+        } catch (error) {
+            if (showFeedback) {
+                alert('Terjadi kesalahan saat memuat hasil.');
+            }
+        }
+    }
+
+    function startAutoRefresh() {
+        if (autoTimer) return;
+        autoTimer = setInterval(() => loadResults(false), 60000);
+    }
+
+    [resultsSubjectSelect, resultsStatusSelect].forEach(select => {
+        select.addEventListener('change', () => loadResults(true));
+    });
+    resultsSearchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loadResults(true);
+        }
+    });
+    resultsRefreshBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        loadResults(true);
+    });
+
+    loadResults(true);
+    startAutoRefresh();
+</script>
+{% endblock %}

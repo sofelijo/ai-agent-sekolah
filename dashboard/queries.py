@@ -12,6 +12,7 @@ from flask import has_request_context, session
 from psycopg2.extras import DictRow, Json
 
 from .db_access import get_cursor
+from db import DEFAULT_TKA_PRESETS, DEFAULT_TKA_PRESET_KEY
 from account_status import ACCOUNT_STATUS_CHOICES
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -63,6 +64,53 @@ STOPWORDS = {
     "bot",
     "aska",
 }
+
+VALID_GRADE_LEVELS = {"sd6", "smp3", "sma"}
+DEFAULT_GRADE_LEVEL = "sd6"
+
+
+def _normalize_mix_value(value: Any, fallback: int = 0) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _coerce_mix_local(raw: Optional[Dict[str, Any]], fallback: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+    base = {
+        "easy": fallback.get("easy") if fallback else 0,
+        "medium": fallback.get("medium") if fallback else 0,
+        "hard": fallback.get("hard") if fallback else 0,
+    }
+    if isinstance(raw, dict):
+        for key in base.keys():
+            base[key] = _normalize_mix_value(raw.get(key), base[key])
+    total = sum(base.values())
+    if total <= 0 and fallback:
+        return dict(fallback)
+    if total <= 0:
+        return dict(DEFAULT_TKA_PRESETS.get(DEFAULT_TKA_PRESET_KEY, {"easy": 10, "medium": 5, "hard": 5}))
+    return base
+
+
+def _default_presets_payload_local() -> Dict[str, Dict[str, int]]:
+    return {key: dict(value) for key, value in DEFAULT_TKA_PRESETS.items()}
+
+
+def _prepare_presets_payload(stored: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
+    presets = _default_presets_payload_local()
+    if isinstance(stored, dict):
+        for key, mix in stored.items():
+            if not key:
+                continue
+            presets[str(key).strip().lower()] = _coerce_mix_local(mix, presets.get(key))
+    return presets
+
+
+def _normalize_preset_name_local(value: Optional[str]) -> str:
+    if not value:
+        return DEFAULT_TKA_PRESET_KEY
+    return str(value).strip().lower()
 
 _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
 _TESTER_IDS_CACHE: Optional[List[int]] = None
@@ -1984,3 +2032,468 @@ def update_telegram_user_status(user_id: int, status: str, reason: Optional[str]
             (normalized, cleaned_reason, changed_by, user_id),
         )
         return cur.rowcount > 0
+
+
+# --- Latihan TKA helpers ----------------------------------------------------
+
+
+def _slugify_subject(cur, name: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-") or "mapel"
+    candidate = base
+    suffix = 2
+    while True:
+        cur.execute("SELECT 1 FROM tka_subjects WHERE slug = %s LIMIT 1", (candidate,))
+        if not cur.fetchone():
+            return candidate
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+
+
+def fetch_tka_subjects(include_inactive: bool = True) -> List[Dict[str, Any]]:
+    """Ambil daftar mapel Latihan TKA."""
+    query = """
+        SELECT id, slug, name, description, question_count, time_limit_minutes,
+               difficulty_mix, difficulty_presets, default_preset, grade_level,
+               is_active, created_at, updated_at
+        FROM tka_subjects
+    """
+    params: List[Any] = []
+    clauses: List[str] = []
+    if not include_inactive:
+        clauses.append("is_active = TRUE")
+    if clauses:
+        query += " WHERE " + " AND ".join(clauses)
+    query += " ORDER BY name ASC"
+    subjects: List[Dict[str, Any]] = []
+    with get_cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        for row in rows:
+            subject = dict(row)
+            presets = _prepare_presets_payload(subject.get("difficulty_presets"))
+            subject["difficulty_presets"] = presets
+            subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
+            subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
+            subject["active_mix"] = subject["difficulty_mix"]
+            subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
+            subjects.append(subject)
+    return subjects
+
+
+def fetch_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
+    if not subject_id:
+        return None
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, slug, name, description, question_count, time_limit_minutes,
+                   difficulty_mix, difficulty_presets, default_preset, grade_level, is_active
+            FROM tka_subjects
+            WHERE id = %s
+            """,
+            (subject_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        subject = dict(row)
+        presets = _prepare_presets_payload(subject.get("difficulty_presets"))
+        subject["difficulty_presets"] = presets
+        subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
+        subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
+        subject["active_mix"] = subject["difficulty_mix"]
+        subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
+        return subject
+
+
+def create_tka_subject(
+    name: str,
+    description: Optional[str],
+    *,
+    time_limit_minutes: int = 15,
+    difficulty_mix: Optional[Dict[str, int]] = None,
+    is_active: bool = True,
+    grade_level: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not name:
+        raise ValueError("Nama mapel wajib diisi.")
+    mix = _coerce_mix_local(difficulty_mix, DEFAULT_TKA_PRESETS.get(DEFAULT_TKA_PRESET_KEY))
+    total_questions = max(1, sum(mix.values()))
+    normalized_description = (description or "").strip() or None
+    presets_payload = _default_presets_payload_local()
+    default_preset = DEFAULT_TKA_PRESET_KEY
+    if mix != presets_payload.get(DEFAULT_TKA_PRESET_KEY):
+        presets_payload["custom"] = mix
+        default_preset = "custom"
+    else:
+        presets_payload[DEFAULT_TKA_PRESET_KEY] = mix
+    normalized_grade = (grade_level or DEFAULT_GRADE_LEVEL).strip().lower()
+    if normalized_grade not in VALID_GRADE_LEVELS:
+        normalized_grade = DEFAULT_GRADE_LEVEL
+    with get_cursor(commit=True) as cur:
+        slug = _slugify_subject(cur, name)
+        cur.execute(
+            """
+            INSERT INTO tka_subjects (
+                slug, name, description, question_count,
+                time_limit_minutes, difficulty_mix, difficulty_presets,
+                default_preset, grade_level, is_active
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                slug,
+                name.strip(),
+                normalized_description,
+                total_questions,
+                max(5, time_limit_minutes or 15),
+                Json(mix),
+                Json(presets_payload),
+                default_preset,
+                normalized_grade,
+                bool(is_active),
+            ),
+        )
+        row = cur.fetchone()
+        subject = dict(row) if row else {}
+    if subject:
+        subject["difficulty_presets"] = _prepare_presets_payload(subject.get("difficulty_presets"))
+        subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
+        subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), subject["difficulty_presets"].get(subject["default_preset"]))
+    return subject
+
+
+def update_tka_subject_difficulty(
+    subject_id: int,
+    preset: str,
+    *,
+    custom_mix: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    normalized = _normalize_preset_name_local(preset)
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT difficulty_presets, difficulty_mix, default_preset FROM tka_subjects WHERE id = %s",
+            (subject_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        presets = _prepare_presets_payload(row["difficulty_presets"])
+        if custom_mix and normalized == "custom":
+            presets["custom"] = _coerce_mix_local(custom_mix)
+        elif normalized not in presets:
+            normalized = DEFAULT_TKA_PRESET_KEY
+        selected_mix = presets.get(normalized) or presets.get(DEFAULT_TKA_PRESET_KEY)
+        if not selected_mix:
+            selected_mix = _coerce_mix_local(None)
+        cur.execute(
+            """
+            UPDATE tka_subjects
+            SET difficulty_mix = %s,
+                difficulty_presets = %s,
+                default_preset = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING *
+            """,
+            (
+                Json(selected_mix),
+                Json(presets),
+                normalized,
+                subject_id,
+            ),
+        )
+        updated = cur.fetchone()
+    if not updated:
+        return None
+    subject = dict(updated)
+    subject["difficulty_presets"] = _prepare_presets_payload(subject.get("difficulty_presets"))
+    subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
+    subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), subject["difficulty_presets"].get(subject["default_preset"]))
+    subject["active_mix"] = subject["difficulty_mix"]
+    return subject
+
+
+def _normalize_options_for_insert(options: Iterable[Dict[str, Any]]) -> List[Dict[str, str]]:
+    normalized: List[Dict[str, str]] = []
+    fallback = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    for idx, option in enumerate(options or []):
+        if isinstance(option, dict):
+            raw_key = option.get("key") or option.get("label") or option.get("value")
+            text = option.get("text") or option.get("label") or option.get("value") or ""
+        else:
+            raw_key = None
+            text = str(option)
+        base_key = raw_key or (fallback[idx] if idx < len(fallback) else f"OPS{idx+1}")
+        normalized.append(
+            {
+                "key": str(base_key).strip().upper(),
+                "text": text.strip(),
+            }
+        )
+    if len(normalized) < 2:
+        raise ValueError("Minimal butuh 2 opsi jawaban.")
+    return normalized[:6]
+
+
+def fetch_tka_questions(
+    subject_id: int,
+    *,
+    difficulty: Optional[str] = None,
+    topic: Optional[str] = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    if not subject_id:
+        return []
+    clauses = ["subject_id = %s"]
+    params: List[Any] = [subject_id]
+    if difficulty:
+        clauses.append("difficulty = %s")
+        params.append(difficulty)
+    if topic:
+        clauses.append("topic ILIKE %s")
+        params.append(f"%{topic}%")
+    where_clause = " AND ".join(clauses)
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT id, subject_id, topic, difficulty, prompt, options,
+                   correct_key, explanation, source, ai_prompt, created_at
+            FROM tka_questions
+            WHERE {where_clause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT %s
+            """,
+            (*params, limit),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def create_tka_questions(
+    subject_id: int,
+    questions: Iterable[Dict[str, Any]],
+    *,
+    created_by: Optional[int] = None,
+) -> int:
+    if not subject_id:
+        raise ValueError("subject_id wajib diisi.")
+
+    existing_prompts: set[str] = set()
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT LOWER(TRIM(prompt)) FROM tka_questions WHERE subject_id = %s",
+            (subject_id,),
+        )
+        for row in cur.fetchall():
+            value = row[0]
+            if isinstance(value, str):
+                existing_prompts.add(value.strip())
+
+    payloads: List[Tuple[Any, ...]] = []
+    for question in questions or []:
+        prompt = (question.get("prompt") or "").strip()
+        if not prompt:
+            continue
+        normalized_prompt = prompt.lower().strip()
+        if normalized_prompt in existing_prompts:
+            continue
+        difficulty = (question.get("difficulty") or "easy").strip().lower()
+        if difficulty not in {"easy", "medium", "hard"}:
+            difficulty = "easy"
+        options = _normalize_options_for_insert(question.get("options") or [])
+        correct_key = (question.get("correct_key") or options[0]["key"]).strip().upper()
+        if correct_key not in {opt["key"] for opt in options}:
+            correct_key = options[0]["key"]
+        payloads.append(
+            (
+                subject_id,
+                (question.get("topic") or "").strip() or None,
+                difficulty,
+                prompt,
+                Json(options),
+                correct_key,
+                (question.get("explanation") or "").strip() or None,
+                created_by,
+                (question.get("source") or "manual").strip(),
+                question.get("ai_prompt"),
+            )
+        )
+        existing_prompts.add(normalized_prompt)
+    if not payloads:
+        return 0
+    with get_cursor(commit=True) as cur:
+        cur.executemany(
+            """
+            INSERT INTO tka_questions (
+                subject_id,
+                topic,
+                difficulty,
+                prompt,
+                options,
+                correct_key,
+                explanation,
+                created_by,
+                source,
+                ai_prompt
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            payloads,
+        )
+        cur.execute(
+            """
+            UPDATE tka_subjects
+            SET question_revision = question_revision + 1,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (subject_id,),
+        )
+    return len(payloads)
+
+
+def has_tka_question_with_prompt(subject_id: int, prompt: str) -> bool:
+    if not subject_id or not prompt:
+        return False
+    normalized = prompt.strip().lower()
+    if not normalized:
+        return False
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1
+            FROM tka_questions
+            WHERE subject_id = %s
+              AND LOWER(TRIM(prompt)) = %s
+            LIMIT 1
+            """,
+            (subject_id, normalized),
+        )
+        return cur.fetchone() is not None
+
+
+def delete_tka_question(question_id: int) -> bool:
+    if not question_id:
+        return False
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM tka_questions WHERE id = %s", (question_id,))
+        return cur.rowcount > 0
+
+
+def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
+    if not question_id:
+        return False
+    prompt = (payload.get("prompt") or "").strip()
+    if not prompt:
+        raise ValueError("Teks soal wajib diisi.")
+    topic = (payload.get("topic") or "").strip() or None
+    difficulty = (payload.get("difficulty") or "easy").strip().lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = "easy"
+    options = _normalize_options_for_insert(payload.get("options") or [])
+    correct_key = (payload.get("correct_key") or options[0]["key"]).strip().upper()
+    if correct_key not in {opt["key"] for opt in options}:
+        correct_key = options[0]["key"]
+    explanation = (payload.get("explanation") or "").strip() or None
+
+    with get_cursor(commit=True) as cur:
+        cur.execute("SELECT subject_id FROM tka_questions WHERE id = %s", (question_id,))
+        row = cur.fetchone()
+        if not row:
+            return False
+        subject_id = row[0]
+        cur.execute(
+            """
+            UPDATE tka_questions
+            SET prompt = %s,
+                topic = %s,
+                difficulty = %s,
+                options = %s,
+                correct_key = %s,
+                explanation = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (
+                prompt,
+                topic,
+                difficulty,
+                Json(options),
+                correct_key,
+                explanation,
+                question_id,
+            ),
+        )
+        if cur.rowcount <= 0:
+            return False
+        cur.execute(
+            """
+            UPDATE tka_subjects
+            SET question_revision = question_revision + 1,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (subject_id,),
+        )
+    return True
+
+
+def fetch_tka_attempts(
+    *,
+    subject_id: Optional[int] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    clauses: List[str] = []
+    params: List[Any] = []
+    if subject_id:
+        clauses.append("a.subject_id = %s")
+        params.append(subject_id)
+    normalized_status = (status or "").strip().lower()
+    if normalized_status in {"in_progress", "completed", "expired", "cancelled"}:
+        clauses.append("a.status = %s")
+        params.append(normalized_status)
+    elif normalized_status == "repeat":
+        clauses.append("a.is_repeat = TRUE")
+    if search:
+        clauses.append("(w.full_name ILIKE %s OR w.email ILIKE %s)")
+        params.extend([f"%{search.strip()}%", f"%{search.strip()}%"])
+    where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    query = f"""
+        SELECT
+            a.id,
+            a.subject_id,
+            s.name AS subject_name,
+            s.grade_level,
+            a.web_user_id,
+            w.full_name,
+            w.email,
+            a.status,
+            a.started_at,
+            a.completed_at,
+            a.time_limit_minutes,
+            a.question_count,
+            a.correct_count,
+            a.score,
+            a.duration_seconds,
+            a.is_repeat,
+            a.repeat_iteration,
+            a.difficulty_breakdown,
+            a.difficulty_preset,
+            a.revision_snapshot,
+            a.analysis_sent_at,
+            a.updated_at
+        FROM tka_quiz_attempts a
+        JOIN tka_subjects s ON s.id = a.subject_id
+        LEFT JOIN web_users w ON w.id = a.web_user_id
+        {where_clause}
+        ORDER BY COALESCE(a.completed_at, a.started_at) DESC
+        LIMIT %s
+    """
+    params.append(limit)
+    with get_cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]

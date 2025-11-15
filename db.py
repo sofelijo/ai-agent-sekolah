@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 
@@ -6,6 +7,7 @@ import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 from dotenv import load_dotenv
 from account_status import ACCOUNT_STATUS_CHOICES, ACCOUNT_STATUS_ACTIVE
+from tka_schema import ensure_tka_schema as ensure_tka_schema_tables
 
 # Muat variabel dari file .env
 load_dotenv()
@@ -62,6 +64,20 @@ CHAT_CHANNEL_EXPRESSION = (
     "COALESCE(channel, CASE WHEN topic = 'web' THEN 'web' "
     "WHEN topic = 'twitter' THEN 'twitter' ELSE 'telegram' END)"
 )
+VALID_TKA_DIFFICULTIES = {"easy", "medium", "hard"}
+DEFAULT_TKA_DIFFICULTY_MIX = {"easy": 10, "medium": 5, "hard": 5}
+DEFAULT_TKA_TIME_LIMIT = 15
+DEFAULT_TKA_QUESTION_COUNT = 20
+VALID_TKA_OPTION_KEYS = ("A", "B", "C", "D", "E", "F")
+DEFAULT_TKA_PRESETS = {
+    "mudah": {"easy": 10, "medium": 5, "hard": 5},
+    "sedang": {"easy": 5, "medium": 10, "hard": 5},
+    "susah": {"easy": 5, "medium": 5, "hard": 10},
+}
+DEFAULT_TKA_PRESET_KEY = "mudah"
+VALID_TKA_GRADE_LEVELS = {"sd6", "smp3", "sma"}
+DEFAULT_TKA_GRADE_LEVEL = "sd6"
+_TKA_SCHEMA_READY: Optional[bool] = None
 
 
 def _chat_logs_has_topic_column(force_refresh: bool = False) -> bool:
@@ -196,6 +212,17 @@ def _ensure_psych_schema() -> None:
             """
         )
     conn.commit()
+
+
+def _ensure_tka_schema(force_refresh: bool = False) -> None:
+    """Pastikan tabel pendukung Latihan TKA tersedia."""
+    global _TKA_SCHEMA_READY
+    if _TKA_SCHEMA_READY and not force_refresh:
+        return
+    with conn.cursor() as cur:
+        ensure_tka_schema_tables(cur)
+    conn.commit()
+    _TKA_SCHEMA_READY = True
 
 
 def _column_exists(table: str, column: str) -> bool:
@@ -1251,8 +1278,732 @@ def record_twitter_log(
                 )
                 """,
                 (MAX_TWITTER_LOG_ROWS,),
-            )
+                )
     conn.commit()
+
+# --- Latihan TKA helpers ----------------------------------------------------
+
+
+def _coerce_difficulty_mix(raw_mix: Optional[Dict[str, Any]]) -> Dict[str, int]:
+    mix = {key: DEFAULT_TKA_DIFFICULTY_MIX.get(key, 0) for key in VALID_TKA_DIFFICULTIES}
+    if isinstance(raw_mix, dict):
+        for key, value in raw_mix.items():
+            if key not in VALID_TKA_DIFFICULTIES:
+                continue
+            try:
+                mix[key] = max(0, int(value))
+            except (TypeError, ValueError):
+                continue
+    total = sum(mix.values())
+    if total <= 0:
+        mix = DEFAULT_TKA_DIFFICULTY_MIX.copy()
+    return mix
+
+
+def _normalize_grade_level(raw_value: Optional[str]) -> str:
+    if not raw_value:
+        return DEFAULT_TKA_GRADE_LEVEL
+    value = str(raw_value).strip().lower()
+    if value not in VALID_TKA_GRADE_LEVELS:
+        return DEFAULT_TKA_GRADE_LEVEL
+    return value
+
+
+def _truncate_for_prompt(value: Optional[str], limit: int = 320) -> str:
+    if not value:
+        return ""
+    text = value.strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _default_preset_payload() -> Dict[str, Dict[str, int]]:
+    return {key: dict(value) for key, value in DEFAULT_TKA_PRESETS.items()}
+
+
+def _normalize_preset_name(value: Optional[str]) -> str:
+    if not value:
+        return DEFAULT_TKA_PRESET_KEY
+    return str(value).strip().lower()
+
+
+def _prepare_subject_presets(stored: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
+    presets = _default_preset_payload()
+    if isinstance(stored, dict):
+        for key, mix in stored.items():
+            if not key:
+                continue
+            normalized = _normalize_preset_name(key)
+            presets[normalized] = _coerce_difficulty_mix(mix)
+    return presets
+
+
+def _resolve_preset_mix_for_subject(
+    subject: Dict[str, Any],
+    preset_name: Optional[str] = None,
+) -> Tuple[Dict[str, int], str, Dict[str, Dict[str, int]]]:
+    presets = _prepare_subject_presets(subject.get("difficulty_presets"))
+    requested = _normalize_preset_name(preset_name or subject.get("default_preset"))
+    mix = presets.get(requested)
+    if not mix:
+        requested = _normalize_preset_name(subject.get("default_preset"))
+        mix = presets.get(requested)
+    if not mix:
+        requested = DEFAULT_TKA_PRESET_KEY
+        mix = presets.get(requested) or _coerce_difficulty_mix(None)
+    return mix, requested, presets
+
+
+def _enrich_subject_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    subject = dict(row)
+    mix, preset, presets = _resolve_preset_mix_for_subject(subject)
+    subject["difficulty_presets"] = presets
+    subject["default_preset"] = preset
+    subject["difficulty_mix"] = mix
+    subject.setdefault("question_count", sum(mix.values()))
+    subject["active_mix"] = mix
+    subject["grade_level"] = _normalize_grade_level(subject.get("grade_level"))
+    return subject
+
+
+def list_tka_subjects(active_only: bool = True) -> List[Dict[str, Any]]:
+    """Ambil daftar mapel Latihan TKA."""
+    _ensure_tka_schema()
+    query = """
+        SELECT
+            id,
+            slug,
+            name,
+            description,
+            question_count,
+            time_limit_minutes,
+            difficulty_mix,
+            difficulty_presets,
+            default_preset,
+            question_revision,
+            grade_level,
+            is_active,
+            metadata
+        FROM tka_subjects
+    """
+    params: Tuple[Any, ...] = ()
+    if active_only:
+        query += " WHERE is_active = TRUE"
+    query += " ORDER BY name ASC"
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [_enrich_subject_row(row) for row in rows]
+
+
+def get_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil detail mapel Latihan TKA."""
+    if not subject_id:
+        return None
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                slug,
+                name,
+                description,
+                question_count,
+                time_limit_minutes,
+                difficulty_mix,
+                difficulty_presets,
+                default_preset,
+                grade_level,
+                question_revision,
+                is_active,
+                metadata
+            FROM tka_subjects
+            WHERE id = %s
+            """,
+            (subject_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    return _enrich_subject_row(row)
+
+
+def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str, int]]:
+    """Return grouped question rows per difficulty plus totals."""
+    buckets: dict[str, list] = {key: [] for key in VALID_TKA_DIFFICULTIES}
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                prompt,
+                options,
+                correct_key,
+                explanation,
+                difficulty,
+                topic
+            FROM tka_questions
+            WHERE subject_id = %s
+            """,
+            (subject_id,),
+        )
+        for row in cur.fetchall():
+            difficulty = (row.get("difficulty") or "easy").strip().lower()
+            if difficulty not in VALID_TKA_DIFFICULTIES:
+                difficulty = "easy"
+            buckets.setdefault(difficulty, []).append(row)
+    totals = {key: len(rows) for key, rows in buckets.items()}
+    return buckets, totals
+
+
+def _fetch_user_used_question_ids(subject_id: int, web_user_id: int, revision: int) -> set[int]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT aq.question_id
+            FROM tka_attempt_questions aq
+            JOIN tka_quiz_attempts a ON a.id = aq.attempt_id
+            WHERE a.subject_id = %s
+              AND a.web_user_id = %s
+              AND a.revision_snapshot = %s
+              AND aq.question_id IS NOT NULL
+            """,
+            (subject_id, web_user_id, revision),
+        )
+        return {int(row[0]) for row in cur.fetchall() if row and row[0]}
+
+
+def _compute_repeat_iteration(subject_id: int, web_user_id: int, revision: int) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COALESCE(MAX(repeat_iteration), 0)
+            FROM tka_quiz_attempts
+            WHERE subject_id = %s
+              AND web_user_id = %s
+              AND revision_snapshot = %s
+              AND is_repeat = TRUE
+            """,
+            (subject_id, web_user_id, revision),
+        )
+        row = cur.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+
+def get_tka_subject_availability(
+    subject_id: int,
+    web_user_id: Optional[int],
+    preset_name: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Hitung kesiapan bank soal dan progres user terhadap subject tertentu."""
+    subject = get_tka_subject(subject_id)
+    if not subject:
+        return None
+    mix, preset_used, presets = _resolve_preset_mix_for_subject(subject, preset_name)
+    bank, totals = _load_tka_question_bank(subject_id)
+    bank_ready = all(totals.get(diff, 0) >= mix.get(diff, 0) for diff in mix)
+    availability: Dict[str, Any] = {
+        "subject": subject,
+        "required": mix,
+        "selectedPreset": preset_used,
+        "presets": presets,
+        "totals": totals,
+        "bank_ready": bank_ready,
+        "needs_repeat": False,
+        "unused": {},
+    }
+    if not bank_ready or not web_user_id:
+        return availability
+    revision = subject.get("question_revision") or 1
+    used_ids = _fetch_user_used_question_ids(subject_id, web_user_id, revision)
+    unused_counts: Dict[str, int] = {}
+    for diff, rows in bank.items():
+        unused_counts[diff] = len([row for row in rows if row["id"] not in used_ids])
+    needs_repeat = any(unused_counts.get(diff, 0) < mix.get(diff, 0) for diff in mix)
+    availability["unused"] = unused_counts
+    availability["needs_repeat"] = needs_repeat
+    availability["used_total"] = len(used_ids)
+    return availability
+
+
+def create_tka_attempt(
+    subject_id: int,
+    web_user_id: int,
+    *,
+    allow_repeat: bool = False,
+    preset_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Buat sesi latihan baru, pilih soal sesuai komposisi kesulitan."""
+    if not subject_id or not web_user_id:
+        raise ValueError("subject_id dan web_user_id wajib diisi.")
+
+    _ensure_tka_schema()
+    subject = get_tka_subject(subject_id)
+    if not subject or not subject.get("is_active"):
+        raise ValueError("Mapel Latihan TKA tidak ditemukan atau tidak aktif.")
+
+    difficulty_mix, preset_used, _ = _resolve_preset_mix_for_subject(subject, preset_name)
+    question_bank, totals = _load_tka_question_bank(subject_id)
+    bank_ready = all(totals.get(level, 0) >= difficulty_mix.get(level, 0) for level in difficulty_mix)
+    if not bank_ready:
+        raise ValueError("bank_insufficient")
+
+    revision_snapshot = subject.get("question_revision") or 1
+    used_ids = _fetch_user_used_question_ids(subject_id, web_user_id, revision_snapshot)
+    selected_questions: List[Dict[str, Any]] = []
+
+    for difficulty, amount in difficulty_mix.items():
+        if amount <= 0:
+            continue
+        pool = question_bank.get(difficulty, [])
+        unused_rows = [row for row in pool if row["id"] not in used_ids]
+        random.shuffle(unused_rows)
+        chosen = list(unused_rows[:amount])
+        if len(chosen) < amount:
+            if not allow_repeat:
+                raise ValueError("repeat_required")
+            remaining = amount - len(chosen)
+            fallback = [row for row in pool if row not in chosen]
+            random.shuffle(fallback)
+            chosen.extend(fallback[:remaining])
+        selected_questions.extend(chosen)
+
+    if not selected_questions:
+        raise ValueError("Belum ada soal untuk mapel ini.")
+
+    random.shuffle(selected_questions)
+    total_questions = len(selected_questions)
+    time_limit = subject.get("time_limit_minutes") or DEFAULT_TKA_TIME_LIMIT
+    is_repeat = bool(allow_repeat)
+    repeat_iteration = _compute_repeat_iteration(subject_id, web_user_id, revision_snapshot) + 1 if is_repeat else 0
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            INSERT INTO tka_quiz_attempts (
+                subject_id,
+                web_user_id,
+                status,
+                time_limit_minutes,
+                question_count,
+                metadata,
+                revision_snapshot,
+                is_repeat,
+                repeat_iteration,
+                difficulty_preset
+            )
+            VALUES (%s, %s, 'in_progress', %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, started_at
+            """,
+            (
+                subject_id,
+                web_user_id,
+                time_limit,
+                total_questions,
+                Json({"target_mix": difficulty_mix, "preset": preset_used}),
+                revision_snapshot,
+                is_repeat,
+                repeat_iteration,
+                preset_used,
+            ),
+        )
+        attempt_row = cur.fetchone()
+        attempt_id = attempt_row["id"]
+
+        insert_rows: List[Tuple[Any, ...]] = []
+        for order_index, row in enumerate(selected_questions, start=1):
+            insert_rows.append(
+                (
+                    attempt_id,
+                    row["id"],
+                    row["prompt"],
+                    Json(row.get("options") or []),
+                    row.get("correct_key"),
+                    row.get("explanation"),
+                    row.get("difficulty"),
+                    row.get("topic"),
+                    order_index,
+                )
+            )
+
+        cur.executemany(
+            """
+            INSERT INTO tka_attempt_questions (
+                attempt_id,
+                question_id,
+                prompt,
+                options,
+                correct_key,
+                explanation,
+                difficulty,
+                topic,
+                order_index
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            insert_rows,
+        )
+    conn.commit()
+
+    started_at = attempt_row["started_at"]
+    expires_at = started_at + timedelta(minutes=time_limit)
+    return {
+        "attempt_id": attempt_id,
+        "subject": subject,
+        "question_count": total_questions,
+        "time_limit_minutes": time_limit,
+        "started_at": started_at,
+        "expires_at": expires_at,
+        "is_repeat": is_repeat,
+        "repeat_iteration": repeat_iteration,
+        "revision_snapshot": revision_snapshot,
+        "difficulty_preset": preset_used,
+    }
+
+
+def get_tka_attempt(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil sesi latihan yang sedang berjalan berikut daftar soalnya."""
+    if not attempt_id or not web_user_id:
+        return None
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                a.*,
+                s.name AS subject_name,
+                s.description AS subject_description,
+                s.grade_level AS subject_grade_level
+            FROM tka_quiz_attempts a
+            JOIN tka_subjects s ON s.id = a.subject_id
+            WHERE a.id = %s
+              AND a.web_user_id = %s
+            """,
+            (attempt_id, web_user_id),
+        )
+        attempt = cur.fetchone()
+        if not attempt:
+            return None
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                question_id,
+                prompt,
+                options,
+                difficulty,
+                topic,
+                order_index
+            FROM tka_attempt_questions
+            WHERE attempt_id = %s
+            ORDER BY order_index ASC
+            """,
+            (attempt_id,),
+        )
+        questions = cur.fetchall()
+
+    return {"attempt": attempt, "questions": questions}
+
+
+def _build_tka_analysis_prompt(
+    subject_name: str,
+    score: int,
+    correct_count: int,
+    total_questions: int,
+    difficulty_stats: Dict[str, Dict[str, int]],
+    question_rows: List[Dict[str, Any]],
+) -> str:
+    lines = [
+        "ASKA, ini pesan otomatis setelah siswa menyelesaikan latihan TKA. Mohon analisa ringkasan berikut:",
+        f"- Mapel: {subject_name}",
+        f"- Skor: {score} (benar {correct_count} dari {total_questions} soal).",
+        "- Ringkasan per tingkat kesulitan:",
+    ]
+    for level in ("easy", "medium", "hard"):
+        stats = difficulty_stats.get(level) or {"total": 0, "correct": 0}
+        lines.append(
+            f"  * {level.title()}: {stats['correct']} benar dari {stats['total']} soal"
+        )
+
+    mistakes = []
+    for row in question_rows:
+        if row.get("is_correct"):
+            continue
+        mistakes.append(
+            {
+                "topic": row.get("topic") or "-",
+                "prompt": _truncate_for_prompt(row.get("prompt")),
+                "selected": row.get("selected_key") or "kosong",
+                "correct": row.get("correct_key"),
+                "explanation": _truncate_for_prompt(row.get("explanation"), 260),
+            }
+        )
+
+    if mistakes:
+        lines.append("Detail soal yang belum tepat:")
+        for idx, item in enumerate(mistakes, start=1):
+            lines.append(
+                f"{idx}. Topik {item['topic']} | Soal: {item['prompt']} | Jawaban siswa: {item['selected']} | Jawaban benar: {item['correct']} | Pembahasan: {item['explanation'] or '-'}"
+            )
+    else:
+        lines.append(
+            "Semua jawaban benar. Berikan apresiasi dan rekomendasikan materi lanjutan yang lebih menantang."
+        )
+
+    lines.append(
+        "Jelaskan analisa dalam 2-3 paragraf: soroti kelemahan utama, rekomendasikan strategi belajar, dan tawarkan motivasi singkat."
+    )
+    return "\n".join(lines)
+
+
+def submit_tka_attempt(
+    attempt_id: int,
+    web_user_id: int,
+    answers: Dict[int, Optional[str]],
+) -> Optional[Dict[str, Any]]:
+    """Nilai jawaban siswa dan kunci skor."""
+    if not attempt_id or not web_user_id:
+        return None
+
+    _ensure_tka_schema()
+    normalized_answers: Dict[int, Optional[str]] = {}
+    for key, value in (answers or {}).items():
+        try:
+            question_key = int(key)
+        except (TypeError, ValueError):
+            continue
+        if value is None:
+            normalized_answers[question_key] = None
+            continue
+        clean_value = str(value).strip().upper()
+        if not clean_value:
+            normalized_answers[question_key] = None
+            continue
+        if clean_value not in VALID_TKA_OPTION_KEYS:
+            normalized_answers[question_key] = None
+            continue
+        normalized_answers[question_key] = clean_value
+
+    now_utc = datetime.now(timezone.utc)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                a.*,
+                s.name AS subject_name
+            FROM tka_quiz_attempts a
+            JOIN tka_subjects s ON s.id = a.subject_id
+            WHERE a.id = %s
+              AND a.web_user_id = %s
+            FOR UPDATE
+            """,
+            (attempt_id, web_user_id),
+        )
+        attempt = cur.fetchone()
+        if not attempt:
+            return None
+        if attempt.get("status") != "in_progress":
+            return {"attempt": attempt, "questions": []}
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                question_id,
+                prompt,
+                options,
+                correct_key,
+                difficulty,
+                topic,
+                explanation
+            FROM tka_attempt_questions
+            WHERE attempt_id = %s
+            ORDER BY order_index ASC
+            """,
+            (attempt_id,),
+        )
+        question_rows = cur.fetchall()
+
+        if not question_rows:
+            raise ValueError("Soal untuk sesi ini belum tersedia.")
+
+        difficulty_stats: Dict[str, Dict[str, int]] = {}
+        updates: List[Tuple[Optional[str], bool, int]] = []
+        detailed_rows: List[Dict[str, Any]] = []
+        for row in question_rows:
+            difficulty = row.get("difficulty") or "easy"
+            stats = difficulty_stats.setdefault(
+                difficulty, {"total": 0, "correct": 0}
+            )
+            stats["total"] += 1
+            selected_key = normalized_answers.get(row["id"])
+            is_correct = bool(
+                selected_key and row.get("correct_key") and selected_key == row["correct_key"]
+            )
+            if is_correct:
+                stats["correct"] += 1
+            updates.append((selected_key, is_correct, row["id"]))
+            detailed = dict(row)
+            detailed["selected_key"] = selected_key
+            detailed["is_correct"] = is_correct
+            detailed_rows.append(detailed)
+
+        cur.executemany(
+            """
+            UPDATE tka_attempt_questions
+            SET selected_key = %s,
+                is_correct = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            updates,
+        )
+
+        total_questions = len(question_rows)
+        correct_count = sum(stats["correct"] for stats in difficulty_stats.values())
+        score = int(round((correct_count / total_questions) * 100)) if total_questions else 0
+        duration_seconds = max(
+            0, int((now_utc - (attempt.get("started_at") or now_utc)).total_seconds())
+        )
+        analysis_prompt = _build_tka_analysis_prompt(
+            attempt.get("subject_name", "TKA"),
+            score,
+            correct_count,
+            total_questions,
+            difficulty_stats,
+            detailed_rows,
+        )
+
+        cur.execute(
+            """
+            UPDATE tka_quiz_attempts
+            SET status = 'completed',
+                completed_at = %s,
+                correct_count = %s,
+                score = %s,
+                duration_seconds = %s,
+                difficulty_breakdown = %s,
+                analysis_prompt = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING *
+            """,
+            (
+                now_utc,
+                correct_count,
+                score,
+                duration_seconds,
+                Json(difficulty_stats),
+                analysis_prompt,
+                attempt_id,
+            ),
+        )
+        updated_attempt = cur.fetchone()
+    conn.commit()
+
+    return {
+        "attempt": updated_attempt,
+        "questions": detailed_rows,
+        "difficulty": difficulty_stats,
+        "score": score,
+        "correct_count": correct_count,
+        "total_questions": total_questions,
+        "analysis_prompt": analysis_prompt,
+    }
+
+
+def get_tka_result(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil hasil lengkap untuk ditampilkan pada halaman skor."""
+    if not attempt_id or not web_user_id:
+        return None
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                a.*,
+                s.name AS subject_name,
+                s.description AS subject_description,
+                s.grade_level AS subject_grade_level
+            FROM tka_quiz_attempts a
+            JOIN tka_subjects s ON s.id = a.subject_id
+            WHERE a.id = %s
+              AND a.web_user_id = %s
+            """,
+            (attempt_id, web_user_id),
+        )
+        attempt = cur.fetchone()
+        if not attempt:
+            return None
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                question_id,
+                prompt,
+                options,
+                correct_key,
+                selected_key,
+                is_correct,
+                difficulty,
+                topic,
+                explanation,
+                order_index
+            FROM tka_attempt_questions
+            WHERE attempt_id = %s
+            ORDER BY order_index ASC
+            """,
+            (attempt_id,),
+        )
+        questions = cur.fetchall()
+
+    return {"attempt": attempt, "questions": questions}
+
+
+def get_tka_analysis_job(attempt_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil data untuk memicu analisa otomatis oleh ASKA."""
+    if not attempt_id:
+        return None
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                web_user_id,
+                analysis_prompt,
+                analysis_sent_at,
+                subject_id
+            FROM tka_quiz_attempts
+            WHERE id = %s
+            """,
+            (attempt_id,),
+        )
+        return cur.fetchone()
+
+
+def mark_tka_analysis_sent(attempt_id: int) -> None:
+    """Tandai bahwa analisa otomatis sudah dikirimkan lewat chat."""
+    if not attempt_id:
+        return
+    _ensure_tka_schema()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE tka_quiz_attempts
+            SET analysis_sent_at = NOW(),
+                updated_at = NOW()
+            WHERE id = %s
+            """,
+            (attempt_id,),
+        )
+    conn.commit()
+
 
 # Call schema functions on startup
 _ensure_chat_logs_schema()
@@ -1262,3 +2013,4 @@ _ensure_user_schema()
 _ensure_telegram_user_schema()
 _ensure_corruption_schema()
 _ensure_twitter_log_schema()
+_ensure_tka_schema()

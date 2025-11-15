@@ -140,7 +140,7 @@ _STOP_KEYWORDS: tuple[str, ...] = (
     "stop",
 )
 
-_LLM_MODEL = os.getenv("ASKA_PSYCH_MODEL") or os.getenv("ASKA_QA_MODEL") or "llama-3.1-8b-instant"
+_LLM_MODEL = os.getenv("ASKA_PSYCH_MODEL") or os.getenv("ASKA_QA_MODEL") or "-3.1-8b-instant"
 _LLM_TEMPERATURE = float(os.getenv("ASKA_PSYCH_TEMPERATURE", "0.5"))
 _LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ASKA_PSYCH_MAX_TOKENS", "320"))
 _llm_client: Optional[OpenAI] = None

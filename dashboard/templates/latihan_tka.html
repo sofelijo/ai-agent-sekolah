@@ -1,0 +1,1184 @@
+{% extends "base.html" %}
+{% block title %}Latihan TKA · Bank Soal{% endblock %}
+{% set grade_labels = grade_labels or {'sd6': 'Kelas 6 SD', 'smp3': 'Kelas 3 SMP', 'sma': 'SMA'} %}
+{% block head_extra %}
+<style>
+    .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
+    .section-title { font-weight: 600; }
+    .question-card { border: 1px solid var(--border-soft); border-radius: 16px; padding: 16px; margin-bottom: 16px; background: var(--bg-surface); }
+    .question-card .options { list-style: none; padding-left: 1.2rem; }
+    .badge-soft { border-radius: 999px; padding: 4px 10px; font-size: 0.75rem; }
+    .difficulty-easy { background: #ecfccb; color: #365314; }
+    .difficulty-medium { background: #fef3c7; color: #92400e; }
+    .difficulty-hard { background: #fee2e2; color: #991b1b; }
+    .question-card.duplicate-found { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220,38,38,0.2); }
+    .question-card.duplicate-clear { border-color: #16a34a; box-shadow: 0 0 0 1px rgba(22,163,74,0.2); }
+    .question-empty { border: 1px dashed var(--border-soft); border-radius: 16px; padding: 24px; text-align: center; color: var(--text-muted); }
+    .option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Latihan TKA · Bank Soal</h1>
+            <p class="text-muted mb-0">Kelola mapel, komposisi soal, dan generate paket otomatis memakai ASKA.</p>
+        </div>
+        <button class="btn btn-primary" id="openGeneratorBtn" data-bs-toggle="modal" data-bs-target="#generateModal">
+            <i class="bi bi-stars me-1"></i> Generate dengan ASKA
+        </button>
+    </div>
+
+    <div id="tkaStatus" class="alert d-none" role="alert"></div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header pb-0 border-0">
+                    <ul class="nav nav-tabs card-header-tabs" id="formToggleTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-target="subjectFormPanel" type="button">Mapel Latihan</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-target="questionFormPanel" type="button">Tambah Soal Manual</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div id="subjectFormPanel" class="tab-panel">
+                        <p class="text-muted small">Atur 20 soal / 15 menit sesuai komposisi tingkat kesulitan.</p>
+                        <form id="subjectForm" class="mt-3">
+                            <div class="mb-3">
+                                <label class="form-label">Nama Mapel</label>
+                                <input type="text" class="form-control" id="subjectName" required placeholder="Contoh: Matematika Dasar">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Deskripsi</label>
+                                <textarea class="form-control" id="subjectDesc" rows="2" placeholder="Ringkasan materi"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Jenjang</label>
+                                <select class="form-select" id="subjectGrade">
+                                    <option value="sd6">Kelas 6 SD</option>
+                                    <option value="smp3">Kelas 3 SMP</option>
+                                    <option value="sma">SMA</option>
+                                </select>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">Durasi (menit)</label>
+                                    <input type="number" class="form-control" id="subjectTime" min="5" value="15">
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">Status</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="subjectActive" checked>
+                                        <label class="form-check-label" for="subjectActive">Aktif</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <label class="form-label">Komposisi Soal</label>
+                            <div class="row">
+                                <div class="col-4 mb-3">
+                                    <input type="number" class="form-control" id="subjectEasy" min="0" value="10">
+                                    <small class="text-muted">Mudah</small>
+                                </div>
+                                <div class="col-4 mb-3">
+                                    <input type="number" class="form-control" id="subjectMedium" min="0" value="5">
+                                    <small class="text-muted">Sedang</small>
+                                </div>
+                                <div class="col-4 mb-3">
+                                    <input type="number" class="form-control" id="subjectHard" min="0" value="5">
+                                    <small class="text-muted">Susah</small>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Tambah Mapel</button>
+                        </form>
+                    </div>
+                    <div id="questionFormPanel" class="tab-panel d-none">
+                        <p class="text-muted small">Masukkan soal manual untuk melengkapi bank soal.</p>
+                        <form id="questionForm" class="mt-2">
+                            <div class="mb-3">
+                                <label class="form-label">Pilih Mapel</label>
+                                <select class="form-select" id="questionSubject" required>
+                                    {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Topik (opsional)</label>
+                                <input type="text" class="form-control" id="questionTopic" placeholder="Contoh: Aritmetika">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tingkat Kesulitan</label>
+                                <select class="form-select" id="questionDifficulty">
+                                    <option value="easy">Mudah</option>
+                                    <option value="medium">Sedang</option>
+                                    <option value="hard">Susah</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Teks Soal</label>
+                                <textarea class="form-control" id="questionPrompt" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pilihan Jawaban</label>
+                                <div class="option-grid">
+                                    <div><input type="text" class="form-control" id="optionA" placeholder="Opsi A" required></div>
+                                    <div><input type="text" class="form-control" id="optionB" placeholder="Opsi B" required></div>
+                                    <div><input type="text" class="form-control" id="optionC" placeholder="Opsi C"></div>
+                                    <div><input type="text" class="form-control" id="optionD" placeholder="Opsi D"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Jawaban Benar</label>
+                                <select class="form-select" id="questionAnswer">
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pembahasan</label>
+                                <textarea class="form-control" id="questionExplain" rows="2"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Simpan Soal</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card p-3 h-100">
+                <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                    <div class="flex-grow-1">
+                        <label class="form-label">Mapel</label>
+                        <select class="form-select" id="filterSubject">
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted d-block mt-1">Jenjang: <span class="badge text-bg-light" id="selectedGradeBadge">-</span></small>
+                    </div>
+                    <div>
+                        <label class="form-label">Kesulitan</label>
+                        <select class="form-select" id="filterDifficulty">
+                            <option value="">Semua</option>
+                            <option value="easy">Mudah</option>
+                            <option value="medium">Sedang</option>
+                            <option value="hard">Susah</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Topik</label>
+                        <input type="text" class="form-control" id="filterTopic" placeholder="Topik (opsional)">
+                    </div>
+                    <div>
+                        <label class="form-label d-block">&nbsp;</label>
+                        <button class="btn btn-outline-secondary" type="button" id="openPresetSettings">
+                            <i class="bi bi-sliders me-1"></i>Pengaturan komposisi
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-primary" id="refreshQuestions">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+                <div id="questionList"><div class="question-empty">Pilih mapel untuk melihat daftar soal.</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Generate Soal -->
+<div class="modal fade" id="generateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Soal dengan ASKA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="generateForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Mapel</label>
+                        <select class="form-select" id="generateSubject" required>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Topik</label>
+                        <input type="text" class="form-control" id="generateTopic" placeholder="Contoh: Bilangan pecahan" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tingkat Kelas</label>
+                        <select class="form-select" id="generateGrade">
+                            <option value="sd6">Kelas 6 SD</option>
+                            <option value="smp3">Kelas 3 SMP</option>
+                            <option value="sma">SMA</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tipe Soal</label>
+                        <select class="form-select" id="generateQuestionType">
+                            <option value="story">Soal cerita penalaran</option>
+                            <option value="direct">Soal ringkas langsung</option>
+                        </select>
+                        <small class="text-muted">Pilih apakah soal berbentuk cerita atau hitungan langsung.</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Kesulitan</label>
+                        <select class="form-select" id="generateDifficulty">
+                            <option value="easy">Mudah</option>
+                            <option value="medium">Sedang</option>
+                            <option value="hard">Susah</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Jumlah</label>
+                        <input type="number" class="form-control" id="generateAmount" min="1" max="10" value="3">
+                    </div>
+                    <div class="col-md-9">
+                        <label class="form-label">Contoh/Instruksi Variasi</label>
+                        <textarea class="form-control" id="generateExample" rows="3" placeholder="Contoh soal atau gaya cerita yang diinginkan (opsional)"></textarea>
+                        <small class="text-muted">Berikan contoh soal atau penjelasan gaya yang ingin ditiru.</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tingkat Kemiripan</label>
+                        <select class="form-select" id="generateStyleSimilarity">
+                            <option value="30">30% · bebas berkreasi</option>
+                            <option value="50" selected>50% · seimbang</option>
+                            <option value="90">90% · sangat mirip</option>
+                        </select>
+                        <small class="text-muted">Atur seberapa dekat AI mengikuti contoh.</small>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-magic me-1"></i>Generate
+                        </button>
+                    </div>
+                </form>
+                <div class="mt-3" id="generatePreview"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-success" id="saveGenerated" disabled>Simpan ke Bank Soal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editQuestionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Soal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editQuestionForm">
+                    <input type="hidden" id="editQuestionId">
+                    <div class="mb-3">
+                        <label class="form-label">Topik</label>
+                        <input type="text" class="form-control" id="editQuestionTopic">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tingkat Kesulitan</label>
+                        <select class="form-select" id="editQuestionDifficulty">
+                            <option value="easy">Mudah</option>
+                            <option value="medium">Sedang</option>
+                            <option value="hard">Susah</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teks Soal</label>
+                        <textarea class="form-control" id="editQuestionPrompt" rows="3" required></textarea>
+                    </div>
+                        <label class="form-label">Pilihan Jawaban</label>
+                    <div class="option-grid mb-3">
+                        <div><input type="text" class="form-control" id="editOptionA" placeholder="Opsi A" required></div>
+                        <div><input type="text" class="form-control" id="editOptionB" placeholder="Opsi B" required></div>
+                        <div><input type="text" class="form-control" id="editOptionC" placeholder="Opsi C"></div>
+                        <div><input type="text" class="form-control" id="editOptionD" placeholder="Opsi D"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Jawaban Benar</label>
+                        <select class="form-select" id="editQuestionAnswer">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pembahasan</label>
+                        <textarea class="form-control" id="editQuestionExplain" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <span class="me-auto text-muted small" id="editStatus"></span>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="saveEditQuestion">Simpan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="difficultyConfigModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pengaturan komposisi soal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-semibold" id="presetSubjectName">-</p>
+                <form id="presetForm">
+                    <input type="hidden" id="presetSubjectId">
+                    <div class="mb-3">
+                        <label class="form-label">Pilih preset:</label>
+                        <div class="list-group" id="presetOptions">
+                            <label class="list-group-item d-flex justify-content-between align-items-start">
+                                <span>
+                                    <input class="form-check-input me-2" type="radio" name="presetOption" value="mudah">
+                                    <span>Mudah</span>
+                                </span>
+                                <small class="text-muted" id="presetDescMudah">-</small>
+                            </label>
+                            <label class="list-group-item d-flex justify-content-between align-items-start">
+                                <span>
+                                    <input class="form-check-input me-2" type="radio" name="presetOption" value="sedang">
+                                    <span>Sedang</span>
+                                </span>
+                                <small class="text-muted" id="presetDescSedang">-</small>
+                            </label>
+                            <label class="list-group-item d-flex justify-content-between align-items-start">
+                                <span>
+                                    <input class="form-check-input me-2" type="radio" name="presetOption" value="susah">
+                                    <span>Susah</span>
+                                </span>
+                                <small class="text-muted" id="presetDescSusah">-</small>
+                            </label>
+                            <label class="list-group-item">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="presetOption" value="custom" id="presetCustomOption">
+                                    <label class="form-check-label" for="presetCustomOption">Kustom</label>
+                                </div>
+                                <div class="row g-2 mt-2 d-none" id="customPresetFields">
+                                    <div class="col-4">
+                                        <label class="form-label">Mudah</label>
+                                        <input type="number" min="0" class="form-control" id="customEasy" value="5">
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="form-label">Sedang</label>
+                                        <input type="number" min="0" class="form-control" id="customMedium" value="5">
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="form-label">Susah</label>
+                                        <input type="number" min="0" class="form-control" id="customHard" value="5">
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <span class="text-muted small me-auto" id="presetStatus"></span>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="savePresetSettings">Simpan pengaturan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let SUBJECTS = {{ subjects|tojson }};
+    const GRADE_LABELS = {{ grade_labels|tojson }};
+    document.addEventListener('DOMContentLoaded', () => {
+    const subjectSelect = document.getElementById('filterSubject');
+    const questionSubjectSelect = document.getElementById('questionSubject');
+    const generateSubjectSelect = document.getElementById('generateSubject');
+const generateGradeSelect = document.getElementById('generateGrade');
+const generateQuestionType = document.getElementById('generateQuestionType');
+const generateStyleSimilarity = document.getElementById('generateStyleSimilarity');
+const questionList = document.getElementById('questionList');
+const statusBox = document.getElementById('tkaStatus');
+const filterDifficulty = document.getElementById('filterDifficulty');
+const filterTopic = document.getElementById('filterTopic');
+const refreshBtn = document.getElementById('refreshQuestions');
+const questionForm = document.getElementById('questionForm');
+const subjectForm = document.getElementById('subjectForm');
+const subjectGradeSelect = document.getElementById('subjectGrade');
+const generateForm = document.getElementById('generateForm');
+const generatePreview = document.getElementById('generatePreview');
+const saveGeneratedBtn = document.getElementById('saveGenerated');
+const generateExampleInput = document.getElementById('generateExample');
+let generatedBundle = null;
+const tabButtons = document.querySelectorAll('#formToggleTabs button');
+const formPanels = {
+    subjectFormPanel: document.getElementById('subjectFormPanel'),
+    questionFormPanel: document.getElementById('questionFormPanel')
+};
+const presetModalEl = document.getElementById('difficultyConfigModal');
+const presetModal = presetModalEl ? new bootstrap.Modal(presetModalEl) : null;
+const openPresetSettingsBtn = document.getElementById('openPresetSettings');
+const presetSubjectName = document.getElementById('presetSubjectName');
+const presetSubjectIdInput = document.getElementById('presetSubjectId');
+const presetStatus = document.getElementById('presetStatus');
+const presetRadios = document.querySelectorAll('input[name="presetOption"]');
+const customPresetFields = document.getElementById('customPresetFields');
+const customEasyInput = document.getElementById('customEasy');
+const customMediumInput = document.getElementById('customMedium');
+const customHardInput = document.getElementById('customHard');
+const presetDescEls = {
+        mudah: document.getElementById('presetDescMudah'),
+        sedang: document.getElementById('presetDescSedang'),
+        susah: document.getElementById('presetDescSusah'),
+    };
+const PRESET_KEYS = ['mudah', 'sedang', 'susah'];
+const savePresetSettingsBtn = document.getElementById('savePresetSettings');
+const editModalEl = document.getElementById('editQuestionModal');
+const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+const editStatus = document.getElementById('editStatus');
+    const editFields = {
+        topic: document.getElementById('editQuestionTopic'),
+        difficulty: document.getElementById('editQuestionDifficulty'),
+        prompt: document.getElementById('editQuestionPrompt'),
+        optionA: document.getElementById('editOptionA'),
+        optionB: document.getElementById('editOptionB'),
+        optionC: document.getElementById('editOptionC'),
+        optionD: document.getElementById('editOptionD'),
+        answer: document.getElementById('editQuestionAnswer'),
+        explanation: document.getElementById('editQuestionExplain'),
+    };
+const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
+    let editingQuestionId = null;
+    const selectedGradeBadge = document.getElementById('selectedGradeBadge');
+
+    function getSubjectById(subjectId) {
+        const id = Number(subjectId);
+        if (!id) return null;
+        return SUBJECTS.find(item => Number(item.id) === id) || null;
+    }
+
+    function updateSubjectCache(subject) {
+        if (!subject) return;
+        const idx = SUBJECTS.findIndex(item => Number(item.id) === Number(subject.id));
+        if (idx >= 0) {
+            SUBJECTS[idx] = subject;
+        } else {
+            SUBJECTS.push(subject);
+        }
+    }
+
+    function getGradeLabel(value) {
+        if (!value) return GRADE_LABELS.sd6 || 'Kelas 6 SD';
+        return GRADE_LABELS[value] || GRADE_LABELS.sd6 || 'Kelas 6 SD';
+    }
+
+    function updateSelectedGradeBadge() {
+        if (!selectedGradeBadge || !subjectSelect) return;
+        const subject = getSubjectById(subjectSelect.value);
+        if (!subject) {
+            selectedGradeBadge.textContent = '-';
+            return;
+        }
+        selectedGradeBadge.textContent = getGradeLabel(subject.grade_level);
+    }
+
+    function formatMixDescription(mix) {
+        if (!mix || typeof mix !== 'object') return '-';
+        const easy = mix.easy ?? 0;
+        const medium = mix.medium ?? 0;
+        const hard = mix.hard ?? 0;
+        return `${easy} mudah · ${medium} sedang · ${hard} susah`;
+    }
+
+    function toggleCustomPresetFields(show) {
+        if (!customPresetFields) return;
+        customPresetFields.classList.toggle('d-none', !show);
+    }
+
+    function hydratePresetModal(subject) {
+        if (!presetModal || !subject) return;
+        presetSubjectName.textContent = subject.name;
+        presetSubjectIdInput.value = subject.id;
+        const presets = subject.difficulty_presets || {};
+        PRESET_KEYS.forEach(key => {
+            const descEl = presetDescEls[key];
+            if (descEl) {
+                descEl.textContent = formatMixDescription(presets[key]);
+            }
+        });
+        const customMix = presets.custom || subject.difficulty_mix || subject.active_mix || {};
+        if (customEasyInput) customEasyInput.value = customMix.easy ?? 5;
+        if (customMediumInput) customMediumInput.value = customMix.medium ?? 5;
+        if (customHardInput) customHardInput.value = customMix.hard ?? 5;
+        const preferredPreset = (subject.default_preset || 'mudah').toString().toLowerCase();
+        let targetRadio = Array.from(presetRadios || []).find(radio => radio.value === preferredPreset);
+        if (!targetRadio) {
+            targetRadio = Array.from(presetRadios || [])[0] || null;
+        }
+        if (targetRadio) {
+            targetRadio.checked = true;
+            toggleCustomPresetFields(targetRadio.value === 'custom');
+        } else {
+            toggleCustomPresetFields(false);
+        }
+        presetStatus.textContent = '';
+    }
+
+    if (presetRadios && presetRadios.length) {
+        presetRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    toggleCustomPresetFields(radio.value === 'custom');
+                }
+            });
+        });
+    }
+
+    if (openPresetSettingsBtn) {
+        openPresetSettingsBtn.addEventListener('click', () => {
+            if (!SUBJECTS.length) {
+                showStatus('Belum ada mapel untuk diatur.', 'warning');
+                return;
+            }
+            const targetId = (subjectSelect && subjectSelect.value) || (questionSubjectSelect && questionSubjectSelect.value) || (SUBJECTS[0] && SUBJECTS[0].id);
+            const subject = getSubjectById(targetId);
+            if (!subject) {
+                showStatus('Mapel tidak ditemukan. Pilih mapel terlebih dahulu.', 'danger');
+                return;
+            }
+            hydratePresetModal(subject);
+            presetModal.show();
+        });
+    }
+
+    if (savePresetSettingsBtn) {
+        savePresetSettingsBtn.addEventListener('click', async () => {
+            const subjectId = Number(presetSubjectIdInput.value);
+            if (!subjectId) {
+                presetStatus.textContent = 'Mapel belum dipilih.';
+                presetStatus.classList.add('text-danger');
+                return;
+            }
+            const selectedRadio = Array.from(presetRadios || []).find(radio => radio.checked);
+            if (!selectedRadio) {
+                presetStatus.textContent = 'Pilih preset terlebih dahulu.';
+                presetStatus.classList.add('text-danger');
+                return;
+            }
+            const payload = { preset: selectedRadio.value };
+            if (selectedRadio.value === 'custom') {
+                const mix = {
+                    easy: parseInt(customEasyInput.value, 10) || 0,
+                    medium: parseInt(customMediumInput.value, 10) || 0,
+                    hard: parseInt(customHardInput.value, 10) || 0,
+                };
+                if (mix.easy + mix.medium + mix.hard <= 0) {
+                    presetStatus.textContent = 'Jumlah soal kustom minimal harus lebih dari 0.';
+                    presetStatus.classList.add('text-danger');
+                    return;
+                }
+                payload.custom = mix;
+            }
+            presetStatus.textContent = 'Menyimpan pengaturan…';
+            presetStatus.classList.remove('text-danger');
+            try {
+                const response = await fetch(`/latihan-tka/subjects/${subjectId}/difficulty`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success && data.subject) {
+                    updateSubjectCache(data.subject);
+                    hydratePresetModal(data.subject);
+                    refreshSubjectDropdowns();
+                    presetStatus.textContent = 'Pengaturan tersimpan.';
+                    presetStatus.classList.remove('text-danger');
+                    presetStatus.classList.add('text-success');
+                    showStatus('Komposisi soal berhasil diperbarui.');
+                } else {
+                    presetStatus.textContent = (data && data.message) || 'Gagal menyimpan pengaturan. Silakan coba lagi.';
+                    presetStatus.classList.remove('text-success');
+                    presetStatus.classList.add('text-danger');
+                }
+            } catch (error) {
+                presetStatus.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+                presetStatus.classList.remove('text-success');
+                presetStatus.classList.add('text-danger');
+            }
+        });
+    }
+
+    function showStatus(message, tone = 'success') {
+        if (!statusBox) return;
+        statusBox.className = `alert alert-${tone}`;
+        statusBox.textContent = message;
+        statusBox.classList.remove('d-none');
+        const currentTimer = Number(statusBox.dataset.timer);
+        if (currentTimer) {
+            clearTimeout(currentTimer);
+        }
+        const timer = setTimeout(() => statusBox.classList.add('d-none'), 4000);
+        statusBox.dataset.timer = String(timer);
+    }
+
+    function refreshSubjectDropdowns() {
+        [subjectSelect, questionSubjectSelect, generateSubjectSelect].forEach(select => {
+            if (!select) return;
+            const previousValue = select.value;
+            select.innerHTML = '';
+            SUBJECTS.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject.id;
+                const gradeText = getGradeLabel(subject.grade_level);
+                option.textContent = `${subject.name} (${gradeText})`;
+                select.appendChild(option);
+            });
+            if (previousValue) {
+                select.value = previousValue;
+            }
+            if (!select.value && SUBJECTS.length) {
+                select.value = SUBJECTS[0].id;
+            }
+        });
+        updateSelectedGradeBadge();
+    }
+
+    function renderQuestionList(items) {
+        if (!items.length) {
+            questionList.innerHTML = '<div class="question-empty">Belum ada soal untuk filter ini.</div>';
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'question-card';
+            const dataAttr = encodeURIComponent(JSON.stringify(item));
+            card.dataset.question = dataAttr;
+            card.setAttribute('tabindex', '0');
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge-soft difficulty-${item.difficulty} text-uppercase">${item.difficulty}</span>
+                        ${item.topic ? `<span class="badge-soft bg-secondary-subtle ms-2">${item.topic}</span>` : ''}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${item.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <p class="mb-2 fw-semibold">${item.prompt}</p>
+                <ul class="options mb-2">
+                    ${(item.options || []).map(opt => `<li><strong>${opt.key}.</strong> ${opt.text}</li>`).join('')}
+                </ul>
+                <p class="mb-1"><strong>Kunci:</strong> ${item.correct_key}</p>
+                ${item.explanation ? `<p class="text-muted small mb-0">${item.explanation}</p>` : ''}
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" data-action="edit" data-question="${dataAttr}">Edit</button>
+                </div>
+            `;
+            fragment.appendChild(card);
+        });
+        questionList.innerHTML = '';
+        questionList.appendChild(fragment);
+    }
+
+    async function loadQuestions() {
+        if (!subjectSelect) {
+            questionList.innerHTML = '<div class="question-empty">Atur mapel terlebih dahulu.</div>';
+            return;
+        }
+        const subjectId = subjectSelect.value;
+        if (!subjectId) {
+            questionList.innerHTML = '<div class="question-empty">Tambahkan mapel terlebih dahulu.</div>';
+            return;
+        }
+        questionList.innerHTML = '<div class="py-4 text-center text-muted">Memuat soal…</div>';
+        const params = new URLSearchParams({
+            subject_id: subjectId,
+            difficulty: filterDifficulty.value || '',
+            topic: filterTopic.value || ''
+        });
+        try {
+            const response = await fetch(`/latihan-tka/questions?${params.toString()}`);
+            const data = await response.json();
+            if (data.success) {
+                renderQuestionList(data.questions || []);
+            } else {
+                questionList.innerHTML = `<div class="question-empty">${data.message || 'Gagal memuat soal.'}</div>`;
+            }
+        } catch (error) {
+            questionList.innerHTML = '<div class="question-empty">Terjadi kesalahan memuat soal.</div>';
+        }
+    }
+
+    subjectForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+            name: document.getElementById('subjectName').value.trim(),
+            description: document.getElementById('subjectDesc').value.trim(),
+            time_limit_minutes: parseInt(document.getElementById('subjectTime').value, 10) || 15,
+            difficulty_mix: {
+                easy: parseInt(document.getElementById('subjectEasy').value, 10) || 0,
+                medium: parseInt(document.getElementById('subjectMedium').value, 10) || 0,
+                hard: parseInt(document.getElementById('subjectHard').value, 10) || 0,
+            },
+            is_active: document.getElementById('subjectActive').checked,
+            grade_level: subjectGradeSelect ? subjectGradeSelect.value : 'sd6',
+        };
+        try {
+            const response = await fetch('/latihan-tka/subjects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (data.success && data.subject) {
+                updateSubjectCache(data.subject);
+                refreshSubjectDropdowns();
+                const newId = data.subject.id;
+                if (subjectSelect) subjectSelect.value = newId;
+                if (questionSubjectSelect) questionSubjectSelect.value = newId;
+                if (generateSubjectSelect) generateSubjectSelect.value = newId;
+                subjectForm.reset();
+                if (subjectGradeSelect) subjectGradeSelect.value = 'sd6';
+                showStatus('Mapel baru berhasil ditambahkan.');
+                loadQuestions();
+            } else {
+                showStatus(data.message || 'Gagal menambah mapel.', 'danger');
+            }
+        } catch (error) {
+            showStatus('Terjadi kesalahan saat menambah mapel.', 'danger');
+        }
+    });
+
+    questionForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const subjectId = questionSubjectSelect.value;
+        if (!subjectId) {
+            showStatus('Pilih mapel terlebih dahulu.', 'warning');
+            return;
+        }
+        const options = [
+            { key: 'A', text: document.getElementById('optionA').value },
+            { key: 'B', text: document.getElementById('optionB').value },
+        ];
+        if (document.getElementById('optionC').value) options.push({ key: 'C', text: document.getElementById('optionC').value });
+        if (document.getElementById('optionD').value) options.push({ key: 'D', text: document.getElementById('optionD').value });
+        const payload = {
+            subject_id: parseInt(subjectId, 10),
+            questions: [
+                {
+                    prompt: document.getElementById('questionPrompt').value,
+                    topic: document.getElementById('questionTopic').value,
+                    difficulty: document.getElementById('questionDifficulty').value,
+                    options,
+                    correct_key: document.getElementById('questionAnswer').value,
+                    explanation: document.getElementById('questionExplain').value,
+                    source: 'manual',
+                },
+            ],
+        };
+        try {
+            const response = await fetch('/latihan-tka/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showStatus(`${data.inserted} soal berhasil disimpan.`);
+                questionForm.reset();
+                loadQuestions();
+            } else {
+                showStatus(data.message || 'Gagal menyimpan soal.', 'danger');
+            }
+        } catch (error) {
+            showStatus('Terjadi kesalahan saat menyimpan soal.', 'danger');
+        }
+    });
+
+    questionList.addEventListener('click', async (event) => {
+        const deleteBtn = event.target.closest('[data-action="delete"]');
+        if (deleteBtn) {
+            const questionId = deleteBtn.dataset.id;
+            if (!questionId || !confirm('Hapus soal ini?')) {
+                return;
+            }
+            try {
+                const response = await fetch(`/latihan-tka/questions/${questionId}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    showStatus('Soal berhasil dihapus.', 'info');
+                    loadQuestions();
+                } else {
+                    showStatus(data.message || 'Gagal menghapus soal.', 'danger');
+                }
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menghapus soal.', 'danger');
+            }
+            return;
+        }
+        const editBtn = event.target.closest('[data-action="edit"]');
+        if (editBtn && editBtn.dataset.question) {
+            try {
+                const data = JSON.parse(decodeURIComponent(editBtn.dataset.question));
+                openEditModal(data);
+            } catch (error) {
+                showStatus('Gagal membuka data soal untuk diedit.', 'danger');
+            }
+            return;
+        }
+        const card = event.target.closest('.question-card');
+        if (card && card.dataset.question) {
+            try {
+                const data = JSON.parse(decodeURIComponent(card.dataset.question));
+                openEditModal(data);
+            } catch (error) {
+                showStatus('Gagal membuka data soal untuk diedit.', 'danger');
+            }
+        }
+    });
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadQuestions);
+    }
+    if (subjectSelect) {
+    subjectSelect.addEventListener('change', () => {
+        updateSelectedGradeBadge();
+        loadQuestions();
+    });
+    }
+
+    generateForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        generatePreview.innerHTML = '<div class="alert alert-info">ASKA sedang menyiapkan soal…</div>';
+        saveGeneratedBtn.disabled = true;
+        generatedBundle = null;
+        const payload = {
+            subject_id: parseInt(generateSubjectSelect.value, 10),
+            topic: document.getElementById('generateTopic').value,
+            difficulty: document.getElementById('generateDifficulty').value,
+            amount: parseInt(document.getElementById('generateAmount').value, 10),
+            grade_level: generateGradeSelect ? generateGradeSelect.value : '',
+            question_type: generateQuestionType ? generateQuestionType.value : 'story',
+            style_similarity: generateStyleSimilarity ? generateStyleSimilarity.value : '50',
+            example: generateExampleInput ? generateExampleInput.value : ''
+        };
+        try {
+            const response = await fetch('/latihan-tka/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const rawText = await response.text();
+            let data = {};
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (error) {
+                data = { success: false, message: rawText };
+            }
+            if (!response.ok || !data.success) {
+                generatePreview.innerHTML = `<div class="alert alert-danger">${(data && data.message) || 'ASKA belum menghasilkan format yang bisa dipahami. Gagal, silakan coba lagi.'}</div>`;
+                return;
+            }
+            renderGeneratedQuestions(data.questions || [], payload.amount);
+            generatedBundle = { prompt: data.prompt, subject_id: payload.subject_id };
+            saveGeneratedBtn.disabled = false;
+        } catch (error) {
+            generatePreview.innerHTML = '<div class="alert alert-danger">Terjadi kesalahan saat menghubungi ASKA. Gagal, silakan coba lagi.</div>';
+        }
+    });
+
+    function renderGeneratedQuestions(questions, requestedCount = 0) {
+        if (!questions.length) {
+            generatePreview.innerHTML = '<div class="alert alert-warning">ASKA tidak mengembalikan soal apapun.</div>';
+            return;
+        }
+        const container = document.createElement('div');
+        questions.forEach((question, index) => {
+            const block = document.createElement('div');
+            block.className = 'question-card';
+            block.dataset.index = index;
+            block.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Soal ${index + 1}</label>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-info" data-action="check-duplicate" data-index="${index}">
+                            <i class="bi bi-search"></i> Cek duplikat
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-action="remove-generated" data-index="${index}">
+                            <i class="bi bi-x-circle"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+                <textarea class="form-control mb-2" data-field="prompt" rows="2">${question.prompt || ''}</textarea>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" data-field="topic" placeholder="Topik" value="${question.topic || ''}">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" data-field="difficulty">
+                            <option value="easy" ${question.difficulty === 'easy' ? 'selected' : ''}>Mudah</option>
+                            <option value="medium" ${question.difficulty === 'medium' ? 'selected' : ''}>Sedang</option>
+                            <option value="hard" ${question.difficulty === 'hard' ? 'selected' : ''}>Susah</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" data-field="correct" placeholder="Kunci" value="${question.correct_key || 'A'}">
+                    </div>
+                </div>
+                <div class="option-grid mb-2">
+                    ${(question.options || []).map((opt, idx) => `
+                        <input type="text" class="form-control" data-option="${opt.key || String.fromCharCode(65+idx)}" value="${opt.text || ''}">
+                    `).join('')}
+                </div>
+                <textarea class="form-control" data-field="explanation" rows="2" placeholder="Pembahasan">${question.explanation || ''}</textarea>
+            `;
+            container.appendChild(block);
+        });
+        const actualCount = questions.length;
+        generatePreview.innerHTML = '';
+        if (requestedCount && actualCount < requestedCount) {
+            const warn = document.createElement('div');
+            warn.className = 'alert alert-warning';
+            warn.textContent = `ASKA hanya menghasilkan ${actualCount} dari ${requestedCount} soal yang diminta karena beberapa format tidak valid.`;
+            generatePreview.appendChild(warn);
+        }
+        generatePreview.appendChild(container);
+    }
+
+    generatePreview.addEventListener('click', async (event) => {
+        const removeBtn = event.target.closest('[data-action="remove-generated"]');
+        if (removeBtn) {
+            const card = removeBtn.closest('.question-card');
+            if (card) {
+                card.remove();
+            }
+            return;
+        }
+        const checkBtn = event.target.closest('[data-action="check-duplicate"]');
+        if (checkBtn) {
+            const card = checkBtn.closest('.question-card');
+            if (!card) return;
+            const promptInput = card.querySelector('[data-field="prompt"]');
+            const promptValue = promptInput ? promptInput.value.trim() : '';
+            if (!promptValue) {
+                showStatus('Isi teks soal terlebih dahulu sebelum cek duplikat.', 'warning');
+                return;
+            }
+            const subjectId = (generatedBundle && generatedBundle.subject_id) || parseInt(generateSubjectSelect.value, 10);
+            if (!subjectId) {
+                showStatus('Pilih mapel terlebih dahulu.', 'warning');
+                return;
+            }
+            checkBtn.disabled = true;
+            checkBtn.classList.add('disabled');
+            try {
+                const response = await fetch('/latihan-tka/questions/check-duplicate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject_id: subjectId, prompt: promptValue })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    showStatus((data && data.message) || 'Gagal mengecek duplikat.', 'danger');
+                    return;
+                }
+                if (data.exists) {
+                    card.classList.remove('duplicate-clear');
+                    card.classList.add('duplicate-found');
+                    showStatus('Soal ini sudah ada di bank soal.', 'danger');
+                } else {
+                    card.classList.remove('duplicate-found');
+                    card.classList.add('duplicate-clear');
+                    showStatus('Belum ditemukan duplikat untuk soal ini.', 'success');
+                }
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat mengecek duplikat.', 'danger');
+            } finally {
+                checkBtn.disabled = false;
+                checkBtn.classList.remove('disabled');
+            }
+        }
+    });
+
+    saveGeneratedBtn.addEventListener('click', async () => {
+        if (!generatedBundle) return;
+        const subjectId = generatedBundle.subject_id;
+        const prompt = generatedBundle.prompt;
+        const blocks = generatePreview.querySelectorAll('.question-card');
+        const questions = Array.from(blocks).map(block => {
+            const options = Array.from(block.querySelectorAll('[data-option]'))
+                .filter(input => input.value.trim())
+                .map(input => ({ key: input.dataset.option, text: input.value }));
+            return {
+                prompt: block.querySelector('[data-field="prompt"]').value,
+                topic: block.querySelector('[data-field="topic"]').value,
+                difficulty: block.querySelector('[data-field="difficulty"]').value,
+                correct_key: block.querySelector('[data-field="correct"]').value || 'A',
+                explanation: block.querySelector('[data-field="explanation"]').value,
+                options,
+                source: 'ai',
+                ai_prompt: prompt,
+            };
+        }).filter(item => item.prompt && item.options.length >= 2);
+        if (!questions.length) {
+            showStatus('Tidak ada soal yang valid untuk disimpan.', 'warning');
+            return;
+        }
+        try {
+            const response = await fetch('/latihan-tka/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject_id: subjectId, questions }),
+            });
+            const rawText = await response.text();
+            let data = {};
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (error) {
+                data = { success: false, message: rawText };
+            }
+            if (response.ok && data.success) {
+                showStatus(`${data.inserted} soal hasil AI berhasil tersimpan.`);
+                generatedBundle = null;
+                saveGeneratedBtn.disabled = true;
+                generatePreview.innerHTML = '<div class="alert alert-success mb-3">Soal berhasil disimpan. Anda dapat melakukan perubahan pada filter atau contoh gaya, lalu klik generate lagi.</div>';
+                loadQuestions();
+            } else {
+                showStatus((data && data.message) || 'Gagal menyimpan soal AI. Silakan coba lagi.', 'danger');
+            }
+        } catch (error) {
+            showStatus('Terjadi kesalahan saat menyimpan soal AI. Silakan coba lagi.', 'danger');
+        }
+    });
+
+    function openEditModal(questionData) {
+        if (!editModal) return;
+        editingQuestionId = questionData.id;
+        editFields.topic.value = questionData.topic || '';
+        editFields.difficulty.value = (questionData.difficulty || 'easy').toLowerCase();
+        editFields.prompt.value = questionData.prompt || '';
+        const options = questionData.options || [];
+        const pickOptionText = (idx) => {
+            if (!Array.isArray(options) || !options[idx]) {
+                return '';
+            }
+            return options[idx].text || '';
+        };
+        editFields.optionA.value = pickOptionText(0);
+        editFields.optionB.value = pickOptionText(1);
+        editFields.optionC.value = pickOptionText(2);
+        editFields.optionD.value = pickOptionText(3);
+        editFields.answer.value = questionData.correct_key || 'A';
+        editFields.explanation.value = questionData.explanation || '';
+        if (editStatus) {
+            editStatus.textContent = '';
+            editStatus.classList.remove('text-danger', 'text-success');
+        }
+        editModal.show();
+    }
+
+    if (saveEditQuestionBtn) {
+        saveEditQuestionBtn.addEventListener('click', async () => {
+            if (!editingQuestionId) {
+                if (editStatus) {
+                    editStatus.textContent = 'Data soal belum dipilih.';
+                    editStatus.classList.add('text-danger');
+                }
+                return;
+            }
+            const options = [
+                { key: 'A', text: editFields.optionA.value },
+                { key: 'B', text: editFields.optionB.value },
+            ];
+            if (editFields.optionC.value) options.push({ key: 'C', text: editFields.optionC.value });
+            if (editFields.optionD.value) options.push({ key: 'D', text: editFields.optionD.value });
+            const payload = {
+                prompt: editFields.prompt.value,
+                topic: editFields.topic.value,
+                difficulty: editFields.difficulty.value,
+                options,
+                correct_key: editFields.answer.value,
+                explanation: editFields.explanation.value,
+            };
+            try {
+                const response = await fetch(`/latihan-tka/questions/${editingQuestionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    if (editStatus) {
+                        editStatus.textContent = 'Soal berhasil diperbarui.';
+                        editStatus.classList.remove('text-danger');
+                        editStatus.classList.add('text-success');
+                    }
+                    setTimeout(() => {
+                        if (editModal) editModal.hide();
+                        editingQuestionId = null;
+                        loadQuestions();
+                    }, 600);
+                } else {
+                    if (editStatus) {
+                        editStatus.textContent = (data && data.message) || 'Gagal memperbarui soal.';
+                        editStatus.classList.remove('text-success');
+                        editStatus.classList.add('text-danger');
+                    }
+                }
+            } catch (error) {
+                if (editStatus) {
+                    editStatus.textContent = 'Terjadi kesalahan saat memperbarui soal.';
+                    editStatus.classList.remove('text-success');
+                    editStatus.classList.add('text-danger');
+                }
+            }
+        });
+    }
+
+    refreshSubjectDropdowns();
+    function activateFormPanel(targetId) {
+        Object.entries(formPanels).forEach(([key, panel]) => {
+            if (!panel) return;
+            if (key === targetId) {
+                panel.classList.remove('d-none');
+            } else {
+                panel.classList.add('d-none');
+            }
+        });
+        tabButtons.forEach(btn => {
+            if (btn.dataset.target === targetId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            activateFormPanel(btn.dataset.target);
+        });
+    });
+    activateFormPanel('subjectFormPanel');
+    if (SUBJECTS.length) {
+        if (subjectSelect) subjectSelect.value = SUBJECTS[0].id;
+        if (questionSubjectSelect) questionSubjectSelect.value = SUBJECTS[0].id;
+        if (generateSubjectSelect) generateSubjectSelect.value = SUBJECTS[0].id;
+        loadQuestions();
+    } else {
+        questionList.innerHTML = '<div class="question-empty">Tambahkan mapel baru terlebih dahulu.</div>';
+    }
+    });
+</script>
+{% endblock %}
