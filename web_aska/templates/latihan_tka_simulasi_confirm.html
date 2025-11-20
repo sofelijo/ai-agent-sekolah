@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konfirmasi Peserta | Simulasi Latihan TKA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1d5390 0%, #1d5390 210px, #f8fafc 210px, #f8fafc 100%);
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #0f172a;
+        }
+        .app-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            color: #fff;
+        }
+        .brand-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .app-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #fbcf33, #fda65d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #1d232f;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+        }
+        .brand-text h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            letter-spacing: 0.06em;
+        }
+        .brand-text span {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .participant-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            padding: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 25px 70px rgba(15,23,42,0.15);
+            padding: 24px 28px;
+        }
+        .token-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .token-value {
+            font-size: 1.4rem;
+            letter-spacing: 0.2em;
+            color: #1d4ed8;
+        }
+        .refresh-btn {
+            border: none;
+            background: #1d4ed8;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 15px 30px rgba(37,99,235,0.35);
+        }
+        .form-title {
+            margin: 0 0 8px;
+            font-size: 1.4rem;
+        }
+        .form-grid {
+            display: grid;
+            gap: 16px;
+        }
+        label {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #0f172a;
+        }
+        .input, .select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .input.readonly {
+            background: #eff6ff;
+            color: #1e3a8a;
+        }
+        .dob-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(80px, 1fr));
+            gap: 12px;
+        }
+        .submit-btn {
+            margin-top: 12px;
+            width: 100%;
+            border: none;
+            border-radius: 16px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            box-shadow: 0 20px 40px rgba(37,99,235,0.35);
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .layout {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-bar">
+        <div class="brand-left">
+            <div class="app-logo">AN</div>
+            <div class="brand-text">
+                <h1>PUSMENDIK</h1>
+                <span>APLIKASI ANBK</span>
+            </div>
+        </div>
+        <div class="participant-badge">
+            {{ simulasi_credentials.username|default('P130100230') }} - PESERTA TKA 🎓
+        </div>
+    </header>
+    <main class="layout">
+        <section class="card">
+            <div class="token-display">
+                <div>
+                    <div style="font-size:0.95rem;color:#475569;">Token :</div>
+                    <div class="token-value" id="tokenValue">{{ simulation_state.token|default('BTNVUY') }}</div>
+                </div>
+                <button type="button" class="refresh-btn" id="refreshTokenBtn">Refresh</button>
+            </div>
+            <p style="margin:0;color:#475569;line-height:1.5;">
+                Token simulasi diperbarui otomatis. Klik Refresh bila ingin mencoba kode lain sebelum memulai.
+            </p>
+        </section>
+        <section class="card">
+            <h2 class="form-title">Konfirmasi data Peserta</h2>
+            <form method="post" action="{{ url_for('latihan_tka_simulasi_confirm') }}" class="form-grid">
+                <div>
+                    <label for="kodeNik">Kode NIK</label>
+                    <input id="kodeNik" class="input readonly" type="text" value="{{ simulasi_credentials.username|default('P130100230') }}" readonly>
+                </div>
+                <div>
+                    <label for="namaKode">Nama Peserta</label>
+                    <input id="namaKode" class="input readonly" type="text" value="{{ simulasi_credentials.username|default('P130100230') }} - PESERTA TKA" readonly>
+                </div>
+                <div>
+                    <label for="gender">Jenis Kelamin</label>
+                    {% set gender = (simulation_state.participant_form.gender if simulation_state.participant_form else 'L') %}
+                    <select id="gender" name="gender" class="select">
+                        <option value="L" {% if gender == 'L' %}selected{% endif %}>Laki-Laki</option>
+                        <option value="P" {% if gender == 'P' %}selected{% endif %}>Perempuan</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="mataUjian">Mata Ujian</label>
+                    <input id="mataUjian" class="input readonly" type="text" value="{{ subject.name }} ({{ grade_label }})" readonly>
+                </div>
+                <div>
+                    <label for="participantName">Nama Peserta</label>
+                    <input id="participantName" class="input" type="text" name="participant_name" placeholder="Ketikkan Nama Peserta" value="{{ simulation_state.participant_form.participant_name if simulation_state.participant_form else '' }}">
+                </div>
+                <div>
+                    <label>Tanggal Lahir</label>
+                    {% set form_data = simulation_state.participant_form or {} %}
+                    <div class="dob-row">
+                        <select class="select" name="dob_day">
+                            <option value="">Hari</option>
+                            {% for day in range(1, 32) %}
+                            {% set day_value = "%02d"|format(day) %}
+                            <option value="{{ day_value }}" {% if form_data.dob_day == day_value %}selected{% endif %}>{{ day_value }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="select" name="dob_month">
+                            <option value="">Bulan</option>
+                            {% for month in range(1, 13) %}
+                            {% set month_value = "%02d"|format(month) %}
+                            <option value="{{ month_value }}" {% if form_data.dob_month == month_value %}selected{% endif %}>{{ month_value }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="select" name="dob_year">
+                            <option value="">Tahun</option>
+                            {% for year in range(2005, 2017) %}
+                            <option value="{{ year }}" {% if form_data.dob_year and form_data.dob_year|int == year %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="tokenInput">Token</label>
+                    <input id="tokenInput" class="input" type="text" name="token" placeholder="Ketikkan token di sini" value="{{ simulation_state.participant_form.token if simulation_state.participant_form else '' }}">
+                </div>
+                <button type="submit" class="submit-btn">Submit</button>
+            </form>
+        </section>
+    </main>
+    <script>
+        (function() {
+            const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const tokenLabel = document.getElementById('tokenValue');
+            const tokenInput = document.getElementById('tokenInput');
+            const refreshBtn = document.getElementById('refreshTokenBtn');
+            if (!tokenLabel || !tokenInput || !refreshBtn) return;
+            refreshBtn.addEventListener('click', () => {
+                let token = '';
+                for (let i = 0; i < 6; i += 1) {
+                    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+                }
+                tokenLabel.textContent = token;
+                tokenInput.value = '';
+            });
+        })();
+    </script>
+</body>
+</html>

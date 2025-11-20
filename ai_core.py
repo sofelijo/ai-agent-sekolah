@@ -88,7 +88,7 @@ def build_qa_chain():
     llm = ChatOpenAI(
         temperature=float(os.getenv("ASKA_QA_TEMPERATURE", "0")),
         model=os.getenv("ASKA_QA_MODEL", "llama-3.1-8b-instant"),
-        max_tokens=int(os.getenv("ASKA_QA_MAX_TOKENS", "300")),  # ⬅️ batas jawaban agar tidak ngalor ngidul
+        max_tokens=int(os.getenv("ASKA_QA_MAX_TOKENS", "1000")),  # ⬅️ batas jawaban agar tidak ngalor ngidul
         openai_api_key=api_key,
         openai_api_base=api_base,
     )

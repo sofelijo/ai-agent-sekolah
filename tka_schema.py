@@ -54,9 +54,34 @@ def ensure_tka_schema(cursor) -> None:
     )
     cursor.execute(
         """
+        CREATE TABLE IF NOT EXISTS tka_stimulus (
+            id SERIAL PRIMARY KEY,
+            subject_id INTEGER NOT NULL REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            title TEXT,
+            type TEXT NOT NULL DEFAULT 'text',
+            narrative TEXT,
+            image_url TEXT,
+            image_prompt TEXT,
+            ai_prompt TEXT,
+            metadata JSONB,
+            created_by INTEGER,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_tka_stimulus_subject
+        ON tka_stimulus (subject_id);
+        """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS tka_questions (
             id SERIAL PRIMARY KEY,
             subject_id INTEGER NOT NULL REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL,
             topic TEXT,
             difficulty TEXT NOT NULL,
             prompt TEXT NOT NULL,
@@ -75,8 +100,20 @@ def ensure_tka_schema(cursor) -> None:
     )
     cursor.execute(
         """
+        ALTER TABLE tka_questions
+        ADD COLUMN IF NOT EXISTS stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL;
+        """
+    )
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_tka_questions_subject
         ON tka_questions (subject_id, difficulty);
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_tka_questions_stimulus
+        ON tka_questions (stimulus_id);
         """
     )
     cursor.execute(
@@ -153,6 +190,7 @@ def ensure_tka_schema(cursor) -> None:
             difficulty TEXT NOT NULL,
             topic TEXT,
             explanation TEXT,
+            metadata JSONB,
             order_index INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

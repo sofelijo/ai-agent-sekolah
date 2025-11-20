@@ -245,6 +245,50 @@
                 </section>
             </div>
             <div class="col-lg-5">
+                {% if section_summary %}
+                <section class="difficulty-grid mb-4">
+                    {% for section in section_summary %}
+                    <div class="difficulty-card">
+                        <p class="mb-1 text-muted">{{ section.label }}</p>
+                        <h4 class="mb-0">{{ section.correct }} / {{ section.total }}</h4>
+                        <small class="text-muted">
+                            {{ 'Bahasa Indonesia' if section.subject_area == 'bahasa_indonesia' else 'Matematika' }} ·
+                            {{ 'Benar/Salah' if section.format == 'true_false' else 'Pilihan Ganda' }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </section>
+                {% endif %}
+                {% if format_summary %}
+                <section class="difficulty-grid mb-4">
+                    {% for fmt in format_summary %}
+                    <div class="difficulty-card">
+                        <p class="mb-1 text-muted">{{ fmt.label }}</p>
+                        <h4 class="mb-0">{{ fmt.correct }} / {{ fmt.total }}</h4>
+                        <small class="text-muted">Jawaban benar</small>
+                    </div>
+                    {% endfor %}
+                </section>
+                {% endif %}
+                {% if stimulus_summary %}
+                <section class="card p-3 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Ringkasan per Stimulus</h5>
+                        <small class="text-muted">Benar / total</small>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        {% for stim in stimulus_summary %}
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ stim.label }}</strong>
+                                <small class="d-block text-muted">{{ 'Gabungan' if stim.type == 'mixed' else ('Benar/Salah' if stim.type == 'true_false' else 'Pilihan Ganda') }}</small>
+                            </div>
+                            <span class="badge text-bg-primary">{{ stim.correct }} / {{ stim.total }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
                 <section class="difficulty-grid">
                     {% for item in difficulty_summary %}
                     <div class="difficulty-card">

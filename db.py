@@ -77,6 +77,34 @@ DEFAULT_TKA_PRESETS = {
 DEFAULT_TKA_PRESET_KEY = "mudah"
 VALID_TKA_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_TKA_GRADE_LEVEL = "sd6"
+DEFAULT_TKA_COMPOSITE_DURATION = 120
+TKA_SECTION_TEMPLATES = [
+    {
+        "key": "matematika",
+        "label": "Matematika",
+        "subject_area": "matematika",
+        "question_format": "multiple_choice",
+        "question_count": 40,
+    },
+    {
+        "key": "bahasa_pg",
+        "label": "Bahasa Indonesia · Pilihan Ganda",
+        "subject_area": "bahasa_indonesia",
+        "question_format": "multiple_choice",
+        "question_count": 40,
+    },
+    {
+        "key": "bahasa_tf",
+        "label": "Bahasa Indonesia · Benar/Salah",
+        "subject_area": "bahasa_indonesia",
+        "question_format": "true_false",
+        "question_count": 10,
+    },
+]
+TKA_SECTION_KEY_ORDER = [template["key"] for template in TKA_SECTION_TEMPLATES]
+TKA_METADATA_SECTION_CONFIG_KEY = "section_config"
+MAX_STIMULUS_QUESTIONS = 5
+MIN_STIMULUS_QUESTIONS = 3
 _TKA_SCHEMA_READY: Optional[bool] = None
 
 
@@ -1300,6 +1328,135 @@ def _coerce_difficulty_mix(raw_mix: Optional[Dict[str, Any]]) -> Dict[str, int]:
     return mix
 
 
+def _rebalance_mix_to_total(mix: Dict[str, int], target_total: int) -> Dict[str, int]:
+    order = ["easy", "medium", "hard"]
+    total = sum(mix.values())
+    if target_total <= 0:
+        return {key: 0 for key in order}
+    if total <= 0:
+        base = max(0, target_total // len(order))
+        result = {key: base for key in order}
+        remainder = target_total - base * len(order)
+        idx = 0
+        while remainder > 0:
+            key = order[idx % len(order)]
+            result[key] += 1
+            remainder -= 1
+            idx += 1
+        return result
+    result = {key: max(0, int(value)) for key, value in mix.items() if key in order}
+    for key in order:
+        result.setdefault(key, 0)
+    diff = target_total - total
+    safety = target_total * 3 if target_total > 0 else 30
+    while diff != 0 and safety > 0:
+        changed = False
+        keys = order if diff > 0 else list(reversed(order))
+        for key in keys:
+            if diff > 0:
+                result[key] += 1
+                diff -= 1
+                changed = True
+                if diff == 0:
+                    break
+            else:
+                if result[key] <= 0:
+                    continue
+                result[key] -= 1
+                diff += 1
+                changed = True
+                if diff == 0:
+                    break
+        if not changed:
+            break
+        safety -= 1
+    return result
+
+
+def _default_section_mix(question_count: int) -> Dict[str, int]:
+    if question_count <= 0:
+        question_count = sum(DEFAULT_TKA_DIFFICULTY_MIX.values())
+    base = {
+        "easy": int(round(question_count * 0.4)),
+        "medium": int(round(question_count * 0.4)),
+        "hard": int(round(question_count * 0.2)),
+    }
+    return _rebalance_mix_to_total(base, question_count)
+
+
+def _normalize_section_entry(entry: Dict[str, Any], fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    fallback = fallback or {}
+    raw_key = entry.get("key") or fallback.get("key") or "section"
+    key = str(raw_key).strip().lower() or "section"
+    label = (entry.get("label") or fallback.get("label") or key.title()).strip()
+    subject_area = (entry.get("subject_area") or fallback.get("subject_area") or key).strip().lower()
+    question_format = (entry.get("question_format") or fallback.get("question_format") or "multiple_choice").strip().lower()
+    desired_total = entry.get("question_count") or fallback.get("question_count") or DEFAULT_TKA_QUESTION_COUNT
+    try:
+        desired_total = max(0, int(desired_total))
+    except (TypeError, ValueError):
+        desired_total = DEFAULT_TKA_QUESTION_COUNT
+    raw_mix = entry.get("difficulty") or entry.get("difficulty_mix")
+    fallback_mix = fallback.get("difficulty") or fallback.get("difficulty_mix")
+    if fallback_mix is None:
+        fallback_mix = _default_section_mix(desired_total)
+    mix = _coerce_difficulty_mix(raw_mix or fallback_mix)
+    mix = _rebalance_mix_to_total(mix, desired_total or sum(mix.values()))
+    return {
+        "key": key,
+        "label": label,
+        "subject_area": subject_area,
+        "question_format": question_format,
+        "question_count": sum(mix.values()),
+        "difficulty": mix,
+    }
+
+
+def _normalize_section_config(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    raw_config: Dict[str, Any] = {}
+    if isinstance(metadata, dict):
+        raw = metadata.get(TKA_METADATA_SECTION_CONFIG_KEY)
+        if isinstance(raw, dict):
+            raw_config = raw
+    duration_value = raw_config.get("duration_minutes")
+    try:
+        duration_minutes = int(duration_value) if duration_value is not None else DEFAULT_TKA_COMPOSITE_DURATION
+    except (TypeError, ValueError):
+        duration_minutes = DEFAULT_TKA_COMPOSITE_DURATION
+    duration_minutes = max(30, duration_minutes)
+    template_map = {template["key"]: template for template in TKA_SECTION_TEMPLATES}
+    normalized_sections: List[Dict[str, Any]] = []
+    seen_keys: set[str] = set()
+    sections_payload = raw_config.get("sections") if isinstance(raw_config.get("sections"), list) else []
+    for entry in sections_payload:
+        if not isinstance(entry, dict):
+            continue
+        normalized = _normalize_section_entry(entry, template_map.get(entry.get("key")))
+        seen_keys.add(normalized["key"])
+        normalized_sections.append(normalized)
+    for template in TKA_SECTION_TEMPLATES:
+        if template["key"] in seen_keys:
+            continue
+        normalized_sections.append(_normalize_section_entry(template, template))
+    normalized_sections.sort(key=lambda item: TKA_SECTION_KEY_ORDER.index(item["key"]) if item["key"] in TKA_SECTION_KEY_ORDER else item["key"])
+    return {
+        "duration_minutes": duration_minutes,
+        "sections": normalized_sections,
+    }
+
+
+def _aggregate_section_mix(sections: List[Dict[str, Any]]) -> Dict[str, int]:
+    totals = {key: 0 for key in VALID_TKA_DIFFICULTIES}
+    for section in sections:
+        mix = section.get("difficulty") or {}
+        for key in VALID_TKA_DIFFICULTIES:
+            try:
+                totals[key] += int(mix.get(key) or 0)
+            except (TypeError, ValueError):
+                continue
+    return totals
+
+
 def _normalize_grade_level(raw_value: Optional[str]) -> str:
     if not raw_value:
         return DEFAULT_TKA_GRADE_LEVEL
@@ -1364,6 +1521,20 @@ def _enrich_subject_row(row: Dict[str, Any]) -> Dict[str, Any]:
     subject.setdefault("question_count", sum(mix.values()))
     subject["active_mix"] = mix
     subject["grade_level"] = _normalize_grade_level(subject.get("grade_level"))
+    metadata = subject.get("metadata") if isinstance(subject.get("metadata"), dict) else {}
+    subject["metadata"] = metadata or {}
+    section_config = _normalize_section_config(metadata)
+    if section_config:
+        aggregated_mix = _aggregate_section_mix(section_config.get("sections") or [])
+        subject["advanced_config"] = section_config
+        subject["difficulty_mix"] = aggregated_mix
+    subject["active_mix"] = aggregated_mix
+    subject["difficulty_presets"][subject["default_preset"]] = aggregated_mix
+    subject["question_count"] = sum(section.get("question_count", 0) for section in section_config.get("sections") or [])
+    subject["time_limit_minutes"] = section_config.get("duration_minutes", subject.get("time_limit_minutes") or DEFAULT_TKA_TIME_LIMIT)
+    name_value = (subject.get("name") or "").strip()
+    if name_value.lower() == "matematika":
+        subject["name"] = "Latihan TKA"
     return subject
 
 
@@ -1438,15 +1609,24 @@ def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str,
         cur.execute(
             """
             SELECT
-                id,
-                prompt,
-                options,
-                correct_key,
-                explanation,
-                difficulty,
-                topic
-            FROM tka_questions
-            WHERE subject_id = %s
+                q.id,
+                q.prompt,
+                q.options,
+                q.correct_key,
+                q.explanation,
+                q.difficulty,
+                q.topic,
+                q.metadata,
+                q.stimulus_id,
+                s.title AS stimulus_title,
+                s.type AS stimulus_type,
+                s.narrative AS stimulus_narrative,
+                s.image_url AS stimulus_image_url,
+                s.image_prompt AS stimulus_image_prompt,
+                s.metadata AS stimulus_metadata
+            FROM tka_questions q
+            LEFT JOIN tka_stimulus s ON s.id = q.stimulus_id
+            WHERE q.subject_id = %s
             """,
             (subject_id,),
         )
@@ -1454,9 +1634,118 @@ def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str,
             difficulty = (row.get("difficulty") or "easy").strip().lower()
             if difficulty not in VALID_TKA_DIFFICULTIES:
                 difficulty = "easy"
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            row["metadata"] = metadata or {}
+            section_key = metadata.get("section_key") or metadata.get("section")
+            if not section_key:
+                raw_topic = (row.get("topic") or "").lower()
+                if "bahasa" in raw_topic:
+                    section_key = "bahasa_pg"
+                else:
+                    section_key = "matematika"
+            row["section_key"] = section_key
+            row["subject_area"] = metadata.get("subject_area") or ("bahasa_indonesia" if section_key and section_key.startswith("bahasa") else "matematika")
+            row["question_format"] = metadata.get("question_format") or ("true_false" if section_key == "bahasa_tf" else "multiple_choice")
+            stimulus_meta = None
+            stimulus_id = row.get("stimulus_id")
+            if stimulus_id:
+                stimulus_meta = {
+                    "id": stimulus_id,
+                    "title": row.get("stimulus_title") or metadata.get("stimulus_title"),
+                    "type": row.get("stimulus_type") or metadata.get("stimulus_type") or "text",
+                    "narrative": row.get("stimulus_narrative") or metadata.get("stimulus_text"),
+                    "image_url": row.get("stimulus_image_url") or metadata.get("image_url"),
+                    "image_prompt": row.get("stimulus_image_prompt") or metadata.get("image_prompt"),
+                    "metadata": row.get("stimulus_metadata") or {},
+                }
+            row["stimulus"] = stimulus_meta
             buckets.setdefault(difficulty, []).append(row)
     totals = {key: len(rows) for key, rows in buckets.items()}
     return buckets, totals
+
+
+def _stimulus_group_key(row: dict) -> str:
+    stimulus_id = row.get("stimulus_id")
+    if stimulus_id:
+        return f"stim-{stimulus_id}"
+    return f"solo-{row['id']}"
+
+
+def _select_question_packages(
+    pool_rows: list[dict],
+    amount: int,
+    allow_repeat: bool,
+    used_ids: set[int],
+    used_stimulus_keys: set[str],
+    stimulus_usage: dict[str, int],
+) -> list[dict]:
+    if amount <= 0:
+        return []
+    if not pool_rows:
+        raise ValueError("bank_insufficient")
+    group_map: dict[str, dict] = {}
+    for row in pool_rows:
+        group_key = _stimulus_group_key(row)
+        entry = group_map.setdefault(
+            group_key,
+            {
+                "key": group_key,
+                "stimulus_id": row.get("stimulus_id"),
+                "stimulus_meta": row.get("stimulus") or {},
+                "rows": [],
+                "unused": [],
+                "fresh": group_key not in used_stimulus_keys,
+            },
+        )
+        entry["rows"].append(row)
+        if row["id"] not in used_ids and group_key not in used_stimulus_keys:
+            entry["unused"].append(row)
+    groups = list(group_map.values())
+    if not groups:
+        raise ValueError("bank_insufficient")
+    unused_total = sum(len(group["unused"]) for group in groups)
+    if not allow_repeat and unused_total < amount:
+        raise ValueError("repeat_required")
+    available_total = sum(len(group["rows"]) for group in groups)
+    if available_total < amount:
+        raise ValueError("bank_insufficient")
+    random.shuffle(groups)
+    groups.sort(key=lambda item: item.get("fresh", True), reverse=True)
+    selections: list[dict] = []
+    remaining = amount
+    for group in groups:
+        if remaining <= 0:
+            break
+        group_key = group["key"]
+        limit = MAX_STIMULUS_QUESTIONS - stimulus_usage.get(group_key, 0)
+        if limit <= 0:
+            continue
+        candidates = group["unused"] if group["unused"] else (group["rows"] if allow_repeat else [])
+        if not candidates:
+            continue
+        available_count = len(candidates)
+        if group.get("fresh") and available_count < MIN_STIMULUS_QUESTIONS and remaining >= MIN_STIMULUS_QUESTIONS:
+            # Skip fresh stimulus that belum lengkap
+            continue
+        take = min(remaining, limit, available_count)
+        if group.get("fresh") and remaining >= MIN_STIMULUS_QUESTIONS and available_count >= MIN_STIMULUS_QUESTIONS and take < MIN_STIMULUS_QUESTIONS:
+            take = min(available_count, MIN_STIMULUS_QUESTIONS)
+        if take <= 0:
+            continue
+        chosen = random.sample(candidates, take)
+        selections.append(
+            {
+                "rows": chosen,
+                "stimulus_meta": group["stimulus_meta"],
+                "stimulus_id": group["stimulus_id"],
+                "key": group_key,
+            }
+        )
+        stimulus_usage[group_key] = stimulus_usage.get(group_key, 0) + len(chosen)
+        remaining -= len(chosen)
+    if remaining > 0:
+        raise ValueError("repeat_required" if not allow_repeat else "bank_insufficient")
+    return selections
 
 
 def _fetch_user_used_question_ids(subject_id: int, web_user_id: int, revision: int) -> set[int]:
@@ -1504,7 +1793,12 @@ def get_tka_subject_availability(
         return None
     mix, preset_used, presets = _resolve_preset_mix_for_subject(subject, preset_name)
     bank, totals = _load_tka_question_bank(subject_id)
-    bank_ready = all(totals.get(diff, 0) >= mix.get(diff, 0) for diff in mix)
+    section_config = (subject.get("advanced_config") or {})
+    sections = section_config.get("sections") or []
+    if sections:
+        bank_ready = True
+    else:
+        bank_ready = all(totals.get(diff, 0) >= mix.get(diff, 0) for diff in mix)
     availability: Dict[str, Any] = {
         "subject": subject,
         "required": mix,
@@ -1515,16 +1809,54 @@ def get_tka_subject_availability(
         "needs_repeat": False,
         "unused": {},
     }
+    section_details: list[dict] = []
     if not bank_ready or not web_user_id:
+        if sections:
+            availability["section_details"] = section_details
         return availability
     revision = subject.get("question_revision") or 1
     used_ids = _fetch_user_used_question_ids(subject_id, web_user_id, revision)
-    unused_counts: Dict[str, int] = {}
-    for diff, rows in bank.items():
-        unused_counts[diff] = len([row for row in rows if row["id"] not in used_ids])
-    needs_repeat = any(unused_counts.get(diff, 0) < mix.get(diff, 0) for diff in mix)
-    availability["unused"] = unused_counts
-    availability["needs_repeat"] = needs_repeat
+    if sections:
+        needs_repeat = False
+        for section in sections:
+            section_key = section.get("key")
+            section_status = {
+                "key": section_key,
+                "label": section.get("label"),
+                "requirements": {},
+            }
+            for difficulty, required in (section.get("difficulty") or {}).items():
+                if required <= 0:
+                    continue
+                eligible = [row for row in bank.get(difficulty, []) if row.get("section_key") == section_key]
+                available_total = len(eligible)
+                unused_total = len([row for row in eligible if row["id"] not in used_ids])
+                section_status["requirements"][difficulty] = {
+                    "required": required,
+                    "available": available_total,
+                    "unused": unused_total,
+                }
+                if available_total < required:
+                    availability["bank_ready"] = False
+                if unused_total < required:
+                    needs_repeat = True
+            section_details.append(section_status)
+        availability["section_details"] = section_details
+        availability["needs_repeat"] = needs_repeat
+        availability["unused"] = {
+            diff: sum(
+                detail["requirements"].get(diff, {}).get("unused", 0)
+                for detail in section_details
+            )
+            for diff in VALID_TKA_DIFFICULTIES
+        }
+    else:
+        unused_counts: Dict[str, int] = {}
+        for diff, rows in bank.items():
+            unused_counts[diff] = len([row for row in rows if row["id"] not in used_ids])
+        needs_repeat = any(unused_counts.get(diff, 0) < mix.get(diff, 0) for diff in mix)
+        availability["unused"] = unused_counts
+        availability["needs_repeat"] = needs_repeat
     availability["used_total"] = len(used_ids)
     return availability
 
@@ -1547,36 +1879,65 @@ def create_tka_attempt(
 
     difficulty_mix, preset_used, _ = _resolve_preset_mix_for_subject(subject, preset_name)
     question_bank, totals = _load_tka_question_bank(subject_id)
-    bank_ready = all(totals.get(level, 0) >= difficulty_mix.get(level, 0) for level in difficulty_mix)
+    section_config = subject.get("advanced_config") or {}
+    sections = section_config.get("sections") or []
+    if sections:
+        bank_ready = all(
+            len([row for row in question_bank.get(diff, []) if row.get("section_key") == section.get("key")])
+            >= (section.get("difficulty") or {}).get(diff, 0)
+            for section in sections
+            for diff in VALID_TKA_DIFFICULTIES
+        )
+    else:
+        bank_ready = all(totals.get(level, 0) >= difficulty_mix.get(level, 0) for level in difficulty_mix)
     if not bank_ready:
         raise ValueError("bank_insufficient")
 
     revision_snapshot = subject.get("question_revision") or 1
     used_ids = _fetch_user_used_question_ids(subject_id, web_user_id, revision_snapshot)
-    selected_questions: List[Dict[str, Any]] = []
+    used_stimulus_keys: set[str] = set()
+    for rows in question_bank.values():
+        for row in rows:
+            key = _stimulus_group_key(row)
+            if row["id"] in used_ids:
+                used_stimulus_keys.add(key)
+    selected_packages: List[Dict[str, Any]] = []
+    stimulus_usage: Dict[str, int] = {}
 
-    for difficulty, amount in difficulty_mix.items():
+    def append_packages(section: Optional[Dict[str, Any]], difficulty: str, amount: int) -> None:
         if amount <= 0:
-            continue
+            return
         pool = question_bank.get(difficulty, [])
-        unused_rows = [row for row in pool if row["id"] not in used_ids]
-        random.shuffle(unused_rows)
-        chosen = list(unused_rows[:amount])
-        if len(chosen) < amount:
-            if not allow_repeat:
-                raise ValueError("repeat_required")
-            remaining = amount - len(chosen)
-            fallback = [row for row in pool if row not in chosen]
-            random.shuffle(fallback)
-            chosen.extend(fallback[:remaining])
-        selected_questions.extend(chosen)
+        if section:
+            target_key = section.get("key")
+            pool = [row for row in pool if row.get("section_key") == target_key]
+        packages = _select_question_packages(
+            pool,
+            amount,
+            allow_repeat,
+            used_ids,
+            used_stimulus_keys,
+            stimulus_usage,
+        )
+        for pkg in packages:
+            pkg["section"] = section
+            pkg["difficulty"] = difficulty
+            selected_packages.append(pkg)
 
-    if not selected_questions:
+    if sections:
+        for section in sections:
+            for difficulty, amount in (section.get("difficulty") or {}).items():
+                append_packages(section, difficulty, int(amount or 0))
+    else:
+        for difficulty, amount in difficulty_mix.items():
+            append_packages(None, difficulty, amount)
+
+    if not selected_packages:
         raise ValueError("Belum ada soal untuk mapel ini.")
 
-    random.shuffle(selected_questions)
-    total_questions = len(selected_questions)
-    time_limit = subject.get("time_limit_minutes") or DEFAULT_TKA_TIME_LIMIT
+    random.shuffle(selected_packages)
+    total_questions = sum(len(pkg["rows"]) for pkg in selected_packages)
+    time_limit = section_config.get("duration_minutes") or subject.get("time_limit_minutes") or DEFAULT_TKA_TIME_LIMIT
     is_repeat = bool(allow_repeat)
     repeat_iteration = _compute_repeat_iteration(subject_id, web_user_id, revision_snapshot) + 1 if is_repeat else 0
 
@@ -1614,20 +1975,45 @@ def create_tka_attempt(
         attempt_id = attempt_row["id"]
 
         insert_rows: List[Tuple[Any, ...]] = []
-        for order_index, row in enumerate(selected_questions, start=1):
-            insert_rows.append(
-                (
-                    attempt_id,
-                    row["id"],
-                    row["prompt"],
-                    Json(row.get("options") or []),
-                    row.get("correct_key"),
-                    row.get("explanation"),
-                    row.get("difficulty"),
-                    row.get("topic"),
-                    order_index,
+        order_index = 1
+        for package in selected_packages:
+            section = package.get("section") or {}
+            section_key = section.get("key") or None
+            section_label = section.get("label") or (section_key.title() if isinstance(section_key, str) else "")
+            section_area = section.get("subject_area") or "matematika"
+            section_format = section.get("question_format") or None
+            pkg_rows = list(package.get("rows") or [])
+            random.shuffle(pkg_rows)
+            stimulus_meta = package.get("stimulus_meta") or {}
+            for row in pkg_rows:
+                row_section_key = section_key or row.get("section_key") or "matematika"
+                meta_payload = {
+                    "section_key": row_section_key,
+                    "section_label": section_label or row.get("metadata", {}).get("section_label") or row_section_key.title(),
+                    "subject_area": section_area or row.get("subject_area") or "matematika",
+                    "question_format": section_format or row.get("question_format") or "multiple_choice",
+                    "stimulus_id": package.get("stimulus_id"),
+                    "stimulus_title": stimulus_meta.get("title"),
+                    "stimulus_type": stimulus_meta.get("type"),
+                    "stimulus_text": stimulus_meta.get("narrative"),
+                    "stimulus_image_url": stimulus_meta.get("image_url"),
+                    "stimulus_image_prompt": stimulus_meta.get("image_prompt"),
+                }
+                insert_rows.append(
+                    (
+                        attempt_id,
+                        row["id"],
+                        row["prompt"],
+                        Json(row.get("options") or []),
+                        row.get("correct_key"),
+                        row.get("explanation"),
+                        row.get("difficulty"),
+                        row.get("topic"),
+                        Json(meta_payload),
+                        order_index,
+                    )
                 )
-            )
+                order_index += 1
 
         cur.executemany(
             """
@@ -1640,9 +2026,10 @@ def create_tka_attempt(
                 explanation,
                 difficulty,
                 topic,
+                metadata,
                 order_index
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             insert_rows,
         )
@@ -1691,16 +2078,19 @@ def get_tka_attempt(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any
         cur.execute(
             """
             SELECT
-                id,
-                question_id,
-                prompt,
-                options,
-                difficulty,
-                topic,
-                order_index
-            FROM tka_attempt_questions
-            WHERE attempt_id = %s
-            ORDER BY order_index ASC
+                aq.id,
+                aq.question_id,
+                aq.prompt,
+                aq.options,
+                aq.difficulty,
+                aq.topic,
+                aq.order_index,
+                aq.metadata,
+                q.metadata AS source_metadata
+            FROM tka_attempt_questions aq
+            LEFT JOIN tka_questions q ON q.id = aq.question_id
+            WHERE aq.attempt_id = %s
+            ORDER BY aq.order_index ASC
             """,
             (attempt_id,),
         )
@@ -1808,6 +2198,8 @@ def submit_tka_attempt(
             return None
         if attempt.get("status") != "in_progress":
             return {"attempt": attempt, "questions": []}
+        raw_metadata = attempt.get("metadata")
+        metadata_state = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
 
         cur.execute(
             """
@@ -1819,7 +2211,8 @@ def submit_tka_attempt(
                 correct_key,
                 difficulty,
                 topic,
-                explanation
+                explanation,
+                metadata
             FROM tka_attempt_questions
             WHERE attempt_id = %s
             ORDER BY order_index ASC
@@ -1832,6 +2225,8 @@ def submit_tka_attempt(
             raise ValueError("Soal untuk sesi ini belum tersedia.")
 
         difficulty_stats: Dict[str, Dict[str, int]] = {}
+        section_stats: Dict[str, Dict[str, Any]] = {}
+        stimulus_stats: Dict[str, Dict[str, Any]] = {}
         updates: List[Tuple[Optional[str], bool, int]] = []
         detailed_rows: List[Dict[str, Any]] = []
         for row in question_rows:
@@ -1846,6 +2241,35 @@ def submit_tka_attempt(
             )
             if is_correct:
                 stats["correct"] += 1
+            row_meta = row.get("metadata") or {}
+            section_key = row_meta.get("section_key") or "matematika"
+            section_entry = section_stats.setdefault(
+                section_key,
+                {
+                    "label": row_meta.get("section_label") or section_key.title(),
+                    "subject_area": row_meta.get("subject_area") or ("bahasa_indonesia" if section_key.startswith("bahasa") else "matematika"),
+                    "question_format": row_meta.get("question_format") or "multiple_choice",
+                    "total": 0,
+                    "correct": 0,
+                },
+            )
+            section_entry["total"] += 1
+            if is_correct:
+                section_entry["correct"] += 1
+            stimulus_key = row_meta.get("stimulus_id") or row_meta.get("stimulus_title")
+            if stimulus_key:
+                stim_entry = stimulus_stats.setdefault(
+                    str(stimulus_key),
+                    {
+                        "label": row_meta.get("stimulus_title") or f"Stimulus {stimulus_key}",
+                        "type": row_meta.get("stimulus_type") or "text",
+                        "total": 0,
+                        "correct": 0,
+                    },
+                )
+                stim_entry["total"] += 1
+                if is_correct:
+                    stim_entry["correct"] += 1
             updates.append((selected_key, is_correct, row["id"]))
             detailed = dict(row)
             detailed["selected_key"] = selected_key
@@ -1878,6 +2302,12 @@ def submit_tka_attempt(
             detailed_rows,
         )
 
+        if section_stats or stimulus_stats:
+            metadata_state = dict(metadata_state)
+            if section_stats:
+                metadata_state["section_breakdown"] = section_stats
+            if stimulus_stats:
+                metadata_state["stimulus_breakdown"] = stimulus_stats
         cur.execute(
             """
             UPDATE tka_quiz_attempts
@@ -1888,6 +2318,7 @@ def submit_tka_attempt(
                 duration_seconds = %s,
                 difficulty_breakdown = %s,
                 analysis_prompt = %s,
+                metadata = %s,
                 updated_at = NOW()
             WHERE id = %s
             RETURNING *
@@ -1899,6 +2330,7 @@ def submit_tka_attempt(
                 duration_seconds,
                 Json(difficulty_stats),
                 analysis_prompt,
+                Json(metadata_state),
                 attempt_id,
             ),
         )
@@ -1953,6 +2385,7 @@ def get_tka_result(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any]
                 difficulty,
                 topic,
                 explanation,
+                metadata,
                 order_index
             FROM tka_attempt_questions
             WHERE attempt_id = %s

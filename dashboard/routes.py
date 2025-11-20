@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -22,7 +23,7 @@ from flask import (
     current_app,
 )
 from langchain_openai import ChatOpenAI
-from db import DEFAULT_TKA_PRESET_KEY
+from db import DEFAULT_TKA_PRESET_KEY, DEFAULT_TKA_COMPOSITE_DURATION, TKA_SECTION_TEMPLATES
 from werkzeug.datastructures import MultiDict
 
 from .auth import current_user, login_required, role_required
@@ -72,6 +73,12 @@ from .queries import (
     update_tka_question,
     update_tka_subject_difficulty,
     has_tka_question_with_prompt,
+    update_tka_subject_sections,
+    fetch_tka_stimulus_list,
+    fetch_tka_stimulus,
+    create_tka_stimulus,
+    update_tka_stimulus,
+    delete_tka_stimulus,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -330,7 +337,35 @@ def _normalize_jsonish_text(text: str) -> str:
     }
     for key, value in replacements.items():
         text = text.replace(key, value)
-    return text
+    return _escape_json_newlines(text)
+
+
+def _escape_json_newlines(text: str) -> str:
+    if not text:
+        return text
+    result: list[str] = []
+    in_string = False
+    escape = False
+    for ch in text:
+        if escape:
+            result.append(ch)
+            escape = False
+            continue
+        if ch == "\\":
+            result.append(ch)
+            escape = True
+            continue
+        if ch == '"':
+            result.append(ch)
+            in_string = not in_string
+            continue
+        if ch == "\n" and in_string:
+            result.append("\\n")
+            continue
+        if ch == "\r" and in_string:
+            continue
+        result.append(ch)
+    return "".join(result)
 
 
 def _repair_split_question_arrays(text: str) -> str:
@@ -376,66 +411,225 @@ def _repair_trailing_commas(text: str) -> str:
     return re.sub(r",(?=\s*[}\]])", "", text)
 
 
-def _normalize_generated_questions(payload, fallback_topic: str, fallback_difficulty: str) -> list[dict]:
+MIN_GENERATED_CHILDREN = 3
+MAX_GENERATED_CHILDREN = 5
+
+
+def _infer_stimulus_type(has_text: bool, has_image: bool) -> str:
+    if has_text and has_image:
+        return "mixed"
+    if has_image:
+        return "image"
+    return "text"
+
+
+def _build_stimulus_meta(raw: Optional[dict], fallback_title: str, *, forced_key: Optional[str] = None) -> Optional[dict]:
+    if not raw or not isinstance(raw, dict):
+        return None
+    title = (raw.get("title") or raw.get("name") or fallback_title).strip()
+    narrative = (
+        raw.get("narrative")
+        or raw.get("story")
+        or raw.get("text")
+        or raw.get("narasi")
+        or ""
+    ).strip()
+    image_value = (
+        raw.get("image_data")
+        or raw.get("image_url")
+        or raw.get("image")
+        or raw.get("gambar")
+    )
+    image_data: Optional[str] = None
+    image_url: Optional[str] = None
+    if isinstance(image_value, dict):
+        image_url = image_value.get("url") or image_value.get("image_url")
+        image_data = image_value.get("data") or image_value.get("image_data")
+    elif isinstance(image_value, str):
+        if image_value.startswith("http"):
+            image_url = image_value
+        else:
+            image_data = image_value
+    bundle_key = forced_key or raw.get("bundle_key") or f"stim-{secrets.token_hex(4)}"
+    stimulus_meta = {
+        "bundle_key": bundle_key,
+        "title": title or fallback_title,
+        "narrative": narrative,
+        "image_prompt": raw.get("image_prompt") or raw.get("imagePrompt") or "",
+        "type": raw.get("type") or _infer_stimulus_type(bool(narrative), bool(image_data or image_url)),
+    }
+    if image_data:
+        stimulus_meta["image_data"] = image_data
+    if image_url:
+        stimulus_meta["image_url"] = image_url
+    raw_metadata = raw.get("metadata")
+    if isinstance(raw_metadata, dict) and raw_metadata:
+        stimulus_meta["metadata"] = raw_metadata
+    return stimulus_meta
+
+
+def _build_generated_question(
+    item: dict,
+    fallback_topic: str,
+    fallback_difficulty: str,
+    generator_mode: str,
+) -> Optional[dict]:
+    if not isinstance(item, dict):
+        return None
+    prompt = (item.get("prompt") or item.get("question") or "").strip()
+    if not prompt:
+        return None
+    topic = (item.get("topic") or fallback_topic).strip()
+    difficulty = (item.get("difficulty") or fallback_difficulty).strip().lower()
+    if difficulty not in {"easy", "medium", "hard"}:
+        difficulty = fallback_difficulty
+    options_raw = item.get("options") or item.get("choices") or item.get("opsi")
+    options: list[dict] = []
+    if isinstance(options_raw, dict):
+        for key, value in options_raw.items():
+            options.append({"key": str(key).strip().upper(), "text": str(value).strip()})
+    elif isinstance(options_raw, list):
+        for idx, option in enumerate(options_raw):
+            if isinstance(option, dict):
+                key = option.get("key") or option.get("label") or option.get("huruf") or (
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}"
+                )
+                text = option.get("text") or option.get("value") or option.get("content") or ""
+            else:
+                key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}"
+                text = str(option)
+            options.append({"key": str(key).strip().upper(), "text": text.strip()})
+    if len(options) < 2:
+        return None
+    answer = (
+        item.get("answer")
+        or item.get("correct_answer")
+        or item.get("kunci")
+        or item.get("jawaban")
+        or options[0]["key"]
+    )
+    answer_key = str(answer).strip().upper()
+    if answer_key not in {opt["key"] for opt in options}:
+        answer_key = options[0]["key"]
+    explanation = (item.get("explanation") or item.get("rationale") or item.get("pembahasan") or "").strip()
+    raw_metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+    metadata = dict(raw_metadata) if raw_metadata else {}
+    image_prompt_value = (
+        item.get("image_prompt")
+        or item.get("imagePrompt")
+        or metadata.get("image_prompt")
+        or metadata.get("imagePrompt")
+    )
+    if image_prompt_value:
+        metadata["image_prompt"] = str(image_prompt_value).strip()
+    statements_raw = item.get("statements") or item.get("pernyataan") or metadata.get("true_false_statements")
+    tf_entries: list[dict] = []
+    if isinstance(statements_raw, list):
+        for entry in statements_raw:
+            if isinstance(entry, dict):
+                text_value = (entry.get("text") or entry.get("statement") or "").strip()
+                if not text_value:
+                    continue
+                answer_value = (entry.get("answer") or entry.get("value") or "").strip().lower()
+                if answer_value in {"benar", "true"}:
+                    tf_entries.append({"text": text_value, "answer": "benar"})
+                elif answer_value in {"salah", "false"}:
+                    tf_entries.append({"text": text_value, "answer": "salah"})
+    if tf_entries:
+        metadata["true_false_statements"] = tf_entries
+    raw_mode = (item.get("generator_mode") or item.get("question_mode") or item.get("question_type") or "").strip().lower()
+    if raw_mode in {"truefalse", "true_false", "tf"} or tf_entries:
+        resolved_mode = "truefalse"
+    elif raw_mode in {"image", "gambar"}:
+        resolved_mode = "image"
+    elif raw_mode:
+        resolved_mode = raw_mode
+    else:
+        resolved_mode = generator_mode
+    question_payload: dict = {
+        "prompt": prompt,
+        "topic": topic,
+        "difficulty": difficulty,
+        "options": options,
+        "correct_key": answer_key,
+        "explanation": explanation,
+        "generator_mode": resolved_mode,
+    }
+    if metadata:
+        metadata.setdefault("generator_mode", resolved_mode)
+        question_payload["metadata"] = metadata
+    inline_stimulus = item.get("stimulus")
+    inline_meta = None
+    if isinstance(inline_stimulus, dict):
+        inline_meta = _build_stimulus_meta(
+            inline_stimulus,
+            fallback_title=inline_stimulus.get("title") or f"Stimulus {secrets.token_hex(2)}",
+            forced_key=inline_stimulus.get("bundle_key"),
+        )
+    if inline_meta:
+        question_payload["stimulus"] = inline_meta
+    return question_payload
+
+
+def _normalize_generated_questions(
+    payload,
+    fallback_topic: str,
+    fallback_difficulty: str,
+    generator_mode: str = "normal",
+    target_children: Optional[int] = None,
+) -> list[dict]:
     questions: list[dict] = []
     if isinstance(payload, dict):
+        stimulus_payload = payload.get("stimulus")
         raw_items = payload.get("questions") or payload.get("soal") or []
     elif isinstance(payload, list):
+        stimulus_payload = None
         raw_items = payload
     else:
+        stimulus_payload = None
         raw_items = payload
-    if not isinstance(raw_items, list):
-        return questions
     fallback_topic = (fallback_topic or "").strip()
     fallback_difficulty = (fallback_difficulty or "easy").strip().lower()
+    child_target = target_children or MAX_GENERATED_CHILDREN
+    child_target = max(MIN_GENERATED_CHILDREN, min(child_target, MAX_GENERATED_CHILDREN))
+    if isinstance(stimulus_payload, list) and stimulus_payload:
+        for idx, stim in enumerate(stimulus_payload, start=1):
+            stim_meta = _build_stimulus_meta(stim, fallback_title=f"Stimulus {idx}", forced_key=stim.get("bundle_key"))
+            rows = stim.get("questions") or stim.get("items") or []
+            normalized_rows: list[dict] = []
+            for row in rows:
+                normalized = _build_generated_question(row, fallback_topic, fallback_difficulty, generator_mode)
+                if normalized:
+                    normalized_rows.append(normalized)
+            if len(normalized_rows) < MIN_GENERATED_CHILDREN:
+                continue
+            normalized_rows = normalized_rows[: max(child_target, MIN_GENERATED_CHILDREN)]
+            for question in normalized_rows:
+                if stim_meta:
+                    question["stimulus"] = stim_meta
+                questions.append(question)
+        return questions
+    if not isinstance(raw_items, list):
+        return questions
     for item in raw_items:
-        if not isinstance(item, dict):
-            continue
-        prompt = (item.get("prompt") or item.get("question") or "").strip()
-        if not prompt:
-            continue
-        topic = (item.get("topic") or fallback_topic).strip()
-        difficulty = (item.get("difficulty") or fallback_difficulty).strip().lower()
-        if difficulty not in {"easy", "medium", "hard"}:
-            difficulty = fallback_difficulty
-        options_raw = item.get("options") or item.get("choices") or item.get("opsi")
-        options: list[dict] = []
-        if isinstance(options_raw, dict):
-            for key, value in options_raw.items():
-                options.append({"key": str(key).strip().upper(), "text": str(value).strip()})
-        elif isinstance(options_raw, list):
-            for idx, option in enumerate(options_raw):
-                if isinstance(option, dict):
-                    key = option.get("key") or option.get("label") or option.get("huruf") or ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}")
-                    text = option.get("text") or option.get("value") or option.get("content") or ""
-                else:
-                    key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}"
-                    text = str(option)
-                options.append({"key": str(key).strip().upper(), "text": text.strip()})
-        if len(options) < 2:
-            continue
-        answer = (
-            item.get("answer")
-            or item.get("correct_answer")
-            or item.get("kunci")
-            or item.get("jawaban")
-            or options[0]["key"]
-        )
-        answer_key = str(answer).strip().upper()
-        if answer_key not in {opt["key"] for opt in options}:
-            answer_key = options[0]["key"]
-        explanation = (item.get("explanation") or item.get("rationale") or item.get("pembahasan") or "").strip()
-        questions.append(
-            {
-                "prompt": prompt,
-                "topic": topic,
-                "difficulty": difficulty,
-                "options": options,
-                "correct_key": answer_key,
-                "explanation": explanation,
-            }
-        )
+        normalized = _build_generated_question(item, fallback_topic, fallback_difficulty, generator_mode)
+        if normalized:
+            questions.append(normalized)
     return questions
+
+
+def _encode_uploaded_image(file_storage) -> Optional[str]:
+    if not file_storage or not getattr(file_storage, "filename", None):
+        return None
+    try:
+        data = file_storage.read()
+    except Exception:
+        return None
+    if not data:
+        return None
+    mimetype = getattr(file_storage, "mimetype", None) or "application/octet-stream"
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mimetype};base64,{encoded}"
 
 
 @main_bp.before_request
@@ -1238,7 +1432,51 @@ def export_chats() -> Response:
 @role_required("admin")
 def latihan_tka_bank():
     subjects = fetch_tka_subjects(include_inactive=True)
-    return render_template("latihan_tka.html", subjects=subjects, grade_labels=GRADE_LABELS)
+    return render_template(
+        "latihan_tka.html",
+        subjects=subjects,
+        grade_labels=GRADE_LABELS,
+        section_templates=TKA_SECTION_TEMPLATES,
+        default_duration=DEFAULT_TKA_COMPOSITE_DURATION,
+    )
+
+
+@main_bp.route("/latihan-tka/buat-soal")
+@login_required
+@role_required("admin")
+def latihan_tka_manual():
+    subjects = fetch_tka_subjects(include_inactive=True)
+    return render_template(
+        "latihan_tka_manual.html",
+        subjects=subjects,
+        grade_labels=GRADE_LABELS,
+        section_templates=TKA_SECTION_TEMPLATES,
+        default_duration=DEFAULT_TKA_COMPOSITE_DURATION,
+    )
+
+
+@main_bp.route("/latihan-tka/generator", defaults={"mode": "lite"})
+@main_bp.route("/latihan-tka/generator/<string:mode>")
+@login_required
+@role_required("admin")
+def latihan_tka_generator_page(mode: str):
+    subjects = fetch_tka_subjects(include_inactive=True)
+    normalized_mode = (mode or "lite").strip().lower()
+    if normalized_mode not in {"lite", "pro"}:
+        normalized_mode = "lite"
+    template_name = (
+        "latihan_tka_generator_pro.html"
+        if normalized_mode == "pro"
+        else "latihan_tka_generator_lite.html"
+    )
+    return render_template(
+        template_name,
+        subjects=subjects,
+        grade_labels=GRADE_LABELS,
+        section_templates=TKA_SECTION_TEMPLATES,
+        default_duration=DEFAULT_TKA_COMPOSITE_DURATION,
+        generator_mode=normalized_mode,
+    )
 
 
 @main_bp.route("/latihan-tka/hasil")
@@ -1286,6 +1524,167 @@ def latihan_tka_questions():
         topic=topic or None,
     )
     return jsonify({"success": True, "questions": questions})
+
+
+@main_bp.route("/latihan-tka/stimulus")
+@login_required
+@role_required("admin")
+def latihan_tka_stimulus():
+    subject_id = request.args.get("subject_id", type=int)
+    if not subject_id:
+        return jsonify({"success": False, "message": "subject_id wajib diisi."}), 400
+    stimulus = fetch_tka_stimulus_list(subject_id)
+    return jsonify({"success": True, "stimulus": stimulus})
+
+
+@main_bp.route("/latihan-tka/stimulus/create", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_create_stimulus():
+    data = request.get_json(silent=True) or {}
+    subject_id = data.get("subject_id")
+    try:
+        subject_id = int(subject_id)
+    except (TypeError, ValueError):
+        subject_id = None
+    if not subject_id:
+        return jsonify({"success": False, "message": "subject_id wajib diisi."}), 400
+    title = (data.get("title") or "").strip()
+    narrative = (data.get("narrative") or "").strip()
+    image_prompt = (data.get("image_prompt") or "").strip() or None
+    image_data = data.get("image_data") or data.get("image_url")
+    user = current_user() or {}
+    created_by = user.get("id")
+    try:
+        stimulus = create_tka_stimulus(
+            subject_id,
+            title=title,
+            narrative=narrative or None,
+            image_data=image_data or None,
+            image_prompt=image_prompt,
+            created_by=created_by,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal menyimpan stimulus TKA: %s", exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan stimulus."}), 500
+    return jsonify({"success": True, "stimulus": stimulus})
+
+
+@main_bp.route("/latihan-tka/stimulus/generate", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_generate_stimulus():
+    data = request.get_json(silent=True) or {}
+    subject_id = data.get("subject_id")
+    try:
+        subject_id = int(subject_id)
+    except (TypeError, ValueError):
+        subject_id = None
+    topic = (data.get("topic") or "").strip()
+    tone = (data.get("tone") or "narasi").strip().lower()
+    include_image = bool(data.get("include_image"))
+    subject = fetch_tka_subject(subject_id)
+    if not subject:
+        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+    if not topic:
+        return jsonify({"success": False, "message": "Topik stimulus wajib diisi."}), 400
+    chain = _get_tka_ai_chain()
+    if chain is None:
+        return jsonify({"success": False, "message": "Model ASKA belum siap. Coba sebentar lagi."}), 503
+    grade_descriptor = GRADE_LEVEL_HINTS.get(subject.get("grade_level"))
+    grade_clause = f" Sesuaikan konteks dengan {grade_descriptor}." if grade_descriptor else ""
+    image_clause = (
+        " Sertakan field `image_prompt` yang mendeskripsikan ilustrasi sederhana terkait cerita."
+        if include_image
+        else " Field `image_prompt` boleh dikosongkan jika tidak diperlukan."
+    )
+    prompt = (
+        f"Anda adalah ASKA, guru Bahasa Indonesia yang menulis stimulus bacaan. Buat 1 stimulus dengan judul singkat dan narasi 2-3 paragraf untuk mapel {subject['name']}. "
+        f"Topik utama: {topic}.{grade_clause} Narasi harus runtut, menarik, dan memberikan konteks untuk 3-5 pertanyaan turunan."
+        f" Gaya penulisan: {tone}. {image_clause} "
+        "Gunakan bahasa Indonesia formal yang ringan. Format keluaran hanya JSON:\n"
+        '{"title":"...","narrative":"...","image_prompt":"..."}'
+    )
+    try:
+        result = chain.invoke(prompt)
+        if hasattr(result, "content"):
+            raw_output = result.content
+        elif isinstance(result, dict) and "answer" in result:
+            raw_output = result["answer"]
+        else:
+            raw_output = str(result)
+        cleaned = _strip_code_fences(str(raw_output))
+        normalized = _close_unbalanced_json(_repair_trailing_commas(_normalize_jsonish_text(cleaned)))
+        parsed = json.loads(normalized)
+    except json.JSONDecodeError:
+        try:
+            fallback_payload = _extract_json_payload(cleaned)
+            normalized = _close_unbalanced_json(_repair_trailing_commas(_normalize_jsonish_text(fallback_payload)))
+            parsed = json.loads(normalized)
+        except Exception as exc:
+            preview = cleaned.strip().replace("```", "")[:300]
+            current_app.logger.error("Stimulus generator output tidak valid: %s | error=%s", cleaned, exc)
+            return jsonify({"success": False, "message": f"ASKA mengirim format tidak dikenal. Cuplikan: {preview}"}), 422
+    except Exception as exc:
+        current_app.logger.error("Generator stimulus error: %s", exc)
+        return jsonify({"success": False, "message": "ASKA gagal menulis stimulus."}), 500
+    if isinstance(parsed, list):
+        parsed = parsed[0] if parsed else {}
+    if not isinstance(parsed, dict):
+        return jsonify({"success": False, "message": "ASKA belum menghasilkan stimulus valid."}), 422
+    stimulus = {
+        "title": (parsed.get("title") or "").strip(),
+        "narrative": (parsed.get("narrative") or parsed.get("story") or "").strip(),
+        "image_prompt": (parsed.get("image_prompt") or parsed.get("imagePrompt") or "").strip(),
+    }
+    if not stimulus["title"] or not stimulus["narrative"]:
+        return jsonify({"success": False, "message": "Stimulus dari ASKA belum lengkap."}), 422
+    return jsonify({"success": True, "stimulus": stimulus, "prompt": prompt})
+
+
+@main_bp.route("/latihan-tka/stimulus/<int:stimulus_id>", methods=["PUT"])
+@login_required
+@role_required("admin")
+def latihan_tka_update_stimulus(stimulus_id: int):
+    data = request.get_json(silent=True) or {}
+    title = data.get("title")
+    narrative = data.get("narrative")
+    image_prompt = data.get("image_prompt")
+    image_data = data.get("image_data")
+    metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else None
+    try:
+        stimulus = update_tka_stimulus(
+            stimulus_id,
+            title=title,
+            narrative=narrative,
+            image_data=image_data,
+            image_prompt=image_prompt,
+            metadata=metadata,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal memperbarui stimulus %s: %s", stimulus_id, exc)
+        return jsonify({"success": False, "message": "Gagal memperbarui stimulus."}), 500
+    if not stimulus:
+        return jsonify({"success": False, "message": "Stimulus tidak ditemukan."}), 404
+    return jsonify({"success": True, "stimulus": stimulus})
+
+
+@main_bp.route("/latihan-tka/stimulus/<int:stimulus_id>", methods=["DELETE"])
+@login_required
+@role_required("admin")
+def latihan_tka_delete_stimulus(stimulus_id: int):
+    try:
+        success = delete_tka_stimulus(stimulus_id)
+    except Exception as exc:
+        current_app.logger.error("Gagal menghapus stimulus %s: %s", stimulus_id, exc)
+        return jsonify({"success": False, "message": "Gagal menghapus stimulus."}), 500
+    if not success:
+        return jsonify({"success": False, "message": "Stimulus tidak ditemukan."}), 404
+    return jsonify({"success": True})
 
 
 @main_bp.route("/latihan-tka/questions", methods=["POST"])
@@ -1376,23 +1775,91 @@ def latihan_tka_update_subject_difficulty(subject_id: int):
     return jsonify({"success": True, "subject": subject})
 
 
+@main_bp.route("/latihan-tka/subjects/<int:subject_id>/sections", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_update_sections(subject_id: int):
+    payload = request.get_json(silent=True) or {}
+    sections = payload.get("sections") if isinstance(payload.get("sections"), list) else []
+    try:
+        duration = int(payload.get("duration_minutes") or DEFAULT_TKA_COMPOSITE_DURATION)
+    except (TypeError, ValueError):
+        duration = DEFAULT_TKA_COMPOSITE_DURATION
+    try:
+        subject = update_tka_subject_sections(
+            subject_id,
+            duration_minutes=duration,
+            sections=sections,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal memperbarui komposisi seksi TKA %s: %s", subject_id, exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan komposisi mapel."}), 500
+    if not subject:
+        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+    return jsonify({"success": True, "subject": subject})
+
+
 @main_bp.route("/latihan-tka/generate", methods=["POST"])
 @login_required
 @role_required("admin")
 def latihan_tka_generate():
-    data = request.get_json(silent=True) or {}
-    subject_id = data.get("subject_id")
+    is_multipart = request.mimetype and "multipart/form-data" in request.mimetype
+    if is_multipart:
+        form_payload = request.form if isinstance(request.form, MultiDict) else MultiDict()
+        data = {key: form_payload.get(key) for key in form_payload}
+    else:
+        data = request.get_json(silent=True) or {}
+    raw_subject_id = data.get("subject_id") or (request.form.get("subject_id") if is_multipart else None)
+    try:
+        subject_id = int(raw_subject_id)
+    except (TypeError, ValueError):
+        subject_id = None
     topic = (data.get("topic") or "").strip()
-    style_example = (data.get("example") or "").strip()
+    style_example = (data.get("example") or data.get("style_example") or "").strip()
     difficulty = (data.get("difficulty") or "easy").strip().lower()
     grade_level = (data.get("grade_level") or "").strip().lower()
     question_type = (data.get("question_type") or "story").strip().lower()
+    answer_mode = (data.get("answer_mode") or "mix").strip().lower()
     style_similarity = (data.get("style_similarity") or "50").strip()
-    amount = data.get("amount") or 3
+    raw_generator_mode = (data.get("generator_mode") or "lite").strip().lower()
+    if raw_generator_mode in {"pro"}:
+        generator_mode = "pro"
+    elif raw_generator_mode in {"image", "gambar"}:
+        generator_mode = "image"
+    elif raw_generator_mode in {"truefalse", "benarsalah", "true_false"}:
+        generator_mode = "truefalse"
+    elif raw_generator_mode in {"normal", "lite"}:
+        generator_mode = "lite"
+    else:
+        generator_mode = "lite"
+    section_key = (data.get("section_key") or "").strip().lower() or "matematika"
+    bundle_size = data.get("bundle_size") or data.get("children_per_stimulus") or 4
     try:
-        amount = max(1, min(int(amount), 10))
+        bundle_size = max(MIN_GENERATED_CHILDREN, min(int(bundle_size), MAX_GENERATED_CHILDREN))
     except (TypeError, ValueError):
-        amount = 3
+        bundle_size = 4
+    amount = data.get("amount") or data.get("stimulus_count") or 1
+    try:
+        amount = max(1, min(int(amount), 6))
+    except (TypeError, ValueError):
+        amount = 1
+    manual_example = (data.get("manual_example") or data.get("manual_sample") or "").strip()
+    image_description = (data.get("image_description") or data.get("stimulus_image_desc") or "").strip()
+    raw_selected_stimulus = data.get("stimulus_id") or data.get("existing_stimulus_id")
+    try:
+        selected_stimulus_id = int(raw_selected_stimulus) if raw_selected_stimulus else None
+    except (TypeError, ValueError):
+        selected_stimulus_id = None
+    selected_stimulus = None
+    reference_image_data = None
+    if is_multipart:
+        reference_image_data = _encode_uploaded_image(request.files.get("reference_image"))
+    else:
+        image_field = data.get("reference_image")
+        if isinstance(image_field, str) and image_field.strip():
+            reference_image_data = image_field.strip()
 
     subject = fetch_tka_subject(subject_id)
     if not subject:
@@ -1404,6 +1871,18 @@ def latihan_tka_generate():
         difficulty = "easy"
     if question_type not in {"story", "direct"}:
         question_type = "story"
+    if generator_mode == "pro":
+        if not selected_stimulus_id:
+            return jsonify({"success": False, "message": "Pilih stimulus terlebih dahulu sebelum menjalankan Mode Pro."}), 400
+        selected_stimulus = fetch_tka_stimulus(selected_stimulus_id)
+        if not selected_stimulus or selected_stimulus.get("subject_id") != subject_id:
+            return jsonify({"success": False, "message": "Stimulus tidak ditemukan untuk mapel ini."}), 404
+        amount = 1
+    elif question_type == "direct":
+        # Mode ringkas: abaikan bundle stimulus, fokus ke soal tunggal per entri
+        bundle_size = 1
+    section_template = next((tpl for tpl in TKA_SECTION_TEMPLATES if tpl["key"] == section_key), TKA_SECTION_TEMPLATES[0])
+    section_label = section_template.get("label")
 
     chain = _get_tka_ai_chain()
     if chain is None:
@@ -1435,19 +1914,115 @@ def latihan_tka_generate():
             f"{style_example.strip()}\n"
             f"Tingkat kemiripan yang diinginkan: sekitar {similarity_value}%. Sesuaikan instruksi ini, jangan menyalin mentah.\n"
         )
-    prompt = (
-        f"Anda adalah ASKA, guru pembuat soal yang kreatif. Buat {amount} soal matematika mata pelajaran {subject['name']} "
-        f"dengan topik {topic}. Tingkat kesulitan setiap soal adalah {difficulty_label}. "
-        f"{question_style_clause}"
-        f"{grade_clause}"
-        "Gunakan bahasa Indonesia formal yang tetap ringan, dan gunakan nama tokoh atau konteks kehidupan sehari-hari agar menarik. "
-        "Setiap soal wajib memiliki 4 opsi jawaban (A-D) dan berikan pembahasan yang menjelaskan langkah penalarannya. "
-        f"{style_block}"
-        f"Pastikan setiap soal benar-benar berbeda dari sesi sebelumnya (hindari menyalin pertanyaan atau angka yang sama persis). Tambahkan kalimat \\\"Kode: {uniqueness_hint}\\\" di akhir setiap penjelasan agar sistem dapat mengenali versi unik ini. "
-        "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
-        '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", '
-        '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"..."}]}'
-    )
+    if generator_mode == "image":
+        mode_clause = (
+            "Setiap stimulus WAJIB memerlukan ilustrasi. Sertakan field `image_prompt` yang menjelaskan visual utama secara singkat. "
+            "Jangan bocorkan jawaban saat mendeskripsikan gambar."
+        )
+    elif generator_mode == "truefalse":
+        mode_clause = (
+            "Pastikan setiap stimulus memiliki minimal satu soal dengan format Benar/Salah yang berisi 3 pernyataan unik."
+        )
+    elif generator_mode == "pro":
+        mode_clause = (
+            "Jangan buat stimulus baru. Semua soal harus langsung merujuk pada stimulus yang telah diberikan dan bisa menyebutkan detail paragraf atau gambar terkait."
+        )
+    else:
+        mode_clause = ""
+    manual_clause = ""
+    if manual_example:
+        manual_clause = (
+            "\nContoh soal manual yang perlu dijadikan referensi gaya (jangan disalin mentah):\n"
+            f"{manual_example}\n"
+        )
+    image_clause = ""
+    if image_description:
+        image_clause = (
+            f"\nGuru mendeskripsikan gambar stimulus sebagai berikut: {image_description}. Gunakan deskripsi ini untuk field `image_prompt` pada stimulus yang relevan."
+        )
+    if reference_image_data:
+        image_clause += " Sistem akan menambahkan file gambar secara otomatis, jadi cukup pastikan field `image_data` ada namun boleh dikosongkan."
+    if generator_mode == "pro" and selected_stimulus:
+        stimulus_title = (selected_stimulus.get("title") or f"Stimulus #{selected_stimulus_id}").strip()
+        stimulus_story = (selected_stimulus.get("narrative") or "").strip() or "Narasi belum tersedia. Gunakan deskripsi gambar atau konteks umum."
+        stimulus_image_prompt = (selected_stimulus.get("image_prompt") or "").strip()
+        if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+            answer_clause = "Semua soal menggunakan format pilihan ganda saja; jangan buat soal benar/salah."
+        elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+            answer_clause = "Semua soal menggunakan format benar/salah saja; sertakan field `question_type\":\"true_false\"` dan `statements` tiga objek {\"text\",\"answer\"}. Opsi A-D boleh dikosongkan jika tidak relevan."
+        else:
+            answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tetapi setiap soal hanya satu format (tidak digabung)."
+        prompt_rows = [
+            f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
+            "Gunakan stimulus berikut sebagai satu-satunya konteks cerita.",
+            f"Judul stimulus: {stimulus_title}",
+            f"Narasi stimulus:\n{stimulus_story}",
+        ]
+        if stimulus_image_prompt:
+            prompt_rows.append(f"Deskripsi gambar stimulus: {stimulus_image_prompt}.")
+        prompt_rows.append(
+            f"Tulislah {bundle_size} soal bertopik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
+            f"{question_style_clause}{mode_clause} "
+            f"{answer_clause} "
+            "Untuk soal pilihan ganda, sertakan 4 opsi jawaban (A-D) dan pembahasan singkat yang logis. "
+            "Untuk soal Benar/Salah, sertakan field `statements` berupa tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh dikosongkan jika Anda tidak membuat kombinasi jawaban."
+        )
+        prompt_rows.append(f"{style_block}{manual_clause}")
+        prompt_rows.append(f"Akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.")
+        prompt_rows.append(
+            "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
+            '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
+            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
+            '"statements":[{"text":"...", "answer":"benar"}]}]}]'
+        )
+        prompt = "\n".join(prompt_rows)
+    else:
+        if question_type == "direct":
+            answer_clause = ""
+            if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+                answer_clause = "Semua soal menggunakan format pilihan ganda, tidak ada soal benar/salah."
+            elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+                answer_clause = "Semua soal menggunakan format benar/salah saja; jangan buat pilihan ganda."
+            else:
+                answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tapi tiap soal hanya satu format."
+            prompt = (
+                f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
+                f"Buat {amount} soal ringkas bertopik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
+                "Semua soal HARUS berupa pernyataan atau ekspresi matematika singkat tanpa cerita atau tokoh, tidak perlu stimulus. "
+                f"{answer_clause} "
+                "Jika memilih pilihan ganda, berikan 4 opsi jawaban (A-D) dan pembahasan singkat. "
+                "Jika memilih Benar/Salah, sertakan field `question_type\":\"true_false\"` dan `statements` berisi tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh kosong atau diabaikan. "
+                f"{question_style_clause}{mode_clause}{style_block}{manual_clause}"
+                f"Pastikan setiap soal unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
+                "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
+                '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
+                '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
+                '"statements":[{"text":"...", "answer":"benar"}]}]}'
+            )
+        else:
+            if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+                answer_clause = "Semua soal dalam setiap stimulus menggunakan format pilihan ganda saja."
+            elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+                answer_clause = "Semua soal dalam setiap stimulus menggunakan format benar/salah saja; jangan buat pilihan ganda."
+            else:
+                answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tetapi setiap soal hanya satu format (tidak digabung)."
+            prompt = (
+                f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
+                f"Buat {amount} stimulus baru bertopik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
+                f"Setiap stimulus harus berupa narasi 2-3 paragraf dan memiliki {bundle_size} pertanyaan (minimal 3 dan maksimal 5). "
+                f"{answer_clause} "
+                f"{question_style_clause}{mode_clause} "
+                "Gunakan bahasa Indonesia formal yang tetap ringan, konteks sehari-hari, serta nama tokoh yang variatif. "
+                "Untuk soal pilihan ganda, sertakan 4 opsi jawaban (A-D) dan pembahasan ringkas. "
+                "Untuk soal Benar/Salah, sertakan field `question_type\":\"true_false\"` dan `statements` berupa array tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh kosong atau diabaikan. "
+                f"{style_block}{manual_clause}{image_clause}"
+                f"Pastikan setiap stimulus unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
+                "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
+                '{"stimulus":[{"title":"Judul Stimulus","narrative":"...", "image_prompt":"...", '
+                '"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
+                '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
+                '"statements":[{"text":"...", "answer":"benar"}]}]}]}'
+            )
     try:
         result = chain.invoke(prompt)
         if hasattr(result, "content"):
@@ -1477,7 +2052,41 @@ def latihan_tka_generate():
 
     if isinstance(parsed, list):
         parsed = {"questions": parsed}
-    questions = _normalize_generated_questions(parsed, topic, difficulty)
+    questions = _normalize_generated_questions(
+        parsed,
+        topic,
+        difficulty,
+        generator_mode=generator_mode,
+        target_children=bundle_size,
+    )
+    if selected_stimulus:
+        fixed_stimulus_payload = {
+            "id": selected_stimulus_id,
+            "title": selected_stimulus.get("title"),
+            "narrative": selected_stimulus.get("narrative"),
+            "image_prompt": selected_stimulus.get("image_prompt"),
+            "image_url": selected_stimulus.get("image_url"),
+            "type": selected_stimulus.get("type"),
+            "bundle_key": f"existing-{selected_stimulus_id}",
+        }
+        for question in questions:
+            if not question.get("stimulus"):
+                question["stimulus"] = dict(fixed_stimulus_payload)
+    elif questions and (reference_image_data or image_description):
+        patched = set()
+        for question in questions:
+            stimulus_meta = question.get("stimulus")
+            if not stimulus_meta:
+                continue
+            stim_key = stimulus_meta.get("bundle_key") or stimulus_meta.get("title")
+            if stim_key in patched:
+                continue
+            if image_description and not stimulus_meta.get("image_prompt"):
+                stimulus_meta["image_prompt"] = image_description
+            if reference_image_data and not stimulus_meta.get("image_data"):
+                stimulus_meta["image_data"] = reference_image_data
+            patched.add(stim_key)
+            break
     if not questions:
         return jsonify({"success": False, "message": "ASKA belum menghasilkan soal valid."}), 422
 

@@ -1,0 +1,3004 @@
+<script>
+    const TKA_PAGE_MODE = {{ tka_page_mode|default('bank')|tojson }};
+    let SUBJECTS = {{ subjects|tojson }};
+    const GRADE_LABELS = {{ grade_labels|tojson }};
+    const SECTION_TEMPLATES = {{ section_templates|tojson }};
+    const SECTION_TEMPLATE_MAP = Object.fromEntries((SECTION_TEMPLATES || []).map(section => [section.key, section]));
+    const DEFAULT_TKA_DURATION = {{ default_duration|int }};
+    const TKA_API_BASE = ((window.TKA_API_BASE || 'http://127.0.0.1:5002') + '').trim();
+    document.addEventListener('DOMContentLoaded', () => {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+const subjectSelect = document.getElementById('filterSubject');
+const generateFormFields = document.getElementById('generateFormFields');
+const tplGenerateLite = document.getElementById('tplGenerateLite');
+const tplGeneratePro = document.getElementById('tplGeneratePro');
+let generateSubjectSelect = document.getElementById('generateSubject');
+let questionSubjectSelect = document.getElementById('questionSubject') || generateSubjectSelect;
+let generateGradeSelect = document.getElementById('generateGrade');
+let generateQuestionType = document.getElementById('generateQuestionType');
+let generateAnswerMode = document.getElementById('generateAnswerMode');
+let generateStyleSimilarity = document.getElementById('generateStyleSimilarity');
+let generateBundleSize = document.getElementById('generateBundleSize');
+let generatorBundleSizeGroup = document.getElementById('generateBundleSizeGroup');
+let generateDifficultyLabel = document.getElementById('generateDifficultyLabel');
+let generateAmountInput = document.getElementById('generateAmount');
+let generatorAmountGroup = document.getElementById('generateAmountGroup');
+let generateStimulusImage = document.getElementById('generateStimulusImage');
+let generateImageDescription = document.getElementById('generateImageDescription');
+let generatorStimulusImageGroup = document.getElementById('generateStimulusImageGroup');
+let generatorImageDescriptionGroup = document.getElementById('generateImageDescriptionGroup');
+let generateProType = null;
+let generateAdvancedSection = null;
+const stimulusModeInputs = document.querySelectorAll('input[name="stimulusUsage"]');
+const stimulusExistingWrap = document.getElementById('stimulusExistingFields');
+const stimulusExistingSelect = document.getElementById('questionStimulusSelect');
+const stimulusSearchInput = document.getElementById('stimulusSearchInput');
+const refreshStimulusBtn = document.getElementById('refreshStimulusBtn');
+const openStimulusCreatorBtn = document.getElementById('openStimulusCreator');
+const stimulusCreatorWrap = document.getElementById('stimulusCreatorFields');
+const selectedStimulusPreview = document.getElementById('selectedStimulusPreview');
+const newStimulusBriefInput = document.getElementById('newStimulusBrief');
+const newStimulusTitleInput = document.getElementById('newStimulusTitle');
+const newStimulusNarrativeInput = document.getElementById('newStimulusNarrative');
+const newStimulusImageInput = document.getElementById('newStimulusImage');
+const newStimulusImagePromptInput = document.getElementById('newStimulusImagePrompt');
+const generateStimulusBtn = document.getElementById('generateStimulusStory');
+const saveStimulusBtn = document.getElementById('saveNewStimulus');
+const cancelStimulusBtn = document.getElementById('cancelStimulusCreator');
+const manualCategorySelect = document.getElementById('questionCategory');
+const generateSectionSelect = document.getElementById('generateSection');
+const questionList = document.getElementById('questionList');
+const statusBox = document.getElementById('tkaStatus');
+const filterDifficulty = document.getElementById('filterDifficulty');
+const filterCategory = document.getElementById('filterCategory');
+const filterGrade = document.getElementById('filterGrade');
+const filterTopic = document.getElementById('filterTopic');
+const refreshBtn = document.getElementById('refreshQuestions');
+const questionForm = document.getElementById('questionForm');
+const subjectForm = document.getElementById('subjectForm');
+const subjectGradeSelect = document.getElementById('subjectGrade');
+const generateForm = document.getElementById('generateForm');
+const generatePreview = document.getElementById('generatePreview');
+const saveGeneratedBtn = document.getElementById('saveGenerated');
+const generateExampleInput = document.getElementById('generateExample');
+const generatorModeInput = document.getElementById('generateMode');
+const generatorModeHint = document.getElementById('generatorModeHint');
+let generatorStimulusSection = document.getElementById('generatorStimulusSection');
+    const generatorButtons = document.querySelectorAll('.open-generator[data-generator-mode]');
+    const generatorModalEl = document.getElementById('generateModal');
+    const generatorModal = generatorModalEl ? new bootstrap.Modal(generatorModalEl) : null;
+const copyJsonTemplateBtn = document.getElementById('copyJsonTemplateBtn');
+const exportPromptBtn = document.getElementById('exportPromptBtn');
+const closeGenerateModalBtn = document.getElementById('closeGenerateModalBtn');
+if (closeGenerateModalBtn && generatorModal) {
+    closeGenerateModalBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        generatorModal.hide();
+    });
+}
+const addQuestionBtn = document.getElementById('addQuestionBtn');
+const savePendingBtn = document.getElementById('savePendingBtn');
+const pendingQuestionList = document.getElementById('pendingQuestionList');
+const manualModeInputs = document.querySelectorAll('input[name="questionMode"]');
+const manualAnswerInputs = Array.from(document.querySelectorAll('input[name="questionAnswer"]'));
+const manualTrueFalseSection = document.getElementById('manualTrueFalseSection');
+const manualTfContainer = document.getElementById('manualTfContainer');
+const manualAddTfBtn = document.getElementById('addQuestionTfRow');
+let generatedBundle = null;
+const tabButtons = document.querySelectorAll('#formToggleTabs button');
+const formPanels = {
+    subjectFormPanel: document.getElementById('subjectFormPanel'),
+    questionFormPanel: document.getElementById('questionFormPanel')
+};
+const DEFAULT_FORM_PANEL = formPanels.subjectFormPanel ? 'subjectFormPanel' : (formPanels.questionFormPanel ? 'questionFormPanel' : null);
+let pendingQuestions = [];
+let stimulusDraftKey = null;
+let selectedStimulusId = null;
+let editingStimulusId = null;
+const presetModalEl = document.getElementById('difficultyConfigModal');
+const presetModal = presetModalEl ? new bootstrap.Modal(presetModalEl) : null;
+const openPresetSettingsBtn = document.getElementById('openPresetSettings');
+const sectionModalEl = document.getElementById('sectionConfigModal');
+const sectionModal = sectionModalEl ? new bootstrap.Modal(sectionModalEl) : null;
+const openSectionSettingsBtn = document.getElementById('openSectionSettings');
+const presetSubjectName = document.getElementById('presetSubjectName');
+const presetSubjectIdInput = document.getElementById('presetSubjectId');
+const presetStatus = document.getElementById('presetStatus');
+const presetRadios = document.querySelectorAll('input[name="presetOption"]');
+const customPresetFields = document.getElementById('customPresetFields');
+const customEasyInput = document.getElementById('customEasy');
+const customMediumInput = document.getElementById('customMedium');
+const customHardInput = document.getElementById('customHard');
+const presetDescEls = {
+        mudah: document.getElementById('presetDescMudah'),
+        sedang: document.getElementById('presetDescSedang'),
+        susah: document.getElementById('presetDescSusah'),
+    };
+const PRESET_KEYS = ['mudah', 'sedang', 'susah'];
+const savePresetSettingsBtn = document.getElementById('savePresetSettings');
+const editModalEl = document.getElementById('editQuestionModal');
+const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+const editStatus = document.getElementById('editStatus');
+const editFields = {
+        topic: document.getElementById('editQuestionTopic'),
+        section: document.getElementById('editQuestionSection'),
+        difficulty: document.getElementById('editQuestionDifficulty'),
+        prompt: document.getElementById('editQuestionPrompt'),
+        optionA: document.getElementById('editOptionA'),
+        optionB: document.getElementById('editOptionB'),
+        optionC: document.getElementById('editOptionC'),
+        optionD: document.getElementById('editOptionD'),
+        answer: document.getElementById('editQuestionAnswer'),
+        explanation: document.getElementById('editQuestionExplain'),
+    };
+const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
+    let editingQuestionId = null;
+    let editingQuestionData = null;
+    let editingSubjectId = null;
+    const STIMULUS_CACHE = {};
+    const editStimulusMode = document.getElementById('editStimulusMode');
+    const editStimulusExistingWrap = document.getElementById('editStimulusExistingFields');
+    const editStimulusExistingSelect = document.getElementById('editStimulusSelect');
+    const editStimulusEditorWrap = document.getElementById('editStimulusEditorFields');
+    const editStimulusTitleInput = document.getElementById('editStimulusTitle');
+    const editStimulusStoryInput = document.getElementById('editStimulusStory');
+    const editStimulusImageInput = document.getElementById('editStimulusImage');
+    const editStimulusImagePromptInput = document.getElementById('editStimulusImagePrompt');
+    const sectionSubjectName = document.getElementById('sectionSubjectName');
+    const sectionSubjectIdInput = document.getElementById('sectionSubjectId');
+    const sectionDurationInput = document.getElementById('sectionDuration');
+    const sectionConfigList = document.getElementById('sectionConfigList');
+    const sectionTotalsSummary = document.getElementById('sectionTotalsSummary');
+    const sectionConfigStatus = document.getElementById('sectionConfigStatus');
+    const saveSectionConfigBtn = document.getElementById('saveSectionConfig');
+    const selectedGradeBadge = document.getElementById('selectedGradeBadge');
+    const generatorModeDescriptions = {
+        lite: 'Mode Lite · ASKA membuat soal pilihan ganda standar tanpa stimulus tambahan sehingga proses lebih cepat.',
+        pro: 'Mode Pro · Gunakan stimulus pilihanmu lalu ASKA menulis soal yang sesuai dengan cerita/gambar tersebut.',
+        normal: 'Mode Normal · ASKA membuat soal pilihan ganda standar tanpa gambar.',
+        image: 'Mode Gambar · ASKA akan menambahkan deskripsi ilustrasi agar bisa digambar otomatis.',
+        truefalse: 'Mode Benar/Salah · ASKA menyiapkan cerita dengan tabel pernyataan benar/salah.',
+    };
+
+    function getSectionTemplate(sectionKey) {
+        if (!sectionKey) return SECTION_TEMPLATES[0] || { key: 'matematika', label: 'Matematika', subject_area: 'matematika', question_format: 'multiple_choice' };
+        return SECTION_TEMPLATE_MAP[sectionKey] || SECTION_TEMPLATES[0] || { key: 'matematika', label: 'Matematika', subject_area: 'matematika', question_format: 'multiple_choice' };
+    }
+
+    function mapCategoryToSectionKey(categoryKey, mode) {
+        if (categoryKey === 'bahasa_indonesia') {
+            return mode === 'truefalse' ? 'bahasa_tf' : 'bahasa_pg';
+        }
+        return 'matematika';
+    }
+
+    function formatSectionLabel(sectionKey) {
+        const template = getSectionTemplate(sectionKey);
+        return template ? template.label : 'Jenis Latihan Umum';
+    }
+
+    function formatCreatorLabel(question) {
+        if (!question) {
+            return 'Tidak diketahui';
+        }
+        const fullName = (question.created_by_name || '').toString().trim();
+        if (fullName) {
+            return fullName;
+        }
+        const email = (question.created_by_email || '').toString().trim();
+        if (email) {
+            return email;
+        }
+        const normalizedSource = (question.source || '').toString().trim().toLowerCase();
+        if (normalizedSource.includes('aska') || normalizedSource.includes('ai')) {
+            return 'ASKA Generator';
+        }
+        return 'Tidak diketahui';
+    }
+
+    function resolveQuestionFormat(sectionKey, mode) {
+        const template = getSectionTemplate(sectionKey);
+        if (mode === 'truefalse' || template.question_format === 'true_false' || sectionKey === 'bahasa_tf') {
+            return 'true_false';
+        }
+        return 'multiple_choice';
+    }
+
+    function describeGeneratorMode(mode) {
+        return generatorModeDescriptions[mode] || generatorModeDescriptions.normal;
+    }
+
+    function updateGeneratorModeHint(mode, detailText = '') {
+        if (!generatorModeHint) return;
+        const base = describeGeneratorMode(mode);
+        const note = detailText && detailText.trim() ? ` Catatan: ${detailText.trim()}` : '';
+        generatorModeHint.textContent = `${base}${note}`;
+        toggleGeneratorExtras(mode);
+    }
+
+    function bindGenerateElements() {
+        generateSubjectSelect = document.getElementById('generateSubject');
+        questionSubjectSelect = document.getElementById('questionSubject') || generateSubjectSelect;
+        generateGradeSelect = document.getElementById('generateGrade');
+        generateQuestionType = document.getElementById('generateQuestionType');
+        generateAnswerMode = document.getElementById('generateAnswerMode');
+        generateStyleSimilarity = document.getElementById('generateStyleSimilarity');
+        generateBundleSize = document.getElementById('generateBundleSize');
+        generatorBundleSizeGroup = document.getElementById('generateBundleSizeGroup');
+        generateDifficultyLabel = document.getElementById('generateDifficultyLabel');
+        generateAmountInput = document.getElementById('generateAmount');
+        generatorAmountGroup = document.getElementById('generateAmountGroup');
+        generateStimulusImage = document.getElementById('generateStimulusImage');
+        generateImageDescription = document.getElementById('generateImageDescription');
+        generatorStimulusImageGroup = document.getElementById('generateStimulusImageGroup');
+        generatorImageDescriptionGroup = document.getElementById('generateImageDescriptionGroup');
+        generatorStimulusSection = document.getElementById('generatorStimulusSection');
+        generateProType = document.getElementById('generateProType');
+        generateAdvancedSection = document.getElementById('generateAdvancedSection');
+    }
+
+    function renderGeneratorForm(mode = 'lite') {
+        if (!generateFormFields) return;
+        const tpl = mode === 'pro' ? tplGeneratePro : tplGenerateLite;
+        if (tpl) {
+            generateFormFields.innerHTML = tpl.innerHTML;
+        }
+        bindGenerateElements();
+        toggleGeneratorExtras(mode);
+        attachGenerateButtons();
+    }
+
+    function toggleGeneratorExtras(mode) {
+        const normalized = (mode || '').toLowerCase();
+        const isPro = normalized === 'pro';
+        if (generateDifficultyLabel) {
+            generateDifficultyLabel.textContent = isPro ? 'Kesulitan, Jumlah, & Soal/Stimulus' : 'Kesulitan & Jumlah';
+        }
+        if (generatorStimulusSection) {
+            generatorStimulusSection.classList.toggle('d-none', !isPro);
+        }
+
+        const hideInLite = !isPro;
+        if (generatorAmountGroup) {
+            generatorAmountGroup.classList.toggle('d-none', hideInLite);
+        }
+        if (generatorBundleSizeGroup) {
+            generatorBundleSizeGroup.classList.toggle('d-none', hideInLite);
+        }
+        if (generatorStimulusImageGroup) {
+            generatorStimulusImageGroup.classList.toggle('d-none', hideInLite);
+        }
+        if (generatorImageDescriptionGroup) {
+            generatorImageDescriptionGroup.classList.toggle('d-none', hideInLite);
+        }
+
+        if (generateAmountInput && isPro) {
+            generateAmountInput.value = '1';
+        }
+        if (!isPro) {
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) {
+                stimulusExistingSelect.value = '';
+            }
+            if (selectedStimulusPreview) {
+                selectedStimulusPreview.innerHTML = '<div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>';
+            }
+            return;
+        }
+        setStimulusUsageMode('existing');
+        if (stimulusSearchInput) {
+            stimulusSearchInput.value = '';
+        }
+        refreshStimulusDropdown();
+    }
+
+    function setGenerateSubmitDisabled(disabled) {
+        if (!generateForm) return;
+        generateForm.querySelectorAll('button[type="submit"]').forEach(btn => {
+            btn.disabled = disabled;
+        });
+    }
+
+    function setGenerateSubmitDisabled(disabled) {
+        if (!generateForm) return;
+        generateForm.querySelectorAll('button[type="submit"]').forEach(btn => {
+            btn.disabled = disabled;
+        });
+    }
+
+    function buildTrueFalseRow(statement = '', answer = 'benar') {
+        const safeStatement = (statement || '').replace(/"/g, '&quot;');
+        const normalizedAnswer = (answer || 'benar').toLowerCase() === 'salah' ? 'salah' : 'benar';
+        return `
+            <div class="input-group mb-2" data-tf-row>
+                <span class="input-group-text">Pernyataan</span>
+                <input type="text" class="form-control" data-field="tf-statement" value="${safeStatement}">
+                <select class="form-select" data-field="tf-answer">
+                    <option value="benar" ${normalizedAnswer === 'benar' ? 'selected' : ''}>Benar</option>
+                    <option value="salah" ${normalizedAnswer === 'salah' ? 'selected' : ''}>Salah</option>
+                </select>
+                <button type="button" class="btn btn-outline-danger" data-action="remove-tf-row">&times;</button>
+            </div>
+        `;
+    }
+
+    function escapeHtml(value) {
+        if (!value) return '';
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildQuestionPreview(prompt, limit = 20) {
+        const normalized = (prompt || '').replace(/\s+/g, ' ').trim();
+        if (!normalized) return '';
+        if (normalized.length <= limit) {
+            return normalized;
+        }
+        let preview = normalized.slice(0, limit);
+        const nextChar = normalized.charAt(limit);
+        if (nextChar && /\S/.test(nextChar)) {
+            const remainder = normalized.slice(limit);
+            const match = remainder.match(/^\S+/);
+            if (match && match[0]) {
+                preview += match[0];
+            }
+        }
+        return `${preview.trim()}...`;
+    }
+
+    function ensureManualTfRows(minRows = 3) {
+        if (!manualTfContainer) return;
+        const current = manualTfContainer.querySelectorAll('[data-tf-row]').length;
+        for (let i = current; i < minRows; i += 1) {
+            manualTfContainer.insertAdjacentHTML('beforeend', buildTrueFalseRow());
+        }
+    }
+
+    function buildTkaUrl(path, params) {
+        let target = path;
+        if (TKA_API_BASE) {
+            try {
+                target = new URL(path, TKA_API_BASE).toString();
+            } catch (error) {
+                target = path;
+            }
+        }
+        if (params) {
+            const query = typeof params === 'string' ? params : params.toString();
+            if (query) {
+                target += target.includes('?') ? `&${query}` : `?${query}`;
+            }
+        }
+        return target;
+    }
+
+    function getSelectedAnswerKey() {
+        if (manualAnswerInputs && manualAnswerInputs.length) {
+            const checked = manualAnswerInputs.find(input => input.checked);
+            return checked ? checked.value : (manualAnswerInputs[0].value || 'A');
+        }
+        const legacySelect = document.getElementById('questionAnswer');
+        return legacySelect ? legacySelect.value : 'A';
+    }
+
+    function setSelectedAnswerKey(value = 'A') {
+        if (manualAnswerInputs && manualAnswerInputs.length) {
+            let matched = false;
+            manualAnswerInputs.forEach(input => {
+                const shouldCheck = input.value === value;
+                input.checked = shouldCheck;
+                if (shouldCheck) {
+                    matched = true;
+                }
+            });
+            if (!matched) {
+                manualAnswerInputs[0].checked = true;
+            }
+            return;
+        }
+        const legacySelect = document.getElementById('questionAnswer');
+        if (legacySelect) {
+            legacySelect.value = value;
+        }
+    }
+
+    function updateManualModeSections(mode) {
+        if (manualTrueFalseSection) {
+            manualTrueFalseSection.classList.toggle('d-none', mode !== 'truefalse');
+            if (mode === 'truefalse') {
+                ensureManualTfRows();
+            }
+        }
+    }
+
+    updateManualModeSections('normal');
+    ensureManualTfRows();
+    updateStimulusModeUI(getStimulusUsageMode());
+    toggleEditStimulusFields(editStimulusMode ? (editStimulusMode.value || 'none') : 'none');
+    refreshStimulusDropdown();
+    renderGeneratorForm(generatorModeInput ? generatorModeInput.value : 'lite');
+
+    async function fetchStimulus(subjectId) {
+        if (!subjectId) return [];
+        const params = new URLSearchParams({ subject_id: subjectId || '' });
+        try {
+            const response = await fetch(buildTkaUrl('/latihan-tka/stimulus', params));
+            const data = await response.json();
+            if (response.ok && data.success) {
+                return data.stimulus || [];
+            }
+        } catch (error) {
+            console.warn('Gagal memuat data stimulus', error);
+        }
+        return [];
+    }
+
+    function findStimulusById(subjectId, stimulusId) {
+        if (!subjectId || !stimulusId) return null;
+        const list = STIMULUS_CACHE[subjectId] || [];
+        return list.find(item => Number(item.id) === Number(stimulusId)) || null;
+    }
+
+    async function populateStimulusOptions(selectEl, subjectId, selectedId) {
+        if (!selectEl) return [];
+        const subjectIdNum = Number(subjectId || 0) || null;
+        const cacheKey = subjectIdNum || 'default';
+        let cached = STIMULUS_CACHE[cacheKey];
+        if (!cached) {
+            cached = await fetchStimulus(subjectIdNum);
+            STIMULUS_CACHE[cacheKey] = cached;
+        }
+        selectEl.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = cached.length ? 'Pilih stimulus' : 'Belum ada stimulus';
+        selectEl.appendChild(placeholder);
+        cached.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            const label = item.title || `Stimulus #${item.id}`;
+            opt.textContent = `${label} · ${item.type || 'text'}`;
+            if (selectedId && Number(selectedId) === Number(item.id)) {
+                opt.selected = true;
+            }
+            selectEl.appendChild(opt);
+        });
+        if (selectedId && !cached.some(item => Number(item.id) === Number(selectedId))) {
+            const fallback = document.createElement('option');
+            fallback.value = selectedId;
+            fallback.textContent = `Stimulus #${selectedId}`;
+            fallback.selected = true;
+            selectEl.appendChild(fallback);
+        }
+        return cached;
+    }
+
+    async function refreshStimulusDropdown(selectedId) {
+        const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+        if (!subjectId) return [];
+        STIMULUS_CACHE[subjectId] = null;
+        await populateStimulusOptions(stimulusExistingSelect, subjectId, selectedId);
+        return renderQuestionStimulusOptions(selectedId);
+    }
+
+    async function refreshEditStimulusDropdown(selectedId) {
+        if (!editingSubjectId) return [];
+        return populateStimulusOptions(editStimulusExistingSelect, editingSubjectId, selectedId);
+    }
+
+    function getStimulusUsageMode() {
+        const checked = Array.from(stimulusModeInputs || []).find(input => input.checked);
+        return checked ? checked.value : 'none';
+    }
+
+    function setStimulusUsageMode(mode) {
+        if (!stimulusModeInputs || !stimulusModeInputs.length) return;
+        let matched = false;
+        stimulusModeInputs.forEach(input => {
+            if (input.value === mode) {
+                input.checked = true;
+                matched = true;
+            }
+        });
+        updateStimulusModeUI(matched ? mode : getStimulusUsageMode());
+    }
+
+    function updateStimulusModeUI(mode) {
+        mode = mode || getStimulusUsageMode();
+        const showExisting = mode === 'existing';
+        const showCreator = mode === 'new';
+        if (stimulusExistingWrap) {
+            stimulusExistingWrap.classList.toggle('d-none', !showExisting);
+            if (showExisting) {
+                renderQuestionStimulusOptions();
+            }
+        }
+        if (stimulusCreatorWrap) {
+            stimulusCreatorWrap.classList.toggle('d-none', !showCreator);
+        }
+        if (mode !== 'new') {
+            stimulusDraftKey = null;
+        }
+        if (!showExisting) {
+            selectedStimulusId = null;
+            editingStimulusId = null;
+            renderSelectedStimulusPreview(null);
+        } else if (stimulusExistingSelect) {
+            const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+            const current = findStimulusById(subjectId, stimulusExistingSelect.value);
+            selectedStimulusId = current && current.id ? String(current.id) : null;
+            renderSelectedStimulusPreview(current || null);
+        }
+    }
+
+    function renderQuestionStimulusOptions(selectedId) {
+        if (!questionSubjectSelect || !stimulusExistingSelect) return [];
+        const subjectId = questionSubjectSelect.value;
+        const list = STIMULUS_CACHE[subjectId] || [];
+        const keyword = (stimulusSearchInput?.value || '').trim().toLowerCase();
+        const filtered = keyword
+            ? list.filter(item => (item.title || `stimulus-${item.id}`).toLowerCase().includes(keyword))
+            : list;
+        stimulusExistingSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = filtered.length ? 'Pilih stimulus' : (list.length ? 'Tidak ada hasil' : 'Belum ada stimulus');
+        stimulusExistingSelect.appendChild(placeholder);
+        filtered.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            const label = item.title || `Stimulus #${item.id}`;
+            opt.textContent = `${label} · ${item.type || 'text'}`;
+            if (selectedId && Number(selectedId) === Number(item.id)) {
+                opt.selected = true;
+            }
+            stimulusExistingSelect.appendChild(opt);
+        });
+        const selectedItem = filtered.find(item => Number(item.id) === Number(selectedId || stimulusExistingSelect.value)) || null;
+        selectedStimulusId = selectedItem && selectedItem.id ? String(selectedItem.id) : null;
+        editingStimulusId = selectedItem && editingStimulusId && Number(selectedItem.id) === Number(editingStimulusId) ? editingStimulusId : null;
+        renderSelectedStimulusPreview(selectedItem);
+        return filtered;
+    }
+
+    function resetStimulusCreatorFields(options = {}) {
+        const { clearFile = true, clearDraft = true } = options;
+        if (newStimulusBriefInput) newStimulusBriefInput.value = '';
+        if (newStimulusTitleInput) newStimulusTitleInput.value = '';
+        if (newStimulusNarrativeInput) newStimulusNarrativeInput.value = '';
+        if (newStimulusImagePromptInput) newStimulusImagePromptInput.value = '';
+        if (clearFile && newStimulusImageInput) newStimulusImageInput.value = '';
+        if (clearDraft) {
+            stimulusDraftKey = null;
+        }
+    }
+
+    function updateStimulusCache(subjectId, stimulus) {
+        if (!subjectId || !stimulus || !stimulus.id) return;
+        const list = STIMULUS_CACHE[subjectId] || [];
+        const idx = list.findIndex(item => Number(item.id) === Number(stimulus.id));
+        if (idx >= 0) {
+            list[idx] = stimulus;
+        } else {
+            list.unshift(stimulus);
+        }
+        STIMULUS_CACHE[subjectId] = list;
+        renderQuestionStimulusOptions(stimulus.id);
+    }
+
+    function removeStimulusFromCache(subjectId, stimulusId) {
+        if (!subjectId || !stimulusId) return;
+        const list = STIMULUS_CACHE[subjectId] || [];
+        const filtered = list.filter(item => Number(item.id) !== Number(stimulusId));
+        STIMULUS_CACHE[subjectId] = filtered;
+        renderQuestionStimulusOptions('');
+    }
+
+    function renderSelectedStimulusPreview(stimulus) {
+        if (!selectedStimulusPreview) return;
+        if (!stimulus) {
+            editingStimulusId = null;
+            selectedStimulusPreview.innerHTML = '<div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>';
+            return;
+        }
+        const isEditing = editingStimulusId && Number(editingStimulusId) === Number(stimulus.id);
+        if (isEditing) {
+            const currentImage = stimulus.image_url
+                ? `<img src="${stimulus.image_url}" alt="Gambar stimulus" class="img-fluid rounded mb-2">`
+                : '';
+            selectedStimulusPreview.innerHTML = `
+                <div class="card border">
+                    <div class="card-body p-3" data-editing-stimulus="${stimulus.id}">
+                        <h6 class="mb-3">Edit Stimulus #${stimulus.id}</h6>
+                        <label class="form-label">Judul</label>
+                        <input type="text" class="form-control mb-2" data-edit-field="title" value="${escapeHtml(stimulus.title || '')}">
+                        <label class="form-label">Narasi</label>
+                        <textarea class="form-control mb-2" rows="4" data-edit-field="narrative">${escapeHtml(stimulus.narrative || '')}</textarea>
+                        <label class="form-label">Deskripsi gambar</label>
+                        <textarea class="form-control mb-2" rows="2" data-edit-field="image_prompt">${escapeHtml(stimulus.image_prompt || '')}</textarea>
+                        <label class="form-label">Ganti gambar (opsional)</label>
+                        <input type="file" class="form-control form-control-sm mb-2" data-edit-field="image_file" accept="image/*">
+                        ${currentImage || '<div class="small text-muted">Belum ada gambar tersimpan.</div>'}
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-sm btn-primary" data-action="save-stimulus-edit" data-stimulus-id="${stimulus.id}">
+                                Simpan Perubahan
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="cancel-stimulus-edit">
+                                Batal
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-action="delete-stimulus" data-stimulus-id="${stimulus.id}">
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        const imageBlock = stimulus.image_url
+            ? `<img src="${stimulus.image_url}" alt="Gambar stimulus" class="img-fluid rounded mb-2">`
+            : '';
+        selectedStimulusPreview.innerHTML = `
+            <div class="card border">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">${escapeHtml(stimulus.title || 'Stimulus')}</h6>
+                            <small class="text-muted">ID: ${stimulus.id || 'baru'} · Tipe: ${stimulus.type || '-'}</small>
+                        </div>
+                        ${stimulus.id ? `<button type="button" class="btn btn-sm btn-outline-secondary" data-action="edit-selected-stimulus" data-stimulus-id="${stimulus.id}">
+                            Edit
+                        </button>` : ''}
+                    </div>
+                    ${imageBlock}
+                    <p class="small mb-2">${escapeHtml(stimulus.narrative || 'Belum ada narasi.')}</p>
+                    ${stimulus.image_prompt ? `<div class="small text-muted">Deskripsi gambar: ${escapeHtml(stimulus.image_prompt)}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    if (stimulusSearchInput) {
+        stimulusSearchInput.addEventListener('input', () => renderQuestionStimulusOptions());
+    }
+    if (refreshStimulusBtn) {
+        refreshStimulusBtn.addEventListener('click', () => refreshStimulusDropdown());
+    }
+    if (openStimulusCreatorBtn) {
+        openStimulusCreatorBtn.addEventListener('click', () => {
+            setStimulusUsageMode('new');
+            updateStimulusModeUI('new');
+        });
+    }
+    if (cancelStimulusBtn) {
+        cancelStimulusBtn.addEventListener('click', () => {
+            resetStimulusCreatorFields();
+            const hasSelection = stimulusExistingSelect && stimulusExistingSelect.value;
+            if (hasSelection) {
+                setStimulusUsageMode('existing');
+            } else {
+                setStimulusUsageMode('none');
+            }
+        });
+    }
+    if (generateStimulusBtn) {
+        generateStimulusBtn.addEventListener('click', async () => {
+            const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+            if (!subjectId) {
+                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            const briefValue = newStimulusBriefInput ? newStimulusBriefInput.value.trim() : '';
+            if (!briefValue) {
+                showStatus('Isi deskripsi singkat agar ASKA tahu cerita apa yang ingin dibuat.', 'warning');
+                return;
+            }
+            generateStimulusBtn.disabled = true;
+            generateStimulusBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            try {
+                const response = await fetch('/latihan-tka/stimulus/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject_id: subjectId,
+                        topic: briefValue,
+                        include_image: true,
+                    }),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    showStatus((data && data.message) || 'Gagal meminta ASKA membuat stimulus.', 'danger');
+                    return;
+                }
+                const stim = data.stimulus || {};
+                if (newStimulusTitleInput) newStimulusTitleInput.value = stim.title || '';
+                if (newStimulusNarrativeInput) newStimulusNarrativeInput.value = stim.narrative || '';
+                if (newStimulusImagePromptInput) newStimulusImagePromptInput.value = stim.image_prompt || '';
+                showStatus('Cerita stimulus berhasil digenerate.', 'success');
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menghubungi ASKA.', 'danger');
+            } finally {
+                generateStimulusBtn.disabled = false;
+                generateStimulusBtn.innerHTML = '<i class="bi bi-magic"></i> Generate Cerita AI';
+            }
+        });
+    }
+    if (saveStimulusBtn) {
+        saveStimulusBtn.addEventListener('click', async () => {
+            const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+            if (!subjectId) {
+                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            const title = (newStimulusTitleInput ? newStimulusTitleInput.value : '').trim();
+            const narrative = (newStimulusNarrativeInput ? newStimulusNarrativeInput.value : '').trim();
+            const briefValue = newStimulusBriefInput ? newStimulusBriefInput.value.trim() : '';
+            if (!title || !narrative) {
+                showStatus('Isi judul dan cerita stimulus sebelum menyimpan.', 'warning');
+                return;
+            }
+            let imageData = null;
+            if (newStimulusImageInput && newStimulusImageInput.files && newStimulusImageInput.files[0]) {
+                try {
+                    imageData = await readFileAsDataURL(newStimulusImageInput.files[0]);
+                } catch (error) {
+                    showStatus('Gagal memproses file gambar stimulus.', 'danger');
+                    return;
+                }
+            }
+            saveStimulusBtn.disabled = true;
+            const payload = {
+                subject_id: subjectId,
+                title,
+                narrative,
+                image_prompt: newStimulusImagePromptInput ? newStimulusImagePromptInput.value : '',
+                image_data: imageData,
+            };
+            try {
+                const response = await fetch('/latihan-tka/stimulus/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    showStatus((data && data.message) || 'Gagal menyimpan stimulus.', 'danger');
+                    return;
+                }
+                const stim = data.stimulus;
+                await refreshStimulusDropdown(stim?.id);
+                if (stimulusExistingSelect && stim?.id) {
+                    stimulusExistingSelect.value = stim.id;
+                }
+                setStimulusUsageMode('existing');
+                showStatus('Stimulus baru berhasil disimpan.', 'success');
+                resetStimulusCreatorFields();
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menyimpan stimulus.', 'danger');
+            } finally {
+                saveStimulusBtn.disabled = false;
+            }
+        });
+    }
+
+    function toggleEditStimulusFields(mode) {
+        if (!editStimulusMode) return;
+        const showExisting = mode === 'existing';
+        const showEditor = mode === 'story' || mode === 'image' || mode === 'mixed';
+        if (editStimulusExistingWrap) {
+            editStimulusExistingWrap.classList.toggle('d-none', !showExisting);
+        }
+        if (editStimulusEditorWrap) {
+            editStimulusEditorWrap.classList.toggle('d-none', !showEditor);
+        }
+    }
+
+    if (stimulusModeInputs && stimulusModeInputs.length) {
+        stimulusModeInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                const mode = input.value || 'none';
+                updateStimulusModeUI(mode);
+                if (mode === 'existing') {
+                    refreshStimulusDropdown();
+                }
+            });
+        });
+    }
+    if (stimulusExistingSelect) {
+        stimulusExistingSelect.addEventListener('change', () => {
+            const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+            const stimulus = findStimulusById(subjectId, stimulusExistingSelect.value);
+            selectedStimulusId = stimulus && stimulus.id ? String(stimulus.id) : null;
+            editingStimulusId = null;
+            renderSelectedStimulusPreview(stimulus || null);
+        });
+    }
+
+    if (editStimulusMode) {
+        editStimulusMode.addEventListener('change', () => {
+            const mode = editStimulusMode.value || 'none';
+            toggleEditStimulusFields(mode);
+            if (mode === 'existing') {
+                refreshEditStimulusDropdown();
+            }
+        });
+    }
+
+    if (manualCategorySelect) {
+        manualCategorySelect.addEventListener('change', () => {
+            if (getStimulusUsageMode() === 'existing') {
+                refreshStimulusDropdown();
+            }
+        });
+    }
+
+    if (generateSectionSelect) {
+        generateSectionSelect.addEventListener('change', () => {
+            if (generateSectionSelect.value === 'bahasa_tf' && generatorModeInput) {
+                generatorModeInput.value = 'truefalse';
+                updateGeneratorModeHint('truefalse');
+            }
+        });
+    }
+
+    function buildSectionCard(section) {
+        const mix = section.difficulty || {};
+        const formatLabel = section.question_format === 'true_false' ? 'Benar / Salah' : 'Pilihan Ganda';
+        return `
+            <div class="border rounded-3 p-3 section-card" data-section-key="${section.key}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="mb-0">${section.label}</h6>
+                        <small class="text-muted">${formatLabel}</small>
+                    </div>
+                    <span class="badge text-bg-light" data-field="section-total">${section.question_count || 0} soal</span>
+                </div>
+                <div class="row g-2" data-field="difficulty-inputs">
+                    <div class="col-4">
+                        <label class="form-label">Mudah</label>
+                        <input type="number" min="0" class="form-control" value="${mix.easy ?? 0}" data-difficulty="easy">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Sedang</label>
+                        <input type="number" min="0" class="form-control" value="${mix.medium ?? 0}" data-difficulty="medium">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label">Susah</label>
+                        <input type="number" min="0" class="form-control" value="${mix.hard ?? 0}" data-difficulty="hard">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSectionRows(sections) {
+        if (!sectionConfigList) return;
+        const targetSections = sections && sections.length ? sections : SECTION_TEMPLATES;
+        sectionConfigList.innerHTML = targetSections.map(section => buildSectionCard(section)).join('');
+        sectionConfigList.querySelectorAll('input[data-difficulty]').forEach(input => {
+            input.addEventListener('input', () => updateSectionTotals());
+        });
+        updateSectionTotals();
+    }
+
+    function updateSectionTotals() {
+        if (!sectionConfigList || !sectionTotalsSummary) return;
+        let total = 0;
+        const grouped = {};
+        sectionConfigList.querySelectorAll('[data-section-key]').forEach(card => {
+            const sectionKey = card.dataset.sectionKey;
+            const mix = { easy: 0, medium: 0, hard: 0 };
+            card.querySelectorAll('input[data-difficulty]').forEach(input => {
+                const key = input.dataset.difficulty;
+                mix[key] = parseInt(input.value, 10) || 0;
+            });
+            const sectionTotal = Object.values(mix).reduce((sum, value) => sum + value, 0);
+            const badge = card.querySelector('[data-field="section-total"]');
+            if (badge) {
+                badge.textContent = `${sectionTotal} soal`;
+            }
+            const template = getSectionTemplate(sectionKey);
+            grouped[template.subject_area] = (grouped[template.subject_area] || 0) + sectionTotal;
+            total += sectionTotal;
+        });
+        const mathTotal = grouped.matematika || grouped.math || 0;
+        const bahasaTotal = grouped.bahasa_indonesia || grouped.bahasa || 0;
+        sectionTotalsSummary.textContent = `Total ${total} soal · Matematika ${mathTotal} · Bahasa Indonesia ${bahasaTotal}`;
+    }
+
+    function collectSectionPayload() {
+        if (!sectionConfigList) return [];
+        const payload = [];
+        sectionConfigList.querySelectorAll('[data-section-key]').forEach(card => {
+            const sectionKey = card.dataset.sectionKey;
+            const mix = {};
+            card.querySelectorAll('input[data-difficulty]').forEach(input => {
+                mix[input.dataset.difficulty] = parseInt(input.value, 10) || 0;
+            });
+            payload.push({ key: sectionKey, difficulty: mix });
+        });
+        return payload;
+    }
+
+    function hydrateSectionModal(subject) {
+        if (!sectionModal || !subject || !sectionSubjectName || !sectionSubjectIdInput) return;
+        const config = subject.advanced_config || { duration_minutes: DEFAULT_TKA_DURATION, sections: SECTION_TEMPLATES };
+        sectionSubjectName.textContent = subject.name;
+        sectionSubjectIdInput.value = subject.id;
+        if (sectionDurationInput) {
+            sectionDurationInput.value = config.duration_minutes || DEFAULT_TKA_DURATION;
+        }
+        renderSectionRows(config.sections || SECTION_TEMPLATES);
+        if (sectionConfigStatus) {
+            sectionConfigStatus.textContent = '';
+            sectionConfigStatus.classList.remove('text-danger', 'text-success');
+        }
+        sectionModal.show();
+    }
+
+    async function readFileAsDataURL(file) {
+        const MAX_BYTES = 100 * 1024;
+        if (file.size <= MAX_BYTES) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        const image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = reader.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        const canvas = document.createElement('canvas');
+        const MAX_AREA = 1024 * 1024;
+        let { width, height } = image;
+        if (width * height > MAX_AREA) {
+            const scale = Math.sqrt(MAX_AREA / (width * height));
+            width = Math.max(1, Math.floor(width * scale));
+            height = Math.max(1, Math.floor(height * scale));
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, width, height);
+
+        let quality = 0.9;
+        let result = canvas.toDataURL('image/jpeg', quality);
+        while (result.length * 0.75 > MAX_BYTES && quality > 0.3) {
+            quality -= 0.05;
+            result = canvas.toDataURL('image/jpeg', quality);
+        }
+        return result;
+    }
+
+    manualModeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            updateManualModeSections(input.value || 'normal');
+        });
+    });
+    if (manualAddTfBtn && manualTfContainer) {
+        manualAddTfBtn.addEventListener('click', () => {
+            manualTfContainer.insertAdjacentHTML('beforeend', buildTrueFalseRow());
+        });
+        manualTfContainer.addEventListener('click', (event) => {
+            const removeBtn = event.target.closest('[data-action="remove-tf-row"]');
+            if (removeBtn) {
+                const row = removeBtn.closest('[data-tf-row]');
+                if (row) {
+                    row.remove();
+                }
+            }
+        });
+    }
+
+    function applyDefaultQuestionType(mode) {
+        if (!generateQuestionType) return;
+        const normalized = (mode || '').toLowerCase();
+        if (normalized === 'lite') {
+            generateQuestionType.value = 'direct';
+        } else if (!generateQuestionType.value) {
+            generateQuestionType.value = 'story';
+        }
+    }
+
+    const initialGeneratorMode = generatorModeInput ? generatorModeInput.value : 'lite';
+    applyDefaultQuestionType(initialGeneratorMode);
+    updateGeneratorModeHint(initialGeneratorMode, generateExampleInput ? generateExampleInput.value : '');
+    generatorButtons.forEach(btn => {
+        btn.classList.toggle('active', (btn.dataset.generatorMode || 'lite') === initialGeneratorMode);
+    });
+
+    generatorButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const mode = button.dataset.generatorMode || 'normal';
+            if (generatorModeInput) {
+                generatorModeInput.value = mode;
+            }
+            if (generateExampleInput) {
+                generateExampleInput.value = '';
+            }
+            renderGeneratorForm(mode === 'pro' ? 'pro' : 'lite');
+            applyDefaultQuestionType(mode);
+            updateGeneratorModeHint(mode, '');
+            generatorButtons.forEach(btn => btn.classList.toggle('active', btn === button));
+            if (generatorModal) {
+                generatorModal.show();
+            }
+        });
+    });
+
+    function getSubjectById(subjectId) {
+        const id = Number(subjectId);
+        if (!id) return null;
+        return SUBJECTS.find(item => Number(item.id) === id) || null;
+    }
+
+    function updateSubjectCache(subject) {
+        if (!subject) return;
+        const idx = SUBJECTS.findIndex(item => Number(item.id) === Number(subject.id));
+        if (idx >= 0) {
+            SUBJECTS[idx] = subject;
+        } else {
+            SUBJECTS.push(subject);
+        }
+    }
+
+    function getGradeLabel(value) {
+        if (!value) return GRADE_LABELS.sd6 || 'Kelas 6 SD';
+        return GRADE_LABELS[value] || GRADE_LABELS.sd6 || 'Kelas 6 SD';
+    }
+
+    function updateSelectedGradeBadge() {
+        if (!selectedGradeBadge || !subjectSelect) return;
+        const subject = getSubjectById(subjectSelect.value);
+        if (!subject) {
+            selectedGradeBadge.textContent = '-';
+            return;
+        }
+        selectedGradeBadge.textContent = getGradeLabel(subject.grade_level);
+    }
+
+    function formatMixDescription(mix) {
+        if (!mix || typeof mix !== 'object') return '-';
+        const easy = mix.easy ?? 0;
+        const medium = mix.medium ?? 0;
+        const hard = mix.hard ?? 0;
+        return `${easy} mudah · ${medium} sedang · ${hard} susah`;
+    }
+
+    function toggleCustomPresetFields(show) {
+        if (!customPresetFields) return;
+        customPresetFields.classList.toggle('d-none', !show);
+    }
+
+    function hydratePresetModal(subject) {
+        if (!presetModal || !subject) return;
+        presetSubjectName.textContent = subject.name;
+        presetSubjectIdInput.value = subject.id;
+        const presets = subject.difficulty_presets || {};
+        PRESET_KEYS.forEach(key => {
+            const descEl = presetDescEls[key];
+            if (descEl) {
+                descEl.textContent = formatMixDescription(presets[key]);
+            }
+        });
+        const customMix = presets.custom || subject.difficulty_mix || subject.active_mix || {};
+        if (customEasyInput) customEasyInput.value = customMix.easy ?? 5;
+        if (customMediumInput) customMediumInput.value = customMix.medium ?? 5;
+        if (customHardInput) customHardInput.value = customMix.hard ?? 5;
+        const preferredPreset = (subject.default_preset || 'mudah').toString().toLowerCase();
+        let targetRadio = Array.from(presetRadios || []).find(radio => radio.value === preferredPreset);
+        if (!targetRadio) {
+            targetRadio = Array.from(presetRadios || [])[0] || null;
+        }
+        if (targetRadio) {
+            targetRadio.checked = true;
+            toggleCustomPresetFields(targetRadio.value === 'custom');
+        } else {
+            toggleCustomPresetFields(false);
+        }
+        presetStatus.textContent = '';
+    }
+
+    if (presetRadios && presetRadios.length) {
+        presetRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    toggleCustomPresetFields(radio.value === 'custom');
+                }
+            });
+        });
+    }
+
+    if (openPresetSettingsBtn) {
+        openPresetSettingsBtn.addEventListener('click', () => {
+            if (!SUBJECTS.length) {
+                showStatus('Belum ada jenis latihan untuk diatur.', 'warning');
+                return;
+            }
+            const targetId = (subjectSelect && subjectSelect.value) || (questionSubjectSelect && questionSubjectSelect.value) || (SUBJECTS[0] && SUBJECTS[0].id);
+            const subject = getSubjectById(targetId);
+            if (!subject) {
+                showStatus('Jenis latihan tidak ditemukan. Pilih jenis terlebih dahulu.', 'danger');
+                return;
+            }
+            hydratePresetModal(subject);
+            presetModal.show();
+        });
+    }
+
+    if (openSectionSettingsBtn) {
+        openSectionSettingsBtn.addEventListener('click', () => {
+            if (!SUBJECTS.length) {
+                showStatus('Belum ada jenis latihan untuk diatur.', 'warning');
+                return;
+            }
+            const targetId = (subjectSelect && subjectSelect.value) || (questionSubjectSelect && questionSubjectSelect.value) || (SUBJECTS[0] && SUBJECTS[0].id);
+            const subject = getSubjectById(targetId);
+            if (!subject) {
+                showStatus('Jenis latihan tidak ditemukan. Pilih jenis terlebih dahulu.', 'danger');
+                return;
+            }
+            hydrateSectionModal(subject);
+        });
+    }
+
+    if (savePresetSettingsBtn) {
+        savePresetSettingsBtn.addEventListener('click', async () => {
+            const subjectId = Number(presetSubjectIdInput.value);
+            if (!subjectId) {
+                presetStatus.textContent = 'Jenis latihan belum dipilih.';
+                presetStatus.classList.add('text-danger');
+                return;
+            }
+            const selectedRadio = Array.from(presetRadios || []).find(radio => radio.checked);
+            if (!selectedRadio) {
+                presetStatus.textContent = 'Pilih preset terlebih dahulu.';
+                presetStatus.classList.add('text-danger');
+                return;
+            }
+            const payload = { preset: selectedRadio.value };
+            if (selectedRadio.value === 'custom') {
+                const mix = {
+                    easy: parseInt(customEasyInput.value, 10) || 0,
+                    medium: parseInt(customMediumInput.value, 10) || 0,
+                    hard: parseInt(customHardInput.value, 10) || 0,
+                };
+                if (mix.easy + mix.medium + mix.hard <= 0) {
+                    presetStatus.textContent = 'Jumlah soal kustom minimal harus lebih dari 0.';
+                    presetStatus.classList.add('text-danger');
+                    return;
+                }
+                payload.custom = mix;
+            }
+            presetStatus.textContent = 'Menyimpan pengaturan…';
+            presetStatus.classList.remove('text-danger');
+            try {
+                const response = await fetch(`/latihan-tka/subjects/${subjectId}/difficulty`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success && data.subject) {
+                    updateSubjectCache(data.subject);
+                    hydratePresetModal(data.subject);
+                    refreshSubjectDropdowns();
+                    presetStatus.textContent = 'Pengaturan tersimpan.';
+                    presetStatus.classList.remove('text-danger');
+                    presetStatus.classList.add('text-success');
+                    showStatus('Komposisi soal berhasil diperbarui.');
+                } else {
+                    presetStatus.textContent = (data && data.message) || 'Gagal menyimpan pengaturan. Silakan coba lagi.';
+                    presetStatus.classList.remove('text-success');
+                    presetStatus.classList.add('text-danger');
+                }
+            } catch (error) {
+                presetStatus.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+                presetStatus.classList.remove('text-success');
+                presetStatus.classList.add('text-danger');
+            }
+        });
+    }
+
+    if (saveSectionConfigBtn) {
+        saveSectionConfigBtn.addEventListener('click', async () => {
+            const subjectId = Number(sectionSubjectIdInput.value);
+            if (!subjectId) {
+                sectionConfigStatus.textContent = 'Jenis latihan belum dipilih.';
+                sectionConfigStatus.classList.add('text-danger');
+                return;
+            }
+            const duration = parseInt(sectionDurationInput.value, 10) || DEFAULT_TKA_DURATION;
+            const payload = {
+                duration_minutes: duration,
+                sections: collectSectionPayload(),
+            };
+            sectionConfigStatus.textContent = 'Menyimpan komposisi…';
+            sectionConfigStatus.classList.remove('text-danger');
+            sectionConfigStatus.classList.remove('text-success');
+            try {
+                const response = await fetch(`/latihan-tka/subjects/${subjectId}/sections`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success && data.subject) {
+                    updateSubjectCache(data.subject);
+                    refreshSubjectDropdowns();
+                    sectionConfigStatus.textContent = 'Komposisi tersimpan.';
+                    sectionConfigStatus.classList.remove('text-danger');
+                    sectionConfigStatus.classList.add('text-success');
+                    showStatus('Komposisi jenis latihan berhasil diperbarui.');
+                } else {
+                    sectionConfigStatus.textContent = (data && data.message) || 'Gagal menyimpan komposisi. Coba lagi.';
+                    sectionConfigStatus.classList.remove('text-success');
+                    sectionConfigStatus.classList.add('text-danger');
+                }
+            } catch (error) {
+                sectionConfigStatus.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+                sectionConfigStatus.classList.remove('text-success');
+                sectionConfigStatus.classList.add('text-danger');
+            }
+        });
+    }
+
+    function showStatus(message, tone = 'success') {
+        if (!statusBox) return;
+        statusBox.className = `alert alert-${tone}`;
+        statusBox.textContent = message;
+        statusBox.classList.remove('d-none');
+        const currentTimer = Number(statusBox.dataset.timer);
+        if (currentTimer) {
+            clearTimeout(currentTimer);
+        }
+        const timer = setTimeout(() => statusBox.classList.add('d-none'), 4000);
+        statusBox.dataset.timer = String(timer);
+    }
+
+    function copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(() => showStatus('Teks berhasil disalin ke clipboard.', 'success'))
+                .catch(() => showStatus('Gagal menyalin teks.', 'danger'));
+        } else {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showStatus('Teks berhasil disalin ke clipboard.', 'success');
+            } catch (err) {
+                showStatus('Gagal menyalin teks.', 'danger');
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+
+    function refreshSubjectDropdowns() {
+        [subjectSelect, questionSubjectSelect, generateSubjectSelect].forEach(select => {
+            if (!select) return;
+            const previousValue = select.value;
+            select.innerHTML = '';
+            SUBJECTS.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject.id;
+                const gradeText = getGradeLabel(subject.grade_level);
+                option.textContent = `${subject.name} (${gradeText})`;
+                select.appendChild(option);
+            });
+            if (previousValue) {
+                select.value = previousValue;
+            }
+            if (!select.value && SUBJECTS.length) {
+                select.value = SUBJECTS[0].id;
+            }
+        });
+        updateSelectedGradeBadge();
+        refreshStimulusDropdown();
+    }
+
+    function applyQuestionFilters(items) {
+        if (!Array.isArray(items)) return [];
+        const categoryValue = filterCategory ? (filterCategory.value || '').toLowerCase() : '';
+        const gradeValue = filterGrade ? (filterGrade.value || '').toLowerCase() : '';
+        const subject = subjectSelect ? getSubjectById(subjectSelect.value) : null;
+        return items.filter(item => {
+            const metadata = item.metadata || {};
+            if (categoryValue) {
+                const subjectArea = (metadata.subject_area || metadata.section_key || '').toString().toLowerCase();
+                if (subjectArea && !subjectArea.includes(categoryValue)) return false;
+            }
+            if (gradeValue) {
+                const qGrade = (metadata.grade_level || item.grade_level || (subject && subject.grade_level) || '').toString().toLowerCase();
+                if (qGrade && qGrade !== gradeValue) return false;
+            }
+            return true;
+        });
+    }
+
+    function renderQuestionList(items) {
+        if (!questionList) return;
+        const filteredItems = applyQuestionFilters(items);
+        if (!filteredItems.length) {
+            questionList.innerHTML = '<div class="question-empty">Belum ada soal untuk filter ini.</div>';
+            return;
+        }
+        const fragment = document.createDocumentFragment();
+        filteredItems.forEach(item => {
+            const card = document.createElement('div');
+            const dataAttr = encodeURIComponent(JSON.stringify(item));
+            const metadata = item.metadata || {};
+            const stimulus = item.stimulus || {};
+            const sectionKey = metadata.section_key || metadata.section || 'matematika';
+            const sectionLabel = formatSectionLabel(sectionKey);
+            const formatLabel = metadata.question_format === 'true_false' ? 'Benar / Salah' : 'Pilihan Ganda';
+            const creatorLabel = formatCreatorLabel(item);
+            card.dataset.question = dataAttr;
+            card.setAttribute('tabindex', '0');
+            if (TKA_PAGE_MODE === 'manual') {
+                card.className = 'compact-card';
+                const preview = buildQuestionPreview(item.prompt || '', 20);
+                card.title = (item.prompt || '').trim();
+                card.innerHTML = `
+                    <div class="flex-grow-1 me-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="badge-soft bg-primary-subtle">${escapeHtml(sectionLabel)}</span>
+                            <span class="badge-soft bg-info-subtle">${escapeHtml(formatLabel.replace(/\s*\/\s*/g, '/'))}</span>
+                            <span class="badge-soft difficulty-${item.difficulty || 'easy'} text-uppercase">${escapeHtml((item.difficulty || '').toUpperCase() || '-')}</span>
+                            ${item.topic ? `<span class="badge-soft bg-secondary-subtle">${escapeHtml(item.topic)}</span>` : ''}
+                        </div>
+                        <div class="fw-semibold">${escapeHtml(preview)}</div>
+                      
+                    </div>
+                    <div class="text-end small text-muted">
+                        <div><i class="bi bi-person-circle me-1"></i>${escapeHtml(creatorLabel)}</div>
+                        <div>#${item.id}</div>
+                    </div>
+                `;
+            } else {
+                card.className = 'question-card';
+                const combinedImage = stimulus.image_url || metadata.image_url;
+                const combinedPrompt = stimulus.image_prompt || metadata.image_prompt;
+                let imageBlock = '';
+                if (combinedImage || combinedPrompt) {
+                    imageBlock = `
+                        <div class="row g-3 align-items-start mt-2 question-image-block" data-question-id="${item.id}">
+                            <div class="col-md-4">
+                                ${combinedImage ? `<img src="${combinedImage}" alt="Gambar stimulus ${item.id}" class="img-fluid rounded border">` : '<div class="text-muted small">Belum ada gambar, hanya deskripsi.</div>'}
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Deskripsi Gambar</label>
+                                <textarea class="form-control form-control-sm" rows="2" data-field="existing-image-prompt">${combinedPrompt || ''}</textarea>
+                                <label class="form-label mt-2">Ganti gambar (maks 100KB)</label>
+                                <input type="file" class="form-control form-control-sm question-image-upload" accept="image/*" data-question-id="${item.id}">
+                            </div>
+                        </div>
+                    `;
+                }
+                const stimulusNarrative = stimulus.narrative ? `<div class="alert alert-light border mt-2"><strong>Stimulus:</strong><br>${stimulus.narrative}</div>` : '';
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="badge-soft bg-primary-subtle">${sectionLabel}</span>
+                            <span class="badge-soft bg-info-subtle">${formatLabel}</span>
+                            <span class="badge-soft difficulty-${item.difficulty} text-uppercase">${(item.difficulty || '').toUpperCase()}</span>
+                            ${item.topic ? `<span class="badge-soft bg-secondary-subtle">${item.topic}</span>` : ''}
+                            ${stimulus.title ? `<span class="badge-soft bg-warning-subtle">Stimulus: ${stimulus.title}</span>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${item.id}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="text-muted small mb-2">
+                        <i class="bi bi-person-circle me-1"></i>Pembuat: ${escapeHtml(creatorLabel)}
+                    </div>
+                    <p class="mb-2 fw-semibold">${item.prompt}</p>
+                    <ul class="options mb-2">
+                        ${(item.options || []).map(opt => `<li><strong>${opt.key}.</strong> ${opt.text}</li>`).join('')}
+                    </ul>
+                    <p class="mb-1"><strong>Kunci:</strong> ${item.correct_key}</p>
+                    ${item.explanation ? `<p class="text-muted small mb-0">${item.explanation}</p>` : ''}
+                    ${stimulusNarrative}
+                    ${imageBlock}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary" data-action="edit" data-question="${dataAttr}">Edit</button>
+                    </div>
+                `;
+            }
+            fragment.appendChild(card);
+        });
+        questionList.innerHTML = '';
+        questionList.appendChild(fragment);
+    }
+
+    async function loadQuestions() {
+        if (!questionList) {
+            return;
+        }
+        const activeSelect = subjectSelect || questionSubjectSelect || generateSubjectSelect;
+        if (!activeSelect) {
+            questionList.innerHTML = '<div class="question-empty">Atur jenis latihan terlebih dahulu.</div>';
+            return;
+        }
+        let subjectId = activeSelect.value;
+        if (!subjectId && SUBJECTS.length) {
+            subjectId = SUBJECTS[0].id;
+            activeSelect.value = subjectId;
+        }
+        if (!subjectId) {
+            questionList.innerHTML = '<div class="question-empty">Tambahkan jenis latihan terlebih dahulu.</div>';
+            return;
+        }
+        if (subjectSelect && subjectSelect !== activeSelect) {
+            subjectSelect.value = subjectId;
+        }
+        if (questionSubjectSelect && !questionSubjectSelect.value) {
+            questionSubjectSelect.value = subjectId;
+        }
+        if (generateSubjectSelect && !generateSubjectSelect.value) {
+            generateSubjectSelect.value = subjectId;
+        }
+        updateSelectedGradeBadge();
+        questionList.innerHTML = '<div class="py-4 text-center text-muted">Memuat soal…</div>';
+        const params = new URLSearchParams({
+            subject_id: subjectId,
+            difficulty: filterDifficulty ? (filterDifficulty.value || '') : '',
+            topic: filterTopic ? (filterTopic.value || '') : ''
+        });
+        try {
+            const response = await fetch(buildTkaUrl('/latihan-tka/questions', params));
+            const data = await response.json();
+            if (data.success) {
+                renderQuestionList(data.questions || []);
+            } else {
+                questionList.innerHTML = `<div class="question-empty">${data.message || 'Gagal memuat soal.'}</div>`;
+            }
+        } catch (error) {
+            questionList.innerHTML = '<div class="question-empty">Terjadi kesalahan memuat soal.</div>';
+        }
+    }
+
+    if (subjectForm) {
+        subjectForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const payload = {
+                name: document.getElementById('subjectName').value.trim(),
+                description: document.getElementById('subjectDesc').value.trim(),
+                time_limit_minutes: parseInt(document.getElementById('subjectTime').value, 10) || 15,
+                difficulty_mix: {
+                    easy: parseInt(document.getElementById('subjectEasy').value, 10) || 0,
+                    medium: parseInt(document.getElementById('subjectMedium').value, 10) || 0,
+                    hard: parseInt(document.getElementById('subjectHard').value, 10) || 0,
+                },
+                is_active: document.getElementById('subjectActive').checked,
+                grade_level: subjectGradeSelect ? subjectGradeSelect.value : 'sd6',
+            };
+            try {
+                const response = await fetch('/latihan-tka/subjects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (data.success && data.subject) {
+                    updateSubjectCache(data.subject);
+                    refreshSubjectDropdowns();
+                    const newId = data.subject.id;
+                    if (subjectSelect) subjectSelect.value = newId;
+                    if (questionSubjectSelect) questionSubjectSelect.value = newId;
+                    if (generateSubjectSelect) generateSubjectSelect.value = newId;
+                    subjectForm.reset();
+                    if (subjectGradeSelect) subjectGradeSelect.value = 'sd6';
+                    if (manualCategorySelect) manualCategorySelect.value = 'matematika';
+                    showStatus('Jenis latihan baru berhasil ditambahkan.');
+                    loadQuestions();
+                    pendingQuestions = [];
+                    renderPendingQuestions();
+                    resetQuestionFields();
+                } else {
+                    showStatus(data.message || 'Gagal menambah jenis latihan.', 'danger');
+                }
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menambah jenis latihan.', 'danger');
+            }
+        });
+    }
+
+    function resetQuestionFields(options = {}) {
+        const preserveStimulus = Boolean(options.preserveStimulus);
+        const promptInput = document.getElementById('questionPrompt');
+        const topicInput = document.getElementById('questionTopic');
+        const explanationInput = document.getElementById('questionExplain');
+const optionAInput = document.getElementById('optionA');
+const optionBInput = document.getElementById('optionB');
+const optionCInput = document.getElementById('optionC');
+const optionDInput = document.getElementById('optionD');
+const optionAField = document.getElementById('optionAField');
+const optionBField = document.getElementById('optionBField');
+const optionCField = document.getElementById('optionCField');
+const optionDField = document.getElementById('optionDField');
+        const difficultySelect = document.getElementById('questionDifficulty');
+        if (promptInput) promptInput.value = '';
+        if (topicInput) topicInput.value = '';
+        if (explanationInput) explanationInput.value = '';
+        if (optionAInput) optionAInput.value = '';
+        if (optionBInput) optionBInput.value = '';
+        if (optionCInput) optionCInput.value = '';
+        if (optionDInput) optionDInput.value = '';
+        setSelectedAnswerKey('A');
+        if (difficultySelect) difficultySelect.value = 'easy';
+        if (manualModeInputs.length) {
+            manualModeInputs.forEach((input, idx) => {
+                input.checked = idx === 0;
+            });
+        }
+        updateManualModeSections('normal');
+        if (manualTfContainer) {
+            manualTfContainer.innerHTML = '';
+            ensureManualTfRows();
+        }
+        if (!preserveStimulus) {
+            if (manualCategorySelect) manualCategorySelect.value = 'matematika';
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) {
+                stimulusExistingSelect.value = '';
+            }
+            renderSelectedStimulusPreview(null);
+            resetStimulusCreatorFields();
+        } else {
+            if (manualCategorySelect && !manualCategorySelect.value) {
+                manualCategorySelect.value = 'matematika';
+            }
+        }
+    }
+
+    async function buildManualQuestionPayload() {
+        const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+        if (!subjectId) {
+            showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+            return null;
+        }
+        const promptInput = document.getElementById('questionPrompt');
+        const topicInput = document.getElementById('questionTopic');
+        const explanationInput = document.getElementById('questionExplain');
+        const optionAInput = document.getElementById('optionA');
+        const optionBInput = document.getElementById('optionB');
+        const optionCInput = document.getElementById('optionC');
+        const optionDInput = document.getElementById('optionD');
+        const difficultySelect = document.getElementById('questionDifficulty');
+        const manualModeInput = document.querySelector('input[name="questionMode"]:checked');
+        const manualMode = manualModeInput ? manualModeInput.value : 'normal';
+        const metadata = {};
+        if (manualMode === 'truefalse' && manualTfContainer) {
+            const tfRows = manualTfContainer.querySelectorAll('[data-tf-row]');
+            const statements = [];
+            tfRows.forEach(row => {
+                const statementInput = row.querySelector('[data-field="tf-statement"]');
+                const answerSelect = row.querySelector('[data-field="tf-answer"]');
+                const text = statementInput ? statementInput.value.trim() : '';
+                const answer = answerSelect ? answerSelect.value : '';
+                if (text && answer) {
+                    statements.push({ text, answer });
+                }
+            });
+            if (!statements.length) {
+                showStatus('Tambahkan minimal satu pernyataan benar/salah.', 'warning');
+                return null;
+            }
+            metadata.true_false_statements = statements;
+        }
+        const categoryKey = manualCategorySelect ? manualCategorySelect.value : 'matematika';
+        const sectionKey = mapCategoryToSectionKey(categoryKey, manualMode);
+        const sectionTemplate = getSectionTemplate(sectionKey);
+        metadata.section_key = sectionKey;
+        metadata.section_label = sectionTemplate.label;
+        metadata.subject_area = sectionTemplate.subject_area || categoryKey;
+        metadata.question_format = resolveQuestionFormat(sectionKey, manualMode);
+        let stimulusPayload = null;
+        const stimulusMode = getStimulusUsageMode();
+        if (stimulusMode === 'existing') {
+            const existingId = parseInt(stimulusExistingSelect ? stimulusExistingSelect.value : '', 10);
+            if (!existingId) {
+                showStatus('Pilih stimulus yang ingin digunakan.', 'warning');
+                return null;
+            }
+            stimulusPayload = { id: existingId };
+        } else if (stimulusMode === 'new') {
+            const titleValue = newStimulusTitleInput ? newStimulusTitleInput.value.trim() : '';
+            const narrativeValue = newStimulusNarrativeInput ? newStimulusNarrativeInput.value.trim() : '';
+            const briefValue = newStimulusBriefInput ? newStimulusBriefInput.value.trim() : '';
+            let imageData = null;
+            if (newStimulusImageInput && newStimulusImageInput.files && newStimulusImageInput.files[0]) {
+                try {
+                    imageData = await readFileAsDataURL(newStimulusImageInput.files[0]);
+                } catch (error) {
+                    showStatus('Gagal memproses gambar stimulus.', 'danger');
+                    return null;
+                }
+            }
+            if (!titleValue && !narrativeValue && !imageData && !briefValue) {
+                showStatus('Isi judul, narasi, atau deskripsi singkat stimulus sebelum digunakan.', 'warning');
+                return null;
+            }
+            if (!stimulusDraftKey) {
+                stimulusDraftKey = `draft-${Date.now().toString(36)}`;
+            }
+            stimulusPayload = {
+                bundle_key: stimulusDraftKey,
+                title: titleValue || briefValue || 'Stimulus',
+                narrative: narrativeValue || briefValue,
+                image_data: imageData,
+                image_prompt: newStimulusImagePromptInput ? newStimulusImagePromptInput.value.trim() : '',
+                type: imageData && narrativeValue ? 'mixed' : (imageData ? 'image' : 'text'),
+            };
+        }
+        const optionAValue = optionAInput ? optionAInput.value.trim() : '';
+        const optionBValue = optionBInput ? optionBInput.value.trim() : '';
+        if (!optionAValue || !optionBValue) {
+            showStatus('Minimal opsi A dan B harus diisi.', 'warning');
+            return null;
+        }
+        const options = [
+            { key: 'A', text: optionAValue },
+            { key: 'B', text: optionBValue },
+        ];
+        const optionCValue = optionCInput ? optionCInput.value.trim() : '';
+        const optionDValue = optionDInput ? optionDInput.value.trim() : '';
+        if (optionCValue) options.push({ key: 'C', text: optionCValue });
+        if (optionDValue) options.push({ key: 'D', text: optionDValue });
+        const questionPayload = {
+            prompt: promptInput ? promptInput.value.trim() : '',
+            topic: topicInput ? topicInput.value.trim() : '',
+            difficulty: difficultySelect ? difficultySelect.value : 'easy',
+            options,
+            correct_key: getSelectedAnswerKey(),
+            explanation: explanationInput ? explanationInput.value.trim() : '',
+            source: 'manual',
+            generator_mode: manualMode,
+        };
+        if (!questionPayload.prompt) {
+            showStatus('Teks soal wajib diisi.', 'warning');
+            return null;
+        }
+        if (Object.keys(metadata).length) {
+            questionPayload.metadata = metadata;
+        }
+        if (stimulusPayload) {
+            questionPayload.stimulus = stimulusPayload;
+        }
+        return questionPayload;
+    }
+
+    async function prefillQuestionForm(question) {
+        if (!question) return;
+        const promptInput = document.getElementById('questionPrompt');
+        const topicInput = document.getElementById('questionTopic');
+        const explanationInput = document.getElementById('questionExplain');
+        const optionAInput = document.getElementById('optionA');
+        const optionBInput = document.getElementById('optionB');
+        const optionCInput = document.getElementById('optionC');
+        const optionDInput = document.getElementById('optionD');
+        const difficultySelect = document.getElementById('questionDifficulty');
+        const metadata = question.metadata || {};
+        const category = (metadata.subject_area === 'bahasa_indonesia') ? 'bahasa_indonesia' : 'matematika';
+        if (manualCategorySelect) manualCategorySelect.value = category;
+        if (promptInput) promptInput.value = question.prompt || '';
+        if (topicInput) topicInput.value = question.topic || '';
+        if (explanationInput) explanationInput.value = question.explanation || '';
+        const pickOption = (key) => {
+            const opt = (question.options || []).find(entry => (entry.key || '').toUpperCase() === key);
+            return opt ? opt.text || '' : '';
+        };
+        if (optionAInput) optionAInput.value = pickOption('A');
+        if (optionBInput) optionBInput.value = pickOption('B');
+        if (optionCInput) optionCInput.value = pickOption('C');
+        if (optionDInput) optionDInput.value = pickOption('D');
+        setSelectedAnswerKey(question.correct_key || 'A');
+        if (difficultySelect) difficultySelect.value = (question.difficulty || 'easy');
+        const modeFromQuestion = (metadata.question_format === 'true_false') ? 'truefalse' : 'normal';
+        if (manualModeInputs.length) {
+            manualModeInputs.forEach(input => {
+                input.checked = input.value === modeFromQuestion;
+            });
+        }
+        updateManualModeSections(modeFromQuestion);
+        if (modeFromQuestion === 'truefalse' && manualTfContainer) {
+            manualTfContainer.innerHTML = '';
+            const statements = metadata.true_false_statements || [];
+            if (statements.length) {
+                statements.forEach(entry => {
+                    manualTfContainer.insertAdjacentHTML('beforeend', buildTrueFalseRow(entry.text, entry.answer));
+                });
+            } else {
+                ensureManualTfRows();
+            }
+        } else if (manualTfContainer) {
+            manualTfContainer.innerHTML = '';
+            ensureManualTfRows();
+        }
+        const stimulusMode = question.stimulus ? (question.stimulus.id ? 'existing' : 'new') : 'none';
+        if (stimulusMode === 'existing') {
+            setStimulusUsageMode('existing');
+            await refreshStimulusDropdown(question.stimulus.id);
+            if (stimulusExistingSelect) {
+                stimulusExistingSelect.value = question.stimulus.id;
+            }
+        } else if (stimulusMode === 'new') {
+            setStimulusUsageMode('new');
+            const stim = question.stimulus || {};
+            stimulusDraftKey = stim.bundle_key || `draft-${Date.now().toString(36)}`;
+            if (newStimulusBriefInput) newStimulusBriefInput.value = '';
+            if (newStimulusTitleInput) newStimulusTitleInput.value = stim.title || '';
+            if (newStimulusNarrativeInput) newStimulusNarrativeInput.value = stim.narrative || '';
+            if (newStimulusImagePromptInput) newStimulusImagePromptInput.value = stim.image_prompt || '';
+            if (newStimulusImageInput) newStimulusImageInput.value = '';
+        } else {
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) stimulusExistingSelect.value = '';
+            resetStimulusCreatorFields();
+        }
+    }
+
+    function renderPendingQuestions() {
+        if (!pendingQuestionList) return;
+        if (!pendingQuestions.length) {
+            pendingQuestionList.innerHTML = '<div class="alert alert-info mb-0">Belum ada soal dalam daftar. Isi form lalu klik “Tambah ke daftar”.</div>';
+            return;
+        }
+        const container = document.createElement('div');
+        container.className = 'd-flex flex-column gap-2';
+        pendingQuestions.forEach((item, idx) => {
+            const card = document.createElement('div');
+            const formatLabel = (item.metadata?.question_format === 'true_false') ? 'Benar/Salah' : 'Pilihan Ganda';
+            const sectionLabel = item.metadata?.section_label || 'Matematika';
+            const stimLabel = item.stimulus
+                ? (item.stimulus.id ? `Stimulus #${item.stimulus.id}` : (item.stimulus.title || 'Stimulus baru'))
+                : 'Tanpa stimulus';
+            const promptSnippet = escapeHtml((item.prompt || '').slice(0, 160));
+            card.className = 'border rounded p-2 d-flex justify-content-between align-items-start';
+            card.innerHTML = `
+                <div class="me-3">
+                    <div class="fw-semibold mb-1">Soal ${idx + 1} · ${escapeHtml(formatLabel)}</div>
+                    <div class="text-muted small">Mapel: ${escapeHtml(sectionLabel)} · ${escapeHtml(stimLabel)}</div>
+                    <p class="mb-0 small text-truncate" style="max-width: 360px;">${promptSnippet}</p>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" data-action="edit-pending-question" data-index="${idx}">
+                        Edit
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" data-action="remove-pending-question" data-index="${idx}">
+                        Hapus
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        pendingQuestionList.innerHTML = '';
+        pendingQuestionList.appendChild(container);
+    }
+    renderPendingQuestions();
+
+    async function submitPendingQuestions() {
+        if (!pendingQuestions.length) {
+            showStatus('Belum ada soal dalam daftar. Tambahkan dulu sebelum menyimpan.', 'warning');
+            return;
+        }
+        const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+        if (!subjectId) {
+            showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+            return;
+        }
+        const payload = {
+            subject_id: subjectId,
+            questions: pendingQuestions,
+        };
+        try {
+            const response = await fetch('/latihan-tka/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                showStatus(`${data.inserted} soal berhasil disimpan.`);
+                pendingQuestions = [];
+                renderPendingQuestions();
+                const numericSubjectId = Number(subjectId);
+                if (!Number.isNaN(numericSubjectId)) {
+                    delete STIMULUS_CACHE[numericSubjectId];
+                }
+                refreshStimulusDropdown();
+                resetQuestionFields();
+                loadQuestions();
+            } else {
+                showStatus((data && data.message) || 'Gagal menyimpan soal.', 'danger');
+            }
+        } catch (error) {
+            showStatus('Terjadi kesalahan saat menyimpan soal.', 'danger');
+        }
+    }
+
+    if (selectedStimulusPreview) {
+        selectedStimulusPreview.addEventListener('click', async (event) => {
+            const editBtn = event.target.closest('[data-action="edit-selected-stimulus"]');
+            if (editBtn) {
+                editingStimulusId = editBtn.dataset.stimulusId;
+                const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+                const targetStimulus = findStimulusById(subjectId, editingStimulusId);
+                renderSelectedStimulusPreview(targetStimulus || null);
+                return;
+            }
+            const cancelBtn = event.target.closest('[data-action="cancel-stimulus-edit"]');
+            if (cancelBtn) {
+                editingStimulusId = null;
+                const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+                const targetStimulus = findStimulusById(subjectId, selectedStimulusId);
+                renderSelectedStimulusPreview(targetStimulus || null);
+                return;
+            }
+            const deleteBtn = event.target.closest('[data-action="delete-stimulus"]');
+            if (deleteBtn) {
+                const stimulusId = deleteBtn.dataset.stimulusId;
+                if (!stimulusId) return;
+                if (!confirm('Hapus stimulus ini? Semua soal yang terkait akan kehilangan stimulusnya.')) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`/latihan-tka/stimulus/${stimulusId}`, {
+                        method: 'DELETE',
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        showStatus((data && data.message) || 'Gagal menghapus stimulus.', 'danger');
+                        return;
+                    }
+                    removeStimulusFromCache(questionSubjectSelect ? questionSubjectSelect.value : null, stimulusId);
+                    editingStimulusId = null;
+                    selectedStimulusId = null;
+                    renderSelectedStimulusPreview(null);
+                    if (stimulusExistingSelect) {
+                        stimulusExistingSelect.value = '';
+                    }
+                    showStatus('Stimulus berhasil dihapus.', 'info');
+                } catch (error) {
+                    showStatus('Terjadi kesalahan saat menghapus stimulus.', 'danger');
+                }
+                return;
+            }
+            const saveBtn = event.target.closest('[data-action="save-stimulus-edit"]');
+            if (saveBtn) {
+                const stimulusId = saveBtn.dataset.stimulusId;
+                const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
+                const container = selectedStimulusPreview.querySelector(`[data-editing-stimulus="${stimulusId}"]`);
+                if (!container) return;
+                const titleValue = container.querySelector('[data-edit-field="title"]')?.value?.trim() || '';
+                const narrativeValue = container.querySelector('[data-edit-field="narrative"]')?.value || '';
+                const imagePromptValue = container.querySelector('[data-edit-field="image_prompt"]')?.value || '';
+                const fileInput = container.querySelector('[data-edit-field="image_file"]');
+                let imageData = null;
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    try {
+                        imageData = await readFileAsDataURL(fileInput.files[0]);
+                    } catch (error) {
+                        showStatus('Gagal memproses gambar stimulus.', 'danger');
+                        return;
+                    }
+                }
+                try {
+                    const response = await fetch(`/latihan-tka/stimulus/${stimulusId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: titleValue,
+                            narrative: narrativeValue,
+                            image_prompt: imagePromptValue,
+                            image_data: imageData,
+                        }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        showStatus((data && data.message) || 'Gagal memperbarui stimulus.', 'danger');
+                        return;
+                    }
+                    updateStimulusCache(subjectId, data.stimulus);
+                    editingStimulusId = null;
+                    selectedStimulusId = String(data.stimulus.id);
+                    renderSelectedStimulusPreview(data.stimulus);
+                    showStatus('Stimulus berhasil diperbarui.', 'success');
+                } catch (error) {
+                    showStatus('Terjadi kesalahan saat memperbarui stimulus.', 'danger');
+                }
+            }
+        });
+    }
+
+    if (pendingQuestionList) {
+        pendingQuestionList.addEventListener('click', (event) => {
+            const removeBtn = event.target.closest('[data-action="remove-pending-question"]');
+            if (!removeBtn) return;
+            const idx = parseInt(removeBtn.dataset.index || '-1', 10);
+            if (Number.isNaN(idx) || idx < 0 || idx >= pendingQuestions.length) return;
+            pendingQuestions.splice(idx, 1);
+            renderPendingQuestions();
+        });
+        pendingQuestionList.addEventListener('click', async (event) => {
+            const editBtn = event.target.closest('[data-action="edit-pending-question"]');
+            if (!editBtn) return;
+            const idx = parseInt(editBtn.dataset.index || '-1', 10);
+            if (Number.isNaN(idx) || idx < 0 || idx >= pendingQuestions.length) return;
+            const question = pendingQuestions.splice(idx, 1)[0];
+            await prefillQuestionForm(question);
+            renderPendingQuestions();
+        });
+    }
+
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            const payload = await buildManualQuestionPayload();
+            if (!payload) return;
+            pendingQuestions.push(payload);
+            renderPendingQuestions();
+            const preserveStimulus = getStimulusUsageMode() === 'new';
+            resetQuestionFields({ preserveStimulus });
+            showStatus('Soal ditambahkan ke daftar.', 'success');
+        });
+    }
+
+    if (questionForm) {
+        questionForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!pendingQuestions.length) {
+                const payload = await buildManualQuestionPayload();
+                if (!payload) return;
+                pendingQuestions.push(payload);
+            }
+            await submitPendingQuestions();
+        });
+    }
+
+    async function handleImageReplacement(questionId, fileInput) {
+        if (!questionId || !fileInput || !fileInput.files || !fileInput.files[0]) return;
+        const file = fileInput.files[0];
+        let dataUrl;
+        try {
+            dataUrl = await readFileAsDataURL(file);
+        } catch (error) {
+            showStatus('Gagal memproses file gambar, pastikan format valid.', 'danger');
+            return;
+        }
+        const card = fileInput.closest('.question-card');
+        const promptField = card ? card.querySelector('[data-field="existing-image-prompt"]') : null;
+        const metadata = {};
+        if (promptField && promptField.value.trim()) {
+            metadata.image_prompt = promptField.value.trim();
+        }
+        metadata.image_url = dataUrl;
+        try {
+            const response = await fetch(`/latihan-tka/questions/${questionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metadata }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showStatus('Gambar soal berhasil diperbarui.', 'success');
+                loadQuestions();
+            } else {
+                showStatus(data.message || 'Gagal memperbarui gambar.', 'danger');
+            }
+        } catch (error) {
+            showStatus('Terjadi kesalahan saat memperbarui gambar.', 'danger');
+        }
+    }
+
+    if (questionList) {
+        questionList.addEventListener('click', async (event) => {
+            const deleteBtn = event.target.closest('[data-action="delete"]');
+            if (deleteBtn) {
+                const questionId = deleteBtn.dataset.id;
+                if (!questionId || !confirm('Hapus soal ini?')) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`/latihan-tka/questions/${questionId}`, { method: 'DELETE' });
+                    const data = await response.json();
+                    if (data.success) {
+                        showStatus('Soal berhasil dihapus.', 'info');
+                        loadQuestions();
+                    } else {
+                        showStatus(data.message || 'Gagal menghapus soal.', 'danger');
+                    }
+                } catch (error) {
+                    showStatus('Terjadi kesalahan saat menghapus soal.', 'danger');
+                }
+                return;
+            }
+            const editBtn = event.target.closest('[data-action="edit"]');
+            if (editBtn && editBtn.dataset.question) {
+                try {
+                    const data = JSON.parse(decodeURIComponent(editBtn.dataset.question));
+                    openEditModal(data);
+                } catch (error) {
+                    showStatus('Gagal membuka data soal untuk diedit.', 'danger');
+                }
+                return;
+            }
+            const card = event.target.closest('.question-card, .compact-card');
+            if (card && card.dataset.question) {
+                try {
+                    const data = JSON.parse(decodeURIComponent(card.dataset.question));
+                    openEditModal(data);
+                } catch (error) {
+                    showStatus('Gagal membuka data soal untuk diedit.', 'danger');
+                }
+            }
+        });
+
+        questionList.addEventListener('change', (event) => {
+            const input = event.target.closest('.question-image-upload');
+            if (input && input.dataset.questionId) {
+                handleImageReplacement(input.dataset.questionId, input);
+            }
+        });
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadQuestions);
+    }
+    if (filterCategory) {
+        filterCategory.addEventListener('change', loadQuestions);
+    }
+    if (filterGrade) {
+        filterGrade.addEventListener('change', loadQuestions);
+    }
+    if (subjectSelect) {
+    subjectSelect.addEventListener('change', () => {
+        updateSelectedGradeBadge();
+        loadQuestions();
+        if (stimulusSearchInput) stimulusSearchInput.value = '';
+        refreshStimulusDropdown();
+        setStimulusUsageMode('none');
+        if (stimulusExistingSelect) stimulusExistingSelect.value = '';
+        resetStimulusCreatorFields();
+        pendingQuestions = [];
+        renderPendingQuestions();
+    });
+    }
+    if (questionSubjectSelect && questionSubjectSelect !== generateSubjectSelect) {
+        questionSubjectSelect.addEventListener('change', () => {
+            if (stimulusSearchInput) stimulusSearchInput.value = '';
+            refreshStimulusDropdown();
+            const selected = questionSubjectSelect.value;
+            if (subjectSelect && selected && subjectSelect.value !== selected) {
+                subjectSelect.value = selected;
+                updateSelectedGradeBadge();
+                loadQuestions();
+            }
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) stimulusExistingSelect.value = '';
+            resetStimulusCreatorFields();
+            pendingQuestions = [];
+            renderPendingQuestions();
+        });
+    }
+    if (generateSubjectSelect) {
+        generateSubjectSelect.addEventListener('change', () => {
+            const selected = generateSubjectSelect.value;
+            if (subjectSelect && selected && subjectSelect.value !== selected) {
+                subjectSelect.value = selected;
+                updateSelectedGradeBadge();
+                loadQuestions();
+            }
+            if (questionSubjectSelect && selected) {
+                if (questionSubjectSelect !== generateSubjectSelect && questionSubjectSelect.value !== selected) {
+                    questionSubjectSelect.value = selected;
+                }
+                if (stimulusSearchInput) {
+                    stimulusSearchInput.value = '';
+                }
+                refreshStimulusDropdown();
+            }
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) stimulusExistingSelect.value = '';
+            resetStimulusCreatorFields();
+            pendingQuestions = [];
+            renderPendingQuestions();
+        });
+    }
+
+    function buildGeneratorPayload() {
+        const topicInput = document.getElementById('generateTopic');
+        const difficultyInput = document.getElementById('generateDifficulty');
+        const amountInput = document.getElementById('generateAmount');
+        const bundleSizeValue = generateBundleSize ? parseInt(generateBundleSize.value, 10) || 4 : 4;
+        const subjectValue = generateSubjectSelect ? parseInt(generateSubjectSelect.value, 10) : NaN;
+
+        const payload = {
+            subject_id: Number.isFinite(subjectValue) ? subjectValue : null,
+            topic: topicInput ? topicInput.value : '',
+            difficulty: difficultyInput ? difficultyInput.value : '',
+            amount: amountInput ? parseInt(amountInput.value, 10) : 0,
+            grade_level: generateGradeSelect ? generateGradeSelect.value : '',
+            question_type: generateQuestionType ? generateQuestionType.value : 'story',
+            answer_mode: generateAnswerMode ? generateAnswerMode.value : 'multiple_choice',
+            style_similarity: generateStyleSimilarity ? generateStyleSimilarity.value : '50',
+            example: generateExampleInput ? generateExampleInput.value : '',
+            generator_mode: generatorModeInput ? generatorModeInput.value : 'normal',
+            section_key: generateSectionSelect ? generateSectionSelect.value : ((SECTION_TEMPLATES[0] && SECTION_TEMPLATES[0].key) || 'matematika'),
+            bundle_size: bundleSizeValue,
+            image_description: generateImageDescription ? generateImageDescription.value : '',
+        };
+
+        const selectedMode = (payload.generator_mode || 'lite').toLowerCase();
+        if (selectedMode === 'pro') {
+            payload.amount = 1;
+            const selectedStimulusId = stimulusExistingSelect ? parseInt(stimulusExistingSelect.value, 10) : NaN;
+            if (selectedStimulusId) {
+                payload.stimulus_id = selectedStimulusId;
+            }
+        }
+        return payload;
+    }
+
+    const exportContentModalEl = document.getElementById('exportContentModal');
+    const exportContentModal = exportContentModalEl ? new bootstrap.Modal(exportContentModalEl) : null;
+    const exportContentTitle = document.getElementById('exportContentTitle');
+    const exportContentBody = document.getElementById('exportContentBody');
+    const copyExportedContentBtn = document.getElementById('copyExportedContentBtn');
+
+    function showExportModal(title, content) {
+        if (!exportContentModal || !exportContentTitle || !exportContentBody) return;
+        exportContentTitle.textContent = title;
+        exportContentBody.value = content;
+        exportContentModal.show();
+    }
+
+    function attachGenerateButtons() {
+        const copyBtn = document.getElementById('copyJsonTemplateBtn');
+        const exportBtn = document.getElementById('exportPromptBtn');
+        const submitTriggers = document.querySelectorAll('[data-generator-submit]');
+        if (copyExportedContentBtn && exportContentBody && !copyExportedContentBtn.dataset.bound) {
+            copyExportedContentBtn.dataset.bound = '1';
+            copyExportedContentBtn.addEventListener('click', () => {
+                copyToClipboard(exportContentBody.value);
+            });
+        }
+        if (copyBtn && !copyBtn.dataset.bound) {
+            copyBtn.dataset.bound = '1';
+            copyBtn.addEventListener('click', () => {
+                const template = {
+                    "topic": "Topik spesifik, contoh: Bilangan pecahan",
+                    "difficulty": "easy|medium|hard",
+                    "grade_level": "sd6|smp3|sma",
+                    "question_type": "story|direct",
+                    "style_similarity": "30|50|90",
+                    "example": "Contoh soal atau instruksi gaya penulisan.",
+                    "generator_mode": "lite|pro",
+                    "section_key": "matematika|bahasa_pg|bahasa_tf",
+                    "bundle_size": 3,
+                    "image_description": "Deskripsi gambar jika ada."
+                };
+                showExportModal('Template JSON', JSON.stringify(template, null, 2));
+            });
+        }
+        if (exportBtn && !exportBtn.dataset.bound) {
+            exportBtn.dataset.bound = '1';
+            exportBtn.addEventListener('click', () => {
+                const payload = buildGeneratorPayload();
+                showExportModal('Export Prompt', JSON.stringify(payload, null, 2));
+            });
+        }
+        if (submitTriggers && submitTriggers.length) {
+            submitTriggers.forEach(btn => {
+                if (btn.dataset.boundSubmit) return;
+                btn.dataset.boundSubmit = '1';
+                btn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    if (generateForm) {
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        generateForm.dispatchEvent(submitEvent);
+                    }
+                });
+            });
+        }
+    }
+    attachGenerateButtons();
+
+    if (generateForm && generatePreview && saveGeneratedBtn) {
+        generateForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitBtn = generateForm.querySelector('[data-generator-submit]') || generateForm.querySelector('button[type="submit"]');
+            const initialBtnContent = submitBtn ? submitBtn.innerHTML : '';
+            const restoreSubmitBtn = () => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = initialBtnContent;
+                }
+            };
+            generatePreview.innerHTML = '<div class="alert alert-info">ASKA sedang menyiapkan soal…</div>';
+            saveGeneratedBtn.disabled = true;
+            generatedBundle = null;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses…';
+            }
+            const payload = buildGeneratorPayload();
+            if (!payload.subject_id) {
+                generatePreview.innerHTML = '<div class="alert alert-warning">Pilih jenis latihan terlebih dahulu sebelum generate soal.</div>';
+                saveGeneratedBtn.disabled = false;
+                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                restoreSubmitBtn();
+                return;
+            }
+
+            const selectedMode = (payload.generator_mode || 'lite').toLowerCase();
+            if (selectedMode === 'pro' && !payload.stimulus_id) {
+                generatePreview.innerHTML = '<div class="alert alert-warning">Pilih stimulus terlebih dahulu sebelum menjalankan Mode Pro.</div>';
+                saveGeneratedBtn.disabled = false;
+                showStatus('Mode Pro wajib memilih stimulus terlebih dahulu.', 'warning');
+                restoreSubmitBtn();
+                return;
+            }
+
+            const hasReferenceImage = generateStimulusImage && generateStimulusImage.files && generateStimulusImage.files[0];
+            let requestBody = null;
+            let requestHeaders = null;
+            if (hasReferenceImage) {
+                const formData = new FormData();
+                Object.entries(payload).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        formData.append(key, value);
+                    }
+                });
+                formData.append('reference_image', generateStimulusImage.files[0]);
+                requestBody = formData;
+            } else {
+                requestHeaders = { 'Content-Type': 'application/json' };
+                requestBody = JSON.stringify(payload);
+            }
+            try {
+                const response = await fetch('/latihan-tka/generate', {
+                    method: 'POST',
+                    headers: requestHeaders || undefined,
+                    body: requestBody
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    const questions = Array.isArray(data.questions) ? data.questions : [];
+                    generatedBundle = {
+                        questions,
+                        prompt: data.prompt || payload.example || '',
+                        subject_id: payload.subject_id,
+                        section_key: payload.section_key,
+                        mode: payload.generator_mode,
+                        requested: payload.amount || questions.length || 0,
+                    };
+                    renderGeneratedQuestions(generatedBundle.questions, generatedBundle.requested);
+                    saveGeneratedBtn.disabled = false;
+                    showStatus('ASKA berhasil menyiapkan draft soal.', 'success');
+                } else {
+                    const rawResponse = data.raw_response || data.traceback || (data.message ? JSON.stringify(data, null, 2) : 'Tidak ada detail tambahan.');
+                    const safeMessage = escapeHtml(data.message || 'Gagal generate soal.');
+                    generatePreview.innerHTML = `
+                        <div class="alert alert-danger">
+                            ${safeMessage}
+                            <a href="#" class="alert-link" data-action="show-full-response">Lihat lengkap</a>
+                            <pre class="d-none mt-2 bg-dark text-light p-2 rounded"><code>${escapeHtml(rawResponse)}</code></pre>
+                        </div>`;
+                }
+            } catch (error) {
+                generatePreview.innerHTML = `<div class="alert alert-danger">Terjadi kesalahan jaringan. <a href="#" onclick="event.preventDefault(); this.nextElementSibling.classList.toggle('d-none');">Lihat detail</a><pre class="d-none">${escapeHtml(error.stack)}</pre></div>`;
+            } finally {
+                restoreSubmitBtn();
+            }
+        });
+    }
+
+    if (generatePreview) {
+        generatePreview.addEventListener('click', (event) => {
+            const showLink = event.target.closest('[data-action="show-full-response"]');
+            if (showLink) {
+                event.preventDefault();
+                const pre = showLink.nextElementSibling;
+                if (pre && pre.tagName === 'PRE') {
+                    pre.classList.toggle('d-none');
+                }
+                return;
+            }
+
+            const removeBtn = event.target.closest('[data-action="remove-generated"]');
+            if (removeBtn && generatedBundle && generatedBundle.questions) {
+                const index = parseInt(removeBtn.dataset.index, 10);
+                generatedBundle.questions.splice(index, 1);
+                renderGeneratedQuestions(generatedBundle.questions, generatedBundle.requested);
+                return;
+            }
+
+            const editBtn = event.target.closest('[data-action="edit-generated"]');
+            if (editBtn && generatedBundle && generatedBundle.questions) {
+                const index = parseInt(editBtn.dataset.index, 10);
+                const question = generatedBundle.questions[index];
+                openEditModal(question, {
+                    source: 'generated',
+                    bundle: generatedBundle,
+                    index: index,
+                });
+            }
+        });
+    }
+
+    function renderGeneratedQuestions(questions, requestedCount = 0) {
+        if (!questions || !questions.length) {
+            generatePreview.innerHTML = '<div class="alert alert-warning">ASKA tidak mengembalikan soal apapun.</div>';
+            return;
+        }
+        const defaultMode = generatorModeInput ? generatorModeInput.value : 'normal';
+        const allWithoutStimulus = questions.every(q => {
+            const stim = q.stimulus || {};
+            return !stim.id && !stim.title && !stim.narrative && !stim.image_prompt && !stim.image_url && !stim.image_data;
+        });
+
+        const createQuestionCard = (question, index) => {
+            const block = document.createElement('div');
+            block.className = 'question-card generated-question';
+            block.dataset.index = index;
+            const blockMode = (question.generator_mode || (generatedBundle && generatedBundle.mode) || defaultMode || 'normal');
+            block.dataset.mode = blockMode;
+            const metadata = question.metadata || {};
+            const answerType = (() => {
+                const typeFromMeta = (metadata.question_format || metadata.question_type || question.question_type || '').toString().toLowerCase();
+                if (typeFromMeta.includes('true') || typeFromMeta.includes('false')) return 'True/False';
+                const hasStatements = Array.isArray(metadata.true_false_statements || question.statements || question.pernyataan) && (metadata.true_false_statements || question.statements || question.pernyataan || []).length > 0;
+                if (hasStatements) return 'True/False';
+                return 'Pilihan Ganda';
+            })();
+            const optionList = (question.options && question.options.length ? question.options : ['A', 'B', 'C', 'D'].map(key => ({ key, text: '' })));
+            let metadataSection = '';
+            if (blockMode === 'image') {
+                const imagePromptValue = metadata.image_prompt || question.image_prompt || '';
+                metadataSection = `
+                    <div class="mb-2 metadata-block">
+                        <label class="form-label">Deskripsi Gambar Pendukung</label>
+                        <textarea class="form-control" data-field="image_prompt" rows="2" placeholder="Contoh: Diagram batang perbandingan produksi susu">${imagePromptValue}</textarea>
+                        <small class="text-muted">ASKA akan menggunakan deskripsi ini untuk menggambar ilustrasi.</small>
+                    </div>
+                `;
+            } else if (blockMode === 'truefalse' || answerType === 'True/False') {
+                const tfRaw = metadata.true_false_statements || question.statements || question.pernyataan || [];
+                const tfStatements = Array.isArray(tfRaw) && tfRaw.length ? tfRaw : [
+                    { text: '', answer: 'benar' },
+                    { text: '', answer: 'salah' },
+                    { text: '', answer: 'benar' },
+                ];
+                metadataSection = `
+                    <div class="mb-2 metadata-block">
+                        <label class="form-label">Daftar Pernyataan Benar/Salah</label>
+                        <div data-tf-container>
+                            ${tfStatements.map(item => buildTrueFalseRow(item.text || '', (item.answer || item.value || '').toLowerCase())).join('')}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-action="add-tf-row">
+                            <i class="bi bi-plus-circle"></i> Tambah Pernyataan
+                        </button>
+                        <small class="text-muted d-block mt-1">Minimal tiga pernyataan agar tabel lengkap.</small>
+                    </div>
+                `;
+            }
+            block.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0">Soal ${index + 1}</label>
+                        <span class="badge text-bg-light">${answerType}</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-info" data-action="check-duplicate" data-index="${index}">
+                            <i class="bi bi-search"></i> Cek duplikat
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-action="remove-generated" data-index="${index}">
+                            <i class="bi bi-x-circle"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+                <textarea class="form-control mb-2" data-field="prompt" rows="2">${question.prompt || ''}</textarea>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" data-field="topic" placeholder="Topik" value="${question.topic || ''}">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" data-field="difficulty">
+                            <option value="easy" ${question.difficulty === 'easy' ? 'selected' : ''}>Mudah</option>
+                            <option value="medium" ${question.difficulty === 'medium' ? 'selected' : ''}>Sedang</option>
+                            <option value="hard" ${question.difficulty === 'hard' ? 'selected' : ''}>Susah</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" data-field="correct" placeholder="Kunci" value="${question.correct_key || 'A'}">
+                    </div>
+                </div>
+                <div class="option-grid mb-2">
+                    ${optionList.map((opt, idx) => `
+                        <input type="text" class="form-control" data-option="${opt.key || String.fromCharCode(65+idx)}" value="${opt.text || ''}">
+                    `).join('')}
+                </div>
+                ${metadataSection}
+                <textarea class="form-control" data-field="explanation" rows="2" placeholder="Pembahasan">${question.explanation || ''}</textarea>
+            `;
+            return block;
+        };
+
+        // Jika semua soal tanpa stimulus, tampilkan sebagai daftar langsung (cocok untuk mode ringkas).
+        if (allWithoutStimulus) {
+            const simpleContainer = document.createElement('div');
+            questions.forEach((question, index) => {
+                simpleContainer.appendChild(createQuestionCard(question, index));
+            });
+            generatePreview.innerHTML = '';
+            if (requestedCount && questions.length < requestedCount) {
+                const warn = document.createElement('div');
+                warn.className = 'alert alert-warning';
+                warn.textContent = `ASKA hanya menghasilkan ${questions.length} dari ${requestedCount} soal yang diminta karena beberapa format tidak valid.`;
+                generatePreview.appendChild(warn);
+            }
+            generatePreview.appendChild(simpleContainer);
+            return;
+        }
+
+        const packages = [];
+        const packageMap = new Map();
+        questions.forEach((question, index) => {
+            const stimulus = question.stimulus || {};
+            const key = stimulus.bundle_key || stimulus.id || `stim-${index}`;
+            if (!packageMap.has(key)) {
+                packageMap.set(key, { key, stimulus, entries: [] });
+                packages.push(packageMap.get(key));
+            }
+            packageMap.get(key).entries.push({ question, index });
+        });
+        const container = document.createElement('div');
+        packages.forEach((pkg, pkgIndex) => {
+            const stim = pkg.stimulus || {};
+            const stimBlock = document.createElement('div');
+            stimBlock.className = 'stimulus-block';
+            const stimKey = pkg.key || `stim-${pkgIndex + 1}`;
+            stimBlock.dataset.stimulusKey = stimKey;
+            if (stim.image_data) {
+                stimBlock.dataset.imageData = stim.image_data;
+            }
+            if (stim.image_url) {
+                stimBlock.dataset.imageUrl = stim.image_url;
+            }
+            if (stim.id) {
+                stimBlock.dataset.stimulusId = stim.id;
+            }
+            const previewSrc = stim.image_data || stim.image_url || '';
+            stimBlock.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Stimulus ${pkgIndex + 1}</h6>
+                    <span class="badge text-bg-light">${pkg.entries.length} soal</span>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Judul Stimulus</label>
+                    <input type="text" class="form-control" data-stimulus-field="title" value="${stim.title || ''}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Narasi Stimulus</label>
+                    <textarea class="form-control" data-stimulus-field="narrative" rows="3">${stim.narrative || ''}</textarea>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Deskripsi Gambar</label>
+                        <textarea class="form-control" data-stimulus-field="image_prompt" rows="2">${stim.image_prompt || ''}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ganti gambar (opsional)</label>
+                        <input type="file" class="form-control form-control-sm" data-stimulus-field="image_file" accept="image/*">
+                        ${previewSrc ? `<img src="${previewSrc}" data-stimulus-preview class="img-fluid rounded mt-2" alt="Gambar stimulus">` : ''}
+                    </div>
+                </div>
+                <div class="stimulus-questions"></div>
+            `;
+            if (stim.id) {
+                const headerRow = stimBlock.querySelector('.d-flex.justify-content-between.align-items-center');
+                if (headerRow) {
+                    headerRow.insertAdjacentHTML('afterend', '<div class="alert alert-info py-2 small mb-3">Stimulus ini diambil dari bank soal dan dikunci. Perbarui stimulus melalui menu bank soal jika ingin mengganti cerita/gambar.</div>');
+                }
+                stimBlock.querySelectorAll('[data-stimulus-field]').forEach(field => {
+                    if (field.tagName === 'INPUT' && field.type === 'file') {
+                        field.disabled = true;
+                        return;
+                    }
+                    field.readOnly = true;
+                    field.classList.add('bg-light');
+                });
+            }
+            const questionContainer = stimBlock.querySelector('.stimulus-questions');
+            pkg.entries.forEach(({ question, index }) => {
+                questionContainer.appendChild(createQuestionCard(question, index));
+            });
+            container.appendChild(stimBlock);
+        });
+        generatePreview.innerHTML = '';
+        if (requestedCount && questions.length < requestedCount) {
+            const warn = document.createElement('div');
+            warn.className = 'alert alert-warning';
+            warn.textContent = `ASKA hanya menghasilkan ${questions.length} dari ${requestedCount} soal yang diminta karena beberapa format tidak valid.`;
+            generatePreview.appendChild(warn);
+        }
+        generatePreview.appendChild(container);
+    }
+
+    if (generatePreview) {
+        generatePreview.addEventListener('change', async (event) => {
+            const imageInput = event.target.closest('[data-stimulus-field="image_file"]');
+            if (imageInput) {
+                const stimBlock = imageInput.closest('[data-stimulus-key]');
+                if (!stimBlock) return;
+                const previewImg = stimBlock.querySelector('[data-stimulus-preview]');
+                if (!imageInput.files || !imageInput.files[0]) {
+                    if (previewImg) {
+                        previewImg.remove();
+                    }
+                    delete stimBlock.dataset.imageData;
+                    return;
+                }
+                try {
+                    const dataUrl = await readFileAsDataURL(imageInput.files[0]);
+                    stimBlock.dataset.imageData = dataUrl;
+                    if (previewImg) {
+                        previewImg.src = dataUrl;
+                    } else {
+                        const img = document.createElement('img');
+                        img.className = 'img-fluid rounded mt-2';
+                        img.alt = 'Gambar stimulus';
+                        img.setAttribute('data-stimulus-preview', '');
+                        img.src = dataUrl;
+                        imageInput.insertAdjacentElement('afterend', img);
+                    }
+                } catch (error) {
+                    showStatus('Gagal memproses gambar stimulus hasil generator.', 'danger');
+                }
+            }
+        });
+    }
+
+    if (generatePreview) {
+        generatePreview.addEventListener('click', async (event) => {
+            const removeBtn = event.target.closest('[data-action="remove-generated"]');
+            if (removeBtn) {
+                const card = removeBtn.closest('.question-card');
+                if (card) {
+                    card.remove();
+                    const stimBlock = removeBtn.closest('[data-stimulus-key]');
+                    if (stimBlock && !stimBlock.querySelector('.question-card')) {
+                        stimBlock.remove();
+                    }
+                }
+                return;
+            }
+            const addRowBtn = event.target.closest('[data-action="add-tf-row"]');
+            if (addRowBtn) {
+                const container = addRowBtn.parentElement ? addRowBtn.parentElement.querySelector('[data-tf-container]') : null;
+                if (container) {
+                    container.insertAdjacentHTML('beforeend', buildTrueFalseRow());
+                }
+                return;
+            }
+            const removeRowBtn = event.target.closest('[data-action="remove-tf-row"]');
+            if (removeRowBtn) {
+                const row = removeRowBtn.closest('[data-tf-row]');
+                if (row) {
+                    row.remove();
+                }
+                return;
+            }
+            const checkBtn = event.target.closest('[data-action="check-duplicate"]');
+            if (checkBtn) {
+                const card = checkBtn.closest('.question-card');
+                if (!card) return;
+                const promptInput = card.querySelector('[data-field="prompt"]');
+                const promptValue = promptInput ? promptInput.value.trim() : '';
+                if (!promptValue) {
+                    showStatus('Isi teks soal terlebih dahulu sebelum cek duplikat.', 'warning');
+                    return;
+                }
+                const subjectId = (generatedBundle && generatedBundle.subject_id) || parseInt(generateSubjectSelect.value, 10);
+                if (!subjectId) {
+                    showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                    return;
+                }
+                checkBtn.disabled = true;
+                checkBtn.classList.add('disabled');
+                try {
+                    const response = await fetch('/latihan-tka/questions/check-duplicate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subject_id: subjectId, prompt: promptValue })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        showStatus((data && data.message) || 'Gagal mengecek duplikat.', 'danger');
+                        return;
+                    }
+                    if (data.exists) {
+                        card.classList.remove('duplicate-clear');
+                        card.classList.add('duplicate-found');
+                        showStatus('Soal ini sudah ada di bank soal.', 'danger');
+                    } else {
+                        card.classList.remove('duplicate-found');
+                        card.classList.add('duplicate-clear');
+                        showStatus('Belum ditemukan duplikat untuk soal ini.', 'success');
+                    }
+                } catch (error) {
+                    showStatus('Terjadi kesalahan saat mengecek duplikat.', 'danger');
+                } finally {
+                    checkBtn.disabled = false;
+                    checkBtn.classList.remove('disabled');
+                }
+            }
+        });
+    }
+
+    if (saveGeneratedBtn && generatePreview) {
+        saveGeneratedBtn.addEventListener('click', async () => {
+            if (!generatedBundle) return;
+        const subjectId = generatedBundle.subject_id;
+        const prompt = generatedBundle.prompt;
+        const blocks = generatePreview.querySelectorAll('.question-card');
+        const questions = Array.from(blocks).map(block => {
+            const options = Array.from(block.querySelectorAll('[data-option]'))
+                .filter(input => input.value.trim())
+                .map(input => ({ key: input.dataset.option, text: input.value }));
+            const metadata = {};
+            let hasImageMeta = false;
+            let hasTfMeta = false;
+            const stimulusWrapper = block.closest('[data-stimulus-key]');
+            let stimulusPayload = null;
+            if (stimulusWrapper) {
+                const titleInput = stimulusWrapper.querySelector('[data-stimulus-field="title"]');
+                const narrativeInput = stimulusWrapper.querySelector('[data-stimulus-field="narrative"]');
+                const promptInput = stimulusWrapper.querySelector('[data-stimulus-field="image_prompt"]');
+                const titleValue = titleInput ? titleInput.value.trim() : '';
+                const narrativeValue = narrativeInput ? narrativeInput.value.trim() : '';
+                const promptValue = promptInput ? promptInput.value.trim() : '';
+                const bundleKey = stimulusWrapper.dataset.stimulusKey || undefined;
+                const payloadStimulus = {
+                    bundle_key: bundleKey,
+                    title: titleValue,
+                    narrative: narrativeValue,
+                    image_prompt: promptValue,
+                };
+                const storedImage = stimulusWrapper.dataset.imageData || stimulusWrapper.dataset.imageUrl;
+                if (storedImage) {
+                    if (storedImage.startsWith('http')) {
+                        payloadStimulus.image_url = storedImage;
+                    } else {
+                        payloadStimulus.image_data = storedImage;
+                    }
+                }
+                const existingStimulusId = stimulusWrapper.dataset.stimulusId
+                    ? Number(stimulusWrapper.dataset.stimulusId)
+                    : null;
+                if (existingStimulusId) {
+                    payloadStimulus.id = existingStimulusId;
+                }
+                if (titleValue || narrativeValue || promptValue || storedImage || existingStimulusId) {
+                    stimulusPayload = payloadStimulus;
+                }
+            }
+            const imagePromptInput = block.querySelector('[data-field="image_prompt"]');
+            if (imagePromptInput && imagePromptInput.value.trim()) {
+                metadata.image_prompt = imagePromptInput.value.trim();
+                hasImageMeta = true;
+            }
+            const tfRows = block.querySelectorAll('[data-tf-row]');
+            if (tfRows.length) {
+                const statements = [];
+                tfRows.forEach(row => {
+                    const statementInput = row.querySelector('[data-field="tf-statement"]');
+                    const answerSelect = row.querySelector('[data-field="tf-answer"]');
+                    const text = statementInput ? statementInput.value.trim() : '';
+                    const answer = answerSelect ? answerSelect.value : '';
+                    if (text && answer) {
+                        statements.push({ text, answer });
+                    }
+                });
+                if (statements.length) {
+                    metadata.true_false_statements = statements;
+                    hasTfMeta = true;
+                }
+            }
+            const mode = block.dataset.mode || (generatedBundle && generatedBundle.mode) || 'normal';
+            const payload = {
+                prompt: block.querySelector('[data-field="prompt"]').value,
+                topic: block.querySelector('[data-field="topic"]').value,
+                difficulty: block.querySelector('[data-field="difficulty"]').value,
+                correct_key: block.querySelector('[data-field="correct"]').value || 'A',
+                explanation: block.querySelector('[data-field="explanation"]').value,
+                options,
+                source: 'ai',
+                ai_prompt: prompt,
+                generator_mode: mode,
+            };
+            const sectionKey = (generatedBundle && generatedBundle.section_key) || (generateSectionSelect && generateSectionSelect.value) || ((SECTION_TEMPLATES[0] && SECTION_TEMPLATES[0].key) || 'matematika');
+            const sectionTemplate = getSectionTemplate(sectionKey);
+            metadata.section_key = sectionKey;
+            metadata.section_label = sectionTemplate.label;
+            metadata.subject_area = sectionTemplate.subject_area || sectionKey;
+            metadata.question_format = resolveQuestionFormat(sectionKey, mode);
+            if (mode !== 'normal' || hasImageMeta || hasTfMeta) {
+                metadata.generator_mode = mode;
+            }
+            if (Object.keys(metadata).length) {
+                payload.metadata = metadata;
+            }
+            if (stimulusPayload) {
+                payload.stimulus = stimulusPayload;
+            }
+            return payload;
+        }).filter(item => item.prompt && item.options.length >= 2);
+        if (!questions.length) {
+            showStatus('Tidak ada soal yang valid untuk disimpan.', 'warning');
+            return;
+        }
+            try {
+                const response = await fetch('/latihan-tka/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject_id: subjectId, questions }),
+            });
+            const rawText = await response.text();
+            let data = {};
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (error) {
+                data = { success: false, message: rawText };
+            }
+                if (response.ok && data.success) {
+                    showStatus(`${data.inserted} soal hasil AI berhasil tersimpan.`);
+                    generatedBundle = null;
+                    saveGeneratedBtn.disabled = true;
+                    generatePreview.innerHTML = '<div class="alert alert-success mb-3">Soal berhasil disimpan. Anda dapat melakukan perubahan pada filter atau contoh gaya, lalu klik generate lagi.</div>';
+                    loadQuestions();
+                } else {
+                    showStatus((data && data.message) || 'Gagal menyimpan soal AI. Silakan coba lagi.', 'danger');
+                }
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menyimpan soal AI. Silakan coba lagi.', 'danger');
+            }
+        });
+    }
+
+    async function openEditModal(questionData) {
+        if (!editModal) return;
+        editingQuestionId = questionData.id;
+        editingQuestionData = questionData;
+        editingSubjectId = questionData.subject_id || (questionSubjectSelect ? Number(questionSubjectSelect.value) : null);
+        if (editingSubjectId && !Number.isNaN(Number(editingSubjectId))) {
+            editingSubjectId = Number(editingSubjectId);
+        } else {
+            editingSubjectId = null;
+        }
+        editFields.topic.value = questionData.topic || '';
+        editFields.difficulty.value = (questionData.difficulty || 'easy').toLowerCase();
+        editFields.prompt.value = questionData.prompt || '';
+        if (editFields.section) {
+            const metadata = questionData.metadata || {};
+            const sectionValue = metadata.section_key || metadata.section || (SECTION_TEMPLATES[0] && SECTION_TEMPLATES[0].key) || 'matematika';
+            editFields.section.value = sectionValue;
+        }
+        const options = questionData.options || [];
+        const pickOptionText = (idx) => {
+            if (!Array.isArray(options) || !options[idx]) {
+                return '';
+            }
+            return options[idx].text || '';
+        };
+        editFields.optionA.value = pickOptionText(0);
+        editFields.optionB.value = pickOptionText(1);
+        editFields.optionC.value = pickOptionText(2);
+        editFields.optionD.value = pickOptionText(3);
+        editFields.answer.value = questionData.correct_key || 'A';
+        editFields.explanation.value = questionData.explanation || '';
+        const selectedStimulusId = questionData.stimulus ? questionData.stimulus.id : null;
+        if (editStimulusTitleInput) editStimulusTitleInput.value = '';
+        if (editStimulusStoryInput) editStimulusStoryInput.value = '';
+        if (editStimulusImagePromptInput) editStimulusImagePromptInput.value = '';
+        if (editStimulusImageInput) editStimulusImageInput.value = '';
+        if (editingSubjectId) {
+            await populateStimulusOptions(editStimulusExistingSelect, editingSubjectId, selectedStimulusId);
+        }
+        if (selectedStimulusId) {
+            if (editStimulusMode) editStimulusMode.value = 'existing';
+            toggleEditStimulusFields('existing');
+        } else {
+            if (editStimulusMode) editStimulusMode.value = 'none';
+            toggleEditStimulusFields('none');
+        }
+        if (editStatus) {
+            editStatus.textContent = '';
+            editStatus.classList.remove('text-danger', 'text-success');
+        }
+        editModal.show();
+    }
+
+    if (saveEditQuestionBtn) {
+        saveEditQuestionBtn.addEventListener('click', async () => {
+            if (!editingQuestionId) {
+                if (editStatus) {
+                    editStatus.textContent = 'Data soal belum dipilih.';
+                    editStatus.classList.add('text-danger');
+                }
+                return;
+            }
+            const options = [
+                { key: 'A', text: editFields.optionA.value },
+                { key: 'B', text: editFields.optionB.value },
+            ];
+            if (editFields.optionC.value) options.push({ key: 'C', text: editFields.optionC.value });
+            if (editFields.optionD.value) options.push({ key: 'D', text: editFields.optionD.value });
+            const baseMetadata = (editingQuestionData && editingQuestionData.metadata) ? { ...editingQuestionData.metadata } : {};
+            const sectionKey = editFields.section ? editFields.section.value : (baseMetadata.section_key || (SECTION_TEMPLATES[0] && SECTION_TEMPLATES[0].key) || 'matematika');
+            const sectionTemplate = getSectionTemplate(sectionKey);
+            baseMetadata.section_key = sectionKey;
+            baseMetadata.section_label = sectionTemplate.label;
+            baseMetadata.subject_area = sectionTemplate.subject_area || sectionKey;
+            baseMetadata.question_format = resolveQuestionFormat(sectionKey, baseMetadata.generator_mode || 'normal');
+            let stimulusPayload;
+            if (editStimulusMode) {
+                const mode = editStimulusMode.value || 'none';
+                if (mode === 'existing') {
+                    const existingId = parseInt(editStimulusExistingSelect ? editStimulusExistingSelect.value : '', 10);
+                    if (!existingId) {
+                        if (editStatus) {
+                            editStatus.textContent = 'Pilih stimulus yang ingin digunakan.';
+                            editStatus.classList.add('text-danger');
+                        }
+                        return;
+                    }
+                    stimulusPayload = { id: existingId };
+                } else if (mode === 'story' || mode === 'image' || mode === 'mixed') {
+                    const storyText = editStimulusStoryInput ? editStimulusStoryInput.value.trim() : '';
+                    let imageData = null;
+                    if (editStimulusImageInput && editStimulusImageInput.files && editStimulusImageInput.files[0]) {
+                        try {
+                            imageData = await readFileAsDataURL(editStimulusImageInput.files[0]);
+                        } catch (error) {
+                            if (editStatus) {
+                                editStatus.textContent = 'Gagal memproses gambar stimulus.';
+                                editStatus.classList.add('text-danger');
+                            }
+                            return;
+                        }
+                    }
+                    if (storyText || imageData) {
+                        stimulusPayload = {
+                            bundle_key: `edit-${Date.now().toString(36)}`,
+                            title: editStimulusTitleInput ? editStimulusTitleInput.value.trim() : '',
+                            narrative: storyText,
+                            image_data: imageData,
+                            image_prompt: editStimulusImagePromptInput ? editStimulusImagePromptInput.value.trim() : '',
+                            type: mode,
+                        };
+                    }
+                } else if (mode === 'none' && editingQuestionData && editingQuestionData.stimulus && editingQuestionData.stimulus.id) {
+                    stimulusPayload = null;
+                }
+            }
+            const payload = {
+                prompt: editFields.prompt.value,
+                topic: editFields.topic.value,
+                difficulty: editFields.difficulty.value,
+                options,
+                correct_key: editFields.answer.value,
+                explanation: editFields.explanation.value,
+                metadata: baseMetadata,
+            };
+            if (stimulusPayload !== undefined) {
+                payload.stimulus = stimulusPayload;
+            }
+            try {
+                const response = await fetch(`/latihan-tka/questions/${editingQuestionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    if (editStatus) {
+                        editStatus.textContent = 'Soal berhasil diperbarui.';
+                        editStatus.classList.remove('text-danger');
+                        editStatus.classList.add('text-success');
+                    }
+                    if (editStimulusImageInput) editStimulusImageInput.value = '';
+                    if (editStimulusStoryInput) editStimulusStoryInput.value = '';
+                    if (editStimulusTitleInput) editStimulusTitleInput.value = '';
+                    if (editStimulusImagePromptInput) editStimulusImagePromptInput.value = '';
+                    if (editingSubjectId) {
+                        const numericSubjectId = Number(editingSubjectId);
+                        if (!Number.isNaN(numericSubjectId)) {
+                            delete STIMULUS_CACHE[numericSubjectId];
+                            if (questionSubjectSelect && Number(questionSubjectSelect.value) === numericSubjectId) {
+                                refreshStimulusDropdown();
+                            }
+                        }
+                        refreshEditStimulusDropdown();
+                    }
+                    setTimeout(() => {
+                        if (editModal) editModal.hide();
+                        editingQuestionId = null;
+                        editingQuestionData = null;
+                        loadQuestions();
+                    }, 600);
+                } else {
+                    if (editStatus) {
+                        editStatus.textContent = (data && data.message) || 'Gagal memperbarui soal.';
+                        editStatus.classList.remove('text-success');
+                        editStatus.classList.add('text-danger');
+                    }
+                }
+            } catch (error) {
+                if (editStatus) {
+                    editStatus.textContent = 'Terjadi kesalahan saat memperbarui soal.';
+                    editStatus.classList.remove('text-success');
+                    editStatus.classList.add('text-danger');
+                }
+            }
+        });
+    }
+
+    refreshSubjectDropdowns();
+    function activateFormPanel(targetId) {
+        Object.entries(formPanels).forEach(([key, panel]) => {
+            if (!panel) return;
+            if (key === targetId) {
+                panel.classList.remove('d-none');
+            } else {
+                panel.classList.add('d-none');
+            }
+        });
+        tabButtons.forEach(btn => {
+            if (btn.dataset.target === targetId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            activateFormPanel(btn.dataset.target);
+        });
+    });
+    if (DEFAULT_FORM_PANEL) {
+        activateFormPanel(DEFAULT_FORM_PANEL);
+    }
+    if (SUBJECTS.length) {
+        if (subjectSelect && !subjectSelect.value) subjectSelect.value = SUBJECTS[0].id;
+        if (questionSubjectSelect && !questionSubjectSelect.value) questionSubjectSelect.value = SUBJECTS[0].id;
+        if (generateSubjectSelect && !generateSubjectSelect.value) generateSubjectSelect.value = SUBJECTS[0].id;
+    } else if (questionList) {
+        questionList.innerHTML = '<div class="question-empty">Tambahkan jenis latihan baru terlebih dahulu.</div>';
+    }
+    loadQuestions();
+    });
+</script>

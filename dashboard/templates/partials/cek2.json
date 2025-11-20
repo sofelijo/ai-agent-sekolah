@@ -1,0 +1,34 @@
+{"stimulus":
+[
+{"title":"Petualangan Cintya",
+"narrative":"Cintya adalah seorang siswa kelas 6 yang suka membaca buku. Suatu hari, ia menemukan sebuah buku bergambar yang menarik perhatiannya. Buku itu berisi tentang sebuah petualangan ke hutan liar. Cintya sangat ingin pergi ke hutan liar bersama temannya, Andi. Mereka berdua memutuskan untuk pergi ke hutan liar minggu depan. Mereka akan membawa makanan dan air minum untuk berhari-hari. Buku itu menyebutkan bahwa jarak dari rumah mereka ke hutan liar adalah 5 km. Mereka juga akan melewati sebuah sungai yang lebar 2 km. Cintya ingin tahu berapa jarak yang harus ditempuh mereka sebelum mencapai hutan liar.",
+"image_prompt":"",
+"questions":
+[
+{"prompt":"Jika Cintya dan Andi pergi ke hutan liar dengan kecepatan 3 km/jam, berapa waktu yang dibutuhkan untuk mencapai hutan liar?",
+"topic":"Matematika",
+"difficulty":"easy",
+"question_type":"multiple_choice",
+"options":
+[
+{"key":"A","text":"1 jam"},
+{"key":"B","text":"1,5 jam"},
+{"key":"C","text":"2 jam"},
+{"key":"D","text":"2,5 jam"}
+],
+"answer":"C",
+"explanation":"Jarak ke hutan liar adalah 5 km. Kecepatan mereka adalah 3 km/jam. Untuk mencari waktu, kita dapat menggunakan rumus waktu = jarak / kecepatan. Waktu = 5 km / 3 km/jam = 1,67 jam. Dengan membulatkan ke bawah, waktu yang dibutuhkan adalah 1,5 jam. Namun, pilihan jawaban yang paling dekat adalah 2 jam.",
+"statementstype":""
+},
+{"prompt":"Perhatikan pernyataan-pernyataan berikut tentang petualangan Cintya dan Andi:",
+"topic":"Matematika",
+"difficulty":"easy",
+"question_type":"true_false",
+"statements":
+[
+{"text":"Jarak dari rumah Cintya ke hutan liar adalah 7 km.", "answer":"salah"},
+{"text":"Cintya dan Andi akan melewati sebuah sungai yang lebar 3 km.", "answer":"salah"},
+{"text":"Mereka akan membawa makanan dan air minum untuk berhari-hari.", "answer":"benar"}
+],
+"answer":"B",
+"explanation":"Dengan melihat pernyataan-pernyataan di atas 

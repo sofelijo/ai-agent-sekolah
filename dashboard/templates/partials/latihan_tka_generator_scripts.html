@@ -1,0 +1,337 @@
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('generateForm');
+    const fieldsContainer = document.getElementById('generateFormFields');
+    const tplLite = document.getElementById('tplGenerateLite');
+    const tplPro = document.getElementById('tplGeneratePro');
+    const generatorModeInput = document.getElementById('generateMode');
+    const preview = document.getElementById('generatePreview');
+    const saveBtn = document.getElementById('saveGenerated');
+    const statusBox = document.getElementById('tkaStatus');
+    const triggerBtns = document.querySelectorAll('[data-generator-submit]');
+    const generatorMode = (generatorModeInput ? generatorModeInput.value : 'lite').toLowerCase();
+    let generatedBundle = null;
+
+    const selectors = {
+        subject: () => document.getElementById('generateSubject'),
+        section: () => document.getElementById('generateSection'),
+        grade: () => document.getElementById('generateGrade'),
+        topic: () => document.getElementById('generateTopic'),
+        difficulty: () => document.getElementById('generateDifficulty'),
+        amount: () => document.getElementById('generateAmount'),
+        bundle: () => document.getElementById('generateBundleSize'),
+        questionType: () => document.getElementById('generateQuestionType'),
+        answerMode: () => document.getElementById('generateAnswerMode'),
+        styleSimilarity: () => document.getElementById('generateStyleSimilarity'),
+        example: () => document.getElementById('generateExample'),
+        imageDescription: () => document.getElementById('generateImageDescription'),
+        stimulusSelect: () => document.getElementById('questionStimulusSelect'),
+        stimulusUsageRadios: () => document.querySelectorAll('input[name="stimulusUsage"]'),
+    };
+
+    function showStatus(message, tone = 'info') {
+        if (!statusBox) return;
+        statusBox.className = `alert alert-${tone}`;
+        statusBox.textContent = message;
+        statusBox.classList.remove('d-none');
+        setTimeout(() => statusBox.classList.add('d-none'), 3500);
+    }
+
+    function injectTemplate() {
+        if (!fieldsContainer) return;
+        const tpl = generatorMode === 'pro' ? tplPro : tplLite;
+        if (tpl) {
+            fieldsContainer.innerHTML = tpl.innerHTML;
+        }
+    }
+
+    function getStimulusSelection() {
+        if (generatorMode !== 'pro') return null;
+        const usageRadios = selectors.stimulusUsageRadios();
+        let usage = 'none';
+        usageRadios.forEach(radio => {
+            if (radio.checked) usage = radio.value;
+        });
+        if (usage !== 'existing') return null;
+        const select = selectors.stimulusSelect();
+        const value = select ? parseInt(select.value, 10) : NaN;
+        return Number.isFinite(value) && value ? value : null;
+    }
+
+    function buildPayload() {
+        const subjectId = selectors.subject() ? parseInt(selectors.subject().value, 10) : NaN;
+        return {
+            subject_id: Number.isFinite(subjectId) ? subjectId : null,
+            topic: selectors.topic() ? selectors.topic().value : '',
+            difficulty: selectors.difficulty() ? selectors.difficulty().value : 'easy',
+            amount: selectors.amount() ? parseInt(selectors.amount().value, 10) || 0 : 0,
+            grade_level: selectors.grade() ? selectors.grade().value : '',
+            question_type: selectors.questionType() ? selectors.questionType().value : 'direct',
+            answer_mode: selectors.answerMode() ? selectors.answerMode().value : 'multiple_choice',
+            style_similarity: selectors.styleSimilarity() ? selectors.styleSimilarity().value : '50',
+            example: selectors.example() ? selectors.example().value : '',
+            generator_mode: generatorMode,
+            section_key: selectors.section() ? selectors.section().value : 'matematika',
+            bundle_size: selectors.bundle() ? parseInt(selectors.bundle().value, 10) || 3 : 3,
+            image_description: selectors.imageDescription() ? selectors.imageDescription().value : '',
+            stimulus_id: getStimulusSelection(),
+        };
+    }
+
+    function renderPreview(questions, requested = 0) {
+        if (!preview) return;
+        if (!questions || !questions.length) {
+            preview.innerHTML = '<div class="alert alert-warning">ASKA tidak mengembalikan soal apapun.</div>';
+            return;
+        }
+        const container = document.createElement('div');
+        questions.forEach((q, idx) => {
+            const card = document.createElement('div');
+            card.className = 'question-card generated-question mb-3';
+            card.dataset.index = String(idx);
+            const options = Array.isArray(q.options) && q.options.length ? q.options : [
+                { key: 'A', text: '' },
+                { key: 'B', text: '' },
+                { key: 'C', text: '' },
+                { key: 'D', text: '' },
+            ];
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-semibold">Soal ${idx + 1}</span>
+                        <span class="badge text-bg-light text-uppercase">${(q.difficulty || 'easy')}</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-info" data-action="check-duplicate">Cek duplikat</button>
+                        <button type="button" class="btn btn-outline-danger" data-action="remove">Hapus</button>
+                    </div>
+                </div>
+                <label class="form-label small mb-1">Teks Soal</label>
+                <textarea class="form-control mb-2" data-field="prompt" rows="2">${q.prompt || ''}</textarea>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label small">Topik</label>
+                        <input type="text" class="form-control" data-field="topic" value="${q.topic || ''}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Kesulitan</label>
+                        <select class="form-select" data-field="difficulty">
+                            <option value="easy" ${q.difficulty === 'easy' ? 'selected' : ''}>Mudah</option>
+                            <option value="medium" ${q.difficulty === 'medium' ? 'selected' : ''}>Sedang</option>
+                            <option value="hard" ${q.difficulty === 'hard' ? 'selected' : ''}>Susah</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Kunci</label>
+                        <input type="text" class="form-control" data-field="correct" value="${q.correct_key || 'A'}">
+                    </div>
+                </div>
+                <div class="option-grid option-grid-4 mb-2">
+                    ${options.map(opt => `
+                        <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
+                    `).join('')}
+                </div>
+                <label class="form-label small">Pembahasan</label>
+                <textarea class="form-control" data-field="explanation" rows="2">${q.explanation || ''}</textarea>
+            `;
+            container.appendChild(card);
+        });
+        preview.innerHTML = '';
+        if (requested && questions.length < requested) {
+            const warn = document.createElement('div');
+            warn.className = 'alert alert-warning';
+            warn.textContent = `ASKA hanya menghasilkan ${questions.length} dari ${requested} soal yang diminta.`;
+            preview.appendChild(warn);
+        }
+        preview.appendChild(container);
+        if (saveBtn) {
+            saveBtn.disabled = false;
+        }
+    }
+
+    function bindSubmitTriggers() {
+        if (!form) return;
+        triggerBtns.forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                form.dispatchEvent(submitEvent);
+            });
+        });
+    }
+
+    function attachFormHandler() {
+        if (!form || !preview || !saveBtn) return;
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const payload = buildPayload();
+            if (!payload.subject_id) {
+                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            saveBtn.disabled = true;
+            preview.innerHTML = '<div class="alert alert-info">ASKA sedang menyiapkan soal…</div>';
+            let submitBtn = event.submitter || document.querySelector('[data-generator-submit]');
+            const initialText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Memproses…';
+            }
+            try {
+                const response = await fetch('/latihan-tka/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    const questions = Array.isArray(data.questions) ? data.questions : [];
+                    generatedBundle = {
+                        questions,
+                        subject_id: payload.subject_id,
+                        section_key: payload.section_key,
+                        prompt: data.prompt || payload.example || '',
+                        mode: payload.generator_mode,
+                        requested: payload.amount || questions.length,
+                    };
+                    renderPreview(questions, payload.amount);
+                    saveBtn.disabled = false;
+                    showStatus('ASKA berhasil menyiapkan draft soal.', 'success');
+                } else {
+                    preview.innerHTML = `<div class="alert alert-danger">${data.message || 'Gagal generate soal.'}</div>`;
+                    saveBtn.disabled = false;
+                }
+            } catch (error) {
+                preview.innerHTML = '<div class="alert alert-danger">Terjadi kesalahan jaringan.</div>';
+                saveBtn.disabled = false;
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = initialText;
+                }
+            }
+        });
+    }
+
+    function readQuestionsFromPreview() {
+        if (!preview) return [];
+        const cards = Array.from(preview.querySelectorAll('.question-card'));
+        return cards.map(card => {
+            const options = Array.from(card.querySelectorAll('[data-option]'))
+                .filter(input => input.value.trim())
+                .map(input => ({ key: input.dataset.option, text: input.value.trim() }));
+            return {
+                prompt: card.querySelector('[data-field="prompt"]')?.value?.trim() || '',
+                topic: card.querySelector('[data-field="topic"]')?.value?.trim() || '',
+                difficulty: card.querySelector('[data-field="difficulty"]')?.value || 'easy',
+                correct_key: card.querySelector('[data-field="correct"]')?.value?.trim() || 'A',
+                explanation: card.querySelector('[data-field="explanation"]')?.value?.trim() || '',
+                options,
+                generator_mode: generatorMode,
+            };
+        }).filter(item => item.prompt && item.options.length >= 2);
+    }
+
+    function attachPreviewActions() {
+        if (!preview) return;
+        preview.addEventListener('click', async (event) => {
+            const removeBtn = event.target.closest('[data-action="remove"]');
+            if (removeBtn) {
+                const card = removeBtn.closest('.question-card');
+                if (card) card.remove();
+                if (!preview.querySelector('.question-card')) {
+                    preview.innerHTML = '<div class="alert alert-warning">Semua soal dihapus. Generate ulang untuk mendapatkan soal.</div>';
+                    saveBtn.disabled = true;
+                }
+                return;
+            }
+            const dupBtn = event.target.closest('[data-action="check-duplicate"]');
+            if (dupBtn) {
+                const card = dupBtn.closest('.question-card');
+                const promptValue = card?.querySelector('[data-field="prompt"]')?.value?.trim() || '';
+                const subjectId = selectors.subject() ? parseInt(selectors.subject().value, 10) : null;
+                if (!promptValue) {
+                    showStatus('Isi teks soal sebelum cek duplikat.', 'warning');
+                    return;
+                }
+                if (!subjectId) {
+                    showStatus('Pilih jenis latihan sebelum cek duplikat.', 'warning');
+                    return;
+                }
+                dupBtn.disabled = true;
+                dupBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                try {
+                    const response = await fetch('/latihan-tka/questions/check-duplicate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subject_id: subjectId, prompt: promptValue })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        card.classList.toggle('duplicate-found', data.exists);
+                        card.classList.toggle('duplicate-clear', !data.exists);
+                        showStatus(data.exists ? 'Soal sudah ada di bank soal.' : 'Tidak ditemukan duplikat.', data.exists ? 'danger' : 'success');
+                    } else {
+                        showStatus(data.message || 'Gagal mengecek duplikat.', 'danger');
+                    }
+                } catch (error) {
+                    showStatus('Terjadi kesalahan saat cek duplikat.', 'danger');
+                } finally {
+                    dupBtn.disabled = false;
+                    dupBtn.innerHTML = 'Cek duplikat';
+                }
+            }
+        });
+    }
+
+    function attachSaveHandler() {
+        if (!saveBtn || !preview) return;
+        saveBtn.addEventListener('click', async () => {
+            const subjectSelect = selectors.subject();
+            const subjectId = subjectSelect ? parseInt(subjectSelect.value, 10) : null;
+            if (!subjectId) {
+                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            const questions = readQuestionsFromPreview();
+            if (!questions.length) {
+                showStatus('Tidak ada soal untuk disimpan.', 'warning');
+                return;
+            }
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan…';
+            try {
+                const response = await fetch('/latihan-tka/questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject_id: subjectId,
+                        questions,
+                    }),
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showStatus(`${data.inserted || questions.length} soal tersimpan.`, 'success');
+                    preview.innerHTML = '<div class="alert alert-success">Soal berhasil disimpan.</div>';
+                    generatedBundle = null;
+                } else {
+                    showStatus(data.message || 'Gagal menyimpan soal.', 'danger');
+                }
+            } catch (error) {
+                showStatus('Terjadi kesalahan saat menyimpan soal.', 'danger');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Simpan ke Bank Soal';
+            }
+        });
+    }
+
+    injectTemplate();
+    bindSubmitTriggers();
+    attachFormHandler();
+    attachPreviewActions();
+    attachSaveHandler();
+});
+</script>

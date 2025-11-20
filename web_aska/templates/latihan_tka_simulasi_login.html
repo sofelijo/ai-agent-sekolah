@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Login ANBK | Latihan TKA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #1d5390 0%, #1d5390 220px, #f8fafc 220px, #f8fafc 100%);
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+        }
+        .app-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 32px;
+            color: #fff;
+        }
+        .app-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #fbcf33, #fda65d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            font-size: 18px;
+            font-weight: 700;
+            color: #1d232f;
+        }
+        .branding h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            letter-spacing: 0.06em;
+        }
+        .branding span {
+            display: block;
+            font-weight: 400;
+            font-size: 0.92rem;
+            opacity: 0.9;
+        }
+        .page-body {
+            flex: 1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 32px 16px 48px;
+        }
+        .login-card {
+            width: min(420px, 100%);
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 30px 80px rgba(15,23,42,0.15);
+            padding: 32px;
+        }
+        .login-card h2 {
+            margin: 0 0 8px;
+            font-size: 1.5rem;
+            color: #0f172a;
+        }
+        .login-card p {
+            margin: 0 0 32px;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .field {
+            margin-bottom: 20px;
+        }
+        .field-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #0f172a;
+        }
+        .input-shell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .input-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1d4ed8;
+        }
+        .input-shell input {
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #0f172a;
+            width: 100%;
+        }
+        .input-shell input:focus {
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            box-shadow: 0 20px 40px rgba(37,99,235,0.35);
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .login-btn:hover {
+            transform: translateY(-1px);
+        }
+        .login-btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+        .success-panel {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 16px;
+            background: #ecfdf5;
+            border: 1px solid #34d399;
+            color: #065f46;
+            font-size: 0.95rem;
+            display: none;
+        }
+        .success-panel.active {
+            display: block;
+        }
+        .success-panel a {
+            color: #0369a1;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .app-bar {
+                padding: 20px;
+            }
+            .login-card {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-bar">
+        <div class="app-logo">AN</div>
+        <div class="branding">
+            <h1>PUSMENDIK</h1>
+            <span>APLIKASI ANBK</span>
+        </div>
+    </header>
+    <main class="page-body">
+        <section class="login-card">
+            <h2>Selamat Datang</h2>
+            <p>Silakan login dengan menggunakan username dan password yang anda miliki.</p>
+            {% if subject %}
+            <div class="chip" style="display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-weight:600;margin-bottom:24px;">
+                Simulasi: {{ subject.name }}
+            </div>
+            {% endif %}
+            <form id="simulasiLoginForm" method="post" action="{{ url_for('latihan_tka_simulasi_login') }}">
+                <div class="field">
+                    <label class="field-label" for="simUser">Username</label>
+                    <div class="input-shell">
+                        <span class="input-icon">👤</span>
+                        <input id="simUser" type="text" value="{{ simulasi_credentials.username|default('P130100230') }}" readonly>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field-label" for="simPass">Password</label>
+                    <div class="input-shell">
+                        <span class="input-icon">🔒</span>
+                        <input id="simPass" type="password" value="{{ simulasi_credentials.password|default('ASKA2024') }}" readonly>
+                    </div>
+                </div>
+                <button type="submit" class="login-btn" id="simLoginBtn">
+                    <span class="btn-label">Login</span>
+                </button>
+            </form>
+            <div class="success-panel" id="simSuccessPanel">
+                Login simulasi berhasil! Kamu akan diarahkan ke tahap konfirmasi peserta.
+            </div>
+        </section>
+    </main>
+    <script>
+        (function() {
+            const form = document.getElementById('simulasiLoginForm');
+            const button = document.getElementById('simLoginBtn');
+            const successPanel = document.getElementById('simSuccessPanel');
+            if (!form || !button || !successPanel) return;
+
+            form.addEventListener('submit', (event) => {
+                button.disabled = true;
+                button.querySelector('.btn-label').textContent = 'Memproses...';
+                successPanel.classList.add('active');
+            });
+        })();
+    </script>
+</body>
+</html>

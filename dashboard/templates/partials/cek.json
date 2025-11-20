@@ -1,0 +1,60 @@
+ {
+  "stimulus": [
+    {
+      "title": "Pembelian Buku",
+      "narrative": "Rina memiliki Rp 15.000 untuk membeli buku. Ia membeli buku seharga Rp 8.000 dan Rp 3.500. Berapa uang yang tersisa?",
+      "image_prompt": "",
+      "questions": [
+        {
+          "prompt": "Hitunglah jumlah uang yang dimiliki Rina awalnya.",
+          "topic": "penjumlahan",
+          "difficulty": "easy",
+          "question_type": "multiple_choice",
+          "options": [
+            {"key": "A", "text": "Rp 10.000"},
+            {"key": "B", "text": "Rp 12.000"},
+            {"key": "C", "text": "Rp 15.000"},
+            {"key": "D", "text": "Rp 20.000"}
+          ],
+          "answer": "C",
+          "explanation": "Jumlah uang yang dimiliki Rina awalnya adalah Rp 15.000."
+        },
+        {
+          "prompt": "Hitunglah total biaya pembelian buku.",
+          "topic": "penjumlahan",
+          "difficulty": "easy",
+          "question_type": "multiple_choice",
+          "options": [
+            {"key": "A", "text": "Rp 8.000"},
+            {"key": "B", "text": "Rp 11.500"},
+            {"key": "C", "text": "Rp 12.500"},
+            {"key": "D", "text": "Rp 14.000"}
+          ],
+          "answer": "B",
+          "explanation": "Total biaya pembelian buku adalah Rp 8.000 + Rp 3.500 = Rp 11.500."
+        }
+      ]
+    },
+    {
+      "title": "Pembagian Es Krim",
+      "narrative": "Adi memiliki 18 potong es krim untuk dibagi 3 temannya. Berapa potong es krim yang akan didapatkan setiap temannya?",
+      "image_prompt": "",
+      "questions": [
+        {
+          "prompt": "Hitunglah jumlah potong es krim yang akan didapatkan setiap teman.",
+          "topic": "pengurangan",
+          "difficulty": "easy",
+          "question_type": "multiple_choice",
+          "options": [
+            {"key": "A", "text": "6 potong"},
+            {"key": "B", "text": "7 potong"},
+            {"key": "C", "text": "9 potong"},
+            {"key": "D", "text": "8 potong"}
+          ],
+          "answer": "A",
+          "explanation": "Setiap teman akan mendapatkan 18 potong es krim dibagi 3, yaitu 6 potong."
+        }
+      ]
+    }
+  ]
+}

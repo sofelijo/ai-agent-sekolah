@@ -4,250 +4,867 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sesi Latihan TKA | ASKA</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        :root {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #0f172a;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
-            background: #f8fafc;
-            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1f5399 0%, #1f5399 220px, #f4f6fb 220px, #f4f6fb 100%);
         }
-        .navbar {
-            background-color: #0f172a;
-        }
-        .navbar-brand {
-            color: #fff;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-        }
-        .session-wrapper {
-            max-width: 980px;
-            margin: 32px auto;
-        }
-        .session-header {
-            background: #0f172a;
-            color: #fff;
-            border-radius: 24px;
-            padding: 28px;
-            box-shadow: 0 25px 50px rgba(15,23,42,0.2);
-        }
-        .timer {
-            font-size: clamp(1.6rem, 4vw, 2.4rem);
-            font-weight: 700;
-        }
-        .badge-pill {
-            border-radius: 999px;
-            padding: 4px 14px;
-            font-size: 0.85rem;
-        }
-        .question-card {
-            background: #fff;
-            border-radius: 18px;
-            padding: 24px;
-            margin-top: 24px;
-            box-shadow: 0 14px 32px rgba(15,23,42,0.08);
-            border: 1px solid rgba(148,163,184,0.2);
-        }
-        .question-meta {
+        .app-bar {
+            padding: 24px 32px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            font-size: 0.85rem;
-            color: #475569;
-            margin-bottom: 12px;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
         }
-        .difficulty {
+        .brand-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo {
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #fbcf33, #fda65d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+            color: #1d232f;
+            box-shadow: 0 20px 45px rgba(0,0,0,0.2);
+        }
+        .brand-name h1 {
+            margin: 0;
+            font-size: 1.15rem;
+            letter-spacing: 0.05em;
+        }
+        .brand-name span {
+            font-size: 0.92rem;
+            opacity: 0.9;
+        }
+        .profile-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .session-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 32px 20px 64px;
+        }
+        .session-card {
+            background: #fff;
+            border-radius: 28px;
+            padding: 28px 32px 40px;
+            box-shadow: 0 30px 90px rgba(15,23,42,0.16);
+            position: relative;
+        }
+        .session-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .toolbar-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .toolbar-btn.primary {
+            background: #1668e3;
+            color: #fff;
+            box-shadow: 0 12px 30px rgba(22,104,227,0.3);
+        }
+        .toolbar-btn.secondary {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .toolbar-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 8px 16px;
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        .question-stage {
+            position: relative;
+        }
+        .question-frame {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .question-frame.active {
+            display: flex;
+        }
+        .question-heading {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .question-heading h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .font-toggle {
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .font-toggle button {
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+        .question-frame .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: #475569;
+            font-size: 0.95rem;
+        }
+        .meta-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             padding: 4px 10px;
             border-radius: 999px;
+            background: #e2e8f0;
+            font-size: 0.8rem;
             font-weight: 600;
-            font-size: 0.78rem;
+            color: #0f172a;
         }
-        .difficulty-easy { background: #ecfccb; color: #3f6212; }
-        .difficulty-medium { background: #fef3c7; color: #92400e; }
-        .difficulty-hard { background: #fee2e2; color: #991b1b; }
+        .question-body {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) 2fr;
+            gap: 24px;
+            min-height: 280px;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 24px;
+            background: linear-gradient(120deg, rgba(248,250,252,0.8), rgba(255,255,255,0.9));
+        }
+        .stimulus-panel {
+            border: 1px solid #d4d7f8;
+            border-radius: 20px;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .stimulus-panel img {
+            max-width: 100%;
+            border-radius: 14px;
+            margin-top: 10px;
+        }
+        .stimulus-questions {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 20px;
+        }
+        .question-block {
+            border: 1px solid #cbd5f5;
+            border-radius: 18px;
+            padding: 16px;
+            background: #fff;
+        }
+        .question-block.active {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+        }
+        .question-block.flagged {
+            border-color: #fbbf24;
+            box-shadow: 0 0 0 1px rgba(251,191,36,0.4);
+        }
+        .question-visual {
+            border-right: 1px dotted #cbd5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            min-height: 240px;
+        }
+        .question-visual img {
+            max-width: 100%;
+            max-height: 240px;
+            object-fit: contain;
+        }
+        .question-content p {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
         .options-list {
             list-style: none;
-            padding: 0;
             margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
         .option-label {
-            border: 1px solid rgba(148,163,184,0.4);
-            border-radius: 14px;
-            padding: 14px 18px;
+            border: 1px solid #cbd5f5;
+            border-radius: 16px;
+            padding: 14px 16px;
             display: flex;
-            gap: 14px;
             align-items: center;
+            gap: 14px;
             cursor: pointer;
-            transition: border-color 0.15s ease, background 0.15s ease;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+        .option-label.active {
+            border-color: #2563eb;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.18);
+            background: rgba(37,99,235,0.08);
         }
         .option-label input {
             width: 18px;
             height: 18px;
         }
-        .option-label.active {
-            border-color: #2563eb;
-            background: rgba(37,99,235,0.08);
+        .question-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .nav-btn {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 170px;
+        }
+        .nav-btn.prev {
+            background: #fca5a5;
+            color: #7f1d1d;
+        }
+        .nav-btn.next {
+            background: #1668e3;
+            color: #fff;
+        }
+        .nav-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .flag-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #b45309;
         }
         .submit-panel {
             margin-top: 32px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .submit-panel button {
             border: none;
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
-            color: #fff;
-            padding: 12px 28px;
-            border-radius: 16px;
+            border-radius: 18px;
+            padding: 14px 32px;
             font-size: 1rem;
             font-weight: 600;
-            min-width: 200px;
-            transition: transform 0.15s ease;
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            color: #fff;
+            box-shadow: 0 20px 45px rgba(34,197,94,0.3);
+            cursor: pointer;
+            min-width: 220px;
         }
-        .submit-panel button:hover {
-            transform: translateY(-1px);
-        }
-        .hint {
-            font-size: 0.9rem;
+        .submit-panel p {
+            margin: 0;
             color: #475569;
+            font-size: 0.95rem;
+        }
+        .section-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .section-pill {
+            border: 1px solid rgba(15,23,42,0.1);
+            border-radius: 999px;
+            padding: 10px 16px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+        }
+        .section-pill span {
+            font-weight: 600;
+        }
+        .section-pill small {
+            color: #475569;
+        }
+        .question-frame.flagged {
+            border-left: 6px solid #fbbf24;
+            padding-left: 18px;
+        }
+        @media (max-width: 900px) {
+            .question-body {
+                grid-template-columns: 1fr;
+                border-radius: 18px;
+            }
+            .question-visual {
+                border-right: none;
+                border-bottom: 1px dotted #d7e3ff;
+                min-height: 160px;
+            }
+            .app-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .session-toolbar {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+            .question-actions {
+                flex-direction: column;
+            }
+        }
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .modal-backdrop.active {
+            display: flex;
+        }
+        .modal-panel {
+            background: #fff;
+            border-radius: 18px;
+            padding: 24px 28px;
+            min-width: 280px;
+            max-width: 460px;
+            box-shadow: 0 35px 90px rgba(15,23,42,0.25);
+            animation: fadeUp 0.2s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .modal-close {
+            border: none;
+            background: transparent;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #475569;
+        }
+        .question-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+            gap: 10px;
+        }
+        .question-grid button {
+            border: 1px solid #cbd5f5;
+            border-radius: 10px;
+            padding: 8px 0;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fff;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .question-grid button.answered {
+            background: #e2e8f0;
+            border-color: #e2e8f0;
+            color: #0f172a;
+        }
+        .question-grid button.active {
+            background: #1668e3;
+            color: #fff;
+            border-color: #1668e3;
+        }
+        .question-grid button.flagged {
+            border-color: #fbbf24;
+            position: relative;
+        }
+        .question-grid button.flagged::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #fbbf24;
+            position: absolute;
+            top: 4px;
+            right: 4px;
         }
     </style>
 </head>
-<body data-deadline="{{ deadline_iso }}" data-server-now="{{ server_time }}">
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('latihan_tka_home') }}">ASKA · Latihan TKA</a>
-            <div>
-                <a class="btn btn-outline-light btn-sm" href="{{ url_for('latihan_tka_home') }}">Ganti Mapel</a>
+<body data-deadline="{{ deadline_iso }}" data-server-now="{{ server_time }}" data-attempt-id="{{ attempt.id }}">
+    <header class="app-bar">
+        <div class="brand-info">
+            <div class="logo">AN</div>
+            <div class="brand-name">
+                <h1>PUSMENDIK</h1>
+                <span>APLIKASI ANBK</span>
             </div>
         </div>
-    </nav>
-
-    <div class="session-wrapper container">
-        <div class="session-header mb-4 d-flex flex-column flex-md-row justify-content-between gap-4">
-            <div>
-                <p class="badge-pill bg-light text-dark mb-2">Sesi Aktif</p>
-                <h2 class="mb-1">{{ attempt.subject_name }}</h2>
-                <p class="mb-0 text-white-50">Kerjakan 20 soal pilihan ganda dalam {{ attempt.time_limit_minutes or 15 }} menit.</p>
-                {% if repeat_label %}
-                <span class="badge bg-warning text-dark mt-2">{{ repeat_label }}</span>
-                {% endif %}
-                {% if grade_label %}
-                <span class="badge bg-info text-dark mt-2">Jenjang: {{ grade_label }}</span>
-                {% endif %}
-                {% if preset_label and preset_label != '-' %}
-                <span class="badge bg-info text-dark mt-2">Preset: {{ preset_label }}</span>
-                {% endif %}
-            </div>
-            <div class="text-md-end">
-                <div class="timer" id="countdown">15:00</div>
-                <p class="mb-0">Sisa Waktu</p>
-            </div>
+        <div class="profile-chip">
+            {{ user.full_name or user.email or 'Peserta TKA' }}
+            <span role="img" aria-label="icon">🎓</span>
         </div>
-
-        <form method="post" id="quizForm">
-            <input type="hidden" name="auto_reason" id="autoReason">
-            {% for question in questions %}
-            <section class="question-card" data-question-id="{{ question.id }}">
-                <div class="question-meta">
-                    <span class="badge bg-primary-subtle text-primary">Soal {{ loop.index }} / {{ questions|length }}</span>
-                    <span class="difficulty difficulty-{{ question.difficulty or 'easy' }}">{{ question.difficulty|default('easy')|title }}</span>
-                    {% if question.topic %}
-                    <span>#{{ question.topic }}</span>
-                    {% endif %}
+    </header>
+    <main class="session-shell">
+        <section class="session-card">
+            <div class="session-toolbar">
+                <button class="toolbar-btn secondary" type="button">Informasi Soal</button>
+                <span class="toolbar-badge">Sisa Waktu : <strong id="countdown">15:00</strong></span>
+                <button class="toolbar-btn primary" type="button" id="questionListBtn">Daftar Soal</button>
+            </div>
+            {% if sections %}
+            <div class="section-summary">
+                {% for section in sections %}
+                <div class="section-pill">
+                    <span>{{ section.label }}</span>
+                    <small>{{ section.question_count }} soal · {{ 'Benar/Salah' if section.question_format == 'true_false' else 'Pilihan Ganda' }}</small>
                 </div>
-                <p class="fs-5">{{ question.prompt }}</p>
-                <ul class="options-list">
-                    {% for option in question.options %}
-                    {% set option_id = "q%s_%s"|format(question.id, option.key) %}
-                    <li>
-                        <label class="option-label" for="{{ option_id }}">
-                            <input type="radio" name="answer-{{ question.id }}" id="{{ option_id }}" value="{{ option.key }}">
-                            <span class="fw-semibold">{{ option.key }}.</span>
-                            <span>{{ option.text }}</span>
-                        </label>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </section>
-            {% endfor %}
-
-            <div class="submit-panel">
-                <p class="hint mb-0">Pastikan semua jawaban terisi. Jika waktunya habis, jawaban otomatis dikirim.</p>
-                <button type="submit" id="submitBtn">Kirim Jawaban</button>
+                {% endfor %}
             </div>
-        </form>
+            {% endif %}
+            <form method="post" id="quizForm">
+                <input type="hidden" name="auto_reason" id="autoReason">
+                <div class="question-stage" id="questionStage">
+                    {% for package in question_packages %}
+                    {% set stim = package.stimulus or {} %}
+                    <section class="question-frame {% if loop.first %}active{% endif %}" data-package-index="{{ loop.index0 }}">
+                        <div class="stimulus-panel">
+                            <p class="text-muted mb-1">Stimulus {{ loop.index }}</p>
+                            <h3 class="mb-1">{{ stim.title or 'Stimulus Pembacaan' }}</h3>
+                            {% if stim.text %}
+                            <p class="mb-2">{{ stim.text }}</p>
+                            {% endif %}
+                            {% if stim.image_url %}
+                            <img src="{{ stim.image_url }}" alt="Stimulus {{ stim.title or loop.index }}">
+                            {% endif %}
+                        </div>
+                        <div class="stimulus-questions">
+                            {% for question in package.questions %}
+                            {% set question_image = question.image_url %}
+                            {% set option_base = "answer-{}".format(question.id) %}
+                            <article class="question-block" data-question-id="{{ question.id }}" data-question-index="{{ question.global_index - 1 }}">
+                                <div class="question-heading">
+                                    <h2>Soal nomor {{ question.global_index }}</h2>
+                                    <div class="font-toggle">
+                                        Ukuran font soal:
+                                        <button type="button" data-font="small">A</button>
+                                        <button type="button" data-font="medium">A</button>
+                                        <button type="button" data-font="large">A</button>
+                                    </div>
+                                </div>
+                                <div class="meta-row">
+                                    <div>
+                                        Tingkat kesulitan:
+                                        <strong>{{ question.difficulty|default('easy')|title }}</strong>
+                                        {% if question.topic %}
+                                        · Topik <strong>{{ question.topic }}</strong>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if question.section_label %}
+                                        <span class="meta-badge">{{ question.section_label }}</span>
+                                        {% endif %}
+                                        <span class="meta-badge">{{ 'Benar / Salah' if question.question_format == 'true_false' else 'Pilihan Ganda' }}</span>
+                                    </div>
+                                </div>
+                                <div class="question-body">
+                                    <div class="question-visual">
+                                        {% if question_image %}
+                                            <img src="{{ question_image }}" alt="Ilustrasi soal {{ question.global_index }}">
+                                        {% endif %}
+                                    </div>
+                                    <div class="question-content" data-font-size="medium">
+                                        <p>{{ question.prompt }}</p>
+                                        <ul class="options-list">
+                                            {% for option in question.options %}
+                                            {% set option_id = "q%s_%s"|format(question.id, option.key) %}
+                                            <li>
+                                                <label class="option-label" for="{{ option_id }}">
+                                                    <input type="radio" name="{{ option_base }}" id="{{ option_id }}" value="{{ option.key }}">
+                                                    <span class="fw-semibold">{{ option.key }}.</span>
+                                                    <span>{{ option.text }}</span>
+                                                </label>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endfor %}
+                </div>
+                <div class="question-actions">
+                    <button type="button" class="nav-btn prev" id="navPrev">Stimulus sebelumnya</button>
+                    <label class="flag-checkbox">
+                        <input type="checkbox" id="flagToggle">
+                        <span id="flagQuestionLabel">Ragu-ragu soal #1</span>
+                    </label>
+                    <button type="button" class="nav-btn next" id="navNext">Stimulus berikutnya</button>
+                </div>
+                <div class="submit-panel">
+                    <p>Pastikan semua jawaban terisi. Jika waktunya habis, jawaban akan otomatis dikirim.</p>
+                    <button type="submit" id="submitBtn">Kirim Jawaban</button>
+                </div>
+            </form>
+        </section>
+    </main>
+    <div class="modal-backdrop" id="questionListModal">
+        <div class="modal-panel">
+            <div class="modal-header">
+                Daftar Soal
+                <button type="button" class="modal-close" id="modalCloseBtn">&times;</button>
+            </div>
+            <div class="question-grid" id="questionGrid"></div>
+        </div>
     </div>
-
     <script>
         (function () {
             const countdownEl = document.getElementById('countdown');
             const quizForm = document.getElementById('quizForm');
             const autoReasonInput = document.getElementById('autoReason');
             const submitBtn = document.getElementById('submitBtn');
-            const optionLabels = document.querySelectorAll('.option-label');
+            const packageFrames = Array.from(document.querySelectorAll('.question-frame'));
+            const questionCards = Array.from(document.querySelectorAll('[data-question-id]'));
+            const questionMetaByIndex = [];
+            const questionIndexById = new Map();
+            const packageQuestionMap = new Map();
+            questionCards.forEach((card, fallbackIndex) => {
+                const pkgElement = card.closest('.question-frame');
+                const pkgIndex = Number(pkgElement?.dataset.packageIndex || 0);
+                const qIndex = Number(card.dataset.questionIndex || fallbackIndex);
+                questionMetaByIndex[qIndex] = {
+                    element: card,
+                    packageIndex: pkgIndex,
+                    questionId: card.dataset.questionId,
+                };
+                questionIndexById.set(card.dataset.questionId, qIndex);
+                const list = packageQuestionMap.get(pkgIndex) || [];
+                list.push(qIndex);
+                packageQuestionMap.set(pkgIndex, list);
+            });
+            const totalQuestions = questionCards.length;
+            const navPrev = document.getElementById('navPrev');
+            const navNext = document.getElementById('navNext');
+            const flagToggle = document.getElementById('flagToggle');
+            const flagLabel = document.getElementById('flagQuestionLabel');
+            const modal = document.getElementById('questionListModal');
+            const modalClose = document.getElementById('modalCloseBtn');
+            const modalTrigger = document.getElementById('questionListBtn');
+            const questionGrid = document.getElementById('questionGrid');
+            const attemptId = document.body.getAttribute('data-attempt-id');
+            const storageKey = attemptId ? `latihanTkaAttempt-${attemptId}` : null;
 
-            optionLabels.forEach(label => {
-                const input = label.querySelector('input');
-                input.addEventListener('change', () => {
-                    const group = document.querySelectorAll(`input[name="${input.name}"]`);
-                    group.forEach(el => {
-                        const parent = el.closest('.option-label');
-                        if (parent) parent.classList.remove('active');
+            function loadState() {
+                const defaults = { answers: {}, flagged: [], currentIndex: 0, activeQuestionId: null };
+                if (!storageKey) return defaults;
+                try {
+                    const raw = JSON.parse(localStorage.getItem(storageKey) || 'null');
+                    if (!raw) return defaults;
+                    return {
+                        answers: raw.answers || {},
+                        flagged: raw.flagged || [],
+                        currentIndex: Number.isInteger(raw.currentIndex) ? raw.currentIndex : 0,
+                        activeQuestionId: raw.activeQuestionId || null,
+                    };
+                } catch (err) {
+                    console.warn('Gagal memuat state latihan:', err);
+                    return defaults;
+                }
+            }
+            function persistState() {
+                if (!storageKey) return;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(savedState));
+                } catch (err) {
+                    console.warn('Tidak bisa menyimpan state latihan:', err);
+                }
+            }
+            function clearState() {
+                if (!storageKey) return;
+                try {
+                    localStorage.removeItem(storageKey);
+                } catch (err) {
+                    console.warn('Tidak bisa menghapus state latihan:', err);
+                }
+            }
+
+            let savedState = loadState();
+            let currentPackageIndex = Math.min(Math.max(savedState.currentIndex || 0, 0), packageFrames.length - 1);
+            let activeQuestionIndex = (() => {
+                const savedId = savedState.activeQuestionId;
+                if (savedId && questionIndexById.has(savedId)) {
+                    return questionIndexById.get(savedId);
+                }
+                const defaults = packageQuestionMap.get(currentPackageIndex) || [];
+                return defaults[0] || 0;
+            })();
+            const flagged = new Set(savedState.flagged || []);
+
+            questionCards.forEach(card => {
+                const qid = card.getAttribute('data-question-id');
+                const savedAnswerKey = savedState.answers?.[qid];
+                if (savedAnswerKey) {
+                    const input = card.querySelector(`input[type="radio"][value="${savedAnswerKey}"]`);
+                    if (input) {
+                        input.checked = true;
+                        const label = input.closest('.option-label');
+                        if (label) label.classList.add('active');
+                        card.classList.add('answered');
+                    }
+                } else if (card.querySelector('input[type="radio"]:checked')) {
+                    card.classList.add('answered');
+                }
+                if (flagged.has(qid)) {
+                    card.classList.add('flagged');
+                }
+                card.querySelectorAll('input[type="radio"]').forEach(input => {
+                    input.addEventListener('change', () => {
+                        const choices = card.querySelectorAll('.option-label');
+                        choices.forEach(label => label.classList.remove('active'));
+                        const label = input.closest('.option-label');
+                        if (label) label.classList.add('active');
+                        card.classList.add('answered');
+                        if (qid) {
+                            savedState.answers = savedState.answers || {};
+                            savedState.answers[qid] = input.value;
+                            persistState();
+                        }
+                        updateGridSelection();
                     });
-                    label.classList.add('active');
+                });
+                card.addEventListener('click', () => {
+                    const idx = Number(card.dataset.questionIndex);
+                    if (!Number.isNaN(idx)) {
+                        setActiveQuestion(idx, false);
+                    }
                 });
             });
 
-            let autoSubmitted = false;
-            const deadlineText = document.body.getAttribute('data-deadline');
-            const serverNowText = document.body.getAttribute('data-server-now');
-            const deadline = deadlineText ? new Date(deadlineText) : null;
-            const serverNow = serverNowText ? new Date(serverNowText) : new Date();
-            const offset = Date.now() - serverNow.getTime();
-
-            function formatCountdown(ms) {
-                const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-                const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-                const seconds = String(totalSeconds % 60).padStart(2, '0');
-                return `${minutes}:${seconds}`;
-            }
-
-            function autoSubmit(reason) {
-                if (autoSubmitted) return;
-                autoSubmitted = true;
-                autoReasonInput.value = reason || 'auto';
-                submitBtn.disabled = true;
-                quizForm.submit();
-            }
-
-            if (deadline) {
-                const interval = setInterval(() => {
-                    const now = new Date(Date.now() - offset);
-                    const remaining = deadline - now;
-                    if (countdownEl) {
-                        countdownEl.textContent = formatCountdown(remaining);
+            document.querySelectorAll('.font-toggle button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const block = button.closest('.question-block');
+                    if (!block) return;
+                    const content = block.querySelector('.question-content');
+                    if (!content) return;
+                    const size = button.dataset.font || 'medium';
+                    content.dataset.fontSize = size;
+                    if (size === 'large') {
+                        content.style.fontSize = '1.2rem';
+                    } else if (size === 'small') {
+                        content.style.fontSize = '1rem';
+                    } else {
+                        content.style.fontSize = '1.08rem';
                     }
-                    if (remaining <= 0) {
-                        clearInterval(interval);
-                        autoSubmit('timeout');
+                });
+            });
+
+            function updateNavState(scrollIntoView = true) {
+                currentPackageIndex = Math.min(Math.max(currentPackageIndex, 0), packageFrames.length - 1);
+                packageFrames.forEach((frame, idx) => {
+                    frame.classList.toggle('active', idx === currentPackageIndex);
+                });
+                const packageQuestions = packageQuestionMap.get(currentPackageIndex) || [];
+                if (!packageQuestions.includes(activeQuestionIndex)) {
+                    activeQuestionIndex = packageQuestions[0] ?? activeQuestionIndex;
+                }
+                questionCards.forEach(card => card.classList.remove('active'));
+                const meta = questionMetaByIndex[activeQuestionIndex];
+                if (meta && meta.element) {
+                    meta.element.classList.add('active');
+                    if (scrollIntoView) {
+                        meta.element.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
-                }, 1000);
+                    flagToggle.checked = flagged.has(meta.questionId);
+                    if (flagLabel) {
+                        flagLabel.textContent = `Ragu-ragu soal #${activeQuestionIndex + 1}`;
+                    }
+                }
+                navPrev.disabled = currentPackageIndex === 0;
+                navNext.disabled = currentPackageIndex === packageFrames.length - 1;
+                savedState.currentIndex = currentPackageIndex;
+                savedState.activeQuestionId = meta ? meta.questionId : null;
+                persistState();
+                updateGridSelection();
             }
 
-            let dirty = false;
-            quizForm.addEventListener('change', () => { dirty = true; });
-            window.addEventListener('beforeunload', (event) => {
-                if (dirty && !autoSubmitted) {
-                    event.preventDefault();
-                    event.returnValue = '';
+            navPrev.addEventListener('click', () => {
+                if (currentPackageIndex > 0) {
+                    setPackageIndex(currentPackageIndex - 1, true);
                 }
             });
+            navNext.addEventListener('click', () => {
+                if (currentPackageIndex < packageFrames.length - 1) {
+                    setPackageIndex(currentPackageIndex + 1, true);
+                }
+            });
+            flagToggle.addEventListener('change', () => {
+                const meta = questionMetaByIndex[activeQuestionIndex];
+                if (!meta) return;
+                if (flagToggle.checked) {
+                    flagged.add(meta.questionId);
+                    meta.element.classList.add('flagged');
+                } else {
+                    flagged.delete(meta.questionId);
+                    meta.element.classList.remove('flagged');
+                }
+                savedState.flagged = Array.from(flagged);
+                persistState();
+                updateGridSelection();
+            });
+            updateNavState();
+
+            function renderQuestionGrid() {
+                if (!questionGrid) return;
+                questionGrid.innerHTML = '';
+                for (let idx = 0; idx < totalQuestions; idx += 1) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = idx + 1;
+                    btn.dataset.questionIndex = idx;
+                    questionGrid.appendChild(btn);
+                }
+                questionGrid.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLButtonElement)) return;
+                    const idx = parseInt(target.dataset.questionIndex || '0', 10);
+                    if (!Number.isNaN(idx)) {
+                        setActiveQuestion(idx, true);
+                        toggleModal(false);
+                    }
+                });
+            }
+
+            function updateGridSelection() {
+                if (!questionGrid) return;
+                questionGrid.querySelectorAll('button').forEach((button) => {
+                    const idx = parseInt(button.dataset.questionIndex || '0', 10);
+                    const meta = questionMetaByIndex[idx];
+                    const isActive = idx === activeQuestionIndex;
+                    const isAnswered = !!meta?.element.querySelector('input[type="radio"]:checked');
+                    button.classList.toggle('active', isActive);
+                    button.classList.toggle('flagged', meta && flagged.has(meta.questionId));
+                    button.classList.toggle('answered', isAnswered);
+                });
+            }
+
+            function toggleModal(show) {
+                if (!modal) return;
+                modal.classList.toggle('active', Boolean(show));
+                if (show) {
+                    updateGridSelection();
+                }
+            }
+            if (modalTrigger) {
+                modalTrigger.addEventListener('click', () => toggleModal(true));
+            }
+            if (modalClose) {
+                modalClose.addEventListener('click', () => toggleModal(false));
+            }
+            if (modal) {
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        toggleModal(false);
+                    }
+                });
+            }
+            renderQuestionGrid();
+            updateGridSelection();
+
+            const deadlineAttr = document.body.getAttribute('data-deadline');
+            const serverNowAttr = document.body.getAttribute('data-server-now');
+            const deadline = deadlineAttr ? new Date(deadlineAttr) : null;
+            const serverNow = serverNowAttr ? new Date(serverNowAttr) : null;
+
+            function updateTimer() {
+                if (!deadline) return;
+                const now = new Date();
+                if (serverNow) {
+                    const drift = Date.now() - now.getTime();
+                    now.setTime(Date.now() - drift);
+                }
+                const remaining = deadline - now;
+                if (remaining <= 0) {
+                    countdownEl.textContent = "00:00";
+                    autoReasonInput.value = "timeout";
+                    submitBtn.disabled = true;
+                    clearState();
+                    quizForm.submit();
+                    return;
+                }
+                const minutes = Math.floor(remaining / 1000 / 60);
+                const seconds = Math.floor((remaining / 1000) % 60);
+                countdownEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            updateTimer();
+            setInterval(updateTimer, 1000);
+
+            if (quizForm) {
+                quizForm.addEventListener('submit', () => {
+                    clearState();
+                });
+            }
         })();
     </script>
 </body>
 </html>
+            function setPackageIndex(targetIndex, scrollToQuestion = true) {
+                currentPackageIndex = Math.min(Math.max(targetIndex, 0), packageFrames.length - 1);
+                const packageQuestions = packageQuestionMap.get(currentPackageIndex) || [];
+                if (packageQuestions.length) {
+                    activeQuestionIndex = packageQuestions[0];
+                }
+                updateNavState(scrollToQuestion);
+            }
+
+            function setActiveQuestion(targetIndex, scrollToQuestion = false) {
+                if (Number.isNaN(targetIndex) || targetIndex < 0 || targetIndex >= questionMetaByIndex.length) {
+                    return;
+                }
+                activeQuestionIndex = targetIndex;
+                const meta = questionMetaByIndex[targetIndex];
+                if (meta) {
+                    currentPackageIndex = meta.packageIndex;
+                }
+                updateNavState(scrollToQuestion);
+            }

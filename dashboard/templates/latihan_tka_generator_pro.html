@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}ASKA Auto Generator · Mode Pro{% endblock %}
+{% set tka_page_mode = 'generator' %}
+{% set grade_labels = grade_labels or {'sd6': 'Kelas 6 SD', 'smp3': 'Kelas 3 SMP', 'sma': 'SMA'} %}
+{% set section_templates = section_templates or [
+    {'key': 'matematika', 'label': 'Matematika', 'question_format': 'multiple_choice', 'subject_area': 'matematika'},
+    {'key': 'bahasa_pg', 'label': 'Bahasa Indonesia · Pilihan Ganda', 'question_format': 'multiple_choice', 'subject_area': 'bahasa_indonesia'},
+    {'key': 'bahasa_tf', 'label': 'Bahasa Indonesia · Benar/Salah', 'question_format': 'true_false', 'subject_area': 'bahasa_indonesia'},
+] %}
+{% block head_extra %}
+<style>
+    .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
+    .question-card { border: 1px solid var(--border-soft); border-radius: 16px; padding: 16px; margin-bottom: 16px; background: var(--bg-surface); }
+    .question-card .options { list-style: none; padding-left: 1.2rem; }
+    .badge-soft { border-radius: 999px; padding: 4px 10px; font-size: 0.75rem; }
+    .difficulty-easy { background: #ecfccb; color: #365314; }
+    .difficulty-medium { background: #fef3c7; color: #92400e; }
+    .difficulty-hard { background: #fee2e2; color: #991b1b; }
+    .question-card.duplicate-found { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220,38,38,0.2); }
+    .question-card.duplicate-clear { border-color: #16a34a; box-shadow: 0 0 0 1px rgba(22,163,74,0.2); }
+    .stimulus-block { border: 1px solid var(--border-soft); border-radius: 16px; padding: 16px; background: var(--bg-surface); }
+    .stimulus-block .stimulus-questions .question-card { border-style: dashed; background: #fff; }
+    .option-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">ASKA Auto Generator · Mode Pro</h1>
+            <p class="text-muted mb-0">Gunakan stimulus cerita/gambar agar ASKA menulis paket soal terstruktur.</p>
+        </div>
+        <div class="text-end">
+            <div class="d-flex flex-wrap justify-content-end gap-2 mb-2">
+                <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_bank') }}">
+                    <i class="bi bi-collection me-1"></i>Bank Soal
+                </a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_manual') }}">
+                    <i class="bi bi-journal-text me-1"></i>Buat Soal Manual
+                </a>
+            </div>
+            <div class="btn-group" role="group" aria-label="Pilih mode generator">
+                <a class="btn btn-outline-primary" href="{{ url_for('main.latihan_tka_generator_page', mode='lite') }}">
+                    Mode Lite
+                </a>
+                <a class="btn btn-primary" href="{{ url_for('main.latihan_tka_generator_page', mode='pro') }}">
+                    Mode Pro
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="tkaStatus" class="alert d-none" role="alert"></div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-secondary small" id="generatorModeHint">
+                Mode Pro · Gunakan stimulus pilihanmu lalu ASKA menulis soal sesuai cerita/gambar tersebut.
+            </div>
+            <form id="generateForm" class="row g-3">
+                <input type="hidden" id="generateMode" value="pro">
+                <div class="col-12" id="generateFormFields"></div>
+                <template id="tplGeneratePro">{% include 'partials/generate_form_pro.html' %}</template>
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                        <label for="generateExample" class="form-label mb-0">Contoh Soal / Instruksi</label>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-secondary" id="importJsonBtn" data-bs-toggle="tooltip" title="Import from JSON"><i class="bi bi-upload"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" id="copyJsonTemplateBtn" data-bs-toggle="tooltip" title="Template JSON"><i class="bi bi-filetype-json"></i></button>
+                            <button type="button" class="btn btn-outline-info" id="exportPromptBtn" data-bs-toggle="tooltip" title="Export Prompt"><i class="bi bi-terminal"></i></button>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="tooltip" title="Generate" data-generator-submit><i class="bi bi-magic me-1"></i>Generate</button>
+                        </div>
+                    </div>
+                    <div class="position-relative">
+                        <textarea class="form-control" id="generateExample" rows="2" placeholder="Tempelkan contoh soal, gaya cerita, atau instruksi lain yang diinginkan (opsional)"></textarea>
+                        <div class="position-absolute" style="bottom: 8px; right: 8px; width: 180px;">
+                            <label for="generateStyleSimilarity" class="form-label small mb-0">Tingkat Kemiripan</label>
+                            <select class="form-select form-select-sm" id="generateStyleSimilarity">
+                                <option value="30">30% · bebas berkreasi</option>
+                                <option value="50" selected>50% · seimbang</option>
+                                <option value="90">90% · sangat mirip</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12" id="generatorStimulusSection">
+                    <div class="border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div>
+                                <label class="form-label mb-0">Pilih Stimulus untuk Mode Pro</label>
+                            </div>
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.latihan_tka_manual') }}" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-text me-1"></i>Panduan Manual
+                            </a>
+                        </div>
+                        <div class="mb-3">
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageNone" value="none" checked>
+                                <label class="btn btn-outline-secondary" for="stimulusUsageNone">Tanpa Stimulus</label>
+                                <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageExisting" value="existing">
+                                <label class="btn btn-outline-secondary" for="stimulusUsageExisting">Pilih Stimulus</label>
+                                <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageNew" value="new">
+                                <label class="btn btn-outline-secondary" for="stimulusUsageNew">Buat Baru</label>
+                            </div>
+                        </div>
+                        <div class="mb-3 d-none" id="stimulusExistingFields">
+                            <label class="form-label">Pilih Stimulus</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="stimulusSearchInput" placeholder="Cari judul stimulus">
+                                <button type="button" class="btn btn-outline-secondary" id="refreshStimulusBtn">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                            <select class="form-select" id="questionStimulusSelect"></select>
+                            <div class="d-flex justify-content-end mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="openStimulusCreator">
+                                    <i class="bi bi-plus-circle"></i> Stimulus baru
+                                </button>
+                            </div>
+                            <div class="mt-3" id="selectedStimulusPreview">
+                                <div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>
+                            </div>
+                        </div>
+                        <div class="mb-3 d-none" id="stimulusCreatorFields">
+                            <label class="form-label">Buat Stimulus Baru</label>
+                            <textarea class="form-control mb-2" id="newStimulusBrief" rows="2" placeholder="Ringkasan singkat / catatan guru (opsional)"></textarea>
+                            <input type="text" class="form-control mb-2" id="newStimulusTitle" placeholder="Judul stimulus">
+                            <textarea class="form-control mb-2" id="newStimulusNarrative" rows="3" placeholder="Narasi panjang / cerita"></textarea>
+                            <label class="form-label">Gambar Pendukung (opsional)</label>
+                            <input type="file" class="form-control mb-2" id="newStimulusImage" accept="image/*">
+                            <textarea class="form-control" id="newStimulusImagePrompt" rows="2" placeholder="Deskripsi gambar atau prompt AI (opsional)"></textarea>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-outline-secondary w-50" id="cancelStimulusCreator">Batal</button>
+                                <button type="button" class="btn btn-primary w-50" id="saveNewStimulus">Simpan Stimulus</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6" id="generateStimulusImageGroup">
+                    <label class="form-label">Unggah gambar stimulus (opsional)</label>
+                    <input type="file" class="form-control" id="generateStimulusImage" accept="image/*">
+                </div>
+                <div class="col-md-6" id="generateImageDescriptionGroup">
+                    <label class="form-label">Deskripsi gambar / catatan visual</label>
+                    <textarea class="form-control" id="generateImageDescription" rows="2" placeholder="Contoh: Diagram batang literasi membaca kelas 6"></textarea>
+                </div>
+            </form>
+
+            <div class="mt-3" id="generatePreview"></div>
+            <div class="mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="text-muted small">Review hasil di atas: edit, hapus, atau cek duplikat sebelum simpan.</div>
+                <button type="button" class="btn btn-success" id="saveGenerated" disabled>
+                    <i class="bi bi-save me-1"></i>Simpan ke Bank Soal
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="exportContentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportContentTitle">Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="exportContentBody" class="form-control" rows="15" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary" id="copyExportedContentBtn">
+                    <i class="bi bi-clipboard me-1"></i>Copy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+    {% include 'partials/latihan_tka_generator_scripts.html' %}
+{% endblock %}
+{% endblock %}

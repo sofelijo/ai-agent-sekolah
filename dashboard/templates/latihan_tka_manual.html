@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Latihan TKA · Buat Soal{% endblock %}
+{% set tka_page_mode = 'manual' %}
+{% set grade_labels = grade_labels or {'sd6': 'Kelas 6 SD', 'smp3': 'Kelas 3 SMP', 'sma': 'SMA'} %}
+{% set section_templates = section_templates or [
+    {'key': 'matematika', 'label': 'Matematika', 'question_format': 'multiple_choice', 'subject_area': 'matematika'},
+    {'key': 'bahasa_pg', 'label': 'Bahasa Indonesia · Pilihan Ganda', 'question_format': 'multiple_choice', 'subject_area': 'bahasa_indonesia'},
+    {'key': 'bahasa_tf', 'label': 'Bahasa Indonesia · Benar/Salah', 'question_format': 'true_false', 'subject_area': 'bahasa_indonesia'},
+] %}
+{% set default_duration = default_duration or 120 %}
+{% block head_extra %}
+<style>
+    .manual-layout .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
+    .manual-layout .card-body { padding: 1.75rem; }
+    .manual-layout .option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .manual-layout .pending-question-card { border: 1px dashed var(--border-soft); border-radius: 12px; padding: 0.85rem; background: var(--bg-surface); }
+    .manual-layout .question-list-compact .compact-card { border: 1px solid var(--border-soft); border-radius: 14px; padding: 1rem; margin-bottom: 0.85rem; background: var(--bg-surface); display: flex; justify-content: space-between; gap: 1rem; }
+    .manual-layout .question-list-compact .compact-card:hover { border-color: var(--bs-primary); box-shadow: 0 0 0 2px rgba(13,110,253,0.08); }
+    .manual-layout .question-list-compact .compact-card .text-muted { margin-bottom: 0.2rem; }
+    .manual-layout #pendingQuestionList { max-height: 240px; overflow-y: auto; }
+    .manual-layout .question-list-compact { max-height: 720px; overflow-y: auto; padding-right: 0.25rem; }
+    .manual-layout .answer-option {
+        border: 2px solid var(--border-soft);
+        border-radius: 12px;
+        overflow: hidden;
+        align-items: stretch;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .manual-layout .answer-option .answer-letter {
+        color: var(--text-muted);
+        font-weight: 600;
+        min-width: 48px;
+        justify-content: center;
+        cursor: pointer;
+        background: var(--bg-surface);
+        border-right: 1px solid var(--border-soft);
+    }
+    .manual-layout .answer-option .answer-letter span {
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+    }
+    .manual-layout .answer-option .btn-check:checked ~ .answer-letter {
+        background: rgba(20,108,67,0.2);
+        color: #0f5132;
+    }
+    .manual-layout .answer-option .btn-check:checked ~ .form-control {
+        border-color: #146c43;
+    }
+    .manual-layout .answer-option .btn-check:checked ~ .answer-letter,
+    .manual-layout .answer-option .btn-check:checked ~ .form-control {
+        box-shadow: inset 0 0 0 1px rgba(20,108,67,0.35);
+    }
+    .manual-layout .answer-option .btn-check:checked + .answer-letter {
+        background: rgba(20,108,67,0.2);
+    }
+    .manual-layout .answer-option .input-group-text {
+        display: flex;
+        align-items: center;
+        border: none;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .manual-layout .answer-option .form-control {
+        border: none;
+        border-left: 1px solid rgba(0,0,0,0.05);
+        border-radius: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manual-layout container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Latihan TKA · Buat Soal Manual</h1>
+            <p class="text-muted mb-0">Isikan soal pilihan ganda atau benar/salah lengkap dengan stimulus, lalu simpan langsung ke bank soal.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_bank') }}">
+                <i class="bi bi-collection me-1"></i>Bank Soal
+            </a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_results') }}">
+                <i class="bi bi-graph-up-arrow me-1"></i>Hasil Nilai
+            </a>
+        </div>
+    </div>
+
+    <div id="tkaStatus" class="alert d-none" role="alert"></div>
+
+    <div class="row g-4">
+        <div class="col-lg-7 col-xl-8">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div id="questionFormPanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h5 class="mb-1">Form Soal Manual</h5>
+                                <p class="text-muted small mb-0">Masukkan data soal secara bertahap. Simpan beberapa soal sekaligus lewat daftar mini di bawah.</p>
+                            </div>
+                            <span class="badge text-bg-light text-uppercase">Manual</span>
+                        </div>
+                        <form id="questionForm" class="mt-3">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Pilih Jenis Latihan</label>
+                                    <select class="form-select" id="questionSubject" required>
+                                        {% for subject in subjects %}
+                                        <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Kategori Mapel</label>
+                                    <select class="form-select" id="questionCategory">
+                                        <option value="matematika">Matematika</option>
+                                        <option value="bahasa_indonesia">Bahasa Indonesia</option>
+                                    </select>
+                                    <small class="text-muted">Menentukan mapel utama; format soal dipilih di bawah.</small>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Gunakan Stimulus?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageNone" value="none" checked>
+                                    <label class="btn btn-outline-secondary" for="stimulusUsageNone">Tanpa Stimulus</label>
+                                    <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageExisting" value="existing">
+                                    <label class="btn btn-outline-secondary" for="stimulusUsageExisting">Pilih Stimulus</label>
+                                    <input type="radio" class="btn-check" name="stimulusUsage" id="stimulusUsageNew" value="new">
+                                    <label class="btn btn-outline-secondary" for="stimulusUsageNew">Buat Baru</label>
+                                </div>
+                                <small class="text-muted">Stimulus bisa berupa cerita panjang atau narasi dengan gambar pendukung.</small>
+                            </div>
+                            <div class="mb-3 d-none" id="stimulusExistingFields">
+                                <label class="form-label">Pilih Stimulus</label>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="stimulusSearchInput" placeholder="Cari judul stimulus">
+                                    <button type="button" class="btn btn-outline-secondary" id="refreshStimulusBtn">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </div>
+                                <select class="form-select" id="questionStimulusSelect"></select>
+                                <div class="d-flex justify-content-end mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="openStimulusCreator">
+                                        <i class="bi bi-plus-circle"></i> Stimulus baru
+                                    </button>
+                                </div>
+                                <div class="mt-3" id="selectedStimulusPreview">
+                                    <div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>
+                                </div>
+                            </div>
+                            <div class="mb-3 d-none" id="stimulusCreatorFields">
+                                <label class="form-label">Buat Stimulus Baru</label>
+                                <textarea class="form-control mb-2" id="newStimulusBrief" rows="2" placeholder="Ringkasan singkat / catatan guru (opsional)"></textarea>
+                                <input type="text" class="form-control mb-2" id="newStimulusTitle" placeholder="Judul stimulus">
+                                <textarea class="form-control mb-2" id="newStimulusNarrative" rows="3" placeholder="Narasi panjang / cerita"></textarea>
+                                <label class="form-label">Gambar Pendukung (opsional)</label>
+                                <input type="file" class="form-control mb-2" id="newStimulusImage" accept="image/*">
+                                <textarea class="form-control" id="newStimulusImagePrompt" rows="2" placeholder="Deskripsi gambar atau prompt AI (opsional)"></textarea>
+                                <div class="d-flex gap-2 mt-2">
+                                    <button type="button" class="btn btn-outline-secondary w-50" id="cancelStimulusCreator">Batal</button>
+                                    <button type="button" class="btn btn-primary w-50" id="saveNewStimulus">Simpan Stimulus</button>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label">Topik</label>
+                                    <input type="text" class="form-control" id="questionTopic" placeholder="Contoh: Bilangan pecahan">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Tingkat Kesulitan</label>
+                                    <select class="form-select" id="questionDifficulty">
+                                        <option value="easy">Mudah</option>
+                                        <option value="medium">Sedang</option>
+                                        <option value="hard">Susah</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Teks Soal</label>
+                                <textarea class="form-control" id="questionPrompt" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label d-block">Tipe Soal</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="questionMode" id="questionModeNormal" value="normal" checked>
+                                    <label class="btn btn-outline-primary" for="questionModeNormal">Pilihan Ganda</label>
+                                    <input type="radio" class="btn-check" name="questionMode" id="questionModeTrueFalse" value="truefalse">
+                                    <label class="btn btn-outline-warning" for="questionModeTrueFalse">Benar/Salah</label>
+                                </div>
+                                <small class="text-muted">Pilih mode agar form sesuai dengan kebutuhan soal.</small>
+                            </div>
+                            <div class="mb-3 d-none" id="manualTrueFalseSection">
+                                <label class="form-label">Pernyataan Benar/Salah</label>
+                                <div id="manualTfContainer" data-tf-container></div>
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addQuestionTfRow">
+                                    <i class="bi bi-plus-circle"></i> Tambah Pernyataan
+                                </button>
+                                <small class="text-muted d-block mt-1">Isi pernyataan terkait cerita dan tentukan benar/salahnya. Minimal tiga baris.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pilihan Jawaban</label>
+                                <div class="row g-3">
+                                    <div class="col-sm-6 col-lg-3">
+                                        <div class="input-group answer-option">
+                                            <input type="radio" class="btn-check" name="questionAnswer" id="answerKeyA" value="A" checked>
+                                            <label class="input-group-text answer-letter" for="answerKeyA"><span>A</span></label>
+                                            <textarea class="form-control" id="optionA" placeholder="Isi teks A" rows="2" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6 col-lg-3">
+                                        <div class="input-group answer-option">
+                                            <input type="radio" class="btn-check" name="questionAnswer" id="answerKeyB" value="B">
+                                            <label class="input-group-text answer-letter" for="answerKeyB"><span>B</span></label>
+                                            <textarea class="form-control" id="optionB" placeholder="Isi teks B" rows="2" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6 col-lg-3">
+                                        <div class="input-group answer-option">
+                                            <input type="radio" class="btn-check" name="questionAnswer" id="answerKeyC" value="C">
+                                            <label class="input-group-text answer-letter" for="answerKeyC"><span>C</span></label>
+                                            <textarea class="form-control" id="optionC" placeholder="Isi teks C" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6 col-lg-3">
+                                        <div class="input-group answer-option">
+                                            <input type="radio" class="btn-check" name="questionAnswer" id="answerKeyD" value="D">
+                                            <label class="input-group-text answer-letter" for="answerKeyD"><span>D</span></label>
+                                            <textarea class="form-control" id="optionD" placeholder="Isi teks D" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Klik huruf untuk menandai jawaban benar.</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pembahasan</label>
+                                <textarea class="form-control" id="questionExplain" rows="2"></textarea>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary w-50" id="addQuestionBtn">
+                                    <i class="bi bi-plus-circle"></i> Tambah ke daftar
+                                </button>
+                                <button type="submit" class="btn btn-success w-50" id="savePendingBtn">
+                                    <i class="bi bi-floppy"></i> Simpan Semua
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Daftar siap simpan</h6>
+                                    <span class="badge text-bg-light">Preview</span>
+                                </div>
+                                <div id="pendingQuestionList">
+                                    <div class="alert alert-info mb-0 small">Belum ada soal dalam daftar. Isi form lalu klik “Tambah ke daftar”.</div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+                        <div class="flex-grow-1">
+                            <label class="form-label">Jenis Latihan</label>
+                            <select class="form-select" id="filterSubject">
+                                {% for subject in subjects %}
+                                <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted d-block mt-1">Jenjang: <span class="badge text-bg-light" id="selectedGradeBadge">-</span></small>
+                        </div>
+                        <div>
+                            <label class="form-label">Kesulitan</label>
+                            <select class="form-select" id="filterDifficulty">
+                                <option value="">Semua</option>
+                                <option value="easy">Mudah</option>
+                                <option value="medium">Sedang</option>
+                                <option value="hard">Susah</option>
+                            </select>
+                        </div>
+                        <div class="flex-grow-1">
+                            <label class="form-label">Topik</label>
+                            <input type="text" class="form-control" id="filterTopic" placeholder="Topik (opsional)">
+                        </div>
+                        <button class="btn btn-outline-primary" type="button" id="refreshQuestions">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                    </div>
+                    <p class="text-muted small mb-2">Daftar ringkas menampilkan ~20 karakter pertama dari setiap soal tanpa memotong kata.</p>
+                    <div id="questionList" class="question-list-compact">
+                        <div class="question-empty">Pilih jenis latihan untuk melihat daftar soal.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {% include 'partials/latihan_tka_scripts.html' %}
+{% endblock %}

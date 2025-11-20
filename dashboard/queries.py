@@ -12,7 +12,14 @@ from flask import has_request_context, session
 from psycopg2.extras import DictRow, Json
 
 from .db_access import get_cursor
-from db import DEFAULT_TKA_PRESETS, DEFAULT_TKA_PRESET_KEY
+from db import (
+    DEFAULT_TKA_PRESETS,
+    DEFAULT_TKA_PRESET_KEY,
+    DEFAULT_TKA_COMPOSITE_DURATION,
+    TKA_SECTION_TEMPLATES,
+    TKA_SECTION_KEY_ORDER,
+    TKA_METADATA_SECTION_CONFIG_KEY,
+)
 from account_status import ACCOUNT_STATUS_CHOICES
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -111,6 +118,203 @@ def _normalize_preset_name_local(value: Optional[str]) -> str:
     if not value:
         return DEFAULT_TKA_PRESET_KEY
     return str(value).strip().lower()
+
+
+def _determine_stimulus_type_local(has_text: bool, has_image: bool) -> str:
+    if has_text and has_image:
+        return "mixed"
+    if has_image:
+        return "image"
+    return "text"
+
+
+def _resolve_question_stimulus(
+    cur,
+    subject_id: int,
+    payload: Optional[Dict[str, Any]],
+    created_by: Optional[int],
+    bundle_cache: Dict[str, int],
+) -> Optional[int]:
+    if not payload or not isinstance(payload, dict):
+        return None
+    bundle_key = payload.get("bundle_key")
+    if bundle_key and bundle_key in bundle_cache:
+        return bundle_cache[bundle_key]
+    existing_id = payload.get("id") or payload.get("stimulus_id")
+    if existing_id:
+        if bundle_key:
+            bundle_cache[bundle_key] = int(existing_id)
+        return int(existing_id)
+    narrative = (payload.get("narrative") or payload.get("text") or "").strip()
+    image_value = payload.get("image_url") or payload.get("image_data") or payload.get("image")
+    if not narrative and not image_value:
+        return None
+    title = (payload.get("title") or payload.get("name") or "Stimulus").strip()
+    metadata_payload = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else None
+    stimulus_type = payload.get("type") or _determine_stimulus_type_local(bool(narrative), bool(image_value))
+    cur.execute(
+        """
+        INSERT INTO tka_stimulus (
+            subject_id,
+            title,
+            type,
+            narrative,
+            image_url,
+            image_prompt,
+            ai_prompt,
+            metadata,
+            created_by,
+            updated_at
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+        RETURNING id
+        """,
+        (
+            subject_id,
+            title or None,
+            stimulus_type,
+            narrative or None,
+            image_value,
+            (payload.get("image_prompt") or payload.get("imagePrompt") or payload.get("image_description")),
+            payload.get("ai_prompt"),
+            Json(metadata_payload) if metadata_payload else None,
+            created_by,
+        ),
+    )
+    row = cur.fetchone()
+    stimulus_id = row["id"] if row else None
+    if stimulus_id and bundle_key:
+        bundle_cache[bundle_key] = stimulus_id
+    return stimulus_id
+
+
+def _rebalance_mix_to_total_local(mix: Dict[str, int], target_total: int) -> Dict[str, int]:
+    order = ["easy", "medium", "hard"]
+    total = sum(mix.values())
+    if target_total <= 0:
+        return {key: 0 for key in order}
+    if total <= 0:
+        base = max(0, target_total // len(order))
+        result = {key: base for key in order}
+        remainder = target_total - base * len(order)
+        idx = 0
+        while remainder > 0:
+            key = order[idx % len(order)]
+            result[key] += 1
+            remainder -= 1
+            idx += 1
+        return result
+    result = {key: max(0, int(value)) for key, value in mix.items() if key in order}
+    for key in order:
+        result.setdefault(key, 0)
+    diff = target_total - total
+    guard = max(30, target_total * 3)
+    while diff != 0 and guard > 0:
+        changed = False
+        keys = order if diff > 0 else list(reversed(order))
+        for key in keys:
+            if diff > 0:
+                result[key] += 1
+                diff -= 1
+                changed = True
+                if diff == 0:
+                    break
+            else:
+                if result[key] <= 0:
+                    continue
+                result[key] -= 1
+                diff += 1
+                changed = True
+                if diff == 0:
+                    break
+        if not changed:
+            break
+        guard -= 1
+    return result
+
+
+def _default_section_mix_local(question_count: int) -> Dict[str, int]:
+    if question_count <= 0:
+        question_count = 1
+    base = {
+        "easy": int(round(question_count * 0.4)),
+        "medium": int(round(question_count * 0.4)),
+        "hard": int(round(question_count * 0.2)),
+    }
+    return _rebalance_mix_to_total_local(base, question_count)
+
+
+def _normalize_section_entry_local(entry: Dict[str, Any], fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    fallback = fallback or {}
+    raw_key = entry.get("key") or fallback.get("key") or "section"
+    key = str(raw_key).strip().lower() or "section"
+    label = (entry.get("label") or fallback.get("label") or key.title()).strip()
+    subject_area = (entry.get("subject_area") or fallback.get("subject_area") or key).strip().lower()
+    question_format = (entry.get("question_format") or fallback.get("question_format") or "multiple_choice").strip().lower()
+    desired_total = entry.get("question_count") or fallback.get("question_count") or 0
+    try:
+        desired_total = max(0, int(desired_total))
+    except (TypeError, ValueError):
+        desired_total = 0
+    raw_mix = entry.get("difficulty") or entry.get("difficulty_mix")
+    fallback_mix = fallback.get("difficulty") or fallback.get("difficulty_mix")
+    if fallback_mix is None:
+        fallback_mix = _default_section_mix_local(desired_total)
+    mix = _coerce_mix_local(raw_mix or fallback_mix, fallback_mix)
+    mix = _rebalance_mix_to_total_local(mix, desired_total or sum(mix.values()))
+    return {
+        "key": key,
+        "label": label,
+        "subject_area": subject_area,
+        "question_format": question_format,
+        "question_count": sum(mix.values()),
+        "difficulty": mix,
+    }
+
+
+def _normalize_section_config_local(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    raw_config: Dict[str, Any] = {}
+    if isinstance(metadata, dict):
+        raw = metadata.get(TKA_METADATA_SECTION_CONFIG_KEY)
+        if isinstance(raw, dict):
+            raw_config = raw
+    duration_value = raw_config.get("duration_minutes")
+    try:
+        duration_minutes = int(duration_value) if duration_value is not None else DEFAULT_TKA_COMPOSITE_DURATION
+    except (TypeError, ValueError):
+        duration_minutes = DEFAULT_TKA_COMPOSITE_DURATION
+    duration_minutes = max(30, duration_minutes)
+    template_map = {template["key"]: template for template in TKA_SECTION_TEMPLATES}
+    sections_payload = raw_config.get("sections") if isinstance(raw_config.get("sections"), list) else []
+    normalized_sections: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in sections_payload:
+        if not isinstance(entry, dict):
+            continue
+        normalized = _normalize_section_entry_local(entry, template_map.get(entry.get("key")))
+        normalized_sections.append(normalized)
+        seen.add(normalized["key"])
+    for template in TKA_SECTION_TEMPLATES:
+        if template["key"] in seen:
+            continue
+        normalized_sections.append(_normalize_section_entry_local(template, template))
+    normalized_sections.sort(key=lambda item: TKA_SECTION_KEY_ORDER.index(item["key"]) if item["key"] in TKA_SECTION_KEY_ORDER else item["key"])
+    return {
+        "duration_minutes": duration_minutes,
+        "sections": normalized_sections,
+    }
+
+
+def _aggregate_section_mix_local(sections: List[Dict[str, Any]]) -> Dict[str, int]:
+    totals = {"easy": 0, "medium": 0, "hard": 0}
+    for section in sections:
+        mix = section.get("difficulty") or {}
+        for key in totals.keys():
+            try:
+                totals[key] += int(mix.get(key) or 0)
+            except (TypeError, ValueError):
+                continue
+    return totals
 
 _CHAT_TOPIC_AVAILABLE: Optional[bool] = None
 _TESTER_IDS_CACHE: Optional[List[int]] = None
@@ -2054,7 +2258,7 @@ def fetch_tka_subjects(include_inactive: bool = True) -> List[Dict[str, Any]]:
     query = """
         SELECT id, slug, name, description, question_count, time_limit_minutes,
                difficulty_mix, difficulty_presets, default_preset, grade_level,
-               is_active, created_at, updated_at
+               is_active, created_at, updated_at, metadata
         FROM tka_subjects
     """
     params: List[Any] = []
@@ -2076,6 +2280,17 @@ def fetch_tka_subjects(include_inactive: bool = True) -> List[Dict[str, Any]]:
             subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
             subject["active_mix"] = subject["difficulty_mix"]
             subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
+            metadata = subject.get("metadata") if isinstance(subject.get("metadata"), dict) else {}
+            subject["metadata"] = metadata or {}
+            section_config = _normalize_section_config_local(metadata)
+            if section_config:
+                section_mix = _aggregate_section_mix_local(section_config.get("sections") or [])
+                subject["advanced_config"] = section_config
+                subject["difficulty_mix"] = section_mix
+                subject["active_mix"] = section_mix
+                subject["difficulty_presets"][subject["default_preset"]] = section_mix
+                subject["question_count"] = sum(section.get("question_count", 0) for section in section_config.get("sections") or [])
+                subject["time_limit_minutes"] = section_config.get("duration_minutes", subject.get("time_limit_minutes") or DEFAULT_TKA_COMPOSITE_DURATION)
             subjects.append(subject)
     return subjects
 
@@ -2087,7 +2302,8 @@ def fetch_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
         cur.execute(
             """
             SELECT id, slug, name, description, question_count, time_limit_minutes,
-                   difficulty_mix, difficulty_presets, default_preset, grade_level, is_active
+                   difficulty_mix, difficulty_presets, default_preset, grade_level,
+                   is_active, metadata
             FROM tka_subjects
             WHERE id = %s
             """,
@@ -2103,7 +2319,81 @@ def fetch_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
         subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
         subject["active_mix"] = subject["difficulty_mix"]
         subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
+        metadata = subject.get("metadata") if isinstance(subject.get("metadata"), dict) else {}
+        subject["metadata"] = metadata or {}
+        section_config = _normalize_section_config_local(metadata)
+        if section_config:
+            section_mix = _aggregate_section_mix_local(section_config.get("sections") or [])
+            subject["advanced_config"] = section_config
+            subject["difficulty_mix"] = section_mix
+            subject["active_mix"] = section_mix
+            subject["difficulty_presets"][subject["default_preset"]] = section_mix
+            subject["question_count"] = sum(section.get("question_count", 0) for section in section_config.get("sections") or [])
+            subject["time_limit_minutes"] = section_config.get("duration_minutes", subject.get("time_limit_minutes") or DEFAULT_TKA_COMPOSITE_DURATION)
         return subject
+
+
+def update_tka_subject_sections(
+    subject_id: int,
+    *,
+    duration_minutes: int,
+    sections: Optional[List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    if not subject_id:
+        raise ValueError("subject_id wajib diisi.")
+    try:
+        duration_value = int(duration_minutes)
+    except (TypeError, ValueError):
+        duration_value = DEFAULT_TKA_COMPOSITE_DURATION
+    duration_value = max(30, duration_value)
+    payload_metadata = {
+        TKA_METADATA_SECTION_CONFIG_KEY: {
+            "duration_minutes": duration_value,
+            "sections": sections or [],
+        }
+    }
+    normalized = _normalize_section_config_local(payload_metadata)
+    normalized_sections = normalized.get("sections") or []
+    normalized_duration = normalized.get("duration_minutes", duration_value)
+    aggregated_mix = _aggregate_section_mix_local(normalized_sections)
+    total_questions = sum(section.get("question_count", 0) for section in normalized_sections)
+    metadata_payload: Dict[str, Any]
+    with get_cursor() as cur:
+        cur.execute("SELECT metadata FROM tka_subjects WHERE id = %s", (subject_id,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Mapel tidak ditemukan.")
+        metadata_value = dict(row[0] or {})
+        metadata_value[TKA_METADATA_SECTION_CONFIG_KEY] = normalized
+        metadata_payload = metadata_value
+    preset_payload = {DEFAULT_TKA_PRESET_KEY: aggregated_mix}
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE tka_subjects
+            SET metadata = %s,
+                question_count = %s,
+                time_limit_minutes = %s,
+                difficulty_mix = %s,
+                difficulty_presets = %s,
+                default_preset = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id
+            """,
+            (
+                Json(metadata_payload),
+                total_questions,
+                normalized_duration,
+                Json(aggregated_mix),
+                Json(preset_payload),
+                DEFAULT_TKA_PRESET_KEY,
+                subject_id,
+            ),
+        )
+        if not cur.fetchone():
+            raise ValueError("Mapel tidak ditemukan.")
+    return fetch_tka_subject(subject_id)
 
 
 def create_tka_subject(
@@ -2246,28 +2536,239 @@ def fetch_tka_questions(
 ) -> List[Dict[str, Any]]:
     if not subject_id:
         return []
-    clauses = ["subject_id = %s"]
+    clauses = ["q.subject_id = %s"]
     params: List[Any] = [subject_id]
     if difficulty:
-        clauses.append("difficulty = %s")
+        clauses.append("q.difficulty = %s")
         params.append(difficulty)
     if topic:
-        clauses.append("topic ILIKE %s")
+        clauses.append("q.topic ILIKE %s")
         params.append(f"%{topic}%")
     where_clause = " AND ".join(clauses)
     with get_cursor() as cur:
         cur.execute(
             f"""
-            SELECT id, subject_id, topic, difficulty, prompt, options,
-                   correct_key, explanation, source, ai_prompt, created_at
-            FROM tka_questions
+            SELECT
+                q.id,
+                q.subject_id,
+                q.topic,
+                q.difficulty,
+                q.prompt,
+                q.options,
+                q.correct_key,
+                q.explanation,
+                q.source,
+                q.ai_prompt,
+                q.metadata,
+                q.created_at,
+                q.created_by,
+                creator.full_name AS creator_name,
+                creator.email AS creator_email,
+                q.stimulus_id,
+                s.title AS stimulus_title,
+                s.type AS stimulus_type,
+                s.narrative AS stimulus_narrative,
+                s.image_url AS stimulus_image_url,
+                s.image_prompt AS stimulus_image_prompt
+            FROM tka_questions q
+            LEFT JOIN tka_stimulus s ON s.id = q.stimulus_id
+            LEFT JOIN dashboard_users creator ON creator.id = q.created_by
             WHERE {where_clause}
-            ORDER BY created_at DESC, id DESC
+            ORDER BY q.created_at DESC, q.id DESC
             LIMIT %s
             """,
             (*params, limit),
         )
-        return [dict(row) for row in cur.fetchall()]
+        rows = []
+        for row in cur.fetchall():
+            record = dict(row)
+            record["created_by_name"] = record.pop("creator_name", None)
+            record["created_by_email"] = record.pop("creator_email", None)
+            stimulus_id = record.pop("stimulus_id", None)
+            if stimulus_id:
+                record["stimulus"] = {
+                    "id": stimulus_id,
+                    "title": record.pop("stimulus_title", None),
+                    "type": record.pop("stimulus_type", None),
+                    "narrative": record.pop("stimulus_narrative", None),
+                    "image_url": record.pop("stimulus_image_url", None),
+                    "image_prompt": record.pop("stimulus_image_prompt", None),
+                }
+            else:
+                record.pop("stimulus_title", None)
+                record.pop("stimulus_type", None)
+                record.pop("stimulus_narrative", None)
+                record.pop("stimulus_image_url", None)
+                record.pop("stimulus_image_prompt", None)
+            rows.append(record)
+        return rows
+
+
+def fetch_tka_stimulus_list(subject_id: int) -> List[Dict[str, Any]]:
+    if not subject_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            FROM tka_stimulus
+            WHERE subject_id = %s
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 200
+            """,
+            (subject_id,),
+        )
+        rows = []
+        for row in cur.fetchall():
+            record = dict(row)
+            metadata = record.get("metadata")
+            if isinstance(metadata, dict):
+                record["metadata"] = metadata
+            else:
+                record["metadata"] = {}
+            rows.append(record)
+        return rows
+
+
+def fetch_tka_stimulus(stimulus_id: int) -> Optional[Dict[str, Any]]:
+    if not stimulus_id:
+        return None
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, subject_id, title, type, narrative, image_url, image_prompt, metadata
+            FROM tka_stimulus
+            WHERE id = %s
+            """,
+            (stimulus_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    record = dict(row)
+    metadata = record.get("metadata")
+    record["metadata"] = metadata if isinstance(metadata, dict) else {}
+    return record
+
+
+def create_tka_stimulus(
+    subject_id: int,
+    *,
+    title: str,
+    narrative: Optional[str] = None,
+    image_data: Optional[str] = None,
+    image_prompt: Optional[str] = None,
+    created_by: Optional[int] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    if not subject_id:
+        raise ValueError("subject_id wajib diisi.")
+    title = (title or "").strip()
+    if not title:
+        raise ValueError("Judul stimulus wajib diisi.")
+    narrative_value = (narrative or "").strip() or None
+    image_value = image_data or None
+    stimulus_type = _determine_stimulus_type_local(bool(narrative_value), bool(image_value))
+    normalized_metadata = metadata if isinstance(metadata, dict) else None
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO tka_stimulus (
+                subject_id,
+                title,
+                type,
+                narrative,
+                image_url,
+                image_prompt,
+                metadata,
+                created_by
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            """,
+            (
+                subject_id,
+                title,
+                stimulus_type,
+                narrative_value,
+                image_value,
+                image_prompt or None,
+                Json(normalized_metadata) if normalized_metadata else None,
+                created_by,
+            ),
+        )
+        row = cur.fetchone()
+    if not row:
+        raise ValueError("Stimulus gagal disimpan.")
+    record = dict(row)
+    meta_payload = record.get("metadata")
+    if isinstance(meta_payload, dict):
+        record["metadata"] = meta_payload
+    else:
+        record["metadata"] = {}
+    return record
+
+
+def update_tka_stimulus(
+    stimulus_id: int,
+    *,
+    title: Optional[str] = None,
+    narrative: Optional[str] = None,
+    image_data: Optional[str] = None,
+    image_prompt: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if not stimulus_id:
+        raise ValueError("stimulus_id wajib diisi.")
+    fields: list[str] = []
+    values: list[Any] = []
+    if title is not None:
+        fields.append("title = %s")
+        values.append(title.strip())
+    if narrative is not None:
+        fields.append("narrative = %s")
+        values.append(narrative.strip() or None)
+    if image_data is not None:
+        fields.append("image_url = %s")
+        values.append(image_data or None)
+    if image_prompt is not None:
+        fields.append("image_prompt = %s")
+        values.append(image_prompt.strip() or None)
+    if metadata is not None:
+        fields.append("metadata = %s")
+        values.append(Json(metadata))
+    if not fields:
+        return None
+    set_clause = ", ".join(fields) + ", updated_at = NOW()"
+    values.append(stimulus_id)
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            f"""
+            UPDATE tka_stimulus
+            SET {set_clause}
+            WHERE id = %s
+            RETURNING id, subject_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            """,
+            tuple(values),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    record = dict(row)
+    meta_payload = record.get("metadata")
+    if isinstance(meta_payload, dict):
+        record["metadata"] = meta_payload
+    else:
+        record["metadata"] = {}
+    return record
+
+
+def delete_tka_stimulus(stimulus_id: int) -> bool:
+    if not stimulus_id:
+        return False
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM tka_stimulus WHERE id = %s", (stimulus_id,))
+        return cur.rowcount > 0
 
 
 def create_tka_questions(
@@ -2290,7 +2791,7 @@ def create_tka_questions(
             if isinstance(value, str):
                 existing_prompts.add(value.strip())
 
-    payloads: List[Tuple[Any, ...]] = []
+    question_records: List[Dict[str, Any]] = []
     for question in questions or []:
         prompt = (question.get("prompt") or "").strip()
         if not prompt:
@@ -2305,42 +2806,71 @@ def create_tka_questions(
         correct_key = (question.get("correct_key") or options[0]["key"]).strip().upper()
         if correct_key not in {opt["key"] for opt in options}:
             correct_key = options[0]["key"]
-        payloads.append(
-            (
-                subject_id,
-                (question.get("topic") or "").strip() or None,
-                difficulty,
-                prompt,
-                Json(options),
-                correct_key,
-                (question.get("explanation") or "").strip() or None,
-                created_by,
-                (question.get("source") or "manual").strip(),
-                question.get("ai_prompt"),
-            )
+        metadata = question.get("metadata")
+        if metadata is not None and not isinstance(metadata, dict):
+            metadata = None
+        question_records.append(
+            {
+                "topic": (question.get("topic") or "").strip() or None,
+                "difficulty": difficulty,
+                "prompt": prompt,
+                "options": options,
+                "correct_key": correct_key,
+                "explanation": (question.get("explanation") or "").strip() or None,
+                "metadata": metadata,
+                "source": (question.get("source") or "manual").strip(),
+                "ai_prompt": question.get("ai_prompt"),
+                "stimulus": question.get("stimulus"),
+            }
         )
         existing_prompts.add(normalized_prompt)
-    if not payloads:
+    if not question_records:
         return 0
     with get_cursor(commit=True) as cur:
-        cur.executemany(
-            """
-            INSERT INTO tka_questions (
+        stimulus_cache: Dict[str, int] = {}
+        inserted = 0
+        for record in question_records:
+            stimulus_id = _resolve_question_stimulus(
+                cur,
                 subject_id,
-                topic,
-                difficulty,
-                prompt,
-                options,
-                correct_key,
-                explanation,
+                record.get("stimulus"),
                 created_by,
-                source,
-                ai_prompt
+                stimulus_cache,
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """,
-            payloads,
-        )
+            cur.execute(
+                """
+                INSERT INTO tka_questions (
+                    subject_id,
+                    stimulus_id,
+                    topic,
+                    difficulty,
+                    prompt,
+                    options,
+                    correct_key,
+                    explanation,
+                    created_by,
+                    source,
+                    metadata,
+                    ai_prompt
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,
+                (
+                    subject_id,
+                    stimulus_id,
+                    record["topic"],
+                    record["difficulty"],
+                    record["prompt"],
+                    Json(record["options"]),
+                    record["correct_key"],
+                    record["explanation"],
+                    created_by,
+                    record["source"],
+                    Json(record["metadata"]) if record["metadata"] else None,
+                    record["ai_prompt"],
+                ),
+            )
+            inserted += cur.rowcount or 0
         cur.execute(
             """
             UPDATE tka_subjects
@@ -2350,7 +2880,7 @@ def create_tka_questions(
             """,
             (subject_id,),
         )
-    return len(payloads)
+    return inserted
 
 
 def has_tka_question_with_prompt(subject_id: int, prompt: str) -> bool:
@@ -2396,13 +2926,30 @@ def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
     if correct_key not in {opt["key"] for opt in options}:
         correct_key = options[0]["key"]
     explanation = (payload.get("explanation") or "").strip() or None
+    stimulus_payload = payload.get("stimulus")
 
     with get_cursor(commit=True) as cur:
-        cur.execute("SELECT subject_id FROM tka_questions WHERE id = %s", (question_id,))
+        cur.execute("SELECT subject_id, metadata, stimulus_id FROM tka_questions WHERE id = %s", (question_id,))
         row = cur.fetchone()
         if not row:
             return False
         subject_id = row[0]
+        existing_metadata = dict(row[1] or {})
+        current_stimulus_id = row[2]
+        metadata_payload = payload.get("metadata")
+        if metadata_payload is not None:
+            if not isinstance(metadata_payload, dict):
+                raise ValueError("Metadata harus berupa objek.")
+            existing_metadata.update({k: v for k, v in metadata_payload.items() if v is not None})
+        stimulus_specified = "stimulus" in payload
+        stimulus_payload = payload.get("stimulus")
+        stimulus_id = current_stimulus_id
+        if stimulus_specified:
+            if stimulus_payload is None:
+                stimulus_id = None
+            else:
+                stimulus_cache: Dict[str, int] = {}
+                stimulus_id = _resolve_question_stimulus(cur, subject_id, stimulus_payload, None, stimulus_cache)
         cur.execute(
             """
             UPDATE tka_questions
@@ -2412,6 +2959,8 @@ def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
                 options = %s,
                 correct_key = %s,
                 explanation = %s,
+                stimulus_id = %s,
+                metadata = %s,
                 updated_at = NOW()
             WHERE id = %s
             """,
@@ -2422,6 +2971,8 @@ def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
                 Json(options),
                 correct_key,
                 explanation,
+                stimulus_id,
+                Json(existing_metadata) if existing_metadata else None,
                 question_id,
             ),
         )

@@ -118,6 +118,16 @@
             transform: translateY(-1px);
             box-shadow: 0 10px 20px rgba(37,99,235,0.25);
         }
+        .start-btn.secondary {
+            background: #fff;
+            color: #1d4ed8;
+            border: 1px solid rgba(99,102,241,0.4);
+            box-shadow: none;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+        }
         .empty-state {
             border: 1px dashed rgba(37,99,235,0.4);
             border-radius: 18px;
@@ -140,6 +150,9 @@
         .flash-info { background: #e0f2fe; color: #0c4a6e; }
         .flash-warning { background: #fef3c7; color: #92400e; }
         .flash-error { background: #fee2e2; color: #991b1b; }
+        #subjectListAnchor {
+            scroll-margin-top: 120px;
+        }
     </style>
 </head>
 <body>
@@ -170,18 +183,17 @@
         <div class="hero-card mb-5">
             <div class="row g-4 align-items-center">
                 <div class="col-lg-8">
-                    <h1>Asah kemampuanmu sebelum ujian!</h1>
+                    <h1>Latihan komplit sebelum Tes TKA!</h1>
                     <p>
-                        Setiap sesi berisi 20 soal pilihan ganda dengan durasi 15 menit. Kamu bisa memilih preset Mudah, Sedang, Susah,
-                        atau mix kustom yang sudah disiapkan guru agar latihan terasa makin presisi. Setelah selesai, ASKA langsung
-                        memberikan skor dan analisa kekuatan maupun area yang perlu diperbaiki.
+                        Satu sesi terdiri dari 90 soal dengan durasi 120 menit: 40 soal Matematika, 40 soal Bahasa Indonesia pilihan ganda,
+                        dan 10 soal Bahasa Indonesia benar/salah. Setelah selesai, ASKA langsung memberikan skor serta analisa kekuatan dan area yang perlu diperbaiki.
                     </p>
                 </div>
                 <div class="col-lg-4 text-lg-end text-center">
                     <div class="chip mb-3 justify-content-center">
-                        ⏱️ 15 menit &nbsp;·&nbsp; 20 soal
+                        ⏱️ 120 menit &nbsp;·&nbsp; 90 soal
                     </div>
-                    <p class="mb-0">Latihan kapan saja, histori chat tetap tersimpan.</p>
+                    <p class="mb-0">Latihan kapan saja, hasil tersimpan dalam riwayatmu.</p>
                 </div>
             </div>
         </div>
@@ -197,75 +209,51 @@
         </div>
 
         {% if subjects %}
-        <div class="subjects-grid">
+        <div class="subjects-grid" id="subjectListAnchor">
             {% for subject in subjects %}
-            {% set mix = subject.difficulty_mix or {} %}
-            {% set presets = subject.difficulty_presets or {} %}
             {% set default_preset = subject.default_preset or 'mudah' %}
-            {% set fallback_mix = mix or {'easy':10,'medium':5,'hard':5} %}
+            {% set sections = subject.advanced_config.sections if subject.advanced_config else [] %}
             <div class="subject-card" data-grade="{{ subject.grade_level or 'sd6' }}">
                 <div class="d-flex justify-content-between align-items-start">
                     <h3>{{ subject.name }}</h3>
-                    <span class="chip">{{ subject.question_count or 20 }} Soal</span>
+                    <span class="chip">{{ subject.question_count or 90 }} Soal</span>
                 </div>
                 <span class="chip bg-light text-dark">Jenjang: {{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }}</span>
                 <p class="mb-2 text-muted">{{ subject.description or "Soal pilihan ganda siap pakai untuk latihan intensif." }}</p>
+                <div class="mb-3">
+                    <p class="fw-semibold mb-2">Komposisi Soal</p>
+                    {% for section in sections %}
+                    <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2 mb-2">
+                        <div>
+                            <div class="fw-semibold">{{ section.label }}</div>
+                            <small class="text-muted">{{ section.question_count }} soal · {{ 'Benar/Salah' if section.question_format == 'true_false' else 'Pilihan Ganda' }}</small>
+                        </div>
+                        <span class="badge text-bg-light">{{ 'Bahasa Indonesia' if section.subject_area == 'bahasa_indonesia' else 'Matematika' }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
                 <ul class="stat-list">
-                    <li>⏳ {{ subject.time_limit_minutes or 15 }} menit</li>
+                    <li>⏳ {{ subject.time_limit_minutes or 120 }} menit</li>
                     <li>🧠 Analisa otomatis dari ASKA</li>
-                    <li>🎯 Preset utama: {{ label_map[default_preset]|default(default_preset|title) }}</li>
                 </ul>
                 <form method="post" action="{{ url_for('latihan_tka_mulai', subject_id=subject.id) }}" class="mt-auto">
-                    {% set preset_state = namespace(has_option=False) %}
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Pilih tingkat kesulitan</label>
-                        <select class="form-select preset-select" name="preset" data-summary-target="mixSummary{{ subject.id }}">
-                            {% for key in ['mudah','sedang','susah'] %}
-                                {% set preset_mix = presets.get(key) %}
-                                {% if preset_mix %}
-                                    {% set preset_state.has_option = True %}
-                                    {% set label = label_map[key]|default(key|title) %}
-                                    <option value="{{ key }}"
-                                            data-label="{{ label }}"
-                                            data-easy="{{ preset_mix.easy|default(0) }}"
-                                            data-medium="{{ preset_mix.medium|default(0) }}"
-                                            data-hard="{{ preset_mix.hard|default(0) }}"
-                                            {% if key == default_preset %}selected{% endif %}>
-                                        {{ label }} · {{ preset_mix.easy|default(0) }}M/{{ preset_mix.medium|default(0) }}S/{{ preset_mix.hard|default(0) }}H
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                            {% for key, preset_mix in presets.items() %}
-                                {% if key not in ['mudah','sedang','susah'] %}
-                                    {% set preset_state.has_option = True %}
-                                    {% set label = label_map[key]|default(key|title) %}
-                                    <option value="{{ key }}"
-                                            data-label="{{ label }}"
-                                            data-easy="{{ preset_mix.easy|default(0) }}"
-                                            data-medium="{{ preset_mix.medium|default(0) }}"
-                                            data-hard="{{ preset_mix.hard|default(0) }}"
-                                            {% if key == default_preset %}selected{% endif %}>
-                                        {{ label }} · {{ preset_mix.easy|default(0) }}M/{{ preset_mix.medium|default(0) }}S/{{ preset_mix.hard|default(0) }}H
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                            {% if not preset_state.has_option %}
-                                {% set label = label_map[default_preset]|default(default_preset|title) %}
-                                <option value="{{ default_preset }}"
-                                        data-label="{{ label }}"
-                                        data-easy="{{ fallback_mix.easy|default(0) }}"
-                                        data-medium="{{ fallback_mix.medium|default(0) }}"
-                                        data-hard="{{ fallback_mix.hard|default(0) }}"
-                                        selected>
-                                    {{ label }} · {{ fallback_mix.easy|default(0) }}M/{{ fallback_mix.medium|default(0) }}S/{{ fallback_mix.hard|default(0) }}H
-                                </option>
-                            {% endif %}
-                        </select>
-                        <small class="text-muted d-block mt-1" id="mixSummary{{ subject.id }}">Menyiapkan komposisi…</small>
+                    <input type="hidden" name="preset" value="{{ default_preset }}">
+                    <div class="action-buttons">
+                        <button type="button"
+                                class="start-btn secondary w-100 simulasi-trigger"
+                                data-simform="simulasiForm{{ subject.id }}">
+                            Coba Simulasi
+                        </button>
+                        <button type="submit" class="start-btn w-100">
+                            Mulai Latihan
+                        </button>
                     </div>
-                    <button type="submit" class="start-btn w-100">
-                        Mulai Latihan
-                    </button>
+                </form>
+                <form method="post"
+                      action="{{ url_for('latihan_tka_simulasi_setup') }}"
+                      id="simulasiForm{{ subject.id }}">
+                    <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                    <input type="hidden" name="preset" value="{{ default_preset }}">
                 </form>
             </div>
             {% endfor %}
@@ -275,7 +263,7 @@
             <p class="mb-0">Coba pilih jenjang lain atau hubungi admin untuk menambahkan bank soal baru.</p>
         </div>
         {% else %}
-        <div class="empty-state">
+        <div class="empty-state" id="subjectListAnchor">
             <h4>Mapel latihan belum tersedia</h4>
             <p class="mb-0">Admin sedang menyiapkan bank soal terbaru. Cek lagi dalam beberapa saat ya!</p>
         </div>
@@ -283,24 +271,6 @@
     </div>
     <script>
         (function () {
-            const selects = document.querySelectorAll('.preset-select');
-            selects.forEach(select => {
-                const targetId = select.getAttribute('data-summary-target');
-                const summaryEl = targetId ? document.getElementById(targetId) : null;
-                if (!summaryEl) return;
-                const updateSummary = () => {
-                    const option = select.selectedOptions[0];
-                    if (!option) return;
-                    const easy = parseInt(option.dataset.easy || '0', 10);
-                    const medium = parseInt(option.dataset.medium || '0', 10);
-                    const hard = parseInt(option.dataset.hard || '0', 10);
-                    const label = option.dataset.label || option.textContent.trim();
-                    summaryEl.textContent = `${label}: ${easy} Mudah · ${medium} Sedang · ${hard} Susah`;
-                };
-                select.addEventListener('change', updateSummary);
-                updateSummary();
-            });
-
             const gradeButtons = document.querySelectorAll('[data-grade-filter]');
             const cards = document.querySelectorAll('.subject-card');
             const emptyState = document.getElementById('gradeEmptyState');
@@ -324,6 +294,15 @@
                 });
             });
             applyGradeFilter('all');
+            const simulasiButtons = document.querySelectorAll('.simulasi-trigger');
+            simulasiButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const formId = button.getAttribute('data-simform');
+                    const form = formId ? document.getElementById(formId) : null;
+                    if (!form) return;
+                    form.submit();
+                });
+            });
         })();
     </script>
 </body>
