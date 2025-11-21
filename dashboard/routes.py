@@ -379,6 +379,11 @@ def _repair_split_question_arrays(text: str) -> str:
 def _close_unbalanced_json(text: str) -> str:
     if not text:
         return text
+    # Hapus koma menggantung di akhir teks supaya penutupan otomatis tidak menghasilkan `,}` atau `,]`
+    trimmed = text.rstrip()
+    while trimmed.endswith(","):
+        trimmed = trimmed[:-1].rstrip()
+    text = trimmed
     stack: list[str] = []
     in_string = False
     escape = False
@@ -409,6 +414,116 @@ def _repair_trailing_commas(text: str) -> str:
     if not text:
         return text
     return re.sub(r",(?=\s*[}\]])", "", text)
+
+
+def _repair_unterminated_strings(text: str) -> str:
+    """
+    Tutup string yang terpotong di akhir respons (misal \"Mengunj |\" tanpa tanda kutip penutup).
+    """
+    if not text:
+        return text
+    text = re.sub(r'"text":"([^"]*)$', r'"text":"\1"', text)
+    text = re.sub(r'"prompt":"([^"]*)$', r'"prompt":"\1"', text)
+    text = re.sub(r'"explanation":"([^"]*)$', r'"explanation":"\1"', text)
+    # Pastikan jumlah kutip ganda tidak ganjil.
+    unescaped_quotes = 0
+    escape = False
+    for ch in text:
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            unescaped_quotes += 1
+    if unescaped_quotes % 2 != 0:
+        text += '"'
+    return text
+
+
+def _salvage_questions_from_text(text: str) -> list[dict]:
+    """
+    Ambil sebanyak mungkin objek pertanyaan dari teks JSON yang terpotong.
+    Mengabaikan entri terakhir yang belum lengkap agar parsing tetap berhasil.
+    """
+    if not text:
+        return []
+    anchor = text.find('"questions"')
+    if anchor == -1:
+        return []
+    start = text.find("[", anchor)
+    if start == -1:
+        return []
+    items: list[str] = []
+    in_string = False
+    escape = False
+    depth = 0
+    obj_start = None
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth += 1
+            if depth == 1:
+                obj_start = idx
+        elif ch == "}":
+            if depth == 1 and obj_start is not None:
+                items.append(text[obj_start : idx + 1])
+                obj_start = None
+            if depth > 0:
+                depth -= 1
+        elif ch == "]" and depth == 0:
+            break
+    recovered: list[dict] = []
+    for raw in items:
+        normalized = _close_unbalanced_json(
+            _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(raw)))
+        )
+        try:
+            parsed = json.loads(normalized)
+            if isinstance(parsed, dict):
+                recovered.append(parsed)
+        except Exception:
+            continue
+    return recovered
+
+
+def _salvage_stimulus_from_text(text: str) -> Optional[dict]:
+    """
+    Ambil data stimulus pertama tanpa daftar questions agar bisa dipakai menyelamatkan output terpotong.
+    """
+    if not text:
+        return None
+    anchor = text.find('"stimulus"')
+    if anchor == -1:
+        return None
+    obj_start = text.find("{", anchor)
+    if obj_start == -1:
+        return None
+    questions_anchor = text.find('"questions"', obj_start)
+    block = text[obj_start : questions_anchor if questions_anchor != -1 else None]
+    block = block.rstrip()
+    if block.endswith(","):
+        block = block[:-1]
+    normalized = _close_unbalanced_json(
+        _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(block)))
+    )
+    try:
+        parsed = json.loads(normalized)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
 
 
 MIN_GENERATED_CHILDREN = 3
@@ -1616,12 +1731,20 @@ def latihan_tka_generate_stimulus():
         else:
             raw_output = str(result)
         cleaned = _strip_code_fences(str(raw_output))
-        normalized = _close_unbalanced_json(_repair_trailing_commas(_normalize_jsonish_text(cleaned)))
+        normalized = _repair_trailing_commas(
+            _close_unbalanced_json(
+                _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(cleaned)))
+            )
+        )
         parsed = json.loads(normalized)
     except json.JSONDecodeError:
         try:
             fallback_payload = _extract_json_payload(cleaned)
-            normalized = _close_unbalanced_json(_repair_trailing_commas(_normalize_jsonish_text(fallback_payload)))
+            normalized = _repair_trailing_commas(
+                _close_unbalanced_json(
+                    _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(fallback_payload)))
+                )
+            )
             parsed = json.loads(normalized)
         except Exception as exc:
             preview = cleaned.strip().replace("```", "")[:300]
@@ -1703,7 +1826,7 @@ def latihan_tka_store_questions():
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as exc:
-        main_bp.logger.error("Gagal menyimpan soal TKA: %s", exc)
+        current_app.logger.error("Gagal menyimpan soal TKA: %s", exc)
         return jsonify({"success": False, "message": "Terjadi kesalahan saat menyimpan soal."}), 500
     return jsonify({"success": True, "inserted": inserted})
 
@@ -1882,7 +2005,9 @@ def latihan_tka_generate():
         # Mode ringkas: abaikan bundle stimulus, fokus ke soal tunggal per entri
         bundle_size = 1
     section_template = next((tpl for tpl in TKA_SECTION_TEMPLATES if tpl["key"] == section_key), TKA_SECTION_TEMPLATES[0])
-    section_label = section_template.get("label")
+    section_label = section_template.get("label") or section_key.title()
+    if section_template.get("subject_area") == "bahasa_indonesia":
+        section_label = "Bahasa Indonesia"
 
     chain = _get_tka_ai_chain()
     if chain is None:
@@ -2032,21 +2157,53 @@ def latihan_tka_generate():
         else:
             raw_output = str(result)
         cleaned = _strip_code_fences(str(raw_output))
-        normalized = _close_unbalanced_json(_repair_split_question_arrays(_repair_trailing_commas(_normalize_jsonish_text(cleaned))))
+        normalized = _repair_trailing_commas(
+            _close_unbalanced_json(
+                _repair_split_question_arrays(
+                    _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(cleaned)))
+                )
+            )
+        )
         parsed = json.loads(normalized)
     except json.JSONDecodeError:
         try:
             fallback_payload = _extract_json_payload(cleaned)
-            normalized = _close_unbalanced_json(_repair_split_question_arrays(_repair_trailing_commas(_normalize_jsonish_text(fallback_payload))))
+            normalized = _repair_trailing_commas(
+                _close_unbalanced_json(
+                    _repair_split_question_arrays(
+                        _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(fallback_payload)))
+                    )
+                )
+            )
             parsed = json.loads(normalized)
         except Exception as exc:
-            preview = cleaned.strip().replace("```", "")[:300]
-            current_app.logger.error("ASKA generator output tidak dapat diparse: %s | error=%s", cleaned, exc)
+            salvaged_questions = _salvage_questions_from_text(cleaned)
+            salvaged_stimulus = _salvage_stimulus_from_text(cleaned)
+            if salvaged_questions or salvaged_stimulus:
+                parsed = {"questions": salvaged_questions or []}
+                if salvaged_stimulus:
+                    parsed["stimulus"] = [salvaged_stimulus]
+                current_app.logger.warning(
+                    "ASKA generator diparse parsial; stimulus_ok=%s, soal=%s.",
+                    bool(salvaged_stimulus),
+                    len(salvaged_questions or []),
+                )
+            else:
+                preview = cleaned.strip().replace("```", "")[:300]
+                current_app.logger.error("ASKA generator output tidak dapat diparse: %s | error=%s", cleaned, exc)
+                return jsonify({
+                    "success": False,
+                    "message": f"ASKA mengirim format yang belum bisa dipahami. Cuplikan: {preview}"
+                }), 422
+    except Exception as exc:
+        error_text = str(exc) or ""
+        lower = error_text.lower()
+        if "rate limit" in lower or "limit reached" in lower or "exceeded" in lower:
+            current_app.logger.error("Generator TKA rate-limit: %s", exc)
             return jsonify({
                 "success": False,
-                "message": f"ASKA mengirim format yang belum bisa dipahami. Cuplikan: {preview}"
-            }), 422
-    except Exception as exc:
+                "message": "ASKA kena rate limit model. Coba ulang beberapa detik lagi; jika sering terjadi, cek billing/kuota.",
+            }), 429
         current_app.logger.error("Generator TKA error: %s", exc)
         return jsonify({"success": False, "message": "ASKA gagal menghasilkan soal."}), 500
 

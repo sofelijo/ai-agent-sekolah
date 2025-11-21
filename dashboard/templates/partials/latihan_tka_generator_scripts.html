@@ -9,8 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('saveGenerated');
     const statusBox = document.getElementById('tkaStatus');
     const triggerBtns = document.querySelectorAll('[data-generator-submit]');
-    const generatorMode = (generatorModeInput ? generatorModeInput.value : 'lite').toLowerCase();
+    const baseGeneratorMode = (generatorModeInput ? generatorModeInput.value : 'lite').toLowerCase();
+    let stimulusCache = [];
     let generatedBundle = null;
+    let isGenerating = false;
 
     const selectors = {
         subject: () => document.getElementById('generateSubject'),
@@ -25,9 +27,43 @@ document.addEventListener('DOMContentLoaded', () => {
         styleSimilarity: () => document.getElementById('generateStyleSimilarity'),
         example: () => document.getElementById('generateExample'),
         imageDescription: () => document.getElementById('generateImageDescription'),
+        imageDescriptionGroup: () => document.getElementById('generateImageDescriptionGroup'),
+        scope: () => document.querySelector('input[name="generatorScope"]:checked'),
+        stimulusSection: () => document.getElementById('generatorStimulusSection'),
         stimulusSelect: () => document.getElementById('questionStimulusSelect'),
-        stimulusUsageRadios: () => document.querySelectorAll('input[name="stimulusUsage"]'),
+        stimulusSearch: () => document.getElementById('stimulusSearchInput'),
+        clearStimulusSearch: () => document.getElementById('clearStimulusSearch'),
+        refreshStimulus: () => document.getElementById('refreshStimulusBtn'),
+        stimulusPreview: () => document.getElementById('selectedStimulusPreview'),
+        amountGroup: () => document.getElementById('generateAmountGroup'),
+        bundleLabel: () => document.getElementById('generateBundleLabel'),
+        amountHint: () => document.getElementById('generateAmountHint'),
+        amountLabel: () => document.getElementById('generateAmountLabel'),
     };
+
+    function encodePayload(data) {
+        try {
+            return btoa(encodeURIComponent(JSON.stringify(data)));
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function decodePayload(raw) {
+        if (!raw) return null;
+        try {
+            return JSON.parse(decodeURIComponent(atob(raw)));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function resolveGeneratorMode() {
+        if (baseGeneratorMode !== 'pro') return baseGeneratorMode;
+        const scope = selectors.scope();
+        if (scope && scope.value === 'questions_only') return 'pro';
+        return 'lite';
+    }
 
     function showStatus(message, tone = 'info') {
         if (!statusBox) return;
@@ -39,43 +75,297 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function injectTemplate() {
         if (!fieldsContainer) return;
-        const tpl = generatorMode === 'pro' ? tplPro : tplLite;
+        const tpl = baseGeneratorMode === 'pro' ? tplPro : tplLite;
         if (tpl) {
             fieldsContainer.innerHTML = tpl.innerHTML;
         }
     }
 
     function getStimulusSelection() {
-        if (generatorMode !== 'pro') return null;
-        const usageRadios = selectors.stimulusUsageRadios();
-        let usage = 'none';
-        usageRadios.forEach(radio => {
-            if (radio.checked) usage = radio.value;
-        });
-        if (usage !== 'existing') return null;
+        if (resolveGeneratorMode() !== 'pro') return null;
         const select = selectors.stimulusSelect();
         const value = select ? parseInt(select.value, 10) : NaN;
         return Number.isFinite(value) && value ? value : null;
     }
 
+    function getSectionMeta() {
+        const sectionSelect = selectors.section();
+        const fallback = { key: 'matematika', subject_area: 'matematika' };
+        if (!sectionSelect) return fallback;
+        const selectedOption = sectionSelect.options[sectionSelect.selectedIndex];
+        const key = sectionSelect.value || fallback.key;
+        const subjectArea = selectedOption?.dataset?.subjectArea;
+        return {
+            key: key || fallback.key,
+            subject_area: subjectArea || (key.startsWith('bahasa') ? 'bahasa_indonesia' : fallback.subject_area),
+        };
+    }
+
     function buildPayload() {
         const subjectId = selectors.subject() ? parseInt(selectors.subject().value, 10) : NaN;
+        const selectedMode = resolveGeneratorMode();
+        const amountValue = selectors.amount() ? parseInt(selectors.amount().value, 10) || 0 : 0;
+        const bundleInput = selectors.bundle();
+        const rawBundle = bundleInput ? parseInt(bundleInput.value, 10) : NaN;
+        const bundleSize = rawBundle || 3;
         return {
             subject_id: Number.isFinite(subjectId) ? subjectId : null,
             topic: selectors.topic() ? selectors.topic().value : '',
             difficulty: selectors.difficulty() ? selectors.difficulty().value : 'easy',
-            amount: selectors.amount() ? parseInt(selectors.amount().value, 10) || 0 : 0,
+            amount: selectedMode === 'pro' ? 1 : amountValue,
             grade_level: selectors.grade() ? selectors.grade().value : '',
             question_type: selectors.questionType() ? selectors.questionType().value : 'direct',
             answer_mode: selectors.answerMode() ? selectors.answerMode().value : 'multiple_choice',
             style_similarity: selectors.styleSimilarity() ? selectors.styleSimilarity().value : '50',
             example: selectors.example() ? selectors.example().value : '',
-            generator_mode: generatorMode,
+            generator_mode: selectedMode,
             section_key: selectors.section() ? selectors.section().value : 'matematika',
-            bundle_size: selectors.bundle() ? parseInt(selectors.bundle().value, 10) || 3 : 3,
+            bundle_size: bundleSize,
             image_description: selectors.imageDescription() ? selectors.imageDescription().value : '',
             stimulus_id: getStimulusSelection(),
         };
+    }
+
+    const escapeHtml = (value = '') => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    function renderStimulusPreview(stimulus) {
+        const previewBox = selectors.stimulusPreview();
+        if (!previewBox) return;
+        if (!stimulus) {
+            previewBox.innerHTML = '<div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>';
+            return;
+        }
+        const imageHtml = stimulus.image_url
+            ? `<img src="${escapeHtml(stimulus.image_url)}" alt="Gambar stimulus" class="img-fluid rounded mb-2">`
+            : '';
+        previewBox.innerHTML = `
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">${escapeHtml(stimulus.title || 'Stimulus')}</h6>
+                            <div class="text-muted small">ID: ${escapeHtml(stimulus.id || '-')}</div>
+                        </div>
+                        ${stimulus.type ? `<span class="badge text-bg-light text-uppercase">${escapeHtml(stimulus.type)}</span>` : ''}
+                    </div>
+                    ${imageHtml}
+                    <p class="small mb-1">${escapeHtml(stimulus.narrative || 'Narasi belum tersedia.')}</p>
+                    ${stimulus.image_prompt ? `<div class="small text-muted">Deskripsi gambar: ${escapeHtml(stimulus.image_prompt)}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStimulusOptions(selectedId = null) {
+        const select = selectors.stimulusSelect();
+        if (!select) return;
+        let list = Array.isArray(stimulusCache) ? stimulusCache : [];
+        const keyword = (selectors.stimulusSearch()?.value || '').trim().toLowerCase();
+        if (keyword) {
+            list = list.filter(item => (item.title || `stimulus-${item.id || ''}`).toLowerCase().includes(keyword));
+        }
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = list.length ? 'Pilih stimulus' : 'Belum ada stimulus';
+        select.appendChild(placeholder);
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.title ? item.title : `Stimulus #${item.id || ''}`;
+            select.appendChild(opt);
+        });
+        if (selectedId) {
+            select.value = String(selectedId);
+        }
+        const current = list.find(item => Number(item.id) === Number(select.value)) || null;
+        renderStimulusPreview(current);
+    }
+
+    async function loadStimulusList(selectedId = null) {
+        const select = selectors.stimulusSelect();
+        const subjectSelect = selectors.subject();
+        const subjectId = subjectSelect ? parseInt(subjectSelect.value, 10) : NaN;
+        if (!select) return;
+        if (!Number.isFinite(subjectId) || !subjectId) {
+            stimulusCache = [];
+            renderStimulusOptions();
+            return;
+        }
+        select.innerHTML = '<option value="">Memuat stimulus…</option>';
+        try {
+            const response = await fetch(`/latihan-tka/stimulus?subject_id=${subjectId}`);
+            const data = await response.json();
+            if (response.ok && data.success !== false) {
+                stimulusCache = Array.isArray(data.stimulus) ? data.stimulus : [];
+                renderStimulusOptions(selectedId);
+            } else {
+                stimulusCache = [];
+                renderStimulusOptions();
+                showStatus((data && data.message) || 'Gagal memuat daftar stimulus.', 'danger');
+            }
+        } catch (error) {
+            stimulusCache = [];
+            renderStimulusOptions();
+            showStatus('Gagal memuat daftar stimulus.', 'danger');
+        }
+    }
+
+    function updateScopeUi() {
+        const mode = resolveGeneratorMode();
+        const stimSection = selectors.stimulusSection();
+        if (stimSection) {
+            stimSection.classList.toggle('d-none', mode !== 'pro');
+        }
+        const amountGroup = selectors.amountGroup();
+        if (amountGroup) {
+            amountGroup.classList.toggle('d-none', mode === 'pro');
+        }
+        const bundleLabel = selectors.bundleLabel();
+        if (bundleLabel) {
+            bundleLabel.textContent = mode === 'pro' ? 'Jumlah soal dari stimulus ini' : 'Soal per stimulus';
+        }
+        const amountHint = selectors.amountHint();
+       
+        const amountLabel = selectors.amountLabel();
+        if (amountLabel) {
+            amountLabel.textContent = mode === 'pro' ? 'Jumlah stimulus' : 'Jumlah stimulus';
+        }
+        const amt = selectors.amount();
+        if (mode === 'pro' && amt) {
+            amt.value = 1;
+        }
+        const imageGroup = selectors.imageDescriptionGroup();
+        if (imageGroup) {
+            imageGroup.classList.toggle('d-none', mode === 'pro');
+        }
+    }
+
+    function buildStimulusBlock(stimulus) {
+        const bundleKey = stimulus?.bundle_key || (stimulus?.id ? `stim-${stimulus.id}` : `stim-${Math.random().toString(16).slice(2, 8)}`);
+        const payload = Object.assign({}, stimulus || {}, { bundle_key: bundleKey });
+        const stimCard = document.createElement('div');
+        stimCard.className = 'stimulus-block mb-3';
+        stimCard.dataset.bundleKey = bundleKey;
+        stimCard.dataset.payload = encodePayload(payload);
+        stimCard.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="text-muted text-uppercase small">Stimulus</div>
+                    <input type="text" class="form-control form-control-sm fw-semibold mb-1" data-stimulus-field="title" value="${escapeHtml(payload.title || 'Stimulus')}">
+                    ${payload.id ? `<div class="small text-muted">ID: ${escapeHtml(payload.id)}</div>` : ''}
+                </div>
+                ${payload.type ? `<span class="badge text-bg-light">${escapeHtml(payload.type)}</span>` : ''}
+            </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Narasi</label>
+                <textarea class="form-control form-control-sm" rows="3" data-stimulus-field="narrative">${escapeHtml(payload.narrative || '')}</textarea>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Deskripsi gambar (opsional)</label>
+                <textarea class="form-control form-control-sm" rows="2" data-stimulus-field="image_prompt">${escapeHtml(payload.image_prompt || '')}</textarea>
+            </div>
+            ${payload.image_url ? `<div class="small text-muted mb-1">Preview gambar: <a href="${escapeHtml(payload.image_url)}" target="_blank" rel="noopener">Buka</a></div>` : ''}
+        `;
+        return stimCard;
+    }
+
+    function persistQuestionPayload(card, question, sectionMeta, stimulus, questionType) {
+        const stimMeta = stimulus ? Object.assign({}, stimulus, {
+            bundle_key: stimulus.bundle_key || (stimulus.id ? `stim-${stimulus.id}` : 'no-stimulus'),
+        }) : null;
+        const payload = {
+            generator_mode: question?.generator_mode || resolveGeneratorMode(),
+            question_type: questionType || question?.question_type || 'multiple_choice',
+            metadata: Object.assign({}, question?.metadata || {}),
+            stimulus: stimMeta || question?.stimulus || null,
+        };
+        payload.metadata.section_key = payload.metadata.section_key || sectionMeta.subject_area;
+        payload.metadata.subject_area = payload.metadata.subject_area || sectionMeta.subject_area;
+        card.dataset.payload = encodePayload(payload);
+    }
+
+    function createQuestionCard(question, ordinal, sectionMeta, stimulus) {
+        const opts = Array.isArray(question?.options) && question.options.length ? question.options : [
+            { key: 'A', text: '' },
+            { key: 'B', text: '' },
+            { key: 'C', text: '' },
+            { key: 'D', text: '' },
+        ];
+        const rawType = question?.question_type
+            || question?.metadata?.question_type
+            || (question?.generator_mode === 'truefalse' ? 'true_false' : 'multiple_choice');
+        const questionType = rawType === 'truefalse' ? 'true_false' : rawType;
+        const card = document.createElement('div');
+        card.className = 'question-card generated-question mb-3';
+        card.dataset.index = String(ordinal - 1);
+        card.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-semibold">Soal ${ordinal}</span>
+                    <span class="badge text-bg-light text-uppercase">${escapeHtml(question?.difficulty || 'easy')}</span>
+                    ${questionType === 'true_false' ? '<span class="badge text-bg-info">Benar/Salah</span>' : ''}
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-info" data-action="check-duplicate">Cek duplikat</button>
+                    <button type="button" class="btn btn-outline-danger" data-action="remove">Hapus</button>
+                </div>
+            </div>
+            <label class="form-label small mb-1">Teks Soal</label>
+            <textarea class="form-control mb-2" data-field="prompt" rows="2">${question?.prompt || ''}</textarea>
+            <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                    <label class="form-label small">Topik</label>
+                    <input type="text" class="form-control" data-field="topic" value="${question?.topic || ''}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Kesulitan</label>
+                    <select class="form-select" data-field="difficulty">
+                        <option value="easy" ${question?.difficulty === 'easy' ? 'selected' : ''}>Mudah</option>
+                        <option value="medium" ${question?.difficulty === 'medium' ? 'selected' : ''}>Sedang</option>
+                        <option value="hard" ${question?.difficulty === 'hard' ? 'selected' : ''}>Susah</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Kunci</label>
+                    <input type="text" class="form-control" data-field="correct" value="${question?.correct_key || 'A'}">
+                </div>
+            </div>
+            <div class="option-grid option-grid-4 mb-2">
+                ${opts.map(opt => `
+                    <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
+                `).join('')}
+            </div>
+            <label class="form-label small">Pembahasan</label>
+            <textarea class="form-control" data-field="explanation" rows="2">${question?.explanation || ''}</textarea>
+        `;
+        persistQuestionPayload(card, question || {}, sectionMeta, stimulus, questionType);
+        return card;
+    }
+
+    function collectStimulusEdits() {
+        const blocks = Array.from(preview.querySelectorAll('.stimulus-block'));
+        const map = {};
+        blocks.forEach(block => {
+            const base = decodePayload(block.dataset.payload || '') || {};
+            const key = block.dataset.bundleKey || base.bundle_key || (base.id ? `stim-${base.id}` : 'no-stimulus');
+            const titleInput = block.querySelector('[data-stimulus-field="title"]');
+            const narrativeInput = block.querySelector('[data-stimulus-field="narrative"]');
+            const imagePromptInput = block.querySelector('[data-stimulus-field="image_prompt"]');
+            const updated = Object.assign({}, base, {
+                bundle_key: key,
+                title: titleInput ? titleInput.value : base.title,
+                narrative: narrativeInput ? narrativeInput.value : base.narrative,
+                image_prompt: imagePromptInput ? imagePromptInput.value : base.image_prompt,
+            });
+            map[key] = updated;
+        });
+        return map;
     }
 
     function renderPreview(questions, requested = 0) {
@@ -84,57 +374,32 @@ document.addEventListener('DOMContentLoaded', () => {
             preview.innerHTML = '<div class="alert alert-warning">ASKA tidak mengembalikan soal apapun.</div>';
             return;
         }
-        const container = document.createElement('div');
+        const sectionMeta = getSectionMeta();
+        const groups = [];
         questions.forEach((q, idx) => {
-            const card = document.createElement('div');
-            card.className = 'question-card generated-question mb-3';
-            card.dataset.index = String(idx);
-            const options = Array.isArray(q.options) && q.options.length ? q.options : [
-                { key: 'A', text: '' },
-                { key: 'B', text: '' },
-                { key: 'C', text: '' },
-                { key: 'D', text: '' },
-            ];
-            card.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="fw-semibold">Soal ${idx + 1}</span>
-                        <span class="badge text-bg-light text-uppercase">${(q.difficulty || 'easy')}</span>
-                    </div>
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-info" data-action="check-duplicate">Cek duplikat</button>
-                        <button type="button" class="btn btn-outline-danger" data-action="remove">Hapus</button>
-                    </div>
-                </div>
-                <label class="form-label small mb-1">Teks Soal</label>
-                <textarea class="form-control mb-2" data-field="prompt" rows="2">${q.prompt || ''}</textarea>
-                <div class="row g-2 mb-2">
-                    <div class="col-md-6">
-                        <label class="form-label small">Topik</label>
-                        <input type="text" class="form-control" data-field="topic" value="${q.topic || ''}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Kesulitan</label>
-                        <select class="form-select" data-field="difficulty">
-                            <option value="easy" ${q.difficulty === 'easy' ? 'selected' : ''}>Mudah</option>
-                            <option value="medium" ${q.difficulty === 'medium' ? 'selected' : ''}>Sedang</option>
-                            <option value="hard" ${q.difficulty === 'hard' ? 'selected' : ''}>Susah</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Kunci</label>
-                        <input type="text" class="form-control" data-field="correct" value="${q.correct_key || 'A'}">
-                    </div>
-                </div>
-                <div class="option-grid option-grid-4 mb-2">
-                    ${options.map(opt => `
-                        <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
-                    `).join('')}
-                </div>
-                <label class="form-label small">Pembahasan</label>
-                <textarea class="form-control" data-field="explanation" rows="2">${q.explanation || ''}</textarea>
-            `;
-            container.appendChild(card);
+            const stimulus = q && typeof q === 'object' ? q.stimulus : null;
+            const key = stimulus?.bundle_key || (stimulus?.id ? `stim-${stimulus.id}` : 'no-stimulus');
+            let group = groups.find(item => item.key === key);
+            if (!group) {
+                if (stimulus) {
+                    stimulus.bundle_key = key;
+                }
+                group = { key, stimulus, items: [] };
+                groups.push(group);
+            }
+            group.items.push({ question: q, index: idx });
+        });
+        const container = document.createElement('div');
+        let counter = 1;
+        groups.forEach(group => {
+            if (group.stimulus) {
+                container.appendChild(buildStimulusBlock(group.stimulus));
+            }
+            group.items.forEach(item => {
+                const card = createQuestionCard(item.question, counter, sectionMeta, group.stimulus);
+                container.appendChild(card);
+                counter += 1;
+            });
         });
         preview.innerHTML = '';
         if (requested && questions.length < requested) {
@@ -146,6 +411,53 @@ document.addEventListener('DOMContentLoaded', () => {
         preview.appendChild(container);
         if (saveBtn) {
             saveBtn.disabled = false;
+        }
+    }
+
+    function bindScopeControls() {
+        const scopeRadios = document.querySelectorAll('input[name="generatorScope"]');
+        if (scopeRadios && scopeRadios.length) {
+            scopeRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    updateScopeUi();
+                    if (resolveGeneratorMode() === 'pro') {
+                        loadStimulusList();
+                    }
+                });
+            });
+        }
+        const subjectSelect = selectors.subject();
+        if (subjectSelect) {
+            subjectSelect.addEventListener('change', () => {
+                if (resolveGeneratorMode() === 'pro') {
+                    loadStimulusList();
+                }
+            });
+        }
+    }
+
+    function bindStimulusControls() {
+        const stimSelect = selectors.stimulusSelect();
+        const searchInput = selectors.stimulusSearch();
+        const refreshBtn = selectors.refreshStimulus();
+        const clearBtn = selectors.clearStimulusSearch();
+        if (stimSelect) {
+            stimSelect.addEventListener('change', () => {
+                const selected = stimulusCache.find(item => Number(item.id) === Number(stimSelect.value)) || null;
+                renderStimulusPreview(selected);
+            });
+        }
+        if (searchInput) {
+            searchInput.addEventListener('input', () => renderStimulusOptions(stimSelect ? stimSelect.value : null));
+        }
+        if (clearBtn && searchInput) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                renderStimulusOptions(stimSelect ? stimSelect.value : null);
+            });
+        }
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => loadStimulusList(stimSelect ? stimSelect.value : null));
         }
     }
 
@@ -164,13 +476,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attachFormHandler() {
         if (!form || !preview || !saveBtn) return;
+        if (form.dataset.boundSubmit) return;
+        form.dataset.boundSubmit = '1';
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (isGenerating) return;
             const payload = buildPayload();
             if (!payload.subject_id) {
                 showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
                 return;
             }
+            if (payload.generator_mode === 'pro' && !payload.stimulus_id) {
+                preview.innerHTML = '<div class="alert alert-warning">Pilih stimulus dulu sebelum generate soal.</div>';
+                showStatus('Pilih stimulus terlebih dahulu sebelum generate soal.', 'warning');
+                return;
+            }
+            isGenerating = true;
             saveBtn.disabled = true;
             preview.innerHTML = '<div class="alert alert-info">ASKA sedang menyiapkan soal…</div>';
             let submitBtn = event.submitter || document.querySelector('[data-generator-submit]');
@@ -185,28 +506,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
-                const data = await response.json();
+                const rawText = await response.text();
+                let data = {};
+                try {
+                    data = rawText ? JSON.parse(rawText) : {};
+                } catch (parseErr) {
+                    console.error('Parse error generator:', parseErr, rawText);
+                }
                 if (response.ok && data.success) {
                     const questions = Array.isArray(data.questions) ? data.questions : [];
+                    const expectedQuestions = payload.generator_mode === 'pro'
+                        ? (payload.bundle_size || questions.length)
+                        : (payload.amount || questions.length);
                     generatedBundle = {
                         questions,
                         subject_id: payload.subject_id,
                         section_key: payload.section_key,
                         prompt: data.prompt || payload.example || '',
                         mode: payload.generator_mode,
-                        requested: payload.amount || questions.length,
+                        requested: expectedQuestions || questions.length,
                     };
-                    renderPreview(questions, payload.amount);
+                    renderPreview(questions, expectedQuestions);
                     saveBtn.disabled = false;
                     showStatus('ASKA berhasil menyiapkan draft soal.', 'success');
                 } else {
-                    preview.innerHTML = `<div class="alert alert-danger">${data.message || 'Gagal generate soal.'}</div>`;
+                    const detail = data.message || rawText || 'Gagal generate soal.';
+                    preview.innerHTML = `<div class="alert alert-danger">Generator gagal: ${escapeHtml(detail)}</div>`;
+                    showStatus(`Gagal generate (${response.status || '0'}): ${detail}`, 'danger');
                     saveBtn.disabled = false;
                 }
             } catch (error) {
-                preview.innerHTML = '<div class="alert alert-danger">Terjadi kesalahan jaringan.</div>';
+                preview.innerHTML = `<div class="alert alert-danger">Terjadi kesalahan jaringan: ${escapeHtml(error?.message || error)}</div>`;
+                showStatus('Terjadi kesalahan jaringan saat generate.', 'danger');
                 saveBtn.disabled = false;
             } finally {
+                isGenerating = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = initialText;
@@ -216,9 +550,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function readQuestionsFromPreview() {
+        const sectionMeta = getSectionMeta();
+        const stimulusMap = collectStimulusEdits();
         if (!preview) return [];
         const cards = Array.from(preview.querySelectorAll('.question-card'));
+        const resolveStimulus = (stimulus) => {
+            if (!stimulus) return null;
+            const key = stimulus.bundle_key
+                || (stimulus.id ? `stim-${stimulus.id}` : null)
+                || 'no-stimulus';
+            const edited = stimulusMap[key];
+            const merged = Object.assign({}, edited || stimulus);
+            merged.bundle_key = key;
+            return merged;
+        };
         return cards.map(card => {
+            const basePayload = decodePayload(card?.dataset?.payload || '') || {};
+            const metadata = basePayload.metadata || {};
+            const rawType = basePayload.question_type || (metadata.true_false_statements ? 'true_false' : 'multiple_choice');
+            const questionType = rawType === 'truefalse' ? 'true_false' : rawType;
+            metadata.section_key = metadata.section_key || sectionMeta.subject_area;
+            metadata.subject_area = metadata.subject_area || sectionMeta.subject_area;
             const options = Array.from(card.querySelectorAll('[data-option]'))
                 .filter(input => input.value.trim())
                 .map(input => ({ key: input.dataset.option, text: input.value.trim() }));
@@ -229,9 +581,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 correct_key: card.querySelector('[data-field="correct"]')?.value?.trim() || 'A',
                 explanation: card.querySelector('[data-field="explanation"]')?.value?.trim() || '',
                 options,
-                generator_mode: generatorMode,
+                metadata,
+                stimulus: resolveStimulus(basePayload.stimulus),
+                generator_mode: basePayload.generator_mode || resolveGeneratorMode(),
+                question_type: questionType,
             };
-        }).filter(item => item.prompt && item.options.length >= 2);
+        }).filter(item => item.prompt && (item.question_type === 'true_false' || item.options.length >= 2));
     }
 
     function attachPreviewActions() {
@@ -329,7 +684,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     injectTemplate();
+    updateScopeUi();
     bindSubmitTriggers();
+    bindScopeControls();
+    bindStimulusControls();
     attachFormHandler();
     attachPreviewActions();
     attachSaveHandler();

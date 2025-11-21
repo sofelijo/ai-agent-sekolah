@@ -4,8 +4,7 @@
 {% set grade_labels = grade_labels or {'sd6': 'Kelas 6 SD', 'smp3': 'Kelas 3 SMP', 'sma': 'SMA'} %}
 {% set section_templates = section_templates or [
     {'key': 'matematika', 'label': 'Matematika', 'question_format': 'multiple_choice', 'subject_area': 'matematika'},
-    {'key': 'bahasa_pg', 'label': 'Bahasa Indonesia · Pilihan Ganda', 'question_format': 'multiple_choice', 'subject_area': 'bahasa_indonesia'},
-    {'key': 'bahasa_tf', 'label': 'Bahasa Indonesia · Benar/Salah', 'question_format': 'true_false', 'subject_area': 'bahasa_indonesia'},
+    {'key': 'bahasa_pg', 'label': 'Bahasa Indonesia', 'question_format': 'multiple_choice', 'subject_area': 'bahasa_indonesia'},
 ] %}
 {% block head_extra %}
 <style>
@@ -18,6 +17,7 @@
     .difficulty-hard { background: #fee2e2; color: #991b1b; }
     .question-card.duplicate-found { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220,38,38,0.2); }
     .question-card.duplicate-clear { border-color: #16a34a; box-shadow: 0 0 0 1px rgba(22,163,74,0.2); }
+    .option-grid { display: grid; gap: 8px 12px; }
     .option-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 </style>
 {% endblock %}

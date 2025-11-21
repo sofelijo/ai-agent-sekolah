@@ -152,9 +152,27 @@ def _resolve_question_stimulus(
     title = (payload.get("title") or payload.get("name") or "Stimulus").strip()
     metadata_payload = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else None
     stimulus_type = payload.get("type") or _determine_stimulus_type_local(bool(narrative), bool(image_value))
+    table_name = _get_stimulus_table_name(cur)
+    # Cegah duplikasi: pakai stimulus yang sama jika judul + narasi identik pada mapel ini
     cur.execute(
-        """
-        INSERT INTO tka_stimulus (
+        f"""
+        SELECT id FROM {table_name}
+        WHERE subject_id = %s
+          AND LOWER(TRIM(title)) = LOWER(%s)
+          AND LOWER(COALESCE(TRIM(narrative), '')) = LOWER(%s)
+        LIMIT 1
+        """,
+        (subject_id, title, narrative or ""),
+    )
+    row = cur.fetchone()
+    if row and row[0]:
+        existing_id = int(row[0])
+        if bundle_key:
+            bundle_cache[bundle_key] = existing_id
+        return existing_id
+    cur.execute(
+        f"""
+        INSERT INTO {table_name} (
             subject_id,
             title,
             type,
@@ -2546,6 +2564,7 @@ def fetch_tka_questions(
         params.append(f"%{topic}%")
     where_clause = " AND ".join(clauses)
     with get_cursor() as cur:
+        stim_table = _get_stimulus_table_name(cur)
         cur.execute(
             f"""
             SELECT
@@ -2571,7 +2590,7 @@ def fetch_tka_questions(
                 s.image_url AS stimulus_image_url,
                 s.image_prompt AS stimulus_image_prompt
             FROM tka_questions q
-            LEFT JOIN tka_stimulus s ON s.id = q.stimulus_id
+            LEFT JOIN {stim_table} s ON s.id = q.stimulus_id
             LEFT JOIN dashboard_users creator ON creator.id = q.created_by
             WHERE {where_clause}
             ORDER BY q.created_at DESC, q.id DESC
@@ -2608,10 +2627,11 @@ def fetch_tka_stimulus_list(subject_id: int) -> List[Dict[str, Any]]:
     if not subject_id:
         return []
     with get_cursor() as cur:
+        table_name = _get_stimulus_table_name(cur)
         cur.execute(
-            """
+            f"""
             SELECT id, title, type, narrative, image_url, image_prompt, metadata, updated_at
-            FROM tka_stimulus
+            FROM {table_name}
             WHERE subject_id = %s
             ORDER BY updated_at DESC, id DESC
             LIMIT 200
@@ -2634,10 +2654,11 @@ def fetch_tka_stimulus(stimulus_id: int) -> Optional[Dict[str, Any]]:
     if not stimulus_id:
         return None
     with get_cursor() as cur:
+        table_name = _get_stimulus_table_name(cur)
         cur.execute(
-            """
+            f"""
             SELECT id, subject_id, title, type, narrative, image_url, image_prompt, metadata
-            FROM tka_stimulus
+            FROM {table_name}
             WHERE id = %s
             """,
             (stimulus_id,),
@@ -2671,9 +2692,10 @@ def create_tka_stimulus(
     stimulus_type = _determine_stimulus_type_local(bool(narrative_value), bool(image_value))
     normalized_metadata = metadata if isinstance(metadata, dict) else None
     with get_cursor(commit=True) as cur:
+        table_name = _get_stimulus_table_name(cur)
         cur.execute(
-            """
-            INSERT INTO tka_stimulus (
+            f"""
+            INSERT INTO {table_name} (
                 subject_id,
                 title,
                 type,
@@ -2742,9 +2764,10 @@ def update_tka_stimulus(
     set_clause = ", ".join(fields) + ", updated_at = NOW()"
     values.append(stimulus_id)
     with get_cursor(commit=True) as cur:
+        table_name = _get_stimulus_table_name(cur)
         cur.execute(
             f"""
-            UPDATE tka_stimulus
+            UPDATE {table_name}
             SET {set_clause}
             WHERE id = %s
             RETURNING id, subject_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
@@ -2763,11 +2786,20 @@ def update_tka_stimulus(
     return record
 
 
+def _get_stimulus_table_name(cur) -> str:
+    """
+    Deteksi tabel stimulus yang dipakai oleh FK tka_questions.stimulus_id.
+    Setelah migrasi, hanya gunakan `tka_stimulus`.
+    """
+    return "tka_stimulus"
+
+
 def delete_tka_stimulus(stimulus_id: int) -> bool:
     if not stimulus_id:
         return False
     with get_cursor(commit=True) as cur:
-        cur.execute("DELETE FROM tka_stimulus WHERE id = %s", (stimulus_id,))
+        table_name = _get_stimulus_table_name(cur)
+        cur.execute(f"DELETE FROM {table_name} WHERE id = %s", (stimulus_id,))
         return cur.rowcount > 0
 
 

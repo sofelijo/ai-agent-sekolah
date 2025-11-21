@@ -11,8 +11,8 @@
         <label class="form-label">Kategori Mapel & Tingkat</label>
         <div class="d-flex gap-2">
             <select class="form-select" id="generateSection">
-                <option value="matematika">Matematika</option>
-                <option value="bahasa_pg">Bahasa Indonesia</option>
+                <option value="matematika" data-subject-area="matematika">Matematika</option>
+                <option value="bahasa_pg" data-subject-area="bahasa_indonesia">Bahasa Indonesia</option>
             </select>
             <select class="form-select" id="generateGrade">
                 <option value="sd6">Kelas 6 SD</option>
@@ -56,7 +56,7 @@
                 <input type="number" class="form-control" id="generateAmount" min="1" max="20" value="3" placeholder="Jumlah">
             </div>
             <div class="flex-fill d-none" id="generateBundleSizeGroup" style="min-width: 140px;">
-                <input type="number" class="form-control" id="generateBundleSize" min="3" max="5" step="1" value="3" placeholder="Soal per stimulus">
+                <input type="number" class="form-control" id="generateBundleSize" step="1" value="3" placeholder="Soal per stimulus">
             </div>
         </div>
     </div>
