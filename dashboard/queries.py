@@ -74,6 +74,7 @@ STOPWORDS = {
 
 VALID_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_GRADE_LEVEL = "sd6"
+VALID_TEST_FORMATS = {"multiple_choice", "true_false"}
 
 
 def _normalize_mix_value(value: Any, fallback: int = 0) -> int:
@@ -2380,7 +2381,7 @@ def update_tka_subject_sections(
         cur.execute("SELECT metadata FROM tka_subjects WHERE id = %s", (subject_id,))
         row = cur.fetchone()
         if not row:
-            raise ValueError("Mapel tidak ditemukan.")
+            raise ValueError("Mapel belum tersedia.")
         metadata_value = dict(row[0] or {})
         metadata_value[TKA_METADATA_SECTION_CONFIG_KEY] = normalized
         metadata_payload = metadata_value
@@ -2410,8 +2411,539 @@ def update_tka_subject_sections(
             ),
         )
         if not cur.fetchone():
-            raise ValueError("Mapel tidak ditemukan.")
+            raise ValueError("Mapel belum tersedia.")
     return fetch_tka_subject(subject_id)
+
+
+# --- TKA Tests (tes berisi mapel + topik + format) --------------------------
+
+
+def fetch_tka_tests() -> List[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+            FROM tka_tests
+            ORDER BY created_at DESC
+            """
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows or []]
+
+
+def fetch_tka_test(test_id: int) -> Optional[Dict[str, Any]]:
+    if not test_id:
+        return None
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+            FROM tka_tests
+            WHERE id = %s
+            """,
+            (test_id,),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def create_tka_test(name: str, grade_level: str, duration_minutes: int, is_active: bool = True) -> Dict[str, Any]:
+    if not name:
+        raise ValueError("Nama tes wajib diisi.")
+    grade: Optional[str]
+    if grade_level:
+        normalized = str(grade_level).strip().lower()
+        grade = normalized if normalized in VALID_GRADE_LEVELS else None
+    else:
+        grade = None
+    try:
+        duration = max(30, int(duration_minutes))
+    except (TypeError, ValueError):
+        duration = DEFAULT_TKA_COMPOSITE_DURATION
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO tka_tests (name, grade_level, duration_minutes, is_active)
+            VALUES (%s,%s,%s,%s)
+            RETURNING id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+            """,
+            (name.strip(), grade, duration, bool(is_active)),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else {}
+
+
+def set_tka_test_grade_level(test_id: int, grade_level: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not test_id or not grade_level:
+        return None
+    grade = str(grade_level).strip().lower()
+    if grade not in VALID_GRADE_LEVELS:
+        return None
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE tka_tests
+            SET grade_level = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+            """,
+            (grade, test_id),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def fetch_tka_test_subject_formats(test_subject_id: int) -> List[Dict[str, Any]]:
+    if not test_subject_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, question_type, question_count_target
+            FROM tka_test_question_formats
+            WHERE test_subject_id = %s
+            ORDER BY id ASC
+            """,
+            (test_subject_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def fetch_tka_test_subject_topics(test_subject_id: int) -> List[Dict[str, Any]]:
+    if not test_subject_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT tt.id,
+                   tt.topic,
+                   tt.question_count_target,
+                   tt.order_index,
+                   COALESCE(qt.total_questions, 0) AS question_count_actual
+            FROM tka_test_topics tt
+            JOIN tka_test_subjects tts ON tts.id = tt.test_subject_id
+            LEFT JOIN (
+                SELECT
+                    test_subject_id,
+                    mapel_id,
+                    LOWER(COALESCE(topic, '')) AS topic_key,
+                    COUNT(*) AS total_questions
+                FROM tka_questions
+                GROUP BY test_subject_id, mapel_id, LOWER(COALESCE(topic, ''))
+            ) qt ON (
+                (qt.test_subject_id IS NOT NULL AND qt.test_subject_id = tt.test_subject_id)
+                OR (qt.test_subject_id IS NULL AND qt.mapel_id = tts.mapel_id)
+            )
+            AND qt.topic_key = LOWER(COALESCE(tt.topic, ''))
+            WHERE tt.test_subject_id = %s
+            ORDER BY tt.order_index ASC, tt.id ASC
+            """,
+            (test_subject_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def fetch_tka_test_subjects(test_id: int) -> List[Dict[str, Any]]:
+    if not test_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT ts.id,
+                   ts.test_id,
+                   ts.mapel_id,
+                   mp.name AS mapel_name,
+                   mp.grade_level AS mapel_grade_level,
+                   ts.question_count_target,
+                   ts.order_index,
+                   COALESCE(qs.total_questions, 0) AS question_count_actual,
+                   COALESCE(qs.total_pg, 0) AS question_count_pg_actual,
+                   COALESCE(qs.total_tf, 0) AS question_count_tf_actual
+            FROM tka_test_subjects ts
+            LEFT JOIN tka_mata_pelajaran mp ON mp.id = ts.mapel_id
+            LEFT JOIN (
+                SELECT
+                    test_subject_id,
+                    mapel_id,
+                    COUNT(*) AS total_questions,
+                    SUM(CASE WHEN answer_format = 'true_false' THEN 1 ELSE 0 END) AS total_tf,
+                    SUM(CASE WHEN answer_format <> 'true_false' OR answer_format IS NULL THEN 1 ELSE 0 END) AS total_pg
+                FROM tka_questions
+                GROUP BY test_subject_id, mapel_id
+            ) qs ON (
+                (qs.test_subject_id IS NOT NULL AND qs.test_subject_id = ts.id)
+                OR (qs.test_subject_id IS NULL AND qs.mapel_id = ts.mapel_id)
+            )
+            WHERE ts.test_id = %s
+            ORDER BY ts.order_index ASC, ts.id ASC
+            """,
+            (test_id,),
+        )
+        subjects = [dict(row) for row in cur.fetchall() or []]
+    for item in subjects:
+        item["subject_name"] = item.get("mapel_name")
+        item["grade_level"] = item.get("mapel_grade_level") or item.get("grade_level")
+        item["subject_id"] = item.get("subject_id") or item.get("mapel_id")
+        item["formats"] = fetch_tka_test_subject_formats(item["id"])
+        item["topics"] = fetch_tka_test_subject_topics(item["id"])
+        item["question_count_actual"] = item.get("question_count_actual") or item.get("total_questions") or 0
+        item["question_count_pg_actual"] = item.get("question_count_pg_actual") or item.get("total_pg") or 0
+        item["question_count_tf_actual"] = item.get("question_count_tf_actual") or item.get("total_tf") or 0
+    return subjects
+
+
+def fetch_tka_test_subject(test_subject_id: int) -> Optional[Dict[str, Any]]:
+    if not test_subject_id:
+        return None
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT ts.id,
+                   ts.test_id,
+                   ts.mapel_id,
+                   mp.name AS mapel_name,
+                   mp.grade_level AS mapel_grade_level,
+                   ts.question_count_target,
+                   ts.order_index,
+                   COALESCE(qs.total_questions, 0) AS question_count_actual,
+                   COALESCE(qs.total_pg, 0) AS question_count_pg_actual,
+                   COALESCE(qs.total_tf, 0) AS question_count_tf_actual
+            FROM tka_test_subjects ts
+            LEFT JOIN tka_mata_pelajaran mp ON mp.id = ts.mapel_id
+            LEFT JOIN (
+                SELECT
+                    test_subject_id,
+                    mapel_id,
+                    COUNT(*) AS total_questions,
+                    SUM(CASE WHEN answer_format = 'true_false' THEN 1 ELSE 0 END) AS total_tf,
+                    SUM(CASE WHEN answer_format <> 'true_false' OR answer_format IS NULL THEN 1 ELSE 0 END) AS total_pg
+                FROM tka_questions
+                GROUP BY test_subject_id, mapel_id
+            ) qs ON (
+                (qs.test_subject_id IS NOT NULL AND qs.test_subject_id = ts.id)
+                OR (qs.test_subject_id IS NULL AND qs.mapel_id = ts.mapel_id)
+            )
+            WHERE ts.id = %s
+            """,
+            (test_subject_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        subject = dict(row)
+        subject["subject_id"] = subject.get("subject_id") or subject.get("mapel_id")
+        subject["subject_name"] = subject.get("mapel_name")
+        subject["grade_level"] = subject.get("mapel_grade_level") or subject.get("grade_level")
+        subject["formats"] = fetch_tka_test_subject_formats(subject["id"])
+        subject["topics"] = fetch_tka_test_subject_topics(subject["id"])
+        subject["question_count_actual"] = subject.get("question_count_actual") or subject.get("total_questions") or 0
+        subject["question_count_pg_actual"] = subject.get("total_pg") or 0
+        subject["question_count_tf_actual"] = subject.get("total_tf") or 0
+        return subject
+
+
+def create_tka_test_subject(
+    test_id: int,
+    total: int,
+    *,
+    mapel_id: Optional[int] = None,
+    formats: Optional[List[Dict[str, Any]]] = None,
+    topics: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    if not test_id:
+        raise ValueError("test_id wajib diisi.")
+    if not mapel_id:
+        raise ValueError("mapel_id wajib diisi.")
+    try:
+        total_questions = max(1, int(total))
+    except (TypeError, ValueError):
+        total_questions = 1
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO tka_test_subjects (test_id, mapel_id, question_count_target, order_index)
+            VALUES (%s,%s,%s, COALESCE((SELECT COALESCE(MAX(order_index),0)+1 FROM tka_test_subjects WHERE test_id=%s),1))
+            RETURNING id, test_id, mapel_id, question_count_target, order_index
+            """,
+            (test_id, mapel_id, total_questions, test_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Gagal menyimpan mapel tes.")
+        ts_id = row["id"]
+        # Simpan formats
+        if formats:
+            for fmt in formats:
+                qtype = (fmt.get("question_type") or "").strip().lower()
+                if qtype not in VALID_TEST_FORMATS:
+                    continue
+                try:
+                    qc = max(0, int(fmt.get("question_count_target") or 0))
+                except (TypeError, ValueError):
+                    qc = 0
+                cur.execute(
+                    """
+                    INSERT INTO tka_test_question_formats (test_subject_id, question_type, question_count_target)
+                    VALUES (%s,%s,%s)
+                    """,
+                    (ts_id, qtype, qc),
+                )
+        # Simpan topics
+        order_idx = 1
+        for topic in topics or []:
+            name = (topic.get("name") or topic.get("topic") or "").strip()
+            if not name:
+                continue
+            try:
+                qc = max(0, int(topic.get("count") or topic.get("question_count_target") or 0))
+            except (TypeError, ValueError):
+                qc = 0
+            cur.execute(
+                """
+                INSERT INTO tka_test_topics (test_subject_id, topic, question_count_target, order_index)
+                VALUES (%s,%s,%s,%s)
+                """,
+                (ts_id, name, qc, order_idx),
+            )
+            order_idx += 1
+    return dict(row) if row else {}
+
+
+def delete_tka_test_subject(test_id: int, test_subject_id: int) -> bool:
+    if not test_id or not test_subject_id:
+        return False
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "DELETE FROM tka_test_subjects WHERE id = %s AND test_id = %s",
+            (test_subject_id, test_id),
+        )
+        return cur.rowcount > 0
+
+
+def delete_tka_test(test_id: int) -> bool:
+    if not test_id:
+        return False
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM tka_tests WHERE id = %s", (test_id,))
+        return cur.rowcount > 0
+
+
+def update_tka_test_subject_topics(test_subject_id: int, topics: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
+    if not test_subject_id:
+        raise ValueError("test_subject_id wajib diisi.")
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM tka_test_topics WHERE test_subject_id = %s", (test_subject_id,))
+        order_idx = 1
+        for topic in topics or []:
+            name = (topic.get("name") or topic.get("topic") or "").strip()
+            if not name:
+                continue
+            try:
+                count_value = max(0, int(topic.get("count") or topic.get("question_count_target") or topic.get("question_count") or 0))
+            except (TypeError, ValueError):
+                count_value = 0
+            cur.execute(
+                """
+                INSERT INTO tka_test_topics (test_subject_id, topic, question_count_target, order_index)
+                VALUES (%s,%s,%s,%s)
+                """,
+                (test_subject_id, name, count_value, order_idx),
+            )
+            order_idx += 1
+    updated = fetch_tka_test_subject(test_subject_id)
+    if not updated:
+        raise ValueError("Mapel tes tidak ditemukan.")
+    return updated
+
+
+def fetch_tka_mapel_formats(mapel_id: int) -> List[Dict[str, Any]]:
+    if not mapel_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, mapel_id, question_type, question_count
+            FROM tka_mapel_formats
+            WHERE mapel_id = %s
+            ORDER BY question_type
+            """,
+            (mapel_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def fetch_tka_mapel_topics(mapel_id: int) -> List[Dict[str, Any]]:
+    if not mapel_id:
+        return []
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, mapel_id, topic, question_count, order_index
+            FROM tka_mapel_topics
+            WHERE mapel_id = %s
+            ORDER BY order_index ASC, id ASC
+            """,
+            (mapel_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def fetch_tka_mapel(mapel_id: int) -> Optional[Dict[str, Any]]:
+    if not mapel_id:
+        return None
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, grade_level, description, is_active, created_at, updated_at
+            FROM tka_mata_pelajaran
+            WHERE id = %s
+            """,
+            (mapel_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    record = dict(row)
+    record["formats"] = fetch_tka_mapel_formats(record["id"])
+    record["topics"] = fetch_tka_mapel_topics(record["id"])
+    return record
+
+
+def fetch_tka_mapel_list(include_inactive: bool = True) -> List[Dict[str, Any]]:
+    clauses: List[str] = []
+    if not include_inactive:
+        clauses.append("is_active = TRUE")
+    where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT id, name, grade_level, description, is_active, created_at, updated_at
+            FROM tka_mata_pelajaran
+            {where_clause}
+            ORDER BY name ASC
+            """
+        )
+        rows = cur.fetchall() or []
+    result: List[Dict[str, Any]] = []
+    for row in rows:
+        record = dict(row)
+        record["formats"] = fetch_tka_mapel_formats(record["id"])
+        record["topics"] = fetch_tka_mapel_topics(record["id"])
+        result.append(record)
+    return result
+
+
+def create_tka_mapel(
+    name: str,
+    grade_level: str,
+    *,
+    description: Optional[str] = None,
+    is_active: bool = True,
+    formats: Optional[List[Dict[str, Any]]] = None,
+    topics: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    if not name:
+        raise ValueError("Nama mapel wajib diisi.")
+    grade = (grade_level or DEFAULT_GRADE_LEVEL).strip().lower()
+    if grade not in VALID_GRADE_LEVELS:
+        grade = DEFAULT_GRADE_LEVEL
+    formats_payload = formats or [
+        {"question_type": "multiple_choice", "question_count": 0},
+        {"question_type": "true_false", "question_count": 0},
+    ]
+    normalized_description = (description or "").strip() or None
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO tka_mata_pelajaran (name, grade_level, description, is_active)
+            VALUES (%s,%s,%s,%s)
+            RETURNING id, name, grade_level, description, is_active, created_at, updated_at
+            """,
+            (name.strip(), grade, normalized_description, bool(is_active)),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Gagal menyimpan mapel.")
+        mapel_id = row["id"]
+        for entry in formats_payload:
+            qtype = (entry.get("question_type") or "").strip().lower()
+            if qtype not in {"multiple_choice", "true_false"}:
+                continue
+            try:
+                count_value = max(0, int(entry.get("question_count")))
+            except (TypeError, ValueError):
+                count_value = 0
+            cur.execute(
+                """
+                INSERT INTO tka_mapel_formats (mapel_id, question_type, question_count)
+                VALUES (%s,%s,%s)
+                """,
+                (mapel_id, qtype, count_value),
+            )
+        order_idx = 1
+        for topic in topics or []:
+            topic_name = (topic.get("topic") or topic.get("name") or "").strip()
+            if not topic_name:
+                continue
+            try:
+                count_value = max(0, int(topic.get("question_count") or topic.get("count") or 0))
+            except (TypeError, ValueError):
+                count_value = 0
+            cur.execute(
+                """
+                INSERT INTO tka_mapel_topics (mapel_id, topic, question_count, order_index)
+                VALUES (%s,%s,%s,%s)
+                """,
+                (mapel_id, topic_name, count_value, order_idx),
+            )
+            order_idx += 1
+    record = dict(row)
+    record["formats"] = fetch_tka_mapel_formats(mapel_id)
+    record["topics"] = fetch_tka_mapel_topics(mapel_id)
+    return record
+
+
+def ensure_tka_subject_from_mapel(mapel_id: int) -> Optional[int]:
+    if not mapel_id:
+        return None
+    mapel = fetch_tka_mapel(mapel_id)
+    if not mapel:
+        return None
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT id FROM tka_subjects WHERE metadata->>'mapel_id' = %s LIMIT 1",
+            (str(mapel_id),),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        slug = _slugify_subject(cur, mapel["name"])
+        metadata_payload = {"mapel_id": mapel_id}
+        cur.execute(
+            """
+            INSERT INTO tka_subjects (slug, name, description, grade_level, is_active, metadata, created_at, updated_at)
+            VALUES (%s,%s,%s,%s,TRUE,%s,NOW(),NOW())
+            RETURNING id
+            """,
+            (
+                slug,
+                mapel["name"],
+                mapel.get("description"),
+                (mapel.get("grade_level") or DEFAULT_TKA_GRADE_LEVEL).strip().lower(),
+                Json(metadata_payload),
+            ),
+        )
+        new_id = cur.fetchone()[0]
+        return new_id
+
+
+def delete_tka_mapel(mapel_id: int) -> bool:
+    if not mapel_id:
+        return False
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM tka_mata_pelajaran WHERE id = %s", (mapel_id,))
+        return cur.rowcount > 0
 
 
 def create_tka_subject(
@@ -2447,7 +2979,7 @@ def create_tka_subject(
                 time_limit_minutes, difficulty_mix, difficulty_presets,
                 default_preset, grade_level, is_active
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING *
             """,
             (
@@ -2546,16 +3078,23 @@ def _normalize_options_for_insert(options: Iterable[Dict[str, Any]]) -> List[Dic
 
 
 def fetch_tka_questions(
-    subject_id: int,
+    subject_id: Optional[int] = None,
     *,
+    test_subject_id: Optional[int] = None,
     difficulty: Optional[str] = None,
     topic: Optional[str] = None,
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
-    if not subject_id:
+    if not subject_id and not test_subject_id:
         return []
-    clauses = ["q.subject_id = %s"]
-    params: List[Any] = [subject_id]
+    clauses = []
+    params: List[Any] = []
+    if subject_id:
+        clauses.append("q.subject_id = %s")
+        params.append(subject_id)
+    if test_subject_id:
+        clauses.append("q.test_subject_id = %s")
+        params.append(test_subject_id)
     if difficulty:
         clauses.append("q.difficulty = %s")
         params.append(difficulty)
@@ -2570,6 +3109,7 @@ def fetch_tka_questions(
             SELECT
                 q.id,
                 q.subject_id,
+                q.mapel_id,
                 q.topic,
                 q.difficulty,
                 q.prompt,
@@ -2588,10 +3128,13 @@ def fetch_tka_questions(
                 s.type AS stimulus_type,
                 s.narrative AS stimulus_narrative,
                 s.image_url AS stimulus_image_url,
-                s.image_prompt AS stimulus_image_prompt
+                s.image_prompt AS stimulus_image_prompt,
+                q.answer_format,
+                mp.name AS mapel_name
             FROM tka_questions q
             LEFT JOIN {stim_table} s ON s.id = q.stimulus_id
             LEFT JOIN dashboard_users creator ON creator.id = q.created_by
+            LEFT JOIN tka_mata_pelajaran mp ON mp.id = q.mapel_id
             WHERE {where_clause}
             ORDER BY q.created_at DESC, q.id DESC
             LIMIT %s
@@ -2808,6 +3351,9 @@ def create_tka_questions(
     questions: Iterable[Dict[str, Any]],
     *,
     created_by: Optional[int] = None,
+    test_id: Optional[int] = None,
+    test_subject_id: Optional[int] = None,
+    mapel_id: Optional[int] = None,
 ) -> int:
     if not subject_id:
         raise ValueError("subject_id wajib diisi.")
@@ -2841,6 +3387,14 @@ def create_tka_questions(
         metadata = question.get("metadata")
         if metadata is not None and not isinstance(metadata, dict):
             metadata = None
+        question_type = (
+            question.get("answer_format")
+            or question.get("question_type")
+            or (metadata.get("question_type") if metadata else "")
+        )
+        question_type = (question_type or "").strip().lower()
+        if question_type not in {"multiple_choice", "true_false"}:
+            question_type = "multiple_choice"
         question_records.append(
             {
                 "topic": (question.get("topic") or "").strip() or None,
@@ -2853,6 +3407,10 @@ def create_tka_questions(
                 "source": (question.get("source") or "manual").strip(),
                 "ai_prompt": question.get("ai_prompt"),
                 "stimulus": question.get("stimulus"),
+                "test_id": question.get("test_id") or test_id,
+                "test_subject_id": question.get("test_subject_id") or test_subject_id,
+                "mapel_id": question.get("mapel_id") or mapel_id,
+                "answer_format": question_type,
             }
         )
         existing_prompts.add(normalized_prompt)
@@ -2873,6 +3431,9 @@ def create_tka_questions(
                 """
                 INSERT INTO tka_questions (
                     subject_id,
+                    mapel_id,
+                    test_id,
+                    test_subject_id,
                     stimulus_id,
                     topic,
                     difficulty,
@@ -2883,12 +3444,16 @@ def create_tka_questions(
                     created_by,
                     source,
                     metadata,
-                    ai_prompt
+                    ai_prompt,
+                    answer_format
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (
                     subject_id,
+                    record.get("mapel_id"),
+                    record.get("test_id"),
+                    record.get("test_subject_id"),
                     stimulus_id,
                     record["topic"],
                     record["difficulty"],
@@ -2900,6 +3465,7 @@ def create_tka_questions(
                     record["source"],
                     Json(record["metadata"]) if record["metadata"] else None,
                     record["ai_prompt"],
+                    record.get("answer_format") or "multiple_choice",
                 ),
             )
             inserted += cur.rowcount or 0
@@ -2915,23 +3481,32 @@ def create_tka_questions(
     return inserted
 
 
-def has_tka_question_with_prompt(subject_id: int, prompt: str) -> bool:
-    if not subject_id or not prompt:
+def has_tka_question_with_prompt(subject_id: Optional[int], prompt: str, *, test_subject_id: Optional[int] = None) -> bool:
+    if (not subject_id and not test_subject_id) or not prompt:
         return False
     normalized = prompt.strip().lower()
     if not normalized:
         return False
+    clauses: List[str] = []
+    params: List[Any] = [normalized]
+    if subject_id:
+        clauses.append("subject_id = %s")
+        params.append(subject_id)
+    if test_subject_id:
+        clauses.append("test_subject_id = %s")
+        params.append(test_subject_id)
+    if not clauses:
+        return False
     with get_cursor() as cur:
-        cur.execute(
-            """
+        where_clause = " AND ".join(clauses)
+        query = f"""
             SELECT 1
             FROM tka_questions
-            WHERE subject_id = %s
-              AND LOWER(TRIM(prompt)) = %s
+            WHERE LOWER(TRIM(prompt)) = %s
+              AND {where_clause}
             LIMIT 1
-            """,
-            (subject_id, normalized),
-        )
+        """
+        cur.execute(query, tuple(params))
         return cur.fetchone() is not None
 
 

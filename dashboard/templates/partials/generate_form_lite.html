@@ -1,63 +1,80 @@
 <div class="row g-3 align-items-end">
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label">Jenis Latihan</label>
-        <select class="form-select" id="generateSubject" required>
-            {% for subject in subjects %}
-            <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
-            {% endfor %}
+    <div class="col-12 col-md-4">
+        <label class="form-label">Tes</label>
+        <select class="form-select" id="generateTest">
+            <option value="">Pilih tes</option>
         </select>
     </div>
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label">Kategori Mapel & Tingkat</label>
-        <div class="d-flex gap-2">
+    <div class="col-12 col-md-4">
+        <label class="form-label">Mapel pada Tes</label>
+        <select class="form-select" id="generateSubject" required></select>
+    </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label">Format</label>
+        <select class="form-select" id="generateFormatType" disabled>
+            <option value="multiple_choice" selected>Pilihan Ganda (PG)</option>
+        </select>
+    </div>
+</div>
+<div class="row g-3 align-items-end">
+    <div class="col-12 col-md-4">
+        <label class="form-label">Topik Mapel</label>
+        <select class="form-select" id="generateTopic" required data-manage-url="{{ url_for('main.latihan_tka_tests') }}">
+            <option value="__manage__">+ Tambah topik di halaman Tes</option>
+            <option value="" selected disabled>Pilih topik</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label">Kesulitan</label>
+        <select class="form-select" id="generateDifficulty">
+            <option value="easy" selected>Mudah</option>
+            <option value="medium">Sedang</option>
+            <option value="hard">Susah</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label">Jumlah & Tipe Soal</label>
+        <div class="row g-2">
+            <div class="col-6">
+                <input type="number" class="form-control" id="generateAmount" min="1" max="50" value="3">
+            </div>
+            <div class="col-6" id="questionTypeWrapper" style="display: none;">
+                <select class="form-select" id="generateQuestionType">
+                    <option value="story">Cerita penalaran</option>
+                    <option value="direct">Ringkas langsung</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="hidden" id="generateFormatPg" value="3">
+<input type="hidden" id="generateFormatTf" value="0">
+<div class="visually-hidden">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Kategori Mapel</label>
             <select class="form-select" id="generateSection">
-                <option value="matematika" data-subject-area="matematika">Matematika</option>
+                <option value="matematika" data-subject-area="matematika" selected>Matematika</option>
                 <option value="bahasa_pg" data-subject-area="bahasa_indonesia">Bahasa Indonesia</option>
             </select>
+        </div>
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Jenjang</label>
             <select class="form-select" id="generateGrade">
                 <option value="sd6">Kelas 6 SD</option>
                 <option value="smp3">Kelas 3 SMP</option>
                 <option value="sma">SMA</option>
             </select>
         </div>
-    </div>
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label">Topik</label>
-        <input type="text" class="form-control" id="generateTopic" placeholder="Contoh: Bilangan pecahan" required>
-    </div>
-</div>
-<div class="row g-3 align-items-end">
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label">Tipe Soal</label>
-        <select class="form-select" id="generateQuestionType">
-            <option value="direct" selected>Soal ringkas langsung</option>
-            <option value="story">Soal cerita penalaran</option>
-        </select>
-    </div>
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label">Format Jawaban</label>
-        <select class="form-select" id="generateAnswerMode">
-            <option value="multiple_choice" selected>Pilihan ganda saja</option>
-            <option value="true_false">Benar / Salah saja</option>
-            <option value="mix">Campuran (PG + Benar/Salah)</option>
-        </select>
-    </div>
-    <div class="col-lg-4 col-md-4">
-        <label class="form-label" id="generateDifficultyLabel">Kesulitan & Jumlah</label>
-        <div class="d-flex flex-wrap gap-2 align-items-end">
-            <div class="flex-fill" style="min-width: 120px;">
-                <select class="form-select" id="generateDifficulty">
-                    <option value="easy">Mudah</option>
-                    <option value="medium">Sedang</option>
-                    <option value="hard">Susah</option>
-                </select>
-            </div>
-            <div class="flex-fill" style="min-width: 110px;">
-                <input type="number" class="form-control" id="generateAmount" min="1" max="20" value="3" placeholder="Jumlah">
-            </div>
-            <div class="flex-fill d-none" id="generateBundleSizeGroup" style="min-width: 140px;">
-                <input type="number" class="form-control" id="generateBundleSize" step="1" value="3" placeholder="Soal per stimulus">
-            </div>
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Format Jawaban</label>
+            <select class="form-select" id="generateAnswerMode">
+                <option value="multiple_choice" selected>Pilihan ganda saja</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Soal per Stimulus</label>
+            <input type="number" class="form-control" id="generateBundleSize" step="1" value="3" placeholder="Soal per stimulus">
         </div>
     </div>
 </div>

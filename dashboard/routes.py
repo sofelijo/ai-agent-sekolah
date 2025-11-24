@@ -7,7 +7,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from math import ceil
-from typing import Optional
+from typing import Optional, Dict, List
 from pathlib import Path
 
 from flask import (
@@ -23,7 +23,7 @@ from flask import (
     current_app,
 )
 from langchain_openai import ChatOpenAI
-from db import DEFAULT_TKA_PRESET_KEY, DEFAULT_TKA_COMPOSITE_DURATION, TKA_SECTION_TEMPLATES
+from db import DEFAULT_TKA_PRESET_KEY, DEFAULT_TKA_COMPOSITE_DURATION, DEFAULT_TKA_GRADE_LEVEL, TKA_SECTION_TEMPLATES
 from werkzeug.datastructures import MultiDict
 
 from .auth import current_user, login_required, role_required
@@ -74,11 +74,26 @@ from .queries import (
     update_tka_subject_difficulty,
     has_tka_question_with_prompt,
     update_tka_subject_sections,
+    fetch_tka_tests,
+    delete_tka_test,
+    create_tka_test,
+    fetch_tka_test,
+    fetch_tka_test_subjects,
+    fetch_tka_test_subject,
+    create_tka_test_subject,
+    delete_tka_test_subject,
+    update_tka_test_subject_topics,
+    fetch_tka_mapel,
+    fetch_tka_mapel_list,
+    create_tka_mapel,
+    delete_tka_mapel,
+    ensure_tka_subject_from_mapel,
     fetch_tka_stimulus_list,
     fetch_tka_stimulus,
     create_tka_stimulus,
     update_tka_stimulus,
     delete_tka_stimulus,
+    set_tka_test_grade_level,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -594,7 +609,7 @@ def _build_generated_question(
     prompt = (item.get("prompt") or item.get("question") or "").strip()
     if not prompt:
         return None
-    topic = (item.get("topic") or fallback_topic).strip()
+    topic = (fallback_topic or item.get("topic") or "").strip()
     difficulty = (item.get("difficulty") or fallback_difficulty).strip().lower()
     if difficulty not in {"easy", "medium", "hard"}:
         difficulty = fallback_difficulty
@@ -614,19 +629,23 @@ def _build_generated_question(
                 key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[idx] if idx < 26 else f"OP{idx+1}"
                 text = str(option)
             options.append({"key": str(key).strip().upper(), "text": text.strip()})
-    if len(options) < 2:
-        return None
     answer = (
         item.get("answer")
         or item.get("correct_answer")
         or item.get("kunci")
         or item.get("jawaban")
-        or options[0]["key"]
+        or (options[0]["key"] if options else "A")
     )
     answer_key = str(answer).strip().upper()
-    if answer_key not in {opt["key"] for opt in options}:
-        answer_key = options[0]["key"]
-    explanation = (item.get("explanation") or item.get("rationale") or item.get("pembahasan") or "").strip()
+    explanation = (
+        item.get("explanation")
+        or item.get("explanations")
+        or item.get("explaination")
+        or item.get("pembahasan")
+        or metadata.get("explanation")
+        or ""
+    )
+    explanation = explanation.strip()
     raw_metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
     metadata = dict(raw_metadata) if raw_metadata else {}
     image_prompt_value = (
@@ -661,6 +680,16 @@ def _build_generated_question(
         resolved_mode = raw_mode
     else:
         resolved_mode = generator_mode
+    if tf_entries and len(options) < 2:
+        # Lengkapi opsi default agar backend tidak menolak true/false tanpa pilihan
+        options = [
+            {"key": "A", "text": "Pernyataan benar"},
+            {"key": "B", "text": "Pernyataan salah"},
+        ]
+    if len(options) < 2:
+        return None
+    if answer_key not in {opt["key"] for opt in options}:
+        answer_key = options[0]["key"]
     question_payload: dict = {
         "prompt": prompt,
         "topic": topic,
@@ -1570,12 +1599,219 @@ def latihan_tka_manual():
     )
 
 
+@main_bp.route("/latihan-tka/tests-ui", methods=["GET", "POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_tests():
+    test_message = None
+    test_message_tone = "info"
+    mapel_message = None
+    mapel_message_tone = "muted"
+    selected_test_id = request.args.get("test_id", type=int)
+    if request.method == "POST":
+        delete_test_id = request.form.get("delete_test_id", type=int)
+        if delete_test_id:
+            try:
+                if delete_tka_test(delete_test_id):
+                    flash("Tes berhasil dihapus.", "success")
+                else:
+                    flash("Tes tidak ditemukan.", "danger")
+            except Exception as exc:
+                current_app.logger.error("Gagal menghapus tes TKA %s: %s", delete_test_id, exc)
+                flash("Gagal menghapus tes.", "danger")
+            return redirect(url_for("main.latihan_tka_tests"))
+        delete_mapel_id = request.form.get("delete_mapel_id", type=int)
+        if delete_mapel_id:
+            try:
+                if delete_tka_mapel(delete_mapel_id):
+                    flash("Mapel berhasil dihapus.", "success")
+                else:
+                    flash("Mapel belum tersedia.", "danger")
+            except Exception as exc:
+                current_app.logger.error("Gagal menghapus mapel %s: %s", delete_mapel_id, exc)
+                flash("Gagal menghapus mapel.", "danger")
+            return redirect(url_for("main.latihan_tka_tests"))
+        delete_test_subject_id = request.form.get("delete_test_subject_id", type=int)
+        if delete_test_subject_id:
+            form_test_id = request.form.get("delete_test_subject_test_id", type=int)
+            redirect_args = {}
+            if form_test_id:
+                redirect_args["test_id"] = form_test_id
+            if not form_test_id or not delete_test_subject_id:
+                flash("Pilih tes terlebih dahulu sebelum menghapus mapel.", "danger")
+                return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+            try:
+                if delete_tka_test_subject(form_test_id, delete_test_subject_id):
+                    flash("Mapel dihapus dari tes.", "success")
+                else:
+                    flash("Mapel tes tidak ditemukan.", "danger")
+            except Exception as exc:
+                current_app.logger.error("Gagal menghapus mapel tes %s/%s: %s", form_test_id, delete_test_subject_id, exc)
+                flash("Gagal menghapus mapel tes.", "danger")
+            return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+        elif request.form.get("add_subject_form"):
+            form_test_id = request.form.get("form_test_id", type=int)
+            form_mapel_id = request.form.get("form_mapel_id", type=int)
+            total_questions = request.form.get("form_total", type=int)
+            pg_count = request.form.get("form_pg", type=int) or 0
+            tf_count = request.form.get("form_tf", type=int) or 0
+            topics_raw = (request.form.get("form_topics") or "").strip()
+            redirect_args = {}
+            if form_test_id:
+                redirect_args["test_id"] = form_test_id
+            if not form_test_id or not form_mapel_id:
+                flash("Pilih tes dan mapel terlebih dahulu.", "danger")
+                return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+            if not total_questions or total_questions <= 0:
+                flash("Target soal mapel harus lebih dari 0.", "danger")
+                return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+            topic_entries = []
+            if topics_raw:
+                for chunk in topics_raw.split(","):
+                    part = chunk.strip()
+                    if not part:
+                        continue
+                    match = re.match(r"^(.*)\((\d+)\)$", part)
+                    if match:
+                        topic_entries.append({"name": match.group(1).strip(), "count": int(match.group(2))})
+                    else:
+                        topic_entries.append({"name": part, "count": 0})
+            try:
+                mapel_record = fetch_tka_mapel(form_mapel_id)
+                if not mapel_record:
+                    flash("Mapel belum tersedia.", "danger")
+                    return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+                test_record = fetch_tka_test(form_test_id)
+                if not test_record:
+                    flash("Tes tidak ditemukan.", "danger")
+                    return redirect(url_for("main.latihan_tka_tests"))
+                mapel_grade = (mapel_record.get("grade_level") or "").strip().lower() or None
+                test_grade = (test_record.get("grade_level") or "").strip().lower() or None
+                if not mapel_grade:
+                    flash("Mapel belum memiliki jenjang.", "danger")
+                    return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+                if test_grade and test_grade != mapel_grade:
+                    label_mapel = GRADE_LABELS.get(mapel_grade, mapel_grade.upper())
+                    label_test = GRADE_LABELS.get(test_grade, test_grade.upper())
+                    flash(f"Tes ini khusus jenjang {label_test}. Mapel yang dipilih berjenjang {label_mapel}.", "danger")
+                    return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+                if not test_grade:
+                    set_tka_test_grade_level(form_test_id, mapel_grade)
+                formats_payload = [
+                    {"question_type": "multiple_choice", "question_count_target": max(0, pg_count)},
+                    {"question_type": "true_false", "question_count_target": max(0, tf_count)},
+                ]
+                create_tka_test_subject(
+                    test_id=form_test_id,
+                    total=total_questions,
+                    mapel_id=form_mapel_id,
+                    formats=formats_payload,
+                    topics=topic_entries,
+                )
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+            except Exception as exc:
+                current_app.logger.error("Gagal menambah mapel ke tes melalui form: %s", exc)
+                flash("Gagal menambahkan mapel ke tes.", "danger")
+                return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+            flash("Mapel berhasil disimpan ke tes.", "success")
+            return redirect(url_for("main.latihan_tka_tests", **redirect_args))
+        elif request.form.get("mapel_form"):
+            name = (request.form.get("mapel_name") or "").strip()
+            grade_level = (request.form.get("mapel_grade_level") or "").strip().lower()
+            description = (request.form.get("mapel_description") or "").strip()
+            is_active = bool(request.form.get("mapel_is_active"))
+            if not name:
+                mapel_message = "Nama mapel wajib diisi."
+                mapel_message_tone = "danger"
+            else:
+                try:
+                    create_tka_mapel(
+                        name=name,
+                        grade_level=grade_level or DEFAULT_TKA_GRADE_LEVEL,
+                        description=description or None,
+                        is_active=is_active,
+                    )
+                except ValueError as exc:
+                    mapel_message = str(exc)
+                    mapel_message_tone = "danger"
+                except Exception as exc:
+                    current_app.logger.error("Gagal menyimpan mapel TKA: %s", exc)
+                    mapel_message = "Gagal menyimpan mapel."
+                    mapel_message_tone = "danger"
+                else:
+                    flash("Mapel berhasil disimpan.", "success")
+                    return redirect(url_for("main.latihan_tka_tests"))
+        else:
+            name = (request.form.get("name") or "").strip()
+            grade_level = (request.form.get("grade_level") or "").strip().lower()
+            duration_raw = request.form.get("duration_minutes")
+            is_active = bool(request.form.get("is_active"))
+            try:
+                duration_minutes = int(duration_raw)
+            except (TypeError, ValueError):
+                duration_minutes = DEFAULT_TKA_COMPOSITE_DURATION
+            if not name:
+                test_message = "Nama tes wajib diisi."
+                test_message_tone = "danger"
+            else:
+                try:
+                    create_tka_test(name=name, grade_level=grade_level or DEFAULT_TKA_GRADE_LEVEL, duration_minutes=duration_minutes, is_active=is_active)
+                    flash("Tes berhasil disimpan.", "success")
+                    return redirect(url_for("main.latihan_tka_tests"))
+                except ValueError as exc:
+                    test_message = str(exc)
+                    test_message_tone = "danger"
+                except Exception as exc:
+                    current_app.logger.error("Gagal menyimpan tes TKA: %s", exc)
+                    test_message = "Gagal menyimpan tes. Coba lagi."
+                    test_message_tone = "danger"
+    mapel_list = fetch_tka_mapel_list()
+    raw_tests = fetch_tka_tests()
+    tests = []
+    selected_test = None
+    test_subjects_map: Dict[int, List[Dict[str, Any]]] = {}
+    for test in raw_tests:
+        record = dict(test)
+        for key in ("created_at", "updated_at"):
+            value = record.get(key)
+            if hasattr(value, "isoformat"):
+                record[key] = value.isoformat()
+        if selected_test_id and record.get("id") == selected_test_id:
+            selected_test = record
+        try:
+            test_subjects_map[record["id"]] = fetch_tka_test_subjects(record["id"])
+        except Exception as exc:
+            current_app.logger.error("Gagal memuat mapel tes %s: %s", record["id"], exc)
+            test_subjects_map[record["id"]] = []
+        tests.append(record)
+    if tests and not selected_test_id:
+        selected_test_id = tests[0]["id"]
+    if selected_test_id and not selected_test:
+        selected_test = next((item for item in tests if item.get("id") == selected_test_id), None)
+    selected_subjects = test_subjects_map.get(selected_test_id, []) if selected_test_id else []
+    return render_template(
+        "latihan_tka_tests.html",
+        tests=tests,
+        mapel_list=mapel_list,
+        test_message=test_message,
+        test_message_tone=test_message_tone,
+        mapel_message=mapel_message,
+        mapel_message_tone=mapel_message_tone,
+        selected_test_id=selected_test_id,
+        selected_test=selected_test,
+        grade_labels=GRADE_LABELS,
+        initial_test_subjects=test_subjects_map,
+        selected_subjects=selected_subjects,
+    )
+
+
 @main_bp.route("/latihan-tka/generator", defaults={"mode": "lite"})
 @main_bp.route("/latihan-tka/generator/<string:mode>")
 @login_required
 @role_required("admin")
 def latihan_tka_generator_page(mode: str):
-    subjects = fetch_tka_subjects(include_inactive=True)
     normalized_mode = (mode or "lite").strip().lower()
     if normalized_mode not in {"lite", "pro"}:
         normalized_mode = "lite"
@@ -1586,7 +1822,6 @@ def latihan_tka_generator_page(mode: str):
     )
     return render_template(
         template_name,
-        subjects=subjects,
         grade_labels=GRADE_LABELS,
         section_templates=TKA_SECTION_TEMPLATES,
         default_duration=DEFAULT_TKA_COMPOSITE_DURATION,
@@ -1629,12 +1864,14 @@ def latihan_tka_create_subject():
 @role_required("admin")
 def latihan_tka_questions():
     subject_id = request.args.get("subject_id", type=int)
-    if not subject_id:
-        return jsonify({"success": False, "message": "subject_id wajib diisi."}), 400
+    test_subject_id = request.args.get("test_subject_id", type=int)
+    if not subject_id and not test_subject_id:
+        return jsonify({"success": False, "message": "Pilih mapel atau jenis latihan terlebih dahulu."}), 400
     difficulty = request.args.get("difficulty") or None
     topic = request.args.get("topic") or None
     questions = fetch_tka_questions(
-        subject_id,
+        subject_id=subject_id,
+        test_subject_id=test_subject_id,
         difficulty=difficulty or None,
         topic=topic or None,
     )
@@ -1702,7 +1939,18 @@ def latihan_tka_generate_stimulus():
     include_image = bool(data.get("include_image"))
     subject = fetch_tka_subject(subject_id)
     if not subject:
-        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+        current_app.logger.warning(
+            "[TKA][generate] subjek tidak ditemukan | subject_id=%s test_id=%s test_subject_id=%s payload=%s",
+            subject_id,
+            test_id,
+            test_subject_id,
+            {
+                "topic": topic,
+                "difficulty": difficulty,
+                "generator_mode": generator_mode,
+            },
+        )
+        return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
     if not topic:
         return jsonify({"success": False, "message": "Topik stimulus wajib diisi."}), 400
     chain = _get_tka_ai_chain()
@@ -1716,7 +1964,7 @@ def latihan_tka_generate_stimulus():
         else " Field `image_prompt` boleh dikosongkan jika tidak diperlukan."
     )
     prompt = (
-        f"Anda adalah ASKA, guru Bahasa Indonesia yang menulis stimulus bacaan. Buat 1 stimulus dengan judul singkat dan narasi 2-3 paragraf untuk mapel {subject['name']}. "
+            f"Buat 1 stimulus bacaan dengan judul singkat dan narasi 2-3 paragraf untuk mapel {subject['name']}. "
         f"Topik utama: {topic}.{grade_clause} Narasi harus runtut, menarik, dan memberikan konteks untuk 3-5 pertanyaan turunan."
         f" Gaya penulisan: {tone}. {image_clause} "
         "Gunakan bahasa Indonesia formal yang ringan. Format keluaran hanya JSON:\n"
@@ -1816,18 +2064,45 @@ def latihan_tka_delete_stimulus(stimulus_id: int):
 def latihan_tka_store_questions():
     payload = request.get_json(silent=True) or {}
     subject_id = payload.get("subject_id")
+    test_id = payload.get("test_id")
+    test_subject_id = payload.get("test_subject_id")
+    raw_mapel_id = payload.get("mapel_id")
+    try:
+        mapel_id = int(raw_mapel_id) if raw_mapel_id is not None else None
+    except (TypeError, ValueError):
+        mapel_id = None
     questions = payload.get("questions")
     user = current_user() or {}
     created_by = user.get("id")
-    if not subject_id or not questions:
+    if not questions:
         return jsonify({"success": False, "message": "Payload soal belum lengkap."}), 400
+    ensured_subject_id = None
+    if mapel_id:
+        ensured_subject_id = ensure_tka_subject_from_mapel(mapel_id)
+    if not ensured_subject_id and test_subject_id:
+        ts_payload = fetch_tka_test_subject(test_subject_id)
+        if ts_payload:
+            ensured_subject_id = ensure_tka_subject_from_mapel(ts_payload.get("mapel_id"))
+    subject_id = subject_id or ensured_subject_id
+    if not subject_id:
+        return jsonify({"success": False, "message": "Mapel belum diketahui. Pilih mapel pada tes terlebih dahulu."}), 400
     try:
-        inserted = create_tka_questions(subject_id, questions, created_by=created_by)
+        inserted = create_tka_questions(
+            subject_id,
+            questions,
+            created_by=created_by,
+            test_id=test_id,
+            test_subject_id=test_subject_id,
+            mapel_id=mapel_id,
+        )
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
     except Exception as exc:
         current_app.logger.error("Gagal menyimpan soal TKA: %s", exc)
-        return jsonify({"success": False, "message": "Terjadi kesalahan saat menyimpan soal."}), 500
+        return jsonify({
+            "success": False,
+            "message": f"Terjadi kesalahan saat menyimpan soal: {exc}",
+        }), 500
     return jsonify({"success": True, "inserted": inserted})
 
 
@@ -1867,12 +2142,34 @@ def latihan_tka_update_question(question_id: int):
 @role_required("admin")
 def latihan_tka_check_duplicate():
     payload = request.get_json(silent=True) or {}
-    subject_id = payload.get("subject_id")
+    raw_subject_id = payload.get("subject_id")
+    raw_test_subject_id = payload.get("test_subject_id")
+    raw_mapel_id = payload.get("mapel_id")
     prompt = (payload.get("prompt") or "").strip()
-    if not subject_id or not prompt:
-        return jsonify({"success": False, "message": "subject_id dan prompt wajib diisi."}), 400
     try:
-        exists = has_tka_question_with_prompt(subject_id, prompt)
+        subject_id = int(raw_subject_id)
+    except (TypeError, ValueError):
+        subject_id = None
+    try:
+        test_subject_id = int(raw_test_subject_id)
+    except (TypeError, ValueError):
+        test_subject_id = None
+    try:
+        mapel_id = int(raw_mapel_id)
+    except (TypeError, ValueError):
+        mapel_id = None
+    if not prompt:
+        return jsonify({"success": False, "message": "Prompt wajib diisi."}), 400
+    resolved_subject_id = subject_id
+    if not resolved_subject_id and mapel_id:
+        try:
+            resolved_subject_id = ensure_tka_subject_from_mapel(mapel_id)
+        except Exception:
+            resolved_subject_id = None
+    if not resolved_subject_id and not test_subject_id:
+        return jsonify({"success": False, "message": "Pilih mapel pada tes sebelum cek duplikat."}), 400
+    try:
+        exists = has_tka_question_with_prompt(resolved_subject_id, prompt, test_subject_id=test_subject_id)
     except Exception as exc:
         current_app.logger.error("Gagal mengecek duplikat soal: %s", exc)
         return jsonify({"success": False, "message": "Gagal mengecek duplikat."}), 500
@@ -1894,7 +2191,7 @@ def latihan_tka_update_subject_difficulty(subject_id: int):
         current_app.logger.error("Gagal memperbarui preset TKA %s: %s", subject_id, exc)
         return jsonify({"success": False, "message": "Gagal menyimpan pengaturan komposisi."}), 500
     if not subject:
-        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+        return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
     return jsonify({"success": True, "subject": subject})
 
 
@@ -1920,7 +2217,7 @@ def latihan_tka_update_sections(subject_id: int):
         current_app.logger.error("Gagal memperbarui komposisi seksi TKA %s: %s", subject_id, exc)
         return jsonify({"success": False, "message": "Gagal menyimpan komposisi mapel."}), 500
     if not subject:
-        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+        return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
     return jsonify({"success": True, "subject": subject})
 
 
@@ -1928,17 +2225,50 @@ def latihan_tka_update_sections(subject_id: int):
 @login_required
 @role_required("admin")
 def latihan_tka_generate():
+    return _handle_tka_generate_request(return_stimulus=True)
+
+
+@main_bp.route("/latihan-tka/generate_soal_new", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_generate_new():
+    return _handle_tka_generate_request(return_stimulus=False)
+
+
+def _handle_tka_generate_request(return_stimulus: bool = True):
     is_multipart = request.mimetype and "multipart/form-data" in request.mimetype
     if is_multipart:
         form_payload = request.form if isinstance(request.form, MultiDict) else MultiDict()
         data = {key: form_payload.get(key) for key in form_payload}
     else:
         data = request.get_json(silent=True) or {}
+    preview_flag = data.get("preview_only")
+    if preview_flag is None and not is_multipart:
+        preview_flag = request.args.get("preview_only")
+    if isinstance(preview_flag, str):
+        preview_only = preview_flag.strip().lower() in {"1", "true", "yes", "preview", "prompt", "prompt_only"}
+    else:
+        preview_only = bool(preview_flag)
     raw_subject_id = data.get("subject_id") or (request.form.get("subject_id") if is_multipart else None)
     try:
         subject_id = int(raw_subject_id)
     except (TypeError, ValueError):
         subject_id = None
+    raw_test_id = data.get("test_id")
+    try:
+        test_id = int(raw_test_id) if raw_test_id is not None else None
+    except (TypeError, ValueError):
+        test_id = None
+    raw_test_subject_id = data.get("test_subject_id")
+    try:
+        test_subject_id = int(raw_test_subject_id) if raw_test_subject_id is not None else None
+    except (TypeError, ValueError):
+        test_subject_id = None
+    raw_mapel_id = data.get("mapel_id")
+    try:
+        mapel_id = int(raw_mapel_id) if raw_mapel_id is not None else None
+    except (TypeError, ValueError):
+        mapel_id = None
     topic = (data.get("topic") or "").strip()
     style_example = (data.get("example") or data.get("style_example") or "").strip()
     difficulty = (data.get("difficulty") or "easy").strip().lower()
@@ -1984,9 +2314,77 @@ def latihan_tka_generate():
         if isinstance(image_field, str) and image_field.strip():
             reference_image_data = image_field.strip()
 
-    subject = fetch_tka_subject(subject_id)
+    test_payload = fetch_tka_test(test_id) if test_id else None
+    subject_label_hint = (data.get("subject_hint") or "").strip()
+    test_subject_payload = None
+    mapel_record = fetch_tka_mapel(mapel_id) if mapel_id else None
+    if test_payload and not grade_level:
+        grade_level = (test_payload.get("grade_level") or "").strip().lower()
+    if test_subject_id:
+        test_subject_payload = fetch_tka_test_subject(test_subject_id)
+        if not test_subject_payload:
+            return jsonify({"success": False, "message": "Mapel pada tes tidak ditemukan."}), 404
+        if test_id and test_subject_payload.get("test_id") != test_id:
+            return jsonify({"success": False, "message": "Mapel tidak termasuk tes ini."}), 400
+        mapel_id = test_subject_payload.get("mapel_id") or mapel_id
+        subject_label_hint = test_subject_payload.get("mapel_name") or subject_label_hint
+    if mapel_id and not mapel_record:
+        mapel_record = fetch_tka_mapel(mapel_id)
+    if mapel_record and not subject_label_hint:
+        subject_label_hint = (mapel_record.get("name") or "").strip()
+    if mapel_record and not grade_level:
+        grade_level = (mapel_record.get("grade_level") or "").strip().lower()
+    if test_subject_payload and not grade_level:
+        grade_level = (test_subject_payload.get("grade_level") or test_subject_payload.get("mapel_grade_level") or "").strip().lower()
+    grade_level = (grade_level or "").strip().lower()
+    if grade_level not in VALID_GRADE_LEVELS:
+        grade_level = DEFAULT_TKA_GRADE_LEVEL
+    ensured_subject_id = None
+    if not subject_id and mapel_id:
+        try:
+            ensured_subject_id = ensure_tka_subject_from_mapel(mapel_id)
+        except Exception:
+            ensured_subject_id = None
+        subject_id = ensured_subject_id or subject_id
+    subject = fetch_tka_subject(subject_id) if subject_id else None
+    subject_name_hint = (
+        subject_label_hint
+        or (mapel_record and mapel_record.get("name"))
+        or (test_payload and test_payload.get("name"))
+        or f"Mapel #{mapel_id or subject_id or '-'}"
+    )
     if not subject:
-        return jsonify({"success": False, "message": "Mapel tidak ditemukan."}), 404
+        current_app.logger.warning(
+            "[TKA][generate] mapel tidak ditemukan | subject_id=%s test_id=%s test_subject_id=%s payload=%s",
+            subject_id,
+            test_id,
+            test_subject_id,
+            {
+                "topic": topic,
+                "difficulty": difficulty,
+                "generator_mode": generator_mode,
+            },
+        )
+        if mapel_id and not ensured_subject_id:
+            try:
+                ensured_subject_id = ensure_tka_subject_from_mapel(mapel_id)
+            except Exception:
+                ensured_subject_id = None
+            if ensured_subject_id:
+                subject_id = ensured_subject_id
+                subject = fetch_tka_subject(subject_id)
+    if not subject:
+        if not return_stimulus or generator_mode == "lite":
+            subject = {
+                "id": subject_id,
+                "name": subject_name_hint,
+                "grade_level": grade_level or (test_payload and test_payload.get("grade_level")) or DEFAULT_TKA_GRADE_LEVEL,
+            }
+        else:
+            return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
+    else:
+        subject["name"] = subject_name_hint or subject.get("name") or f"Mapel #{mapel_id or subject.get('id') or '-'}"
+        subject["grade_level"] = grade_level or (subject.get("grade_level") or DEFAULT_TKA_GRADE_LEVEL)
 
     if not topic:
         return jsonify({"success": False, "message": "Topik wajib diisi untuk generator."}), 400
@@ -2009,14 +2407,18 @@ def latihan_tka_generate():
     if section_template.get("subject_area") == "bahasa_indonesia":
         section_label = "Bahasa Indonesia"
 
-    chain = _get_tka_ai_chain()
-    if chain is None:
-        return jsonify({"success": False, "message": "Model ASKA belum siap. Coba sebentar lagi."}), 503
-
     difficulty_label = {"easy": "mudah", "medium": "sedang", "hard": "susah"}[difficulty]
     grade_descriptor = GRADE_LEVEL_HINTS.get(grade_level)
-    grade_clause = f" Soal harus relevan untuk {grade_descriptor}, gunakan konteks dan angka yang sesuai tingkat tersebut." if grade_descriptor else ""
-    if question_type == "direct":
+    if grade_descriptor:
+        if section_template.get("subject_area") == "bahasa_indonesia":
+            grade_clause = f" Teks harus relevan untuk {grade_descriptor}; gunakan kosakata dan isi bacaan yang sesuai tingkat tersebut."
+        else:
+            grade_clause = f" Soal harus relevan untuk {grade_descriptor}; gunakan konteks dan angka yang sesuai tingkat tersebut."
+    else:
+        grade_clause = ""
+    if section_template.get("subject_area") == "bahasa_indonesia":
+        question_style_clause = ""
+    elif question_type == "direct":
         question_style_clause = (
             "Setiap soal HARUS berupa pernyataan matematika ringkas tanpa cerita atau tokoh (contoh: 'Hitung 2/4 + 1/2 = ...'). "
             "Gunakan ekspresi pecahan, persentase, aljabar sederhana, atau perbandingan secara langsung dan to the point. "
@@ -2035,7 +2437,7 @@ def latihan_tka_generate():
             similarity_value = 50
         similarity_value = max(10, min(similarity_value, 100))
         style_block = (
-            "\nContoh gaya/struktur rujukan:\n"
+            "\nContoh gaya/struktur soal:\n"
             f"{style_example.strip()}\n"
             f"Tingkat kemiripan yang diinginkan: sekitar {similarity_value}%. Sesuaikan instruksi ini, jangan menyalin mentah.\n"
         )
@@ -2078,7 +2480,7 @@ def latihan_tka_generate():
         else:
             answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tetapi setiap soal hanya satu format (tidak digabung)."
         prompt_rows = [
-            f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
+            f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']}. "
             "Gunakan stimulus berikut sebagai satu-satunya konteks cerita.",
             f"Judul stimulus: {stimulus_title}",
             f"Narasi stimulus:\n{stimulus_story}",
@@ -2095,59 +2497,69 @@ def latihan_tka_generate():
         prompt_rows.append(f"{style_block}{manual_clause}")
         prompt_rows.append(f"Akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.")
         prompt_rows.append(
-            "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
+            "Format keluaran harus berupa JSON valid (tanpa teks lain) mengikuti contoh berikut:\n"
             '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
             '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
             '"statements":[{"text":"...", "answer":"benar"}]}]}]'
         )
         prompt = "\n".join(prompt_rows)
-    else:
-        if question_type == "direct":
-            answer_clause = ""
-            if answer_mode in {"multiple_choice", "pg", "pg_only"}:
-                answer_clause = "Semua soal menggunakan format pilihan ganda, tidak ada soal benar/salah."
-            elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
-                answer_clause = "Semua soal menggunakan format benar/salah saja; jangan buat pilihan ganda."
-            else:
-                answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tapi tiap soal hanya satu format."
-            prompt = (
-                f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
-                f"Buat {amount} soal ringkas bertopik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
-                "Semua soal HARUS berupa pernyataan atau ekspresi matematika singkat tanpa cerita atau tokoh, tidak perlu stimulus. "
-                f"{answer_clause} "
-                "Jika memilih pilihan ganda, berikan 4 opsi jawaban (A-D) dan pembahasan singkat. "
-                "Jika memilih Benar/Salah, sertakan field `question_type\":\"true_false\"` dan `statements` berisi tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh kosong atau diabaikan. "
-                f"{question_style_clause}{mode_clause}{style_block}{manual_clause}"
-                f"Pastikan setiap soal unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
-                "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
-                '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
-                '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
-                '"statements":[{"text":"...", "answer":"benar"}]}]}'
+    elif generator_mode == "lite":
+        if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+            answer_clause = (
+                "Semua soal menggunakan format pilihan ganda saja. "
+                "Sertakan 4 opsi jawaban (A-D) dan pembahasan ringkas."
+            )
+        elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+            answer_clause = (
+                "Semua soal menggunakan format benar/salah saja. "
+                "Sertakan field `question_type\":\"true_false\"` dan `statements` berupa tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh diabaikan."
             )
         else:
-            if answer_mode in {"multiple_choice", "pg", "pg_only"}:
-                answer_clause = "Semua soal dalam setiap stimulus menggunakan format pilihan ganda saja."
-            elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
-                answer_clause = "Semua soal dalam setiap stimulus menggunakan format benar/salah saja; jangan buat pilihan ganda."
-            else:
-                answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tetapi setiap soal hanya satu format (tidak digabung)."
-            prompt = (
-                f"Anda adalah ASKA, guru kreatif yang menulis soal untuk mapel {subject['name']} kategori {section_label}. "
-                f"Buat {amount} stimulus baru bertopik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
-                f"Setiap stimulus harus berupa narasi 2-3 paragraf dan memiliki {bundle_size} pertanyaan (minimal 3 dan maksimal 5). "
-                f"{answer_clause} "
-                f"{question_style_clause}{mode_clause} "
-                "Gunakan bahasa Indonesia formal yang tetap ringan, konteks sehari-hari, serta nama tokoh yang variatif. "
-                "Untuk soal pilihan ganda, sertakan 4 opsi jawaban (A-D) dan pembahasan ringkas. "
-                "Untuk soal Benar/Salah, sertakan field `question_type\":\"true_false\"` dan `statements` berupa array tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh kosong atau diabaikan. "
-                f"{style_block}{manual_clause}{image_clause}"
-                f"Pastikan setiap stimulus unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
-                "Format keluaran HANYA berupa JSON valid tanpa teks tambahan:\n"
-                '{"stimulus":[{"title":"Judul Stimulus","narrative":"...", "image_prompt":"...", '
-                '"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
-                '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
-                '"statements":[{"text":"...", "answer":"benar"}]}]}]}'
+            answer_clause = (
+                "Boleh campuran soal pilihan ganda dan benar/salah, namun tentukan satu format untuk setiap soal."
             )
+        prompt = (
+            f"Buat {amount} soal untuk mapel {subject['name']} dengan topik {topic} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
+            f"{answer_clause} "
+            f"{question_style_clause}{mode_clause} "
+            "Gunakan bahasa Indonesia formal yang sesuai tingkatnya. "
+            f"{style_block}{manual_clause}{image_clause}"
+            f"Pastikan setiap soal unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
+            "Format keluaran harus berupa JSON valid (tanpa teks lain) mengikuti contoh berikut:\n"
+            '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
+            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
+            '"statements":[{"text":"...", "answer":"benar"}]}]}'
+        )
+    else:
+        if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+            answer_clause = "Semua soal dalam setiap stimulus menggunakan format pilihan ganda saja."
+        elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+            answer_clause = "Semua soal dalam setiap stimulus menggunakan format benar/salah saja; jangan buat pilihan ganda."
+        else:
+            answer_clause = "Boleh campuran soal pilihan ganda dan benar/salah, tetapi setiap soal hanya satu format (tidak digabung)."
+        prompt = (
+            f"Buat {amount} stimulus baru bertopik {topic} untuk mapel {subject['name']} dengan tingkat kesulitan {difficulty_label}.{grade_clause} "
+            f"Setiap stimulus harus berupa narasi 2-3 paragraf dan memiliki {bundle_size} pertanyaan (minimal 3 dan maksimal 5). "
+            f"{answer_clause} "
+            f"{question_style_clause}{mode_clause} "
+            "Gunakan bahasa Indonesia formal yang sesuai tingkatnya. "
+            "Untuk soal pilihan ganda, sertakan 4 opsi jawaban (A-D) dan pembahasan ringkas. "
+            "Untuk soal Benar/Salah, sertakan field `question_type\":\"true_false\"` dan `statements` berupa array tiga objek {\"text\":\"...\",\"answer\":\"benar|salah\"}; opsi A-D boleh kosong atau diabaikan. "
+            f"{style_block}{manual_clause}{image_clause}"
+            f"Pastikan setiap stimulus unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
+            "Format keluaran harus berupa JSON valid (tanpa teks lain) mengikuti contoh berikut:\n"
+            '{"stimulus":[{"title":"Judul Stimulus","narrative":"...", "image_prompt":"...", '
+            '"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
+            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
+            '"statements":[{"text":"...", "answer":"benar"}]}]}]}'
+        )
+    if preview_only:
+        return jsonify({"success": True, "prompt": prompt})
+
+    chain = _get_tka_ai_chain()
+    if chain is None:
+        return jsonify({"success": False, "message": "Model ASKA belum siap. Coba sebentar lagi."}), 503
+
     try:
         result = chain.invoke(prompt)
         if hasattr(result, "content"):
@@ -2247,6 +2659,9 @@ def latihan_tka_generate():
     if not questions:
         return jsonify({"success": False, "message": "ASKA belum menghasilkan soal valid."}), 422
 
+    if not return_stimulus:
+        return jsonify({"success": True, "prompt": prompt})
+
     return jsonify({"success": True, "questions": questions, "prompt": prompt})
 
 
@@ -2282,3 +2697,187 @@ def latihan_tka_results_data():
         grade_value = attempt.get("grade_level")
         attempt["grade_label"] = GRADE_LABELS.get((grade_value or "").strip().lower(), GRADE_LABELS["sd6"])
     return jsonify({"success": True, "attempts": attempts})
+
+
+# --- API Tes TKA (tes -> mapel -> topik/format) ----------------------------
+
+
+@main_bp.route("/latihan-tka/tests", methods=["GET"])
+@login_required
+@role_required("admin")
+def latihan_tka_list_tests():
+    tests = fetch_tka_tests()
+    return jsonify({"success": True, "tests": tests})
+
+
+@main_bp.route("/latihan-tka/tests/<int:test_id>", methods=["DELETE"])
+@login_required
+@role_required("admin")
+def latihan_tka_delete_test_api(test_id: int):
+    try:
+        success = delete_tka_test(test_id)
+    except Exception as exc:
+        current_app.logger.error("Gagal menghapus tes %s: %s", test_id, exc)
+        return jsonify({"success": False, "message": "Gagal menghapus tes."}), 500
+    if not success:
+        return jsonify({"success": False, "message": "Tes tidak ditemukan."}), 404
+    return jsonify({"success": True})
+
+
+@main_bp.route("/latihan-tka/tests", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_create_test():
+    payload = request.get_json(silent=True) or {}
+    try:
+        test = create_tka_test(
+            name=payload.get("name"),
+            grade_level=payload.get("grade_level"),
+            duration_minutes=payload.get("duration_minutes"),
+            is_active=bool(payload.get("is_active", True)),
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal membuat tes TKA: %s", exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan tes."}), 500
+    return jsonify({"success": True, "test": test})
+
+
+@main_bp.route("/latihan-tka/tests/<int:test_id>/subjects", methods=["GET"])
+@login_required
+@role_required("admin")
+def latihan_tka_test_subjects(test_id: int):
+    try:
+        subjects = fetch_tka_test_subjects(test_id)
+    except Exception as exc:
+        current_app.logger.error("Gagal memuat mapel tes %s: %s", test_id, exc)
+        return jsonify({"success": False, "message": "Gagal memuat mapel tes."}), 500
+    return jsonify({"success": True, "subjects": subjects})
+
+
+@main_bp.route("/latihan-tka/tests/<int:test_id>/subjects", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_add_test_subject(test_id: int):
+    payload = request.get_json(silent=True) or {}
+    mapel_id = payload.get("mapel_id")
+    try:
+        if not mapel_id:
+            return jsonify({"success": False, "message": "mapel_id wajib diisi."}), 400
+        mapel_record = fetch_tka_mapel(mapel_id)
+        if not mapel_record:
+            return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
+        test_record = fetch_tka_test(test_id)
+        if not test_record:
+            return jsonify({"success": False, "message": "Tes tidak ditemukan."}), 404
+        test_grade = (test_record.get("grade_level") or "").strip().lower() or None
+        mapel_grade = (mapel_record.get("grade_level") or "").strip().lower() or None
+        if not mapel_grade:
+            return jsonify({"success": False, "message": "Mapel tidak memiliki jenjang."}), 400
+        if test_grade and test_grade != mapel_grade:
+            label_mapel = GRADE_LABELS.get(mapel_grade, mapel_grade.upper())
+            label_test = GRADE_LABELS.get(test_grade, test_grade.upper())
+            return jsonify({"success": False, "message": f"Tes ini khusus jenjang {label_test}. Mapel yang dipilih berjenjang {label_mapel}."}), 400
+        if not test_grade:
+            updated = set_tka_test_grade_level(test_id, mapel_grade)
+            if updated:
+                test_record = updated
+        subject = create_tka_test_subject(
+            test_id=test_id,
+            total=payload.get("question_count_target") or payload.get("total"),
+            mapel_id=mapel_id,
+            formats=payload.get("formats"),
+            topics=payload.get("topics"),
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal menambah mapel tes %s: %s", test_id, exc)
+        return jsonify({"success": False, "message": "Gagal menambahkan mapel ke tes."}), 500
+    return jsonify({"success": True, "subject": subject})
+
+
+@main_bp.route("/latihan-tka/tests/<int:test_id>/subjects/<int:test_subject_id>", methods=["DELETE"])
+@login_required
+@role_required("admin")
+def latihan_tka_delete_test_subject(test_id: int, test_subject_id: int):
+    try:
+        success = delete_tka_test_subject(test_id, test_subject_id)
+    except Exception as exc:
+        current_app.logger.error("Gagal menghapus mapel tes %s/%s: %s", test_id, test_subject_id, exc)
+        return jsonify({"success": False, "message": "Gagal menghapus mapel tes."}), 500
+    if not success:
+        return jsonify({"success": False, "message": "Mapel tes tidak ditemukan."}), 404
+    return jsonify({"success": True})
+
+
+@main_bp.route("/latihan-tka/tests/<int:test_id>/subjects/<int:test_subject_id>/topics", methods=["PUT"])
+@login_required
+@role_required("admin")
+def latihan_tka_update_test_subject_topics(test_id: int, test_subject_id: int):
+    payload = request.get_json(silent=True) or {}
+    topics = payload.get("topics")
+    if topics is not None and not isinstance(topics, list):
+        return jsonify({"success": False, "message": "Format topik tidak dikenal."}), 400
+    try:
+        subject = fetch_tka_test_subject(test_subject_id)
+        if not subject or subject.get("test_id") != test_id:
+            return jsonify({"success": False, "message": "Mapel tes tidak ditemukan."}), 404
+        updated = update_tka_test_subject_topics(test_subject_id, topics)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal memperbarui topik mapel tes %s/%s: %s", test_id, test_subject_id, exc)
+        return jsonify({"success": False, "message": "Gagal memperbarui topik mapel tes."}), 500
+    return jsonify({"success": True, "subject": updated})
+
+
+@main_bp.route("/latihan-tka/mapel", methods=["GET"])
+@login_required
+@role_required("admin")
+def latihan_tka_list_mapel():
+    data = fetch_tka_mapel_list()
+    return jsonify({"success": True, "mapel": data})
+
+
+@main_bp.route("/latihan-tka/mapel", methods=["POST"])
+@login_required
+@role_required("admin")
+def latihan_tka_create_mapel():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    grade_level = (payload.get("grade_level") or "").strip().lower()
+    is_active = bool(payload.get("is_active", True))
+    description = payload.get("description")
+    formats = payload.get("formats") if isinstance(payload.get("formats"), list) else None
+    topics = payload.get("topics") if isinstance(payload.get("topics"), list) else None
+    try:
+        record = create_tka_mapel(
+            name=name,
+            grade_level=grade_level,
+            description=description,
+            is_active=is_active,
+            formats=formats,
+            topics=topics,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        current_app.logger.error("Gagal membuat mapel TKA: %s", exc)
+        return jsonify({"success": False, "message": "Gagal menyimpan mapel."}), 500
+    return jsonify({"success": True, "mapel": record})
+
+
+@main_bp.route("/latihan-tka/mapel/<int:mapel_id>", methods=["DELETE"])
+@login_required
+@role_required("admin")
+def latihan_tka_delete_mapel(mapel_id: int):
+    try:
+        success = delete_tka_mapel(mapel_id)
+    except Exception as exc:
+        current_app.logger.error("Gagal menghapus mapel %s: %s", mapel_id, exc)
+        return jsonify({"success": False, "message": "Gagal menghapus mapel."}), 500
+    if not success:
+        return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
+    return jsonify({"success": True})

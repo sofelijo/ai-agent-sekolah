@@ -229,7 +229,11 @@ def create_app() -> Flask:
             item["section_key"] = merged_meta.get("section_key")
             item["section_label"] = merged_meta.get("section_label")
             item["subject_area"] = merged_meta.get("subject_area")
-            item["question_format"] = merged_meta.get("question_format")
+            answer_format = (item.get("answer_format") or "").strip().lower()
+            if answer_format not in {"multiple_choice", "true_false"}:
+                answer_format = "multiple_choice"
+            item["answer_format"] = answer_format
+            item["question_format"] = answer_format
             item["true_false_statements"] = merged_meta.get("true_false_statements") or merged_meta.get("statements")
             stimulus_payload = None
             if merged_meta.get("stimulus_id") or merged_meta.get("stimulus_title") or merged_meta.get("stimulus_text"):

@@ -32,7 +32,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Latihan TKA · Bank Soal</h1>
-            <p class="text-muted mb-0">Kelola jenis latihan, komposisi soal, dan generate paket otomatis memakai ASKA.</p>
+            <p class="text-muted mb-0">Kini satu tes bisa punya banyak mapel dan topik; simpan komposisi per mapel (PG & Benar/Salah) tanpa metadata.</p>
         </div>
         <div class="text-end">
             <div class="text-muted small mb-2 d-flex align-items-center justify-content-end gap-2">
@@ -52,122 +52,96 @@
 
     <div id="tkaStatus" class="alert d-none" role="alert"></div>
 
-    <div class="row g-4">
-        <div class="col-lg-4">
-            <div class="card h-100">
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-4 d-flex flex-column gap-4">
+            <div class="card">
                 <div class="card-header pb-0 border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <ul class="nav nav-tabs card-header-tabs" id="formToggleTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" data-target="subjectFormPanel" type="button">Jenis Latihan</button>
-                        </li>
-                    </ul>
-                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.latihan_tka_manual') }}">
-                        <i class="bi bi-journal-plus me-1"></i>Buat Soal Manual
-                    </a>
+                    <div>
+                        <h6 class="section-title mb-0">Daftar Tes & Jenis Latihan</h6>
+                        <small class="text-muted">Data mengikuti konfigurasi tes terbaru.</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshTestSummary">
+                            <i class="bi bi-arrow-repeat me-1"></i>Refresh
+                        </button>
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.latihan_tka_tests') }}">
+                            <i class="bi bi-sliders me-1"></i>Kelola Tes
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div id="subjectFormPanel" class="tab-panel">
-                        <p class="text-muted small">Atur 20 soal / 15 menit sesuai komposisi tingkat kesulitan.</p>
-                        <form id="subjectForm" class="mt-3">
-                            <div class="mb-3">
-                                <label class="form-label">Nama Jenis Latihan</label>
-                                <input type="text" class="form-control" id="subjectName" required placeholder="Contoh: Latihan TKA Nasional">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Deskripsi</label>
-                                <textarea class="form-control" id="subjectDesc" rows="2" placeholder="Ringkasan materi"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Jenjang</label>
-                                <select class="form-select" id="subjectGrade">
-                                    <option value="sd6">Kelas 6 SD</option>
-                                    <option value="smp3">Kelas 3 SMP</option>
-                                    <option value="sma">SMA</option>
-                                </select>
-                            </div>
-                            <div class="row">
-                                <div class="col-6 mb-3">
-                                    <label class="form-label">Durasi (menit)</label>
-                                    <input type="number" class="form-control" id="subjectTime" min="5" value="15">
-                                </div>
-                                <div class="col-6 mb-3">
-                                    <label class="form-label">Status</label>
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" id="subjectActive" checked>
-                                        <label class="form-check-label" for="subjectActive">Aktif</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <label class="form-label">Komposisi Soal</label>
-                            <div class="row">
-                                <div class="col-4 mb-3">
-                                    <input type="number" class="form-control" id="subjectEasy" min="0" value="10">
-                                    <small class="text-muted">Mudah</small>
-                                </div>
-                                <div class="col-4 mb-3">
-                                    <input type="number" class="form-control" id="subjectMedium" min="0" value="5">
-                                    <small class="text-muted">Sedang</small>
-                                </div>
-                                <div class="col-4 mb-3">
-                                    <input type="number" class="form-control" id="subjectHard" min="0" value="5">
-                                    <small class="text-muted">Susah</small>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Tambah Jenis Latihan</button>
-                        </form>
-                        <div class="alert alert-light border mt-4 d-flex align-items-center justify-content-between gap-3">
-                            <div>
-                                <h6 class="mb-1">Tambah Soal Manual</h6>
-                                <p class="text-muted small mb-0">Gunakan halaman khusus agar proses input soal lebih rapi serta ada daftar soal tersimpan.</p>
-                            </div>
-                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.latihan_tka_manual') }}">
-                                Buka Halaman
+                    <div class="text-muted small" id="testSummaryStatus">Memuat data tes...</div>
+                    <div class="d-flex flex-column gap-3 mt-3" id="testSummaryList">
+                        <div class="text-muted small">Menunggu data tes...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <h6 class="section-title mb-1">Target Mapel & Topik Tes</h6>
+                            <p class="text-muted small mb-0">Sinkron dengan halaman konfigurasi tes.</p>
+                        </div>
+                        <div class="text-end d-flex flex-column gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshMapelTopics">
+                                <i class="bi bi-arrow-repeat me-1"></i>Refresh
+                            </button>
+                            <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.latihan_tka_tests') }}">
+                                <i class="bi bi-sliders me-1"></i>Kelola Tes
                             </a>
                         </div>
                     </div>
- 
+                    <div class="text-muted small mt-2">Total mapel terhubung: <span class="badge text-bg-light" id="mapelTotalBadge">0</span></div>
+                    <div class="text-muted small mt-2" id="mapelTopicStatus">Memuat data mapel...</div>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="text-muted small">
+                                <tr>
+                                    <th>Mapel</th>
+                                    <th>Format Soal</th>
+                                    <th>Deskripsi</th>
+                                    <th>Topik Terencana</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mapelTopicTableBody">
+                                <tr><td colspan="4" class="text-center text-muted small">Menunggu data mapel…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-lg-8">
                 <div class="card p-3 h-100">
-                <div class="row g-2 align-items-end mb-2">
-                    <div class="col-lg-4 col-md-5">
-                        <label class="form-label">Jenis Latihan</label>
-                        <select class="form-select" id="filterSubject">
-                            {% for subject in subjects %}
-                            <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
-                            {% endfor %}
+                <div class="row g-3 align-items-end mb-2">
+                    <div class="col-lg-4 col-md-4">
+                        <label class="form-label">Tes</label>
+                        <select class="form-select" id="filterTest">
+                            <option value="">Memuat daftar tes…</option>
                         </select>
-                        <small class="text-muted d-block mt-1">Jenjang: <span class="badge text-bg-light" id="selectedGradeBadge">-</span></small>
+                        <small class="text-muted d-block mt-1">Pilih tes untuk melihat mapel & topik.</small>
                     </div>
-                    <div class="col-lg-3 col-md-3 col-sm-6">
+                    <div class="col-lg-4 col-md-4">
                         <label class="form-label">Kategori Mapel</label>
                         <select class="form-select" id="filterCategory">
-                            <option value="">Semua</option>
-                            <option value="matematika">Matematika</option>
-                            <option value="bahasa_indonesia">Bahasa Indonesia</option>
+                            <option value="">Memuat daftar mapel…</option>
                         </select>
                     </div>
-                    <div class="col-lg-2 col-md-2 col-sm-6">
-                        <label class="form-label">Tingkat Kelas</label>
-                        <select class="form-select" id="filterGrade">
-                            <option value="">Semua</option>
-                            <option value="sd6">Kelas 6 SD</option>
-                            <option value="smp3">Kelas 3 SMP</option>
-                            <option value="sma">SMA</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-md-12">
+                    <div class="col-lg-4 col-md-4">
                         <label class="form-label">Topik</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="filterTopic" placeholder="Topik">
-                            <button class="btn btn-outline-primary" type="button" id="refreshQuestions" title="Muat ulang">
-                                <i class="bi bi-arrow-repeat"></i>
-                            </button>
+                        <select class="form-select" id="filterTopic" disabled>
+                            <option value="">Pilih mapel terlebih dahulu</option>
+                        </select>
+                        <div class="d-none">
+                            <select class="form-select" id="filterSubject" aria-hidden="true">
+                                <option value="">Pilih tes terlebih dahulu</option>
+                            </select>
+                            <small class="text-muted mt-1" id="selectedGradeHint">Jenjang: <span class="badge text-bg-light" id="selectedGradeBadge">-</span></small>
                         </div>
                     </div>
                 </div>
+                <input type="hidden" id="filterGrade" value="">
                 <div class="row g-2 align-items-end mb-3">
                     <div class="col-lg-3 col-md-4 col-sm-6">
                         <label class="form-label">Kesulitan</label>
@@ -416,6 +390,353 @@
     </div>
 </div>
 
+
+<script>
+window.MAPEL_CACHE = window.MAPEL_CACHE || [];
+document.addEventListener('DOMContentLoaded', () => {
+    const SUMMARY_GRADE_LABELS = {{ grade_labels|tojson }};
+    const statusBox = document.getElementById('tkaStatus');
+    const testSummaryList = document.getElementById('testSummaryList');
+    const testSummaryStatus = document.getElementById('testSummaryStatus');
+    const refreshTestSummaryBtn = document.getElementById('refreshTestSummary');
+    const mapelTableBody = document.getElementById('mapelTopicTableBody');
+    const mapelStatusLabel = document.getElementById('mapelTopicStatus');
+    const refreshMapelBtn = document.getElementById('refreshMapelTopics');
+    const mapelTotalBadge = document.getElementById('mapelTotalBadge');
+
+    const logError = (label, payload) => {
+        try {
+            console.error(`[TKA][summary][${label}]`, payload);
+        } catch (_) {
+            /* ignore */
+        }
+    };
+
+    const showBanner = (message, tone = 'info') => {
+        if (!statusBox) return;
+        statusBox.className = `alert alert-${tone}`;
+        statusBox.textContent = message;
+        statusBox.classList.remove('d-none');
+        setTimeout(() => statusBox.classList.add('d-none'), 2500);
+    };
+
+    const escapeHtml = (value = '') =>
+        String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+    const setTestSummaryStatus = (message, tone = 'muted') => {
+        if (!testSummaryStatus) return;
+        testSummaryStatus.className = `text-${tone} small`;
+        testSummaryStatus.textContent = message;
+    };
+
+    const setMapelStatus = (message, tone = 'muted') => {
+        if (!mapelStatusLabel) return;
+        mapelStatusLabel.className = `text-${tone} small mt-2`;
+        mapelStatusLabel.textContent = message;
+    };
+
+    const normalizeNumber = (value) => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return Math.max(0, Math.round(value));
+        }
+        const parsed = parseInt(value, 10);
+        return Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+    };
+
+    const resolveActualCount = (topic) => {
+        if (!topic || typeof topic !== 'object') return 0;
+        return normalizeNumber(
+            topic.question_count_actual ??
+            topic.question_count_current ??
+            topic.question_count_ready ??
+            topic.question_count_created ??
+            topic.question_count ??
+            topic.count ??
+            topic.current
+        );
+    };
+
+    const resolveTargetCount = (topic) => {
+        if (!topic || typeof topic !== 'object') return 0;
+        return normalizeNumber(
+            topic.question_count_target ??
+            topic.target ??
+            topic.required ??
+            topic.question_target ??
+            topic.plan ??
+            topic.desired ??
+            topic.need ??
+            0
+        );
+    };
+
+    const formatTopicCoverage = (topic) => {
+        const actual = resolveActualCount(topic);
+        const target = resolveTargetCount(topic);
+        if (!actual && !target) return '-';
+        if (!target) return `${actual}`;
+        let label = `${actual}/${target}`;
+        if (actual > target) {
+            const ratio = (actual / target).toFixed(1).replace('.', ',');
+            label += ` (${ratio}x)`;
+        }
+        return label;
+    };
+
+    const findFormatCount = (subject, questionType) => {
+        if (!subject || !Array.isArray(subject.formats)) return 0;
+        const entry = subject.formats.find((fmt) => fmt.question_type === questionType);
+        if (!entry) return 0;
+        return normalizeNumber(entry.question_count_target ?? entry.question_count);
+    };
+
+    const findActualFormatCount = (subject, questionType) => {
+        if (!subject) return 0;
+        if (questionType === 'multiple_choice') {
+            return normalizeNumber(subject.question_count_pg_actual || subject.pg_actual || 0);
+        }
+        if (questionType === 'true_false') {
+            return normalizeNumber(subject.question_count_tf_actual || subject.tf_actual || 0);
+        }
+        return 0;
+    };
+
+    const formatCountDisplay = (actual, target) => {
+        if (target && target > 0) {
+            return `${actual}/${target}`;
+        }
+        return `${actual}`;
+    };
+
+    const buildTopicBadges = (topics) => {
+        if (!Array.isArray(topics) || !topics.length) {
+            return '<span class="text-muted small">Belum ada topik.</span>';
+        }
+        return topics
+            .map((topic) => {
+                const topicName = escapeHtml(topic.topic || topic.name || 'Topik');
+                const coverage = formatTopicCoverage(topic);
+                return `<span class="badge rounded-pill text-bg-light me-1 mb-1 d-inline-flex align-items-center gap-1">
+                            <span>${topicName}</span>
+                            <span class="text-primary fw-semibold">${coverage}</span>
+                        </span>`;
+            })
+            .join('');
+    };
+
+    const buildMapelBlock = (subject) => {
+        console.log('[TKA][summary] mapel payload', {
+            id: subject?.id,
+            mapel_id: subject?.mapel_id,
+            pg_actual: subject?.question_count_pg_actual,
+            tf_actual: subject?.question_count_tf_actual,
+            formats: subject?.formats,
+        });
+        const mapelName = escapeHtml(subject.mapel_name || subject.subject_name || subject.name || 'Mapel');
+        const total = normalizeNumber(subject.question_count_target || subject.total);
+        const actualTotal = normalizeNumber(
+            subject.question_count_actual ||
+            subject.current_total ||
+            subject.total_actual ||
+            0
+        );
+        const pgTarget = findFormatCount(subject, 'multiple_choice');
+        const tfTarget = findFormatCount(subject, 'true_false');
+        const pgActual = findActualFormatCount(subject, 'multiple_choice');
+        const tfActual = findActualFormatCount(subject, 'true_false');
+        const topicBadges = buildTopicBadges(subject.topics);
+        const subjectId = escapeHtml(String(subject.subject_id || subject.mapel_id || ''));
+        const testSubjectId = escapeHtml(String(subject.id || subject.test_subject_id || ''));
+        const mapelId = escapeHtml(String(subject.mapel_id || subject.subject_id || ''));
+        const testId = escapeHtml(String(subject.test_id || subject.testId || ''));
+        const gradeValue = escapeHtml(String(subject.grade_level || subject.mapel_grade_level || ''));
+        return `
+            <button type="button"
+                    class="border rounded-3 p-2 bg-white text-start w-100 mapel-select"
+                    data-mapel-select="1"
+                    data-test-id="${testId}"
+                    data-test-subject-id="${testSubjectId}"
+                    data-subject-id="${subjectId}"
+                    data-mapel-id="${mapelId}"
+                    data-grade="${gradeValue}">
+                <div class="d-flex justify-content-between align-items-center small">
+                    <span class="fw-semibold">${mapelName}</span>
+                    <span class="text-muted">${actualTotal}/${total} soal</span>
+                </div>
+                <div class="text-muted small">PG ${formatCountDisplay(pgActual, pgTarget)} · BS ${formatCountDisplay(tfActual, tfTarget)}</div>
+                <div class="mt-2">${topicBadges}</div>
+            </button>
+        `;
+    };
+
+    const formatGradeLabel = (grade) => {
+        const key = (grade || '').toLowerCase();
+        return SUMMARY_GRADE_LABELS[key] || (grade ? grade.toUpperCase() : 'Tanpa Jenjang');
+    };
+
+    const renderTestSummary = (tests) => {
+        if (!testSummaryList) return;
+        testSummaryList.innerHTML = '';
+        if (!Array.isArray(tests) || !tests.length) {
+            testSummaryList.innerHTML = '<div class="text-muted small">Belum ada tes tersimpan.</div>';
+            return;
+        }
+        tests.forEach((test) => {
+            const subjects = test.subjects || [];
+            const mapelBlocks = subjects.length
+                ? subjects.map(buildMapelBlock).join('')
+                : '<div class="text-muted small">Belum ada mapel di tes ini.</div>';
+            const gradeLabel = formatGradeLabel(test.grade_level);
+            const duration = normalizeNumber(test.duration_minutes || test.duration);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'border rounded-3 p-3 bg-light-subtle';
+            wrapper.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="fw-semibold">${escapeHtml(test.name || 'Tes TKA')}</div>
+                        <div class="text-muted small">${duration} menit · ${gradeLabel} · ${subjects.length} mapel</div>
+                    </div>
+                    <span class="badge rounded-pill ${test.is_active === false ? 'text-bg-light text-muted' : 'text-bg-success-subtle text-success'}">
+                        ${test.is_active === false ? 'Nonaktif' : 'Aktif'}
+                    </span>
+                </div>
+                <div class="mt-3 d-flex flex-column gap-2">
+                    ${mapelBlocks}
+                </div>
+            `;
+            testSummaryList.appendChild(wrapper);
+        });
+    };
+
+    const fetchTestSubjects = async (testId) => {
+        try {
+            const res = await fetch(`/latihan-tka/tests/${testId}/subjects`);
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.subjects)) {
+                return data.subjects;
+            }
+            logError('test-subjects-failed', { testId, status: res.status, data });
+        } catch (error) {
+            logError('test-subjects-error', { testId, error });
+        }
+        return [];
+    };
+
+    const loadTestSummary = async () => {
+        if (!testSummaryList) return;
+        setTestSummaryStatus('Memuat data tes...', 'muted');
+        try {
+            const res = await fetch('/latihan-tka/tests');
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.tests)) {
+                const enriched = await Promise.all(
+                    data.tests.map(async (test) => ({
+                        ...test,
+                        subjects: await fetchTestSubjects(test.id),
+                    }))
+                );
+                renderTestSummary(enriched);
+                setTestSummaryStatus(`Memuat ${enriched.length} tes selesai.`, 'success');
+            } else {
+                logError('tests-fetch-failed', { status: res.status, data });
+                setTestSummaryStatus(data.message || 'Gagal memuat data tes.', 'danger');
+                showBanner(data.message || 'Gagal memuat daftar tes.', 'danger');
+            }
+        } catch (error) {
+            logError('tests-fetch-error', error);
+            setTestSummaryStatus('Terjadi kesalahan memuat tes.', 'danger');
+            showBanner('Terjadi kesalahan memuat tes.', 'danger');
+        }
+    };
+
+    const renderMapelTable = (mapelList) => {
+        if (!mapelTableBody) return;
+        mapelTableBody.innerHTML = '';
+        if (!Array.isArray(mapelList) || !mapelList.length) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="4" class="text-center text-muted small">Belum ada data mapel.</td>`;
+            mapelTableBody.appendChild(row);
+            if (mapelTotalBadge) mapelTotalBadge.textContent = '0';
+            return;
+        }
+        if (mapelTotalBadge) mapelTotalBadge.textContent = mapelList.length;
+        mapelList.forEach((mapel) => {
+            const formats = (mapel.formats || []).map((fmt) => {
+                const label = fmt.question_type === 'true_false' ? 'BS' : 'PG';
+                return `${label} ${normalizeNumber(fmt.question_count)}`;
+            }).join(' · ') || '-';
+            const gradeLabel = formatGradeLabel(mapel.grade_level);
+            const topics = buildTopicBadges(mapel.topics);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="fw-semibold">${escapeHtml(mapel.name || 'Mapel')}</div>
+                    <div class="text-muted small">${gradeLabel}${mapel.is_active === false ? ' · Nonaktif' : ''}</div>
+                </td>
+                <td>${formats}</td>
+                <td>${mapel.description ? `<div class="text-muted small">${escapeHtml(mapel.description)}</div>` : '<span class="text-muted small">-</span>'}</td>
+                <td>${topics}</td>
+            `;
+            mapelTableBody.appendChild(row);
+        });
+    };
+
+    const loadMapel = async () => {
+        if (!mapelTableBody) return;
+        setMapelStatus('Memuat data mapel...', 'muted');
+        try {
+            const response = await fetch('/latihan-tka/mapel');
+            const data = await response.json();
+            if (response.ok && data.success) {
+                window.MAPEL_CACHE = data.mapel || [];
+                renderMapelTable(window.MAPEL_CACHE);
+                document.dispatchEvent(new CustomEvent('tka:mapel-data', {
+                    detail: { mapel: window.MAPEL_CACHE.slice() },
+                }));
+                setMapelStatus('Data mapel berhasil dimuat.', 'success');
+            } else {
+                logError('mapel-fetch-failed', { status: response.status, data });
+                setMapelStatus(data.message || 'Gagal memuat mapel.', 'danger');
+                showBanner(data.message || 'Gagal memuat data mapel.', 'danger');
+            }
+        } catch (error) {
+            logError('mapel-fetch-error', error);
+            setMapelStatus('Terjadi kesalahan memuat mapel.', 'danger');
+            showBanner('Terjadi kesalahan memuat mapel.', 'danger');
+        }
+    };
+
+    if (refreshTestSummaryBtn) {
+        refreshTestSummaryBtn.addEventListener('click', loadTestSummary);
+    }
+    if (refreshMapelBtn) {
+        refreshMapelBtn.addEventListener('click', loadMapel);
+    }
+    if (testSummaryList) {
+        testSummaryList.addEventListener('click', (event) => {
+            const trigger = event.target.closest('[data-mapel-select="1"]');
+            if (!trigger) return;
+            event.preventDefault();
+            const detail = {
+                testId: trigger.dataset.testId || null,
+                testSubjectId: trigger.dataset.testSubjectId || null,
+                subjectId: trigger.dataset.subjectId || null,
+                mapelId: trigger.dataset.mapelId || null,
+                grade: trigger.dataset.grade || null,
+            };
+            document.dispatchEvent(new CustomEvent('tka:mapel-selected', { detail }));
+        });
+    }
+
+    loadTestSummary();
+    loadMapel();
+});
+</script>
 
 {% block scripts %}
     {% include 'partials/latihan_tka_scripts.html' %}

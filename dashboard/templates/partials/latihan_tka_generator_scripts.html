@@ -6,15 +6,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const tplPro = document.getElementById('tplGeneratePro');
     const generatorModeInput = document.getElementById('generateMode');
     const preview = document.getElementById('generatePreview');
+    const promptTextArea = document.getElementById('generatedPromptText');
     const saveBtn = document.getElementById('saveGenerated');
     const statusBox = document.getElementById('tkaStatus');
     const triggerBtns = document.querySelectorAll('[data-generator-submit]');
+    const copyPromptBtn = document.getElementById('copyPromptBtn');
     const baseGeneratorMode = (generatorModeInput ? generatorModeInput.value : 'lite').toLowerCase();
+    const isLitePage = baseGeneratorMode === 'lite';
     let stimulusCache = [];
+    let testCache = [];
+    let testSubjectCache = {};
     let generatedBundle = null;
     let isGenerating = false;
 
     const selectors = {
+        test: () => document.getElementById('generateTest'),
         subject: () => document.getElementById('generateSubject'),
         section: () => document.getElementById('generateSection'),
         grade: () => document.getElementById('generateGrade'),
@@ -24,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         bundle: () => document.getElementById('generateBundleSize'),
         questionType: () => document.getElementById('generateQuestionType'),
         answerMode: () => document.getElementById('generateAnswerMode'),
+        formatType: () => document.getElementById('generateFormatType'),
+        formatPg: () => document.getElementById('generateFormatPg'),
+        formatTf: () => document.getElementById('generateFormatTf'),
         styleSimilarity: () => document.getElementById('generateStyleSimilarity'),
         example: () => document.getElementById('generateExample'),
         imageDescription: () => document.getElementById('generateImageDescription'),
@@ -40,6 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
         amountHint: () => document.getElementById('generateAmountHint'),
         amountLabel: () => document.getElementById('generateAmountLabel'),
     };
+    const manualTestSelect = document.getElementById('manualTest');
+    const manualSubjectSelect = document.getElementById('questionSubject');
+    let manageTopicsUrl = '';
+    let questionTypeWrapper = null;
+    let currentSubjectSelection = { testId: null, subjectId: null, testSubjectId: null, mapelId: null };
 
     function encodePayload(data) {
         try {
@@ -73,11 +87,61 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => statusBox.classList.add('d-none'), 3500);
     }
 
+    async function copyTextToClipboard(text) {
+        if (!text) return false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                // fallback below
+            }
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        let succeeded = false;
+        try {
+            succeeded = document.execCommand('copy');
+        } catch (err) {
+            succeeded = false;
+        }
+        document.body.removeChild(textarea);
+        return succeeded;
+    }
+
+    function validateGeneratorPayload(payload) {
+        if (!payload.topic) {
+            return {
+                ok: false,
+                message: 'Pilih topik terlebih dahulu.',
+                previewMessage: 'Pilih topik terlebih dahulu sebelum generate soal.',
+            };
+        }
+        if (payload.generator_mode === 'pro' && !payload.stimulus_id) {
+            return {
+                ok: false,
+                message: 'Pilih stimulus terlebih dahulu sebelum generate soal.',
+                previewMessage: 'Pilih stimulus dulu sebelum generate soal.',
+            };
+        }
+        return { ok: true };
+    }
+
     function injectTemplate() {
         if (!fieldsContainer) return;
         const tpl = baseGeneratorMode === 'pro' ? tplPro : tplLite;
         if (tpl) {
             fieldsContainer.innerHTML = tpl.innerHTML;
+            questionTypeWrapper = document.getElementById('questionTypeWrapper');
+            const topicSelect = document.getElementById('generateTopic');
+            if (topicSelect && topicSelect.dataset.manageUrl) {
+                manageTopicsUrl = topicSelect.dataset.manageUrl;
+            }
         }
     }
 
@@ -101,21 +165,249 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function syncFormatCountsFromInputs() {
+        const formatSelect = selectors.formatType();
+        const amountInput = selectors.amount();
+        const pgInput = selectors.formatPg();
+        const tfInput = selectors.formatTf();
+        const answerSelect = selectors.answerMode();
+        let selectedFormat = (formatSelect?.value === 'true_false') ? 'true_false' : 'multiple_choice';
+        if (isLitePage) {
+            selectedFormat = 'multiple_choice';
+            if (formatSelect) {
+                formatSelect.value = 'multiple_choice';
+            }
+        }
+        let total = parseInt(amountInput?.value || '0', 10);
+        if (!Number.isFinite(total) || total <= 0) {
+            total = 3;
+        }
+        if (amountInput) {
+            amountInput.value = String(total);
+        }
+        if (selectedFormat === 'true_false') {
+            if (pgInput) pgInput.value = '0';
+            if (tfInput) tfInput.value = String(total);
+        } else {
+            if (pgInput) pgInput.value = String(total);
+            if (tfInput) tfInput.value = '0';
+        }
+        if (answerSelect) {
+            answerSelect.value = isLitePage ? 'multiple_choice' : selectedFormat;
+        }
+    }
+
+    function applySubjectMetaFromOption(option) {
+        const pgValue = option ? parseInt(option.dataset.pg || '0', 10) || 0 : 0;
+        const tfValue = option ? parseInt(option.dataset.tf || '0', 10) || 0 : 0;
+        const formatSelect = selectors.formatType();
+        let selectedFormat = formatSelect ? formatSelect.value : 'multiple_choice';
+        if (!isLitePage) {
+            if (tfValue > 0 && pgValue === 0) {
+                selectedFormat = 'true_false';
+            } else if (pgValue > 0 && tfValue === 0) {
+                selectedFormat = 'multiple_choice';
+            } else if (pgValue > 0 || tfValue > 0) {
+                selectedFormat = pgValue >= tfValue ? 'multiple_choice' : 'true_false';
+            }
+        } else {
+            selectedFormat = 'multiple_choice';
+        }
+        if (formatSelect) {
+            formatSelect.value = selectedFormat;
+        }
+        syncFormatCountsFromInputs();
+        const gradeSelect = selectors.grade();
+        const gradeLevel = option ? (option.dataset.gradeLevel || option.dataset.grade || '') : '';
+        if (gradeSelect && gradeLevel) {
+            gradeSelect.value = gradeLevel;
+        }
+        const sectionSelect = selectors.section();
+        const subjectArea = option ? (option.dataset.subjectArea || '').toLowerCase() : '';
+        if (sectionSelect) {
+            sectionSelect.value = subjectArea === 'bahasa_indonesia' ? 'bahasa_pg' : 'matematika';
+        }
+        updateQuestionTypeVisibility(subjectArea);
+    }
+
+    function bindFormatControls() {
+        const formatSelect = selectors.formatType();
+        const amountInput = selectors.amount();
+        if (formatSelect) {
+            formatSelect.addEventListener('change', () => syncFormatCountsFromInputs());
+        }
+        if (amountInput) {
+            amountInput.addEventListener('input', () => syncFormatCountsFromInputs());
+        }
+        syncFormatCountsFromInputs();
+    }
+
+    function updateQuestionTypeVisibility(subjectArea) {
+        const wrapper = questionTypeWrapper;
+        const questionTypeSelect = selectors.questionType();
+        if (!wrapper || !questionTypeSelect) return;
+        const visible = subjectArea === 'matematika';
+        wrapper.style.display = visible ? '' : 'none';
+        if (!visible) {
+            questionTypeSelect.value = 'story';
+        }
+    }
+
+    function findSelectedSubjectEntry() {
+        const testSelect = selectors.test();
+        const subjectSelect = selectors.subject();
+        if (!testSelect || !subjectSelect) return null;
+        const testId = testSelect.value;
+        const testSubjectId = subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+            ? subjectSelect.selectedOptions[0].dataset.testSubjectId
+            : null;
+        if (!testId) return null;
+        const list = testSubjectCache[testId] || testSubjectCache[String(testId)] || [];
+        if (testSubjectId) {
+            const direct = list.find(item => String(item.id) === String(testSubjectId));
+            if (direct) return direct;
+        }
+        const subjectId = subjectSelect.value;
+        if (!subjectId) return null;
+        return list.find(item => String(item.subject_id || item.mapel_id) === String(subjectId)) || null;
+    }
+
+    function getCurrentTestSubjects() {
+        const testSelect = selectors.test();
+        if (!testSelect || !testSelect.value) return [];
+        return testSubjectCache[testSelect.value] || testSubjectCache[String(testSelect.value)] || [];
+    }
+
+    function syncCurrentSubjectSelection(option) {
+        if (!option) {
+            currentSubjectSelection = { testId: null, subjectId: null, testSubjectId: null };
+            return;
+        }
+        const parsedSubjectId = Number.parseInt(option.dataset?.mapelId || option.value, 10);
+        const parsedTestSubjectId = Number.parseInt(option.dataset?.testSubjectId || '', 10);
+        currentSubjectSelection = {
+            testId: selectors.test() ? selectors.test().value : null,
+            subjectId: Number.isFinite(parsedSubjectId) ? parsedSubjectId : null,
+            testSubjectId: Number.isFinite(parsedTestSubjectId) ? parsedTestSubjectId : null,
+            mapelId: Number.isFinite(parsedSubjectId) ? parsedSubjectId : null,
+        };
+    }
+
+    function resolveSubjectSelection() {
+        const subjectSelect = selectors.subject();
+        const currentTestId = selectors.test() ? selectors.test().value : null;
+        if (
+            currentSubjectSelection.testId
+            && currentSubjectSelection.testId === currentTestId
+            && currentSubjectSelection.subjectId
+            && currentSubjectSelection.testSubjectId
+        ) {
+            return { ...currentSubjectSelection };
+        }
+        if (!subjectSelect || !subjectSelect.options.length) {
+            return { subjectId: null, testSubjectId: null };
+        }
+        let option = subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+            ? subjectSelect.selectedOptions[0]
+            : subjectSelect.options[subjectSelect.selectedIndex >= 0 ? subjectSelect.selectedIndex : 0];
+        if (!option || !option.value) {
+            option = subjectSelect.options[0];
+        }
+        syncCurrentSubjectSelection(option);
+        return { ...currentSubjectSelection };
+    }
+
+    function populateTopicOptions(subjectEntry) {
+        const topicSelect = selectors.topic();
+        if (!topicSelect || topicSelect.tagName !== 'SELECT') return;
+        const prevValue = topicSelect.dataset.lastValue || '';
+        topicSelect.innerHTML = '';
+        const manageOption = document.createElement('option');
+        manageOption.value = '__manage__';
+        manageOption.textContent = '+ Tambah topik di halaman Tes';
+        topicSelect.appendChild(manageOption);
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.textContent = (subjectEntry && Array.isArray(subjectEntry.topics) && subjectEntry.topics.length)
+            ? 'Pilih topik'
+            : 'Belum ada topik';
+        placeholder.selected = true;
+        topicSelect.appendChild(placeholder);
+        if (!subjectEntry || !Array.isArray(subjectEntry.topics) || !subjectEntry.topics.length) {
+            topicSelect.dataset.lastValue = '';
+            return;
+        }
+        let matched = false;
+        subjectEntry.topics.forEach(topic => {
+            if (!topic || !topic.topic) return;
+            const opt = document.createElement('option');
+            opt.value = topic.topic;
+            opt.textContent = topic.topic;
+            if (topic.topic === prevValue) {
+                opt.selected = true;
+                matched = true;
+            }
+            topicSelect.appendChild(opt);
+        });
+        if (matched) {
+            topicSelect.dataset.lastValue = prevValue;
+            return;
+        }
+        topicSelect.selectedIndex = 1;
+        topicSelect.dataset.lastValue = '';
+    }
+
+    function bindTopicSelect() {
+        const topicSelect = selectors.topic();
+        if (!topicSelect || topicSelect.tagName !== 'SELECT') return;
+        topicSelect.addEventListener('change', () => {
+            if (topicSelect.value === '__manage__') {
+                const targetUrl = topicSelect.dataset.manageUrl || manageTopicsUrl || '/latihan-tka/tests';
+                window.open(targetUrl, '_blank', 'noopener');
+                const revertValue = topicSelect.dataset.lastValue || '';
+                if (revertValue) {
+                    topicSelect.value = revertValue;
+                } else {
+                    topicSelect.selectedIndex = 1;
+                }
+                return;
+            }
+            topicSelect.dataset.lastValue = topicSelect.value;
+        });
+        populateTopicOptions(null);
+    }
+
     function buildPayload() {
-        const subjectId = selectors.subject() ? parseInt(selectors.subject().value, 10) : NaN;
+        const testId = selectors.test() ? parseInt(selectors.test().value, 10) : NaN;
+        const resolved = resolveSubjectSelection();
+        const subjectId = resolved.subjectId;
+        const testSubjectId = resolved.testSubjectId;
+        const mapelId = resolved.mapelId;
+        const subjectSelect = selectors.subject();
+        const subjectLabel = subjectSelect && subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+            ? (subjectSelect.selectedOptions[0].textContent || '').trim()
+            : '';
+        const rawTopic = selectors.topic() ? selectors.topic().value : '';
+        const topicValue = rawTopic === '__manage__' ? '' : rawTopic;
         const selectedMode = resolveGeneratorMode();
         const amountValue = selectors.amount() ? parseInt(selectors.amount().value, 10) || 0 : 0;
         const bundleInput = selectors.bundle();
         const rawBundle = bundleInput ? parseInt(bundleInput.value, 10) : NaN;
         const bundleSize = rawBundle || 3;
+        const resolvedAnswerMode = selectors.answerMode() ? selectors.answerMode().value : 'multiple_choice';
         return {
+            test_id: Number.isFinite(testId) ? testId : null,
             subject_id: Number.isFinite(subjectId) ? subjectId : null,
-            topic: selectors.topic() ? selectors.topic().value : '',
+            test_subject_id: Number.isFinite(testSubjectId) ? testSubjectId : null,
+            mapel_id: Number.isFinite(mapelId) ? mapelId : null,
+            subject_hint: subjectLabel,
+            topic: topicValue,
             difficulty: selectors.difficulty() ? selectors.difficulty().value : 'easy',
             amount: selectedMode === 'pro' ? 1 : amountValue,
             grade_level: selectors.grade() ? selectors.grade().value : '',
             question_type: selectors.questionType() ? selectors.questionType().value : 'direct',
-            answer_mode: selectors.answerMode() ? selectors.answerMode().value : 'multiple_choice',
+            answer_mode: isLitePage ? 'multiple_choice' : resolvedAnswerMode,
             style_similarity: selectors.styleSimilarity() ? selectors.styleSimilarity().value : '50',
             example: selectors.example() ? selectors.example().value : '',
             generator_mode: selectedMode,
@@ -285,8 +577,9 @@ document.addEventListener('DOMContentLoaded', () => {
             metadata: Object.assign({}, question?.metadata || {}),
             stimulus: stimMeta || question?.stimulus || null,
         };
-        payload.metadata.section_key = payload.metadata.section_key || sectionMeta.subject_area;
-        payload.metadata.subject_area = payload.metadata.subject_area || sectionMeta.subject_area;
+        // Paksa subject_area mengikuti pilihan terkini supaya tidak ikut metadata lama/AI
+        payload.metadata.section_key = sectionMeta.subject_area;
+        payload.metadata.subject_area = sectionMeta.subject_area;
         card.dataset.payload = encodePayload(payload);
     }
 
@@ -432,6 +725,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resolveGeneratorMode() === 'pro') {
                     loadStimulusList();
                 }
+                const option = subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+                    ? subjectSelect.selectedOptions[0]
+                    : null;
+                applySubjectMetaFromOption(option);
+                syncCurrentSubjectSelection(option);
+                const subjectEntry = findSelectedSubjectEntry();
+                populateTopicOptions(subjectEntry);
+                subjectSelect.dataset.lastValue = subjectSelect.value || '';
+            });
+        }
+        const testSelect = selectors.test();
+        if (testSelect) {
+            testSelect.addEventListener('change', () => {
+                populateTestSubjects(testSelect.value);
+                const gradeSelect = selectors.grade();
+                const found = testCache.find(t => String(t.id) === String(testSelect.value));
+                if (gradeSelect && found && found.grade_level) {
+                    gradeSelect.value = found.grade_level;
+                }
             });
         }
     }
@@ -482,13 +794,14 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             if (isGenerating) return;
             const payload = buildPayload();
-            if (!payload.subject_id) {
-                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
-                return;
-            }
-            if (payload.generator_mode === 'pro' && !payload.stimulus_id) {
-                preview.innerHTML = '<div class="alert alert-warning">Pilih stimulus dulu sebelum generate soal.</div>';
-                showStatus('Pilih stimulus terlebih dahulu sebelum generate soal.', 'warning');
+            const validation = validateGeneratorPayload(payload);
+            if (!validation.ok) {
+                if (preview) {
+                    const warnText = validation.previewMessage || validation.message;
+                    preview.innerHTML = `<div class="alert alert-warning">${warnText}</div>`;
+                }
+                showStatus(validation.message, 'warning');
+                if (saveBtn) saveBtn.disabled = false;
                 return;
             }
             isGenerating = true;
@@ -520,7 +833,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         : (payload.amount || questions.length);
                     generatedBundle = {
                         questions,
-                        subject_id: payload.subject_id,
+                        test_subject_id: payload.test_subject_id,
+                        mapel_id: payload.mapel_id,
                         section_key: payload.section_key,
                         prompt: data.prompt || payload.example || '',
                         mode: payload.generator_mode,
@@ -528,7 +842,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     renderPreview(questions, expectedQuestions);
                     saveBtn.disabled = false;
-                    showStatus('ASKA berhasil menyiapkan draft soal.', 'success');
+                    if (promptTextArea && data.prompt) {
+                        promptTextArea.value = data.prompt;
+                    }
+                    if (data.prompt) {
+                        console.debug('[TKA][generate] prompt', data.prompt);
+                        try {
+                            const copied = await copyTextToClipboard(data.prompt);
+                            if (copied) {
+                                showStatus('ASKA berhasil menyiapkan draft soal dan prompt disalin.', 'success');
+                            } else {
+                                showStatus('ASKA berhasil menyiapkan draft soal. Prompt tersedia untuk disalin.', 'success');
+                            }
+                        } catch (copyErr) {
+                            console.error('[TKA][generate] gagal menyalin prompt', copyErr);
+                            showStatus('ASKA berhasil menyiapkan draft soal. Prompt tersedia di kolom bawah.', 'info');
+                        }
+                    } else {
+                        showStatus('ASKA berhasil menyiapkan draft soal.', 'success');
+                    }
                 } else {
                     const detail = data.message || rawText || 'Gagal generate soal.';
                     preview.innerHTML = `<div class="alert alert-danger">Generator gagal: ${escapeHtml(detail)}</div>`;
@@ -549,11 +881,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    async function handleCopyPrompt() {
+        if (!copyPromptBtn || copyPromptBtn.dataset.loading === '1') return;
+        const payload = buildPayload();
+        const validation = validateGeneratorPayload(payload);
+        if (!validation.ok) {
+            showStatus(validation.message, 'warning');
+            return;
+        }
+        console.debug('[TKA][copy-prompt] payload', payload);
+        payload.preview_only = true;
+        const initialHtml = copyPromptBtn.innerHTML;
+        copyPromptBtn.dataset.loading = '1';
+        copyPromptBtn.disabled = true;
+        copyPromptBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            const response = await fetch('/latihan-tka/generate_soal_new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                data = {};
+            }
+            if (response.ok && data.success && data.prompt) {
+                if (promptTextArea) {
+                    promptTextArea.value = data.prompt;
+                }
+                const success = await copyTextToClipboard(data.prompt);
+                if (success) {
+                    showStatus('Prompt disalin ke clipboard.', 'success');
+                } else {
+                    showStatus('Prompt siap, tapi browser menolak akses clipboard.', 'warning');
+                }
+            } else {
+                showStatus((data && data.message) || 'Gagal mengambil prompt.', 'danger');
+            }
+        } catch (error) {
+            console.error('[TKA][copy-prompt] error', error);
+            showStatus('Terjadi kesalahan saat mengambil prompt.', 'danger');
+        } finally {
+            copyPromptBtn.disabled = false;
+            copyPromptBtn.dataset.loading = '0';
+            copyPromptBtn.innerHTML = initialHtml;
+        }
+    }
+
     function readQuestionsFromPreview() {
         const sectionMeta = getSectionMeta();
         const stimulusMap = collectStimulusEdits();
         if (!preview) return [];
         const cards = Array.from(preview.querySelectorAll('.question-card'));
+        const testId = selectors.test() ? parseInt(selectors.test().value || '', 10) : null;
+        const subjSelect = selectors.subject();
+        const testSubjectId = subjSelect ? parseInt(subjSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : null;
+        const resolved = resolveSubjectSelection();
+        const mapelId = resolved.mapelId;
         const resolveStimulus = (stimulus) => {
             if (!stimulus) return null;
             const key = stimulus.bundle_key
@@ -564,13 +950,27 @@ document.addEventListener('DOMContentLoaded', () => {
             merged.bundle_key = key;
             return merged;
         };
+        const formatSelect = selectors.formatType();
+        const globalFormatValue = formatSelect ? formatSelect.value : '';
+        const answerModeValue = selectors.answerMode() ? selectors.answerMode().value : '';
+        const forcedFormat = (() => {
+            if (isLitePage) return 'multiple_choice';
+            if (answerModeValue && answerModeValue !== 'mix') return answerModeValue;
+            if (globalFormatValue && globalFormatValue !== 'mix') return globalFormatValue;
+            return '';
+        })();
         return cards.map(card => {
             const basePayload = decodePayload(card?.dataset?.payload || '') || {};
-            const metadata = basePayload.metadata || {};
+            const metadata = Object.assign({}, basePayload.metadata || {});
             const rawType = basePayload.question_type || (metadata.true_false_statements ? 'true_false' : 'multiple_choice');
-            const questionType = rawType === 'truefalse' ? 'true_false' : rawType;
-            metadata.section_key = metadata.section_key || sectionMeta.subject_area;
-            metadata.subject_area = metadata.subject_area || sectionMeta.subject_area;
+            let questionType = rawType === 'truefalse' ? 'true_false' : rawType;
+            if (forcedFormat) {
+                questionType = forcedFormat === 'truefalse' ? 'true_false' : forcedFormat;
+            }
+            // Selalu sinkronkan kategori mapel dengan pilihan user saat ini
+            metadata.section_key = sectionMeta.subject_area;
+            metadata.subject_area = sectionMeta.subject_area;
+            metadata.question_format = questionType;
             const options = Array.from(card.querySelectorAll('[data-option]'))
                 .filter(input => input.value.trim())
                 .map(input => ({ key: input.dataset.option, text: input.value.trim() }));
@@ -585,6 +985,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 stimulus: resolveStimulus(basePayload.stimulus),
                 generator_mode: basePayload.generator_mode || resolveGeneratorMode(),
                 question_type: questionType,
+                answer_format: questionType,
+                test_id: Number.isFinite(testId) ? testId : null,
+                test_subject_id: Number.isFinite(testSubjectId) ? testSubjectId : null,
+                mapel_id: Number.isFinite(mapelId) ? mapelId : null,
             };
         }).filter(item => item.prompt && (item.question_type === 'true_false' || item.options.length >= 2));
     }
@@ -606,13 +1010,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dupBtn) {
                 const card = dupBtn.closest('.question-card');
                 const promptValue = card?.querySelector('[data-field="prompt"]')?.value?.trim() || '';
-                const subjectId = selectors.subject() ? parseInt(selectors.subject().value, 10) : null;
+                const resolved = resolveSubjectSelection();
+                const mapelId = resolved.mapelId;
+                const testSubjectId = resolved.testSubjectId;
                 if (!promptValue) {
                     showStatus('Isi teks soal sebelum cek duplikat.', 'warning');
                     return;
                 }
-                if (!subjectId) {
-                    showStatus('Pilih jenis latihan sebelum cek duplikat.', 'warning');
+                if (!testSubjectId && !mapelId) {
+                    showStatus('Pilih mapel pada tes sebelum cek duplikat.', 'warning');
                     return;
                 }
                 dupBtn.disabled = true;
@@ -621,7 +1027,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetch('/latihan-tka/questions/check-duplicate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ subject_id: subjectId, prompt: promptValue })
+                        body: JSON.stringify({
+                            prompt: promptValue,
+                            mapel_id: Number.isFinite(mapelId) ? mapelId : null,
+                            test_subject_id: Number.isFinite(testSubjectId) ? testSubjectId : null,
+                        })
                     });
                     const data = await response.json();
                     if (response.ok && data.success) {
@@ -644,10 +1054,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function attachSaveHandler() {
         if (!saveBtn || !preview) return;
         saveBtn.addEventListener('click', async () => {
-            const subjectSelect = selectors.subject();
-            const subjectId = subjectSelect ? parseInt(subjectSelect.value, 10) : null;
-            if (!subjectId) {
-                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+            const testSelect = selectors.test();
+            const testId = testSelect ? parseInt(testSelect.value, 10) : null;
+            const resolved = resolveSubjectSelection();
+            const testSubjectId = resolved.testSubjectId;
+            const mapelId = resolved.mapelId;
+            if (!testSubjectId && !mapelId) {
+                showStatus('Pilih mapel pada tes terlebih dahulu.', 'warning');
                 return;
             }
             const questions = readQuestionsFromPreview();
@@ -655,6 +1068,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 showStatus('Tidak ada soal untuk disimpan.', 'warning');
                 return;
             }
+            const promptPayload = generatedBundle?.prompt || '';
+            const sourceLabel = generatedBundle?.mode === 'pro' ? 'ai_pro' : 'ai_lite';
+            questions.forEach(item => {
+                item.ai_prompt = promptPayload;
+                item.source = sourceLabel;
+                if (!item.test_id) item.test_id = Number.isFinite(testId) ? testId : null;
+                if (!item.test_subject_id) item.test_subject_id = testSubjectId;
+            });
             saveBtn.disabled = true;
             saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan…';
             try {
@@ -662,7 +1083,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        subject_id: subjectId,
+                        test_id: testId,
+                        test_subject_id: testSubjectId,
+                        mapel_id: mapelId,
                         questions,
                     }),
                 });
@@ -683,13 +1106,213 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    async function loadTests() {
+        try {
+            const res = await fetch('/latihan-tka/tests');
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.tests)) {
+                testCache = data.tests;
+                await populateTests();
+            }
+        } catch (err) {
+            // ignore silent fail
+        }
+    }
+
+    async function populateTests() {
+        const select = selectors.test();
+        if (!select) return;
+        select.innerHTML = '<option value="">Pilih tes</option>';
+        testCache.forEach(test => {
+            const opt = document.createElement('option');
+            opt.value = test.id;
+            opt.textContent = `${test.name} (${test.duration_minutes || 0}m)`;
+            select.appendChild(opt);
+        });
+        if (manualTestSelect) {
+            manualTestSelect.innerHTML = '<option value="">Pilih tes</option>';
+            testCache.forEach(test => {
+                const opt = document.createElement('option');
+                opt.value = test.id;
+                opt.textContent = `${test.name} (${test.duration_minutes || 0}m)`;
+                manualTestSelect.appendChild(opt);
+            });
+        }
+        if (testCache.length) {
+            select.value = testCache[0].id;
+            await populateTestSubjects(select.value);
+            const gradeSelect = selectors.grade();
+            if (gradeSelect && testCache[0].grade_level) {
+                gradeSelect.value = testCache[0].grade_level;
+            }
+            if (manualTestSelect) {
+                manualTestSelect.value = testCache[0].id;
+                await populateManualSubjects(testCache[0].id);
+            }
+        }
+    }
+
+    async function populateTestSubjects(testId) {
+        const subjectSelect = selectors.subject();
+        if (!subjectSelect) return;
+        if (!testId) {
+            subjectSelect.innerHTML = '<option value="">Pilih jenis latihan</option>';
+            populateTopicOptions(null);
+            return;
+        }
+        if (!testSubjectCache[testId]) {
+            try {
+                const res = await fetch(`/latihan-tka/tests/${testId}/subjects`);
+                const data = await res.json();
+                if (res.ok && Array.isArray(data.subjects)) {
+                    testSubjectCache[testId] = data.subjects;
+                } else {
+                    testSubjectCache[testId] = [];
+                }
+            } catch (err) {
+                testSubjectCache[testId] = [];
+            }
+        }
+        const list = testSubjectCache[testId] || [];
+        subjectSelect.innerHTML = '';
+        if (!list.length) {
+            subjectSelect.innerHTML = '<option value="">Belum ada mapel</option>';
+            populateTopicOptions(null);
+            return;
+        }
+        const lastValue = subjectSelect.dataset.lastValue || subjectSelect.value || '';
+        list.forEach(item => {
+            const mapelId = item.mapel_id || item.subject_id;
+            const opt = document.createElement('option');
+            opt.value = mapelId || '';
+            opt.dataset.mapelId = mapelId || '';
+            opt.dataset.testSubjectId = item.id;
+            opt.textContent = item.subject_name || `Mapel ${item.subject_id}`;
+            opt.dataset.pg = (item.formats || []).find(f => f.question_type === 'multiple_choice')?.question_count_target || 0;
+            opt.dataset.tf = (item.formats || []).find(f => f.question_type === 'true_false')?.question_count_target || 0;
+            const gradeLevel = (item.grade_level || item.mapel_grade_level || '').toString().toLowerCase();
+            if (gradeLevel) {
+                opt.dataset.gradeLevel = gradeLevel;
+            }
+            let subjectArea = (item.subject_area || '').toString().toLowerCase();
+            if (!subjectArea) {
+                const normalizedName = (item.subject_name || '').toString().toLowerCase();
+                subjectArea = normalizedName.includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
+            }
+            opt.dataset.subjectArea = subjectArea || 'matematika';
+            subjectSelect.appendChild(opt);
+        });
+        if (lastValue) {
+            subjectSelect.value = lastValue;
+        }
+        if (!subjectSelect.value && list.length) {
+            subjectSelect.value = list[0].mapel_id || list[0].subject_id;
+        }
+        const activeOption = subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+            ? subjectSelect.selectedOptions[0]
+            : subjectSelect.options && subjectSelect.options.length
+                ? subjectSelect.options[subjectSelect.selectedIndex >= 0 ? subjectSelect.selectedIndex : 0]
+                : null;
+        syncCurrentSubjectSelection(activeOption);
+        subjectSelect.dispatchEvent(new Event('change'));
+    }
+
+    async function populateManualSubjects(testId) {
+        if (!manualSubjectSelect) return;
+        if (!testId) {
+            manualSubjectSelect.innerHTML = '<option value="">Pilih mapel</option>';
+            return;
+        }
+        if (!testSubjectCache[testId]) {
+            try {
+                const res = await fetch(`/latihan-tka/tests/${testId}/subjects`);
+                const data = await res.json();
+                if (res.ok && Array.isArray(data.subjects)) {
+                    testSubjectCache[testId] = data.subjects;
+                } else {
+                    testSubjectCache[testId] = [];
+                }
+            } catch (err) {
+                testSubjectCache[testId] = [];
+            }
+        }
+        const list = testSubjectCache[testId] || [];
+        manualSubjectSelect.innerHTML = '';
+        if (!list.length) {
+            manualSubjectSelect.innerHTML = '<option value="">Belum ada mapel</option>';
+            return;
+        }
+        const lastManualValue = manualSubjectSelect.dataset.lastValue || manualSubjectSelect.value || '';
+        list.forEach(item => {
+            const mapelId = item.mapel_id || item.subject_id;
+            const opt = document.createElement('option');
+            opt.value = mapelId || '';
+            opt.dataset.mapelId = mapelId || '';
+            opt.dataset.testSubjectId = item.id;
+            opt.textContent = item.subject_name || `Mapel ${item.subject_id}`;
+            opt.dataset.pg = (item.formats || []).find(f => f.question_type === 'multiple_choice')?.question_count_target || 0;
+            opt.dataset.tf = (item.formats || []).find(f => f.question_type === 'true_false')?.question_count_target || 0;
+            const gradeLevel = (item.grade_level || item.mapel_grade_level || '').toString().toLowerCase();
+            if (gradeLevel) {
+                opt.dataset.gradeLevel = gradeLevel;
+            }
+            let subjectArea = (item.subject_area || '').toString().toLowerCase();
+            if (!subjectArea) {
+                const normalizedName = (item.subject_name || '').toString().toLowerCase();
+                subjectArea = normalizedName.includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
+            }
+            opt.dataset.subjectArea = subjectArea || 'matematika';
+            manualSubjectSelect.appendChild(opt);
+        });
+        if (lastManualValue) {
+            manualSubjectSelect.value = lastManualValue;
+        }
+        if (!manualSubjectSelect.value && list.length) {
+            manualSubjectSelect.value = list[0].mapel_id || list[0].subject_id;
+        }
+        manualSubjectSelect.dispatchEvent(new Event('change'));
+    }
+
     injectTemplate();
     updateScopeUi();
     bindSubmitTriggers();
     bindScopeControls();
+    bindFormatControls();
+    updateQuestionTypeVisibility('');
+    if (copyPromptBtn) {
+        copyPromptBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleCopyPrompt();
+        });
+    }
+    bindTopicSelect();
     bindStimulusControls();
     attachFormHandler();
     attachPreviewActions();
     attachSaveHandler();
+    if (manualTestSelect) {
+        manualTestSelect.addEventListener('change', () => {
+            populateManualSubjects(manualTestSelect.value);
+        });
+    }
+    if (manualSubjectSelect) {
+        manualSubjectSelect.addEventListener('change', () => {
+            const opt = manualSubjectSelect.selectedOptions[0];
+            if (!opt) return;
+            const pg = parseInt(opt.dataset.pg || '0', 10);
+            const tf = parseInt(opt.dataset.tf || '0', 10);
+            const categorySelect = document.getElementById('questionCategory');
+            if (categorySelect) {
+                categorySelect.value = (opt.textContent || '').toLowerCase().includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
+            }
+            // optional: set mode defaults based on formats
+            if (pg === 0 && tf > 0) {
+                const tfMode = document.querySelector('input[name=\"questionMode\"][value=\"truefalse\"]');
+                if (tfMode) tfMode.checked = true;
+                updateManualModeSections('truefalse');
+            }
+        });
+    }
+    loadTests();
 });
 </script>

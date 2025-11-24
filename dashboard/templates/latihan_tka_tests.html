@@ -1,0 +1,1179 @@
+{% extends "base.html" %}
+{% block title %}Latihan TKA · Konfigurasi Tes{% endblock %}
+{% set tka_page_mode = 'tests' %}
+{% block head_extra %}
+<style>
+    .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
+    .table thead th { font-size: 0.85rem; color: var(--text-muted); }
+    .badge-soft { border-radius: 999px; padding: 4px 10px; font-size: 0.75rem; }
+    .section-title { font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set selected = selected_test or {} %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h4 mb-1">Konfigurasi Tes TKA</h1>
+            <p class="text-muted mb-0">Buat Tes → Tambah Mapel → Atur format PG/Benar-Salah serta topik.</p>
+        </div>
+        <div class="text-end">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.latihan_tka_bank') }}">
+                <i class="bi bi-collection me-1"></i>Bank Soal
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div id="tkaStatus" class="alert d-none" role="alert"></div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="section-title mb-2">Buat Tes</h6>
+                    {% if test_message %}
+                    <div class="alert alert-{{ test_message_tone|default('info') }} small">{{ test_message }}</div>
+                    {% endif %}
+                    <form id="testForm" class="row g-3 align-items-end" method="post" action="{{ url_for('main.latihan_tka_tests') }}">
+                        <div class="col-12">
+                            <label class="form-label">Nama Tes</label>
+                            <input type="text" class="form-control" id="testName" name="name" placeholder="Contoh: TKA 120 Menit" value="{{ selected.name|default('') }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Durasi (menit)</label>
+                            <input type="number" class="form-control" id="testDuration" name="duration_minutes" min="30" value="{{ selected.duration_minutes|default(120) }}" required>
+                        </div>
+                        <div class="col-6 d-flex align-items-center">
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" id="testActive" name="is_active" value="1" {% if selected.is_active is not defined or selected.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="testActive">Aktif</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <button type="submit" class="btn btn-primary w-100" id="submitTestBtn"><i class="bi bi-plus-lg me-1"></i>Buat Tes</button>
+                            <small class="text-muted d-block mt-1" id="testFormStatus">{{ test_message if test_message else '' }}</small>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">Jenjang tes akan mengikuti mapel pertama yang ditambahkan.</small>
+                        </div>
+                    </form>
+                    <hr>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="section-title mb-0">Tes Tersedia</h6>
+                            <small class="text-muted">Klik pilih untuk kelola mapel.</small>
+                        </div>
+                        <div id="testEntries" class="d-flex flex-column gap-2">
+                            {% if tests %}
+                                {% for test in tests %}
+                                <div class="border rounded p-2 d-flex justify-content-between align-items-center" data-test-json='{{ test|tojson|e }}'>
+                                    <div>
+                                        <div class="fw-semibold">{{ test.name }}</div>
+                                        {% if test.grade_level %}
+                                            {% set grade_text = grade_labels.get(test.grade_level, test.grade_level|upper) %}
+                                        {% else %}
+                                            {% set grade_text = 'Belum ditentukan' %}
+                                        {% endif %}
+                                        <div class="text-muted small">Durasi {{ test.duration_minutes|default(0) }} menit · Jenjang {{ grade_text }}</div>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <a href="{{ url_for('main.latihan_tka_tests', test_id=test.id) }}" class="btn btn-outline-secondary btn-sm" data-action="select-test" data-id="{{ test.id }}">Pilih</a>
+                                        <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="m-0" data-test-id="{{ test.id }}">
+                                            <input type="hidden" name="delete_test_id" value="{{ test.id }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" data-action="delete-test" data-id="{{ test.id }}" data-name="{{ test.name|e }}"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="text-muted small">Belum ada tes. Tambahkan melalui form di atas.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6 class="section-title mb-2">Kelola Mapel</h6>
+                    <form id="mapelForm" class="row g-2" method="post" action="{{ url_for('main.latihan_tka_tests') }}">
+                        <input type="hidden" name="mapel_form" value="1">
+                        <div class="col-12">
+                            <label class="form-label">Nama Mapel</label>
+                            <input type="text" class="form-control" id="mapelName" name="mapel_name" placeholder="Contoh: Matematika Penalaran" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Jenjang</label>
+                            <select class="form-select" id="mapelGrade" name="mapel_grade_level">
+                                <option value="sd6" selected>Kelas 6 SD</option>
+                                <option value="smp3">Kelas 3 SMP</option>
+                                <option value="sma">SMA</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Status</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="mapelActive" name="mapel_is_active" value="1" checked>
+                                <label class="form-check-label" for="mapelActive">Aktif</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Deskripsi (opsional)</label>
+                            <textarea class="form-control" id="mapelDesc" name="mapel_description" rows="2" placeholder="Ringkasan materi mapel"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">Jumlah soal PG/BS diatur pada setiap tes, bukan di sini.</small>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-primary w-100" id="submitMapelBtn"><i class="bi bi-plus-lg me-1"></i>Simpan Mapel</button>
+                            <small class="text-{{ mapel_message_tone|default('muted') }} d-block mt-1" id="mapelStatus">
+                                {% if mapel_message %}{{ mapel_message }}{% endif %}
+                            </small>
+                        </div>
+                    </form>
+                    <hr>
+                    <div>
+                        <h6 class="section-title mb-2">Mapel Tersedia</h6>
+                        <div id="mapelEntries" class="d-flex flex-column gap-2">
+                            {% if mapel_list %}
+                                {% for mapel in mapel_list %}
+                                <div class="border rounded p-2">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-semibold">{{ mapel.name }}</div>
+                                            <div class="text-muted small">Jenjang {{ (mapel.grade_level or '')|upper }}{% if not mapel.is_active %} · <span class="text-danger">Nonaktif</span>{% endif %}</div>
+                                        </div>
+                                        <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="m-0">
+                                            <input type="hidden" name="delete_mapel_id" value="{{ mapel.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" data-mapel-id="{{ mapel.id }}" data-action="delete-mapel"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </div>
+                                    <div class="small text-muted mt-2">{{ mapel.description or 'Belum ada deskripsi.' }}</div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="text-muted small">Belum ada mapel. Tambahkan di atas.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-body">
+                    <form id="testSubjectForm" method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="mb-3">
+                        <input type="hidden" name="add_subject_form" value="1">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <div class="text-uppercase small text-muted fw-semibold">Pilih Tes</div>
+                                <select class="form-select" id="currentTestSelect" name="form_test_id">
+                                {% for test in tests %}
+                                <option value="{{ test.id }}" {% if selected and selected.id == test.id %}selected{% endif %}>{{ test.name }} · {{ test.duration_minutes|default(0) }}m</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="text-muted small">Setelah pilih tes, tambahkan mapel di bawah.</div>
+                    </div>
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-lg-4">
+                                <label class="form-label">Mapel</label>
+                                <select class="form-select" id="testMapelSelect" name="form_mapel_id">
+                                    <option value="">Pilih mapel</option>
+                                    {% for mapel in mapel_list %}
+                                    <option value="{{ mapel.id }}" data-grade="{{ mapel.grade_level }}">{{ mapel.name }} · {{ grade_labels[mapel.grade_level]|default(mapel.grade_level|upper) }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted d-block" id="mapelGradeHint">Mapel berasal dari daftar di sebelah kiri.</small>
+                            </div>
+                            <div class="col-lg-3">
+                                <label class="form-label">Target Soal</label>
+                                <input type="number" class="form-control" id="testSubjectTotal" name="form_total" min="1" value="10" readonly>
+                                <small class="text-muted">Diisi otomatis dari jumlah PG + BS.</small>
+                            </div>
+                            <div class="col-lg-5">
+                                <label class="form-label">Format & Jumlah</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">PG</span>
+                                    <input type="number" class="form-control" id="formatPg" name="form_pg" min="0" value="5">
+                                    <span class="input-group-text">BS</span>
+                                    <input type="number" class="form-control" id="formatTf" name="form_tf" min="0" value="5">
+                                </div>
+                                <small class="text-muted">Isi salah satu atau keduanya.</small>
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-end mt-2">
+                            <div class="col-lg-8">
+                                <label class="form-label">Topik (opsional, pisahkan koma)</label>
+                                <input type="text" class="form-control" id="testSubjectTopics" name="form_topics" placeholder="Contoh: Pecahan (3), Geometri (2)">
+                                <small class="text-muted">Format: Nama (jumlah). Tanpa jumlah = 0.</small>
+                            </div>
+                            <div class="col-lg-4 text-end">
+                                <button type="submit" class="btn btn-outline-primary w-100" id="addTestSubject"><i class="bi bi-plus-lg me-1"></i>Tambah Mapel</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th>#</th>
+                                    <th>Mapel</th>
+                                    <th>Target</th>
+                                    <th>PG</th>
+                                    <th>Benar/Salah</th>
+                                    <th>Topik</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="testSubjectsTable">
+                                {% if selected_subjects %}
+                                    {% for subject in selected_subjects %}
+                                    {% set pg_fmt = (subject.formats | selectattr('question_type','equalto','multiple_choice') | list | first) %}
+                                    {% set tf_fmt = (subject.formats | selectattr('question_type','equalto','true_false') | list | first) %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ subject.mapel_name or subject.subject_name }}</td>
+                                        <td>{{ subject.question_count_target }}</td>
+                                        <td>{{ pg_fmt.question_count_target if pg_fmt else 0 }}</td>
+                                        <td>{{ tf_fmt.question_count_target if tf_fmt else 0 }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                                <div class="flex-grow-1">
+                                                    {% if subject.topics %}
+                                                        {% for topic in subject.topics %}
+                                                            {{ topic.topic }}{% if topic.question_count_target %} ({{ topic.question_count_target }}){% endif %}{% if not loop.last %}, {% endif %}
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#topicsModal" data-action="edit-topics" data-subject-id="{{ subject.id }}" data-test-id="{{ subject.test_id or selected_test_id }}" data-mapel-name="{{ subject.mapel_name or subject.subject_name }}" data-topics="{{ subject.topics|tojson|e }}" data-target-total="{{ subject.question_count_target }}">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="text-end">
+                                            <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="d-inline deleteSubjectForm">
+                                                <input type="hidden" name="delete_test_subject_id" value="{{ subject.id }}">
+                                                <input type="hidden" name="delete_test_subject_test_id" value="{{ selected_test_id }}">
+                                                <button type="submit" class="btn btn-sm btn-link text-danger" data-remove="{{ subject.id }}" data-test-id="{{ selected_test_id }}"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr><td colspan="7" class="text-center text-muted small">Belum ada mapel di tes ini.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="topicsModal" tabindex="-1" aria-labelledby="topicsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="topicsModalLabel">Kelola Topik Mapel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <div class="fw-semibold">Topik untuk mapel ini</div>
+                            <small class="text-muted">Isi nama topik dan jumlah soal (opsional). Kosongkan semua untuk menghapus.</small>
+                            <div class="small mt-1">
+                                Sisa target soal: <span id="topicsRemainingLabel" class="fw-semibold">0</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addTopicRow"><i class="bi bi-plus-lg me-1"></i>Tambah Baris</button>
+                    </div>
+                <div id="topicsRows" class="d-flex flex-column gap-2">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="saveTopicsBtn">Simpan Topik</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Debug guard: log error jika ada JS yang gagal dieksekusi
+window.addEventListener('error', (ev) => {
+    console.error('[TKA][global-error]', ev.error || ev.message || ev);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.__TKA_TESTS_SCRIPTS_LOADED__ = true;
+    console.info('[TKA][tests-ui] init DOMContentLoaded');
+    const INITIAL_TESTS = {{ tests|tojson }};
+    const INITIAL_TEST_SUBJECTS = {{ initial_test_subjects|tojson }};
+    const INITIAL_SELECTED_TEST_ID = {{ selected_test_id|default('null') }};
+    const INITIAL_MAPEL = {{ mapel_list|tojson }};
+    const TESTS_UI_URL = "{{ url_for('main.latihan_tka_tests') }}";
+    const statusBox = document.getElementById('tkaStatus');
+    const testSelect = document.getElementById('currentTestSelect');
+    const mapelSelect = document.getElementById('testMapelSelect');
+    const subjectTotal = document.getElementById('testSubjectTotal');
+    const fmtPg = document.getElementById('formatPg');
+    const fmtTf = document.getElementById('formatTf');
+    const topicsInput = document.getElementById('testSubjectTopics');
+    const addSubjectBtn = document.getElementById('addTestSubject');
+    const tableBody = document.getElementById('testSubjectsTable');
+    const testEntries = document.getElementById('testEntries');
+    const mapelForm = document.getElementById('mapelForm');
+    const mapelStatus = document.getElementById('mapelStatus');
+    const mapelEntries = document.getElementById('mapelEntries');
+    const mapelNameInput = document.getElementById('mapelName');
+    const mapelGradeSelect = document.getElementById('mapelGrade');
+    const mapelDescInput = document.getElementById('mapelDesc');
+    const mapelActiveInput = document.getElementById('mapelActive');
+    const mapelGradeHint = document.getElementById('mapelGradeHint');
+    const topicsModalEl = document.getElementById('topicsModal');
+    const topicsRowsContainer = document.getElementById('topicsRows');
+    const addTopicRowBtn = document.getElementById('addTopicRow');
+    const saveTopicsBtn = document.getElementById('saveTopicsBtn');
+    const topicsModalLabel = document.getElementById('topicsModalLabel');
+    const topicsModalCloseBtn = topicsModalEl ? topicsModalEl.querySelector('[data-bs-dismiss="modal"]') : null;
+    const topicsRemainingLabel = document.getElementById('topicsRemainingLabel');
+    const testNameInput = document.getElementById('testName');
+    const testDurationInput = document.getElementById('testDuration');
+    const testActiveInput = document.getElementById('testActive');
+
+    const gradeLabels = {
+        sd6: 'Kelas 6 SD',
+        smp3: 'Kelas 3 SMP',
+        sma: 'SMA',
+    };
+
+    const state = {
+        tests: Array.isArray(INITIAL_TESTS) ? INITIAL_TESTS.slice() : [],
+        subjects: (INITIAL_TEST_SUBJECTS && typeof INITIAL_TEST_SUBJECTS === 'object') ? { ...INITIAL_TEST_SUBJECTS } : {},
+        mapel: Array.isArray(INITIAL_MAPEL) ? INITIAL_MAPEL.slice() : [],
+    };
+    Object.keys(state.subjects).forEach(key => {
+        state.subjects[key] = normalizeSubjectsPayload(state.subjects[key]);
+    });
+
+    const getGradeLabel = (grade) => {
+        if (!grade) return 'Belum ditentukan';
+        const normalized = String(grade).trim().toLowerCase();
+        return gradeLabels[normalized] || normalized.toUpperCase();
+    };
+
+    const getCurrentTest = () => {
+        if (!testSelect || !testSelect.value) return null;
+        return state.tests.find(item => String(item.id) === String(testSelect.value)) || null;
+    };
+
+    const getCurrentTestGrade = () => {
+        const current = getCurrentTest();
+        const grade = (current && current.grade_level) ? String(current.grade_level).trim().toLowerCase() : '';
+        return grade || null;
+    };
+    let editingSubjectId = null;
+    let editingTestId = null;
+    let editingTargetTotal = 0;
+    let manualBackdropEl = null;
+    const getCurrentTestId = () => (testSelect && testSelect.value ? String(testSelect.value) : null);
+
+    const updateTargetTotalFromFormats = () => {
+        const pgValue = parseInt(fmtPg?.value || '0', 10) || 0;
+        const tfValue = parseInt(fmtTf?.value || '0', 10) || 0;
+        const total = Math.max(pgValue + tfValue, 0);
+        if (subjectTotal) subjectTotal.value = total;
+        console.info('[TKA][target-total] recalculated', { pgValue, tfValue, total });
+        return total;
+    };
+
+    const getSubjectFromState = (testId, subjectId) => {
+        if (!testId || !subjectId) return null;
+        const list = state.subjects[testId];
+        if (!Array.isArray(list)) return null;
+        return list.find(item => String(item.id) === String(subjectId)) || null;
+    };
+
+    const getModalTargetTotal = () => {
+        if (editingTargetTotal > 0) return editingTargetTotal;
+        return updateTargetTotalFromFormats();
+    };
+
+    const resetTopicsModalState = () => {
+        editingSubjectId = null;
+        editingTestId = null;
+        editingTargetTotal = 0;
+        if (topicsRowsContainer) topicsRowsContainer.innerHTML = '';
+        updateTopicsRemainingLabel();
+    };
+
+    const hasBootstrapModal = () => {
+        return typeof window.bootstrap !== 'undefined' && window.bootstrap && typeof window.bootstrap.Modal === 'function';
+    };
+
+    const showTopicsModal = () => {
+        if (!topicsModalEl) return;
+        if (hasBootstrapModal()) {
+            const instance = window.bootstrap.Modal.getOrCreateInstance(topicsModalEl);
+            instance.show();
+            return;
+        }
+        topicsModalEl.classList.add('show');
+        topicsModalEl.style.display = 'block';
+        topicsModalEl.removeAttribute('aria-hidden');
+        document.body.classList.add('modal-open');
+        manualBackdropEl = document.createElement('div');
+        manualBackdropEl.className = 'modal-backdrop fade show';
+        document.body.appendChild(manualBackdropEl);
+    };
+
+    const hideTopicsModal = () => {
+        if (!topicsModalEl) return;
+        if (hasBootstrapModal()) {
+            const instance = window.bootstrap.Modal.getInstance(topicsModalEl);
+            if (instance) instance.hide();
+        } else {
+            topicsModalEl.classList.remove('show');
+            topicsModalEl.style.display = 'none';
+            topicsModalEl.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            if (manualBackdropEl) {
+                manualBackdropEl.remove();
+                manualBackdropEl = null;
+            }
+        }
+        resetTopicsModalState();
+    };
+
+    const createTopicRowElement = (topic = {}) => {
+        const row = document.createElement('div');
+        row.className = 'topic-row row g-2 align-items-center';
+        const nameValue = topic.name || topic.topic || '';
+        const countValue = typeof topic.count === 'number'
+            ? topic.count
+            : (typeof topic.question_count === 'number' ? topic.question_count : topic.question_count_target) || '';
+        row.innerHTML = `
+            <div class="col-7">
+                <input type="text" class="form-control topic-name" placeholder="Nama topik" value="${nameValue}">
+            </div>
+            <div class="col-3">
+                <input type="number" min="0" class="form-control topic-count" placeholder="Jumlah" value="${countValue}">
+            </div>
+            <div class="col-2 text-end">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-topic-row"><i class="bi bi-x-lg"></i></button>
+            </div>
+        `;
+        row.querySelector('.remove-topic-row').addEventListener('click', () => {
+            row.remove();
+            if (!topicsRowsContainer.querySelector('.topic-row')) {
+                topicsRowsContainer.appendChild(createTopicRowElement());
+            }
+            updateTopicsRemainingLabel();
+        });
+        return row;
+    };
+
+    const decodeTopicsPayload = (value) => {
+        if (!value) return [];
+        const normalized = value.replace(/&quot;/g, '"');
+        try {
+            const parsed = JSON.parse(normalized);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            logError('topics-parse-error', err);
+            return [];
+        }
+    };
+
+    const populateTopicsModal = (subjectId, testId, mapelName, topics, targetTotalOverride) => {
+        editingSubjectId = subjectId;
+        editingTestId = testId;
+        const subjectRecord = getSubjectFromState(testId, subjectId);
+        const fallbackTotal = subjectRecord ? (subjectRecord.total || subjectRecord.question_count_target || 0) : 0;
+        editingTargetTotal = typeof targetTotalOverride === 'number' && targetTotalOverride > 0 ? targetTotalOverride : fallbackTotal;
+        console.info('[TKA][topics] populate modal', { subjectId, testId, mapelName, fallbackTotal, targetTotalOverride, editingTargetTotal });
+        if (!topicsRowsContainer) return;
+        topicsRowsContainer.innerHTML = '';
+        const entries = Array.isArray(topics) && topics.length ? topics : [{}];
+        entries.forEach(topic => topicsRowsContainer.appendChild(createTopicRowElement(topic)));
+        if (topicsModalLabel) {
+            topicsModalLabel.textContent = `Kelola Topik · ${mapelName || 'Mapel'}`;
+        }
+        updateTopicsRemainingLabel();
+    };
+
+    const openTopicsModal = (subjectId, testId, mapelName, topics, targetTotalOverride) => {
+        populateTopicsModal(subjectId, testId, mapelName, topics, targetTotalOverride);
+        showTopicsModal();
+    };
+
+    const gatherTopicPayload = () => {
+        const payload = [];
+        if (!topicsRowsContainer) return payload;
+        const rows = topicsRowsContainer.querySelectorAll('.topic-row');
+        rows.forEach(row => {
+            const nameInput = row.querySelector('.topic-name');
+            const countInput = row.querySelector('.topic-count');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const countRaw = countInput ? countInput.value : '';
+            const count = countRaw === '' ? 0 : parseInt(countRaw, 10) || 0;
+            if (!name && count <= 0) {
+                return;
+            }
+            payload.push({ name, count });
+        });
+        return payload;
+    };
+
+    const updateTopicsRemainingLabel = () => {
+        if (!topicsRemainingLabel) return;
+        const topicsPayload = gatherTopicPayload();
+        const targetTotal = getModalTargetTotal();
+        const usedTotal = topicsPayload.reduce((sum, topic) => sum + (topic.count || 0), 0);
+        const remaining = Math.max(targetTotal - usedTotal, 0);
+        console.info('[TKA][topics] remaining updated', { editingSubjectId, targetTotal, usedTotal, remaining });
+        topicsRemainingLabel.textContent = `${remaining} soal tersisa dari ${targetTotal}`;
+    };
+
+    const handleSaveTopics = async () => {
+        if (!editingSubjectId || !editingTestId) {
+            showStatus('Tidak ada mapel yang dipilih.', 'danger');
+            return;
+        }
+        console.info('[TKA][topics] save clicked', { editingSubjectId, editingTestId, editingTargetTotal });
+        const topicsPayload = gatherTopicPayload();
+        const formTotal = updateTargetTotalFromFormats();
+        const targetTotal = editingTargetTotal || formTotal;
+        const usedTotal = topicsPayload.reduce((sum, topic) => sum + (topic.count || 0), 0);
+        console.info('[TKA][topics] validation', { formTotal, editingTargetTotal, targetTotal, usedTotal });
+        if (usedTotal > targetTotal) {
+            showStatus('Jumlah soal per topik melebihi target total.', 'danger');
+            return;
+        }
+        showStatus('Menyimpan topik mapel...', 'info');
+        try {
+            const res = await fetch(`/latihan-tka/tests/${editingTestId}/subjects/${editingSubjectId}/topics`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topics: topicsPayload }),
+            });
+            const data = await res.json();
+            if (res.ok && data.subject) {
+                if (state.subjects[editingTestId]) {
+                    const target = state.subjects[editingTestId].find(item => String(item.id) === String(editingSubjectId));
+                    if (target) {
+                        target.topics = data.subject.topics || [];
+                    }
+                }
+                renderSubjects();
+                showStatus('Topik mapel diperbarui.', 'success');
+                hideTopicsModal();
+            } else {
+                logError('update-topics-failed', { status: res.status, data });
+                showStatus(data.message || 'Gagal menyimpan topik.', 'danger');
+            }
+        } catch (err) {
+            logError('update-topics-error', err);
+                showStatus('Gagal menyimpan topik.', 'danger');
+        }
+    };
+
+    const handleAddTopicRow = () => {
+        if (!topicsRowsContainer) return;
+        console.info('[TKA][topics] add row clicked');
+        topicsRowsContainer.appendChild(createTopicRowElement());
+        updateTopicsRemainingLabel();
+    };
+
+    if (addTopicRowBtn) {
+        addTopicRowBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleAddTopicRow();
+        });
+    }
+
+    if (saveTopicsBtn) {
+        saveTopicsBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleSaveTopics();
+        });
+    }
+
+    if (topicsModalEl) {
+        if (hasBootstrapModal()) {
+            topicsModalEl.addEventListener('show.bs.modal', (event) => {
+                const trigger = event.relatedTarget;
+                if (!trigger) return;
+                const subjectId = parseInt(trigger.getAttribute('data-subject-id') || '', 10);
+                const testId = trigger.getAttribute('data-test-id') || (testSelect ? testSelect.value : null);
+                if (!subjectId || !testId) {
+                    showStatus('Tidak dapat membuka editor topik.', 'danger');
+                    return;
+                }
+                const mapelLabel = trigger.getAttribute('data-mapel-name') || 'Mapel';
+                const topicsData = decodeTopicsPayload(trigger.getAttribute('data-topics') || '[]');
+                if (!topicsData.length && state.subjects[testId]) {
+                    const target = state.subjects[testId].find(item => String(item.id) === String(subjectId));
+                    if (target?.topics) topicsData.push(...target.topics);
+                }
+                const targetTotalOverride = parseInt(trigger.getAttribute('data-target-total') || '', 10) || null;
+                populateTopicsModal(subjectId, testId, mapelLabel, topicsData, targetTotalOverride);
+                updateTopicsRemainingLabel();
+            });
+            topicsModalEl.addEventListener('hidden.bs.modal', resetTopicsModalState);
+        } else {
+            topicsModalEl.addEventListener('hidden.bs.modal', resetTopicsModalState);
+            topicsModalEl.addEventListener('click', (event) => {
+                if (event.target === topicsModalEl) {
+                    hideTopicsModal();
+                }
+            });
+            if (topicsModalCloseBtn) {
+                topicsModalCloseBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    hideTopicsModal();
+                });
+            }
+        }
+    }
+    const logError = (label, payload) => { try { console.error(`[TKA][${label}]`, payload); } catch (_) {} };
+    const escapeHtml = (value = '') => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const showStatus = (msg, tone = 'info') => {
+        if (!statusBox) return;
+        statusBox.className = `alert alert-${tone}`;
+        statusBox.textContent = msg;
+        statusBox.classList.remove('d-none');
+        setTimeout(() => statusBox.classList.add('d-none'), 3000);
+    };
+
+    const parseTopics = (raw) => {
+        if (!raw) return [];
+        return raw.split(',').map(chunk => {
+            const part = chunk.trim();
+            if (!part) return null;
+            const match = part.match(/^(.*)\((\d+)\)$/);
+            if (match) return { name: match[1].trim(), count: parseInt(match[2], 10) || 0 };
+            return { name: part, count: 0 };
+        }).filter(Boolean);
+    };
+
+    function normalizeSubjectsPayload(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(item => {
+            const formats = item.formats || [];
+            const pgFmt = formats.find(fmt => fmt.question_type === 'multiple_choice') || {};
+            const tfFmt = formats.find(fmt => fmt.question_type === 'true_false') || {};
+            return {
+                id: item.id,
+                mapel_id: item.mapel_id,
+                subject_name: item.subject_name || item.mapel_name || item.name || 'Mapel',
+                mapel_name: item.mapel_name || item.subject_name || item.name || 'Mapel',
+                total: item.question_count_target || item.total || 0,
+                pg: item.pg || item.multiple_choice_count || pgFmt.question_count_target || 0,
+                tf: item.tf || item.true_false_count || tfFmt.question_count_target || 0,
+                topics: item.topics || [],
+            };
+        });
+    }
+
+    const renderMapelOptions = () => {
+        if (!mapelSelect) return;
+        const previous = mapelSelect.value;
+        mapelSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Pilih mapel';
+        placeholder.selected = true;
+        mapelSelect.appendChild(placeholder);
+        state.mapel.forEach(mapel => {
+            const opt = document.createElement('option');
+            opt.value = mapel.id;
+            const gradeText = getGradeLabel(mapel.grade_level);
+            opt.textContent = `${mapel.name} · ${gradeText}`;
+            opt.dataset.mapelJson = JSON.stringify(mapel);
+            mapelSelect.appendChild(opt);
+        });
+        const currentGrade = getCurrentTestGrade();
+        if (mapelGradeHint) {
+            if (currentGrade) {
+                mapelGradeHint.innerHTML = `Tes ini khusus jenjang <strong>${getGradeLabel(currentGrade)}</strong>. Mapel lain tetap bisa dipilih namun harus sesuai jenjang.`;
+            } else {
+                mapelGradeHint.textContent = 'Tes belum memiliki jenjang. Mapel pertama yang dipilih akan menentukan jenjang tes.';
+            }
+        }
+        mapelSelect.disabled = !state.mapel.length;
+        if (addSubjectBtn) addSubjectBtn.disabled = !state.mapel.length;
+        if (!state.mapel.length) {
+            placeholder.textContent = 'Belum ada mapel.';
+            return;
+        }
+        if (previous && state.mapel.some(item => String(item.id) === String(previous))) {
+            mapelSelect.value = previous;
+        } else {
+            mapelSelect.value = state.mapel[0].id;
+        }
+        applyMapelDefaults(mapelSelect.value);
+    };
+
+    const renderMapelEntries = () => {
+        if (!mapelEntries) return;
+        mapelEntries.innerHTML = '';
+        if (!state.mapel.length) {
+            mapelEntries.innerHTML = '<div class="text-muted small">Belum ada mapel. Tambahkan di atas.</div>';
+            return;
+        }
+        state.mapel.forEach(mapel => {
+            const card = document.createElement('div');
+            card.className = 'border rounded p-2';
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">${mapel.name || ''}</div>
+                        <div class="text-muted small">Jenjang ${(mapel.grade_level || '').toUpperCase()}${mapel.is_active ? '' : ' · <span class="text-danger">Nonaktif</span>'}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-mapel-id="${mapel.id}" data-action="delete-mapel">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div class="small text-muted mt-2">${mapel.description || 'Belum ada deskripsi.'}</div>
+            `;
+            mapelEntries.appendChild(card);
+        });
+    };
+
+    const updateMapelSelectFromState = () => {
+        renderMapelOptions();
+        renderMapelEntries();
+        if (mapelSelect && mapelSelect.value) {
+            applyMapelDefaults(mapelSelect.value);
+        } else {
+            updateTargetTotalFromFormats();
+        }
+    };
+
+    const applyMapelDefaults = (mapelId) => {
+        if (!mapelId) return;
+        const mapel = state.mapel.find(item => String(item.id) === String(mapelId));
+        if (!mapel) return;
+        const pgFmt = (mapel.formats || []).find(fmt => fmt.question_type === 'multiple_choice');
+        const tfFmt = (mapel.formats || []).find(fmt => fmt.question_type === 'true_false');
+        if (fmtPg) fmtPg.value = pgFmt ? pgFmt.question_count || 0 : (fmtPg.value || 0);
+        if (fmtTf) fmtTf.value = tfFmt ? tfFmt.question_count || 0 : (fmtTf.value || 0);
+        updateTargetTotalFromFormats();
+        if (topicsInput) {
+            const text = (mapel.topics || []).map(topic => `${topic.topic} (${topic.question_count || 0})`).join(', ');
+            topicsInput.value = text;
+        }
+    };
+
+    const renderTests = () => {
+        console.info('[TKA][tests-ui] renderTests state=', state.tests);
+        if (!testSelect) return;
+        const current = testSelect.value;
+        testSelect.innerHTML = '';
+        state.tests.forEach(test => {
+            const opt = document.createElement('option');
+            opt.value = test.id;
+            const gradeText = getGradeLabel(test.grade_level);
+            opt.textContent = `${test.name} · ${test.duration_minutes || 0} menit (${gradeText})`;
+            testSelect.appendChild(opt);
+        });
+        if (current) testSelect.value = current;
+        if (!testSelect.value && state.tests.length) testSelect.value = state.tests[0].id;
+        renderSubjects();
+        renderTestEntries();
+        updateMapelSelectFromState();
+    };
+
+    const renderTestEntries = () => {
+        if (!testEntries) return;
+        testEntries.innerHTML = '';
+        if (!state.tests.length) {
+            testEntries.innerHTML = '<div class="text-muted small">Belum ada tes. Tambahkan melalui form di atas.</div>';
+            return;
+        }
+        state.tests.forEach(test => {
+            console.info('[TKA][tests-ui] render entry', test);
+            const isActive = testSelect && String(testSelect.value) === String(test.id);
+            const gradeText = getGradeLabel(test.grade_level);
+            const wrapper = document.createElement('div');
+            wrapper.className = `border rounded p-2 d-flex justify-content-between align-items-center ${isActive ? 'bg-light' : ''}`;
+            wrapper.innerHTML = `
+                <div>
+                    <div class="fw-semibold">${escapeHtml(test.name)}</div>
+                    <div class="text-muted small">Durasi ${test.duration_minutes || 0} menit · Jenjang ${gradeText}</div>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" data-action="select-test" data-id="${test.id}">Pilih</button>
+                    <button type="button" class="btn btn-outline-danger" data-action="delete-test" data-id="${test.id}" data-name="${escapeHtml(test.name)}"><i class="bi bi-trash"></i></button>
+                </div>
+            `;
+            testEntries.appendChild(wrapper);
+        });
+    };
+
+    const renderSubjects = () => {
+        if (!tableBody) return;
+        const currentTestId = testSelect ? testSelect.value : null;
+        const list = (currentTestId && state.subjects[currentTestId]) ? state.subjects[currentTestId] : [];
+        tableBody.innerHTML = '';
+        if (!list.length) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 7;
+            cell.className = 'text-center text-muted small';
+            cell.textContent = 'Belum ada mapel di tes ini.';
+            row.appendChild(cell);
+            tableBody.appendChild(row);
+            return;
+        }
+        list.forEach((item, idx) => {
+            const row = document.createElement('tr');
+            const topicsText = (item.topics || []).map(t => {
+                const name = t.name || t.topic || '-';
+                const count = typeof t.count === 'number'
+                    ? t.count
+                    : (typeof t.question_count === 'number' ? t.question_count : t.question_count_target);
+                return count ? `${name} (${count})` : name;
+            }).join(', ') || '-';
+            row.innerHTML = `
+                <td>${idx + 1}</td>
+                <td>${item.mapel_name || item.subject_name}</td>
+                <td>${item.total}</td>
+                <td>${item.pg}</td>
+                <td>${item.tf}</td>
+                <td>
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="flex-grow-1">${topicsText}</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#topicsModal" data-action="edit-topics" data-subject-id="${item.id}" data-test-id="${currentTestId || ''}" data-mapel-name="${item.mapel_name || item.subject_name}" data-topics="${escapeHtml(JSON.stringify(item.topics || []))}" data-target-total="${item.total || item.question_count_target || 0}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
+                </td>
+                <td class="text-end">
+                    <form method="post" action="${TESTS_UI_URL}" class="d-inline deleteSubjectForm">
+                        <input type="hidden" name="delete_test_subject_id" value="${item.id}">
+                        <input type="hidden" name="delete_test_subject_test_id" value="${currentTestId || ''}">
+                        <button type="submit" class="btn btn-sm btn-link text-danger" data-remove="${item.id}" data-test-id="${currentTestId || ''}"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    };
+
+    const loadTests = async () => {
+        try {
+            const res = await fetch('/latihan-tka/tests');
+            const data = await res.json();
+            if (res.ok && data.tests) {
+                state.tests = data.tests;
+                state.subjects = {};
+                renderTests();
+                await loadSubjectsForCurrent();
+            } else {
+                logError('loadTests-failed', { status: res.status, data });
+                showStatus(data.message || 'Gagal memuat tes.', 'danger');
+            }
+        } catch (err) {
+            logError('loadTests-error', err);
+            showStatus('Gagal memuat tes.', 'danger');
+        }
+    };
+
+    const loadSubjectsForCurrent = async () => {
+        const currentTestId = testSelect ? testSelect.value : null;
+        if (!currentTestId) return;
+        try {
+            const res = await fetch(`/latihan-tka/tests/${currentTestId}/subjects`);
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.subjects)) {
+                state.subjects[currentTestId] = normalizeSubjectsPayload(data.subjects);
+                renderSubjects();
+            } else {
+                logError('loadSubjects-failed', { status: res.status, data });
+                showStatus(data.message || 'Gagal memuat mapel tes.', 'danger');
+            }
+        } catch (err) {
+            logError('loadSubjects-error', err);
+            showStatus('Gagal memuat mapel tes.', 'danger');
+    }
+};
+
+    const deleteTestById = async (testId, label) => {
+        if (!testId) {
+            showStatus('Tidak ada tes yang dipilih.', 'warning');
+            return;
+        }
+        if (!confirm(`Hapus ${label || 'tes ini'}? Semua mapel dan konfigurasi di dalamnya akan hilang.`)) {
+            return;
+        }
+        try {
+            const res = await fetch(`/latihan-tka/tests/${testId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                showStatus('Tes berhasil dihapus.', 'success');
+                await loadTests();
+            } else {
+                showStatus(data.message || 'Gagal menghapus tes.', 'danger');
+            }
+        } catch (err) {
+            logError('deleteTest-error', err);
+            showStatus('Gagal menghapus tes.', 'danger');
+        }
+    };
+
+    const setMapelStatus = (text, tone = 'muted') => {
+        if (!mapelStatus) return;
+        mapelStatus.textContent = text || '';
+        mapelStatus.className = `text-${tone} d-block mt-1`;
+    };
+
+    if (mapelEntries) {
+        mapelEntries.addEventListener('click', async (event) => {
+            const deleteBtn = event.target.closest('[data-action="delete-mapel"]');
+            if (!deleteBtn) return;
+            event.preventDefault();
+            const mapelId = parseInt(deleteBtn.dataset.mapelId || '', 10);
+            if (!mapelId) return;
+            if (!confirm('Hapus mapel ini?')) return;
+            try {
+                const res = await fetch(`/latihan-tka/mapel/${mapelId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    state.mapel = state.mapel.filter(item => Number(item.id) !== mapelId);
+                    updateMapelSelectFromState();
+                    setMapelStatus('Mapel dihapus.', 'success');
+                } else {
+                    setMapelStatus(data.message || 'Gagal menghapus mapel.', 'danger');
+                }
+            } catch (err) {
+                logError('delete-mapel-error', err);
+                setMapelStatus('Gagal menghapus mapel.', 'danger');
+            }
+        });
+    }
+
+    if (mapelSelect) {
+        mapelSelect.addEventListener('change', () => {
+            const value = mapelSelect.value;
+            if (value) {
+                applyMapelDefaults(value);
+            } else {
+                updateTargetTotalFromFormats();
+            }
+        });
+    }
+
+    if (fmtPg) {
+        fmtPg.addEventListener('input', updateTargetTotalFromFormats);
+    }
+    if (fmtTf) {
+        fmtTf.addEventListener('input', updateTargetTotalFromFormats);
+    }
+
+    updateMapelSelectFromState();
+
+    if (addSubjectBtn) {
+        addSubjectBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            const mapelId = mapelSelect ? parseInt(mapelSelect.value || '', 10) : NaN;
+            if (!mapelId) {
+                showStatus('Pilih mapel terlebih dahulu.', 'warning');
+                return;
+            }
+            const mapelData = state.mapel.find(item => String(item.id) === String(mapelId));
+            const currentTestId = testSelect ? testSelect.value : null;
+            if (!currentTestId) {
+                showStatus('Buat atau pilih tes dulu.', 'warning');
+                return;
+            }
+            const mapelName = mapelData ? mapelData.name : 'Mapel';
+            const total = updateTargetTotalFromFormats();
+            const pg = parseInt(fmtPg?.value, 10) || 0;
+            const tf = parseInt(fmtTf?.value, 10) || 0;
+            const topics = parseTopics(topicsInput?.value || '');
+            if (total <= 0) {
+                showStatus('Target soal mapel harus lebih dari 0.', 'warning');
+                return;
+            }
+            showStatus('Menambahkan mapel ke tes...', 'info');
+            try {
+                const res = await fetch(`/latihan-tka/tests/${currentTestId}/subjects`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mapel_id: mapelId,
+                    question_count_target: total,
+                    formats: [
+                        { question_type: 'multiple_choice', question_count_target: pg || 0 },
+                        { question_type: 'true_false', question_count_target: tf || 0 },
+                    ],
+                        topics,
+                    }),
+                });
+                const data = await res.json();
+                if (res.ok && data.subject) {
+                    const bucket = state.subjects[currentTestId] || [];
+                    bucket.push({
+                        id: data.subject.id,
+                        mapel_id: mapelId,
+                        subject_name: mapelName,
+                        mapel_name: mapelName,
+                        total,
+                        pg,
+                        tf,
+                        topics,
+                    });
+                    state.subjects[currentTestId] = bucket;
+                    renderSubjects();
+                    const targetTest = state.tests.find(item => String(item.id) === String(currentTestId));
+                    if (targetTest && !targetTest.grade_level && mapelData && mapelData.grade_level) {
+                        targetTest.grade_level = mapelData.grade_level;
+                        renderTests();
+                    }
+                    showStatus('Mapel disimpan ke tes.', 'success');
+                    await loadTests();
+                } else {
+                    logError('addSubject-failed', { status: res.status, data });
+                    showStatus(data.message || 'Gagal menambahkan mapel.', 'danger');
+                }
+            } catch (err) {
+                logError('addSubject-error', err);
+                showStatus('Gagal menambahkan mapel.', 'danger');
+            }
+        });
+    }
+
+    document.addEventListener('click', async (event) => {
+        const editBtn = event.target.closest('[data-action="edit-topics"]');
+        if (editBtn) {
+            if (!hasBootstrapModal()) {
+                event.preventDefault();
+                const subjectId = parseInt(editBtn.dataset.subjectId || '', 10);
+                const testId = editBtn.dataset.testId || (testSelect ? testSelect.value : null);
+                if (!subjectId || !testId) {
+                    showStatus('Tidak dapat membuka editor topik.', 'danger');
+                    return;
+                }
+                let topicsData = decodeTopicsPayload(editBtn.dataset.topics || '[]');
+                const subjectBucket = state.subjects[testId] || [];
+                const targetSubject = subjectBucket.find(item => String(item.id) === String(subjectId));
+                if (!topicsData.length && targetSubject?.topics) {
+                    topicsData = targetSubject.topics;
+                }
+                const mapelLabel = editBtn.dataset.mapelName || targetSubject?.mapel_name || targetSubject?.subject_name || 'Mapel';
+                const targetTotalOverride = parseInt(editBtn.dataset.targetTotal || '', 10) || null;
+                openTopicsModal(subjectId, testId, mapelLabel, topicsData, targetTotalOverride);
+            }
+            return;
+        }
+        const btn = event.target.closest('button[data-remove]');
+        if (!btn) return;
+        const tableContext = btn.closest('#testSubjectsTable');
+        if (!tableContext) return;
+        event.preventDefault();
+        const id = btn.dataset.remove;
+        const manualTestId = btn.dataset.testId;
+        const currentTestId = manualTestId || (testSelect ? testSelect.value : null);
+        if (!currentTestId || !id) {
+            console.warn('[TKA][delete-subject] missing test or subject id', { currentTestId, id });
+            return;
+        }
+        showStatus('Menghapus mapel dari tes...', 'info');
+        try {
+            const res = await fetch(`/latihan-tka/tests/${currentTestId}/subjects/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                if (state.subjects[currentTestId]) {
+                    state.subjects[currentTestId] = state.subjects[currentTestId].filter(item => String(item.id) !== String(id));
+                }
+                renderSubjects();
+                showStatus('Mapel dihapus dari tes.', 'success');
+            } else {
+                logError('deleteSubject-failed', { status: res.status });
+                showStatus('Gagal menghapus mapel dari tes.', 'danger');
+            }
+        } catch (err) {
+            logError('deleteSubject-error', err);
+            showStatus('Gagal menghapus mapel dari tes.', 'danger');
+        }
+    });
+
+if (testSelect) {
+    testSelect.addEventListener('change', () => {
+        loadSubjectsForCurrent();
+        updateMapelSelectFromState();
+    });
+}
+
+    const prefillTestForm = (test) => {
+        if (!test) return;
+        if (testNameInput) testNameInput.value = test.name || '';
+        if (testDurationInput) testDurationInput.value = test.duration_minutes || 120;
+        if (testActiveInput) testActiveInput.checked = Boolean(test.is_active);
+    };
+
+    if (testEntries) {
+        testEntries.addEventListener('click', (event) => {
+            const selectBtn = event.target.closest('[data-action="select-test"]');
+            if (selectBtn) {
+                event.preventDefault();
+                const id = selectBtn.dataset.id;
+                console.info('[TKA][tests-ui] select clicked', id);
+                if (testSelect && id) {
+                    testSelect.value = id;
+                    const target = state.tests.find(item => String(item.id) === String(id));
+                    prefillTestForm(target);
+                    loadSubjectsForCurrent();
+                    renderTestEntries();
+                    updateMapelSelectFromState();
+                    showStatus(`Tes ${target?.name || id} dipilih.`, 'info');
+                }
+                return;
+            }
+            const deleteBtnInline = event.target.closest('[data-action="delete-test"]');
+            if (deleteBtnInline) {
+                event.preventDefault();
+                const id = parseInt(deleteBtnInline.dataset.id || '', 10);
+                console.info('[TKA][tests-ui] delete clicked', id);
+                if (!id) return;
+                const label = deleteBtnInline.dataset.name || 'tes ini';
+                deleteTestById(id, label);
+            }
+        });
+    }
+
+    renderTests();
+    if (testSelect && INITIAL_SELECTED_TEST_ID) {
+        testSelect.value = String(INITIAL_SELECTED_TEST_ID);
+        const initialTest = state.tests.find(item => String(item.id) === String(INITIAL_SELECTED_TEST_ID));
+        prefillTestForm(initialTest);
+    }
+    loadSubjectsForCurrent();
+    loadTests();
+});
+</script>
+{% endblock %}

@@ -503,7 +503,7 @@
                                         {% if question.section_label %}
                                         <span class="meta-badge">{{ question.section_label }}</span>
                                         {% endif %}
-                                        <span class="meta-badge">{{ 'Benar / Salah' if question.question_format == 'true_false' else 'Pilihan Ganda' }}</span>
+                                        <span class="meta-badge">{{ 'Benar / Salah' if question.answer_format == 'true_false' else 'Pilihan Ganda' }}</span>
                                     </div>
                                 </div>
                                 <div class="question-body">

@@ -67,6 +67,7 @@
                             <button type="button" class="btn btn-outline-secondary" id="importJsonBtn" data-bs-toggle="tooltip" title="Import from JSON"><i class="bi bi-upload"></i></button>
                             <button type="button" class="btn btn-outline-secondary" id="copyJsonTemplateBtn" data-bs-toggle="tooltip" title="Template JSON"><i class="bi bi-filetype-json"></i></button>
                             <button type="button" class="btn btn-outline-info" id="exportPromptBtn" data-bs-toggle="tooltip" title="Export Prompt"><i class="bi bi-terminal"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" id="copyPromptBtn" data-bs-toggle="tooltip" title="Copy Prompt"><i class="bi bi-clipboard"></i></button>
                             <button type="button" class="btn btn-primary" data-bs-toggle="tooltip" title="Generate" data-generator-submit><i class="bi bi-magic me-1"></i>Generate</button>
                         </div>
                     </div>
@@ -85,6 +86,10 @@
             </form>
 
             <div class="mt-3" id="generatePreview"></div>
+            <div class="mt-3">
+                <label class="form-label small mb-1" for="generatedPromptText">Prompt Terbaru</label>
+                <textarea class="form-control form-control-sm" id="generatedPromptText" rows="4" readonly placeholder="Prompt hasil generate akan muncul di sini."></textarea>
+            </div>
             <div class="mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div class="text-muted small">Review hasil di atas: edit, hapus, atau cek duplikat sebelum simpan.</div>
                 <button type="button" class="btn btn-success" id="saveGenerated" disabled>

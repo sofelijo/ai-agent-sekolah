@@ -1,4 +1,9 @@
 <script>
+(function () {
+    if (window.__TKA_PAGE_SCRIPT_LOADED__) {
+        return;
+    }
+    window.__TKA_PAGE_SCRIPT_LOADED__ = true;
     const TKA_PAGE_MODE = {{ tka_page_mode|default('bank')|tojson }};
     let SUBJECTS = {{ subjects|tojson }};
     const GRADE_LABELS = {{ grade_labels|tojson }};
@@ -11,11 +16,14 @@
         [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
 const subjectSelect = document.getElementById('filterSubject');
+const filterTestSelect = document.getElementById('filterTest');
+const generateTestSelect = document.getElementById('generateTest');
 const generateFormFields = document.getElementById('generateFormFields');
 const tplGenerateLite = document.getElementById('tplGenerateLite');
 const tplGeneratePro = document.getElementById('tplGeneratePro');
 let generateSubjectSelect = document.getElementById('generateSubject');
 let questionSubjectSelect = document.getElementById('questionSubject') || generateSubjectSelect;
+let manualTestSelect = document.getElementById('manualTest');
 let generateGradeSelect = document.getElementById('generateGrade');
 let generateQuestionType = document.getElementById('generateQuestionType');
 let generateAnswerMode = document.getElementById('generateAnswerMode');
@@ -31,6 +39,8 @@ let generatorStimulusImageGroup = document.getElementById('generateStimulusImage
 let generatorImageDescriptionGroup = document.getElementById('generateImageDescriptionGroup');
 let generateProType = null;
 let generateAdvancedSection = null;
+let TEST_CACHE = [];
+let TEST_SUBJECT_CACHE = {};
 const stimulusModeInputs = document.querySelectorAll('input[name="stimulusUsage"]');
 const stimulusExistingWrap = document.getElementById('stimulusExistingFields');
 const stimulusExistingSelect = document.getElementById('questionStimulusSelect');
@@ -40,6 +50,7 @@ const openStimulusCreatorBtn = document.getElementById('openStimulusCreator');
 const stimulusCreatorWrap = document.getElementById('stimulusCreatorFields');
 const selectedStimulusPreview = document.getElementById('selectedStimulusPreview');
 const newStimulusBriefInput = document.getElementById('newStimulusBrief');
+const newStimulusLengthSelect = document.getElementById('newStimulusLength');
 const newStimulusTitleInput = document.getElementById('newStimulusTitle');
 const newStimulusNarrativeInput = document.getElementById('newStimulusNarrative');
 const newStimulusImageInput = document.getElementById('newStimulusImage');
@@ -161,6 +172,100 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         image: 'Mode Gambar · ASKA akan menambahkan deskripsi ilustrasi agar bisa digambar otomatis.',
         truefalse: 'Mode Benar/Salah · ASKA menyiapkan cerita dengan tabel pernyataan benar/salah.',
     };
+
+    let suppressMapelFocus = false;
+
+    function getMapelById(mapelId) {
+        if (!mapelId) return null;
+        const cache = window.MAPEL_CACHE || [];
+        return cache.find((mapel) => String(mapel.id) === String(mapelId)) || null;
+    }
+
+    function populateMapelFilter(list) {
+        if (!filterCategory) return;
+        const previous = filterCategory.value;
+        filterCategory.innerHTML = '<option value="">Semua mapel</option>';
+        (list || []).forEach((mapel) => {
+            const opt = document.createElement('option');
+            opt.value = mapel.id;
+            opt.textContent = mapel.name || `Mapel ${mapel.id}`;
+            filterCategory.appendChild(opt);
+        });
+        if (previous && Array.from(filterCategory.options).some((opt) => opt.value === previous)) {
+            filterCategory.value = previous;
+        }
+    }
+
+    function populateTopicFilter(mapelId) {
+        if (!filterTopic) return;
+        const previous = filterTopic.value;
+        filterTopic.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        if (!mapelId) {
+            placeholder.textContent = 'Pilih mapel terlebih dahulu';
+            filterTopic.appendChild(placeholder);
+            filterTopic.value = '';
+            filterTopic.disabled = true;
+            return;
+        }
+        placeholder.textContent = 'Semua topik';
+        filterTopic.appendChild(placeholder);
+        filterTopic.disabled = false;
+        const mapel = getMapelById(mapelId);
+        const topics = mapel && Array.isArray(mapel.topics) ? mapel.topics : [];
+        topics.forEach((topic) => {
+            const opt = document.createElement('option');
+            const topicName = topic.topic || topic.name || '';
+            opt.value = topicName;
+            const count = topic.question_count ?? topic.count ?? topic.total ?? 0;
+            opt.textContent = count ? `${topicName} (${count})` : topicName;
+            filterTopic.appendChild(opt);
+        });
+        if (previous && Array.from(filterTopic.options).some((opt) => opt.value === previous)) {
+            filterTopic.value = previous;
+        } else {
+            filterTopic.value = '';
+        }
+    }
+
+    function findTestSubjectByMapelId(mapelId) {
+        if (!mapelId) return null;
+        const entries = Object.entries(TEST_SUBJECT_CACHE || {});
+        for (const [testId, list] of entries) {
+            const match = (list || []).find((item) => String(item.mapel_id || item.subject_id) === String(mapelId));
+            if (match) {
+                return {
+                    testId,
+                    testSubjectId: match.id,
+                    subjectId: match.subject_id,
+                    mapelId,
+                    grade: match.grade_level || match.mapel_grade_level || '',
+                };
+            }
+        }
+        return null;
+    }
+
+    async function focusMapelById(mapelId) {
+        if (!mapelId) {
+            populateTopicFilter('');
+            return;
+        }
+        const mapping = findTestSubjectByMapelId(mapelId);
+        if (mapping) {
+            document.dispatchEvent(new CustomEvent('tka:mapel-selected', { detail: mapping }));
+        } else {
+            populateTopicFilter(mapelId);
+        }
+    }
+
+    if (filterCategory) {
+        populateMapelFilter(window.MAPEL_CACHE || []);
+    }
+    if (filterTopic) {
+        populateTopicFilter(filterCategory ? filterCategory.value : '');
+    }
 
     function getSectionTemplate(sectionKey) {
         if (!sectionKey) return SECTION_TEMPLATES[0] || { key: 'matematika', label: 'Matematika', subject_area: 'matematika', question_format: 'multiple_choice' };
@@ -699,6 +804,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                 showStatus('Isi deskripsi singkat agar ASKA tahu cerita apa yang ingin dibuat.', 'warning');
                 return;
             }
+            const lengthValue = (newStimulusLengthSelect ? newStimulusLengthSelect.value : 'sedang') || 'sedang';
             generateStimulusBtn.disabled = true;
             generateStimulusBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             try {
@@ -708,6 +814,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                     body: JSON.stringify({
                         subject_id: subjectId,
                         topic: briefValue,
+                        length: lengthValue,
                         include_image: true,
                     }),
                 });
@@ -725,7 +832,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                 showStatus('Terjadi kesalahan saat menghubungi ASKA.', 'danger');
             } finally {
                 generateStimulusBtn.disabled = false;
-                generateStimulusBtn.innerHTML = '<i class="bi bi-magic"></i> Generate Cerita AI';
+                generateStimulusBtn.innerHTML = '<i class="bi bi-magic"></i> Generate Stimulus AI';
             }
         });
     }
@@ -1047,6 +1154,11 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         return SUBJECTS.find(item => Number(item.id) === id) || null;
     }
 
+    function getTestById(testId) {
+        if (!TEST_CACHE || !TEST_CACHE.length) return null;
+        return TEST_CACHE.find(item => Number(item.id) === Number(testId)) || null;
+    }
+
     function updateSubjectCache(subject) {
         if (!subject) return;
         const idx = SUBJECTS.findIndex(item => Number(item.id) === Number(subject.id));
@@ -1064,12 +1176,18 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 
     function updateSelectedGradeBadge() {
         if (!selectedGradeBadge || !subjectSelect) return;
-        const subject = getSubjectById(subjectSelect.value);
-        if (!subject) {
-            selectedGradeBadge.textContent = '-';
+        const selectedOption = subjectSelect.selectedOptions ? subjectSelect.selectedOptions[0] : null;
+        const datasetGrade = selectedOption && selectedOption.dataset ? selectedOption.dataset.grade : '';
+        if (datasetGrade) {
+            selectedGradeBadge.textContent = getGradeLabel(datasetGrade);
             return;
         }
-        selectedGradeBadge.textContent = getGradeLabel(subject.grade_level);
+        const subject = getSubjectById(subjectSelect.value);
+        if (subject && subject.grade_level) {
+            selectedGradeBadge.textContent = getGradeLabel(subject.grade_level);
+            return;
+        }
+        selectedGradeBadge.textContent = '-';
     }
 
     function formatMixDescription(mix) {
@@ -1271,6 +1389,170 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         statusBox.dataset.timer = String(timer);
     }
 
+    async function loadTestsCatalog() {
+        if (!generateTestSelect && !manualTestSelect && !filterTestSelect) return;
+        try {
+            const res = await fetch('/latihan-tka/tests');
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.tests)) {
+                TEST_CACHE = data.tests;
+                renderTestOptions();
+            }
+        } catch (error) {
+            // silent fail
+        }
+    }
+
+    function renderTestOptions() {
+        const previousFilterTestId = filterTestSelect ? filterTestSelect.value : '';
+        const previousFilterTestSubjectId = subjectSelect && subjectSelect.selectedOptions && subjectSelect.selectedOptions[0]
+            ? subjectSelect.selectedOptions[0].dataset.testSubjectId
+            : '';
+        const render = (select, placeholder = 'Pilih tes') => {
+            if (!select) return;
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+            TEST_CACHE.forEach(test => {
+                const opt = document.createElement('option');
+                opt.value = test.id;
+                opt.textContent = `${test.name} (${test.duration_minutes || 0}m)`;
+                opt.dataset.grade = test.grade_level || '';
+                select.appendChild(opt);
+            });
+        };
+        render(generateTestSelect);
+        render(manualTestSelect);
+        if (generateTestSelect && TEST_CACHE.length) {
+            generateTestSelect.value = TEST_CACHE[0].id;
+            populateGeneratorSubjects(TEST_CACHE[0].id);
+            if (generateGradeSelect && TEST_CACHE[0].grade_level) {
+                generateGradeSelect.value = TEST_CACHE[0].grade_level;
+            }
+        }
+        if (manualTestSelect && TEST_CACHE.length) {
+            manualTestSelect.value = TEST_CACHE[0].id;
+            populateManualSubjects(TEST_CACHE[0].id);
+        }
+        if (filterTestSelect) {
+            render(filterTestSelect, 'Pilih tes');
+            if (previousFilterTestId && Array.from(filterTestSelect.options).some(opt => opt.value === previousFilterTestId)) {
+                filterTestSelect.value = previousFilterTestId;
+            } else if (!filterTestSelect.value && TEST_CACHE.length) {
+                filterTestSelect.value = TEST_CACHE[0].id;
+            }
+            const selectedTestId = filterTestSelect.value;
+            if (selectedTestId) {
+                const preferredSubject = selectedTestId === previousFilterTestId ? previousFilterTestSubjectId : null;
+                populateFilterSubjects(selectedTestId, preferredSubject);
+            } else {
+                populateFilterSubjects(null);
+            }
+        }
+    }
+
+    async function getTestSubjects(testId) {
+        if (!testId) return [];
+        if (!TEST_SUBJECT_CACHE[testId]) {
+            try {
+                const res = await fetch(`/latihan-tka/tests/${testId}/subjects`);
+                const data = await res.json();
+                if (res.ok && Array.isArray(data.subjects)) {
+                    TEST_SUBJECT_CACHE[testId] = data.subjects;
+                } else {
+                    TEST_SUBJECT_CACHE[testId] = [];
+                }
+            } catch (error) {
+                TEST_SUBJECT_CACHE[testId] = [];
+            }
+        }
+        return TEST_SUBJECT_CACHE[testId] || [];
+    }
+
+    async function populateGeneratorSubjects(testId) {
+        if (!generateSubjectSelect || !testId) return;
+        const list = await getTestSubjects(testId);
+        generateSubjectSelect.innerHTML = '';
+        if (!list.length) {
+            generateSubjectSelect.innerHTML = '<option value="">Belum ada mapel</option>';
+            return;
+        }
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.subject_id;
+            opt.dataset.testSubjectId = item.id;
+            opt.dataset.testId = testId;
+            opt.textContent = item.subject_name || `Mapel ${item.subject_id}`;
+            opt.dataset.pg = (item.formats || []).find(f => f.question_type === 'multiple_choice')?.question_count_target || 0;
+            opt.dataset.tf = (item.formats || []).find(f => f.question_type === 'true_false')?.question_count_target || 0;
+            generateSubjectSelect.appendChild(opt);
+        });
+        generateSubjectSelect.dispatchEvent(new Event('change'));
+    }
+
+    async function populateManualSubjects(testId) {
+        if (!questionSubjectSelect || !testId) return;
+        const list = await getTestSubjects(testId);
+        questionSubjectSelect.innerHTML = '';
+        if (!list.length) {
+            questionSubjectSelect.innerHTML = '<option value="">Belum ada mapel</option>';
+            return;
+        }
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.subject_id;
+            opt.dataset.testSubjectId = item.id;
+            opt.dataset.testId = testId;
+            opt.textContent = item.subject_name || `Mapel ${item.subject_id}`;
+            opt.dataset.pg = (item.formats || []).find(f => f.question_type === 'multiple_choice')?.question_count_target || 0;
+            opt.dataset.tf = (item.formats || []).find(f => f.question_type === 'true_false')?.question_count_target || 0;
+            questionSubjectSelect.appendChild(opt);
+        });
+        questionSubjectSelect.dispatchEvent(new Event('change'));
+    }
+
+    async function populateFilterSubjects(testId, preferredTestSubjectId, suppressLoad = false) {
+        if (!subjectSelect) return;
+        subjectSelect.innerHTML = '';
+        if (!testId) {
+            subjectSelect.innerHTML = '<option value="">Pilih tes terlebih dahulu</option>';
+            updateSelectedGradeBadge();
+            return;
+        }
+        const list = await getTestSubjects(testId);
+        if (!list.length) {
+            subjectSelect.innerHTML = '<option value="">Belum ada mapel di tes ini</option>';
+            updateSelectedGradeBadge();
+            return;
+        }
+        const test = getTestById(testId);
+        list.forEach((item, idx) => {
+            const opt = document.createElement('option');
+            const subjectId = item.subject_id || item.mapel_id || '';
+            opt.value = subjectId;
+            opt.dataset.testSubjectId = item.id;
+            opt.dataset.testId = testId;
+            const gradeValue = item.grade_level || item.mapel_grade_level || test?.grade_level || '';
+            opt.dataset.grade = gradeValue;
+            const gradeLabel = getGradeLabel(gradeValue);
+            const name = item.subject_name || item.mapel_name || `Mapel ${idx + 1}`;
+            opt.textContent = `${name} · ${gradeLabel}`;
+            subjectSelect.appendChild(opt);
+        });
+        if (preferredTestSubjectId) {
+            const target = String(preferredTestSubjectId);
+            const match = Array.from(subjectSelect.options).find(option => option.dataset.testSubjectId === target);
+            if (match) {
+                subjectSelect.value = match.value;
+            }
+        }
+        if (!subjectSelect.value && subjectSelect.options.length) {
+            subjectSelect.value = subjectSelect.options[0].value;
+        }
+        updateSelectedGradeBadge();
+        if (!suppressLoad) {
+            loadQuestions();
+        }
+    }
+
     function copyToClipboard(text) {
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(text)
@@ -1295,7 +1577,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     }
 
     function refreshSubjectDropdowns() {
-        [subjectSelect, questionSubjectSelect, generateSubjectSelect].forEach(select => {
+        [questionSubjectSelect, generateSubjectSelect].forEach(select => {
             if (!select) return;
             const previousValue = select.value;
             select.innerHTML = '';
@@ -1319,17 +1601,20 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 
     function applyQuestionFilters(items) {
         if (!Array.isArray(items)) return [];
-        const categoryValue = filterCategory ? (filterCategory.value || '').toLowerCase() : '';
+        const mapelFilterValue = filterCategory ? (filterCategory.value || '').trim() : '';
         const gradeValue = filterGrade ? (filterGrade.value || '').toLowerCase() : '';
         const subject = subjectSelect ? getSubjectById(subjectSelect.value) : null;
+        const selectedGrade = subjectSelect && subjectSelect.selectedOptions && subjectSelect.selectedOptions[0]
+            ? (subjectSelect.selectedOptions[0].dataset.grade || '')
+            : '';
         return items.filter(item => {
             const metadata = item.metadata || {};
-            if (categoryValue) {
-                const subjectArea = (metadata.subject_area || metadata.section_key || '').toString().toLowerCase();
-                if (subjectArea && !subjectArea.includes(categoryValue)) return false;
+            if (mapelFilterValue) {
+                const questionMapelId = String(item.mapel_id || metadata.mapel_id || '');
+                if (!questionMapelId || questionMapelId !== mapelFilterValue) return false;
             }
             if (gradeValue) {
-                const qGrade = (metadata.grade_level || item.grade_level || (subject && subject.grade_level) || '').toString().toLowerCase();
+                const qGrade = (metadata.grade_level || item.grade_level || selectedGrade || (subject && subject.grade_level) || '').toString().toLowerCase();
                 if (qGrade && qGrade !== gradeValue) return false;
             }
             return true;
@@ -1350,8 +1635,9 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             const metadata = item.metadata || {};
             const stimulus = item.stimulus || {};
             const sectionKey = metadata.section_key || metadata.section || 'matematika';
-            const sectionLabel = formatSectionLabel(sectionKey);
-            const formatLabel = metadata.question_format === 'true_false' ? 'Benar / Salah' : 'Pilihan Ganda';
+            const sectionLabel = item.mapel_name || formatSectionLabel(sectionKey);
+            const formatKey = (item.answer_format || '').toLowerCase();
+            const formatLabel = formatKey === 'true_false' ? 'Benar / Salah' : 'Pilihan Ganda';
             const creatorLabel = formatCreatorLabel(item);
             card.dataset.question = dataAttr;
             card.setAttribute('tabindex', '0');
@@ -1399,7 +1685,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                 card.innerHTML = `
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="d-flex flex-wrap align-items-center gap-2">
-                            <span class="badge-soft bg-primary-subtle">${sectionLabel}</span>
+                            <span class="badge-soft bg-primary-subtle">${escapeHtml(sectionLabel)}</span>
                             <span class="badge-soft bg-info-subtle">${formatLabel}</span>
                             <span class="badge-soft difficulty-${item.difficulty} text-uppercase">${(item.difficulty || '').toUpperCase()}</span>
                             ${item.topic ? `<span class="badge-soft bg-secondary-subtle">${item.topic}</span>` : ''}
@@ -1435,36 +1721,51 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         if (!questionList) {
             return;
         }
+        const mapelFilterValue = filterCategory ? (filterCategory.value || '').trim() : '';
         const activeSelect = subjectSelect || questionSubjectSelect || generateSubjectSelect;
         if (!activeSelect) {
             questionList.innerHTML = '<div class="question-empty">Atur jenis latihan terlebih dahulu.</div>';
             return;
         }
+        const activeOption = activeSelect.selectedOptions ? activeSelect.selectedOptions[0] : null;
+        const testSubjectId = activeOption && activeOption.dataset ? activeOption.dataset.testSubjectId : '';
         let subjectId = activeSelect.value;
-        if (!subjectId && SUBJECTS.length) {
+        if (!subjectId && !testSubjectId && SUBJECTS.length) {
             subjectId = SUBJECTS[0].id;
             activeSelect.value = subjectId;
         }
-        if (!subjectId) {
+        if (!subjectId && !testSubjectId) {
             questionList.innerHTML = '<div class="question-empty">Tambahkan jenis latihan terlebih dahulu.</div>';
             return;
         }
-        if (subjectSelect && subjectSelect !== activeSelect) {
+        if (subjectSelect && subjectId && subjectSelect !== activeSelect) {
             subjectSelect.value = subjectId;
         }
-        if (questionSubjectSelect && !questionSubjectSelect.value) {
+        if (questionSubjectSelect && subjectId && !questionSubjectSelect.value) {
             questionSubjectSelect.value = subjectId;
         }
-        if (generateSubjectSelect && !generateSubjectSelect.value) {
+        if (generateSubjectSelect && subjectId && !generateSubjectSelect.value) {
             generateSubjectSelect.value = subjectId;
         }
         updateSelectedGradeBadge();
         questionList.innerHTML = '<div class="py-4 text-center text-muted">Memuat soal…</div>';
-        const params = new URLSearchParams({
-            subject_id: subjectId,
-            difficulty: filterDifficulty ? (filterDifficulty.value || '') : '',
-            topic: filterTopic ? (filterTopic.value || '') : ''
-        });
+        const params = new URLSearchParams();
+        if (testSubjectId) {
+            params.set('test_subject_id', testSubjectId);
+        } else if (subjectId) {
+            params.set('subject_id', subjectId);
+        }
+        params.set('difficulty', filterDifficulty ? (filterDifficulty.value || '') : '');
+        if (mapelFilterValue) {
+            params.set('mapel_id', mapelFilterValue);
+        }
+        if (filterTopic) {
+            params.set('topic', filterTopic.disabled ? '' : (filterTopic.value || ''));
+        }
+        if (!params.has('subject_id') && !params.has('test_subject_id')) {
+            questionList.innerHTML = '<div class="question-empty">Pilih mapel terlebih dahulu.</div>';
+            return;
+        }
         try {
             const response = await fetch(buildTkaUrl('/latihan-tka/questions', params));
             const data = await response.json();
@@ -1574,8 +1875,14 @@ const optionDField = document.getElementById('optionDField');
 
     async function buildManualQuestionPayload() {
         const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+        const testId = manualTestSelect ? parseInt(manualTestSelect.value || '', 10) : NaN;
+        const testSubjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : NaN;
         if (!subjectId) {
-            showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+            showStatus('Pilih mapel dalam tes terlebih dahulu.', 'warning');
+            return null;
+        }
+        if (!testId || !testSubjectId) {
+            showStatus('Pilih tes terlebih dahulu.', 'warning');
             return null;
         }
         const promptInput = document.getElementById('questionPrompt');
@@ -1613,7 +1920,8 @@ const optionDField = document.getElementById('optionDField');
         metadata.section_key = sectionKey;
         metadata.section_label = sectionTemplate.label;
         metadata.subject_area = sectionTemplate.subject_area || categoryKey;
-        metadata.question_format = resolveQuestionFormat(sectionKey, manualMode);
+        const resolvedFormat = resolveQuestionFormat(sectionKey, manualMode);
+        metadata.question_format = resolvedFormat;
         let stimulusPayload = null;
         const stimulusMode = getStimulusUsageMode();
         if (stimulusMode === 'existing') {
@@ -1667,6 +1975,8 @@ const optionDField = document.getElementById('optionDField');
         if (optionCValue) options.push({ key: 'C', text: optionCValue });
         if (optionDValue) options.push({ key: 'D', text: optionDValue });
         const questionPayload = {
+            test_id: testId,
+            test_subject_id: testSubjectId,
             prompt: promptInput ? promptInput.value.trim() : '',
             topic: topicInput ? topicInput.value.trim() : '',
             difficulty: difficultySelect ? difficultySelect.value : 'easy',
@@ -1675,6 +1985,7 @@ const optionDField = document.getElementById('optionDField');
             explanation: explanationInput ? explanationInput.value.trim() : '',
             source: 'manual',
             generator_mode: manualMode,
+            answer_format: resolvedFormat,
         };
         if (!questionPayload.prompt) {
             showStatus('Teks soal wajib diisi.', 'warning');
@@ -1715,7 +2026,8 @@ const optionDField = document.getElementById('optionDField');
         if (optionDInput) optionDInput.value = pickOption('D');
         setSelectedAnswerKey(question.correct_key || 'A');
         if (difficultySelect) difficultySelect.value = (question.difficulty || 'easy');
-        const modeFromQuestion = (metadata.question_format === 'true_false') ? 'truefalse' : 'normal';
+        const formatFromQuestion = (question.answer_format || '').toLowerCase();
+        const modeFromQuestion = formatFromQuestion === 'true_false' ? 'truefalse' : 'normal';
         if (manualModeInputs.length) {
             manualModeInputs.forEach(input => {
                 input.checked = input.value === modeFromQuestion;
@@ -1769,7 +2081,8 @@ const optionDField = document.getElementById('optionDField');
         container.className = 'd-flex flex-column gap-2';
         pendingQuestions.forEach((item, idx) => {
             const card = document.createElement('div');
-            const formatLabel = (item.metadata?.question_format === 'true_false') ? 'Benar/Salah' : 'Pilihan Ganda';
+            const formatKey = (item.answer_format || '').toLowerCase();
+            const formatLabel = formatKey === 'true_false' ? 'Benar/Salah' : 'Pilihan Ganda';
             const sectionLabel = item.metadata?.section_label || 'Matematika';
             const stimLabel = item.stimulus
                 ? (item.stimulus.id ? `Stimulus #${item.stimulus.id}` : (item.stimulus.title || 'Stimulus baru'))
@@ -1804,11 +2117,19 @@ const optionDField = document.getElementById('optionDField');
             return;
         }
         const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
+        const testId = manualTestSelect ? parseInt(manualTestSelect.value || '', 10) : NaN;
+        const testSubjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : NaN;
         if (!subjectId) {
-            showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+            showStatus('Pilih mapel dalam tes terlebih dahulu.', 'warning');
+            return;
+        }
+        if (!testId || !testSubjectId) {
+            showStatus('Pilih tes terlebih dahulu.', 'warning');
             return;
         }
         const payload = {
+            test_id: testId,
+            test_subject_id: testSubjectId,
             subject_id: subjectId,
             questions: pendingQuestions,
         };
@@ -2067,30 +2388,98 @@ const optionDField = document.getElementById('optionDField');
         refreshBtn.addEventListener('click', loadQuestions);
     }
     if (filterCategory) {
-        filterCategory.addEventListener('change', loadQuestions);
+        filterCategory.addEventListener('change', () => {
+            const selectedMapelId = filterCategory.value || '';
+            populateTopicFilter(selectedMapelId);
+            if (suppressMapelFocus) return;
+            focusMapelById(selectedMapelId);
+            loadQuestions();
+        });
+    }
+    if (filterTopic) {
+        filterTopic.addEventListener('change', loadQuestions);
     }
     if (filterGrade) {
         filterGrade.addEventListener('change', loadQuestions);
     }
-    if (subjectSelect) {
-    subjectSelect.addEventListener('change', () => {
-        updateSelectedGradeBadge();
-        loadQuestions();
-        if (stimulusSearchInput) stimulusSearchInput.value = '';
-        refreshStimulusDropdown();
-        setStimulusUsageMode('none');
-        if (stimulusExistingSelect) stimulusExistingSelect.value = '';
-        resetStimulusCreatorFields();
-        pendingQuestions = [];
-        renderPendingQuestions();
-    });
+    if (filterTestSelect) {
+        filterTestSelect.addEventListener('change', () => {
+            populateFilterSubjects(filterTestSelect.value);
+        });
     }
+    if (subjectSelect) {
+        subjectSelect.addEventListener('change', () => {
+            updateSelectedGradeBadge();
+            loadQuestions();
+            if (stimulusSearchInput) stimulusSearchInput.value = '';
+            refreshStimulusDropdown();
+            setStimulusUsageMode('none');
+            if (stimulusExistingSelect) stimulusExistingSelect.value = '';
+            resetStimulusCreatorFields();
+            pendingQuestions = [];
+            renderPendingQuestions();
+        });
+    }
+    document.addEventListener('tka:mapel-data', (event) => {
+        if (!event || !event.detail) return;
+        window.MAPEL_CACHE = event.detail.mapel || [];
+        populateMapelFilter(window.MAPEL_CACHE);
+        populateTopicFilter(filterCategory ? filterCategory.value : '');
+    });
+
+    document.addEventListener('tka:mapel-selected', async (event) => {
+        const detail = event.detail || {};
+        const testId = detail.testId || (filterTestSelect ? filterTestSelect.value : null);
+        if (!testId) return;
+        const preferredTestSubjectId = detail.testSubjectId || null;
+        if (filterTestSelect && filterTestSelect.value !== testId) {
+            filterTestSelect.value = testId;
+        }
+        if (preferredTestSubjectId) {
+            await populateFilterSubjects(testId, preferredTestSubjectId);
+        } else if (detail.subjectId) {
+            await populateFilterSubjects(testId, null, true);
+            if (subjectSelect) {
+                subjectSelect.value = detail.subjectId;
+                subjectSelect.dispatchEvent(new Event('change'));
+            }
+        } else {
+            await populateFilterSubjects(testId);
+        }
+        if (filterCategory) {
+            const mapelIdValue = detail.mapelId ? String(detail.mapelId) : '';
+            if (mapelIdValue) {
+                if (filterCategory.value !== mapelIdValue) {
+                    suppressMapelFocus = true;
+                    filterCategory.value = mapelIdValue;
+                    populateTopicFilter(mapelIdValue);
+                    suppressMapelFocus = false;
+                } else {
+                    populateTopicFilter(mapelIdValue);
+                }
+            }
+        }
+    });
     if (questionSubjectSelect && questionSubjectSelect !== generateSubjectSelect) {
         questionSubjectSelect.addEventListener('change', () => {
+            const opt = questionSubjectSelect.selectedOptions[0];
+            if (opt) {
+                const categorySelect = document.getElementById('questionCategory');
+                if (categorySelect) {
+                    categorySelect.value = (opt.textContent || '').toLowerCase().includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
+                }
+            }
             if (stimulusSearchInput) stimulusSearchInput.value = '';
             refreshStimulusDropdown();
             const selected = questionSubjectSelect.value;
-            if (subjectSelect && selected && subjectSelect.value !== selected) {
+            const testId = opt ? opt.dataset.testId : null;
+            const testSubjectId = opt ? opt.dataset.testSubjectId : null;
+            if (filterTestSelect && testId && filterTestSelect.value !== testId) {
+                filterTestSelect.value = testId;
+                populateFilterSubjects(testId, testSubjectId);
+            } else if (testSubjectId) {
+                populateFilterSubjects(testId || (filterTestSelect && filterTestSelect.value), testSubjectId);
+            } else if (subjectSelect && selected && subjectSelect.value !== selected) {
                 subjectSelect.value = selected;
                 updateSelectedGradeBadge();
                 loadQuestions();
@@ -2105,7 +2494,15 @@ const optionDField = document.getElementById('optionDField');
     if (generateSubjectSelect) {
         generateSubjectSelect.addEventListener('change', () => {
             const selected = generateSubjectSelect.value;
-            if (subjectSelect && selected && subjectSelect.value !== selected) {
+            const opt = generateSubjectSelect.selectedOptions ? generateSubjectSelect.selectedOptions[0] : null;
+            const testId = opt ? opt.dataset.testId : null;
+            const testSubjectId = opt ? opt.dataset.testSubjectId : null;
+            if (filterTestSelect && testId && filterTestSelect.value !== testId) {
+                filterTestSelect.value = testId;
+                populateFilterSubjects(testId, testSubjectId);
+            } else if (testSubjectId) {
+                populateFilterSubjects(testId || (filterTestSelect && filterTestSelect.value), testSubjectId);
+            } else if (subjectSelect && selected && subjectSelect.value !== selected) {
                 subjectSelect.value = selected;
                 updateSelectedGradeBadge();
                 loadQuestions();
@@ -2367,7 +2764,8 @@ const optionDField = document.getElementById('optionDField');
             block.dataset.mode = blockMode;
             const metadata = question.metadata || {};
             const answerType = (() => {
-                const typeFromMeta = (metadata.question_format || metadata.question_type || question.question_type || '').toString().toLowerCase();
+                const primaryFormat = (question.answer_format || question.question_format || '').toString().toLowerCase();
+                const typeFromMeta = primaryFormat || (metadata.question_format || metadata.question_type || question.question_type || '').toString().toLowerCase();
                 if (typeFromMeta.includes('true') || typeFromMeta.includes('false')) return 'True/False';
                 const hasStatements = Array.isArray(metadata.true_false_statements || question.statements || question.pernyataan) && (metadata.true_false_statements || question.statements || question.pernyataan || []).length > 0;
                 if (hasStatements) return 'True/False';
@@ -2992,13 +3390,26 @@ const optionDField = document.getElementById('optionDField');
     if (DEFAULT_FORM_PANEL) {
         activateFormPanel(DEFAULT_FORM_PANEL);
     }
-    if (SUBJECTS.length) {
-        if (subjectSelect && !subjectSelect.value) subjectSelect.value = SUBJECTS[0].id;
-        if (questionSubjectSelect && !questionSubjectSelect.value) questionSubjectSelect.value = SUBJECTS[0].id;
-        if (generateSubjectSelect && !generateSubjectSelect.value) generateSubjectSelect.value = SUBJECTS[0].id;
-    } else if (questionList) {
-        questionList.innerHTML = '<div class="question-empty">Tambahkan jenis latihan baru terlebih dahulu.</div>';
+    if (generateTestSelect) {
+        generateTestSelect.addEventListener('change', () => {
+            populateGeneratorSubjects(generateTestSelect.value);
+            const found = TEST_CACHE.find(t => String(t.id) === String(generateTestSelect.value));
+            if (generateGradeSelect && found && found.grade_level) {
+                generateGradeSelect.value = found.grade_level;
+            }
+        });
     }
-    loadQuestions();
+    if (manualTestSelect) {
+        manualTestSelect.addEventListener('change', () => populateManualSubjects(manualTestSelect.value));
+    }
+    loadTestsCatalog().then(() => {
+        if (!TEST_CACHE.length && SUBJECTS.length) {
+            if (subjectSelect && !subjectSelect.value) subjectSelect.value = SUBJECTS[0].id;
+            if (questionSubjectSelect && !questionSubjectSelect.value) questionSubjectSelect.value = SUBJECTS[0].id;
+            if (generateSubjectSelect && !generateSubjectSelect.value) generateSubjectSelect.value = SUBJECTS[0].id;
+        }
+        loadQuestions();
     });
+    });
+})();
 </script>

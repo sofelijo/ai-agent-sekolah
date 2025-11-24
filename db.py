@@ -1617,6 +1617,7 @@ def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str,
                 q.difficulty,
                 q.topic,
                 q.metadata,
+                q.answer_format,
                 q.stimulus_id,
                 s.title AS stimulus_title,
                 s.type AS stimulus_type,
@@ -1645,7 +1646,10 @@ def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str,
                     section_key = "matematika"
             row["section_key"] = section_key
             row["subject_area"] = metadata.get("subject_area") or ("bahasa_indonesia" if section_key and section_key.startswith("bahasa") else "matematika")
-            row["question_format"] = metadata.get("question_format") or ("true_false" if section_key == "bahasa_tf" else "multiple_choice")
+            answer_format = (row.get("answer_format") or "").strip().lower()
+            if answer_format not in {"multiple_choice", "true_false"}:
+                answer_format = "multiple_choice"
+            row["answer_format"] = answer_format
             stimulus_meta = None
             stimulus_id = row.get("stimulus_id")
             if stimulus_id:
@@ -1987,11 +1991,12 @@ def create_tka_attempt(
             stimulus_meta = package.get("stimulus_meta") or {}
             for row in pkg_rows:
                 row_section_key = section_key or row.get("section_key") or "matematika"
+                answer_format = row.get("answer_format") or "multiple_choice"
                 meta_payload = {
                     "section_key": row_section_key,
                     "section_label": section_label or row.get("metadata", {}).get("section_label") or row_section_key.title(),
                     "subject_area": section_area or row.get("subject_area") or "matematika",
-                    "question_format": section_format or row.get("question_format") or "multiple_choice",
+                    "question_format": section_format or answer_format,
                     "stimulus_id": package.get("stimulus_id"),
                     "stimulus_title": stimulus_meta.get("title"),
                     "stimulus_type": stimulus_meta.get("type"),
@@ -2011,6 +2016,7 @@ def create_tka_attempt(
                         row.get("topic"),
                         Json(meta_payload),
                         order_index,
+                        answer_format,
                     )
                 )
                 order_index += 1
@@ -2027,9 +2033,10 @@ def create_tka_attempt(
                 difficulty,
                 topic,
                 metadata,
-                order_index
+                order_index,
+                answer_format
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             insert_rows,
         )
@@ -2086,6 +2093,7 @@ def get_tka_attempt(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any
                 aq.topic,
                 aq.order_index,
                 aq.metadata,
+                COALESCE(aq.answer_format, q.answer_format, 'multiple_choice') AS answer_format,
                 q.metadata AS source_metadata
             FROM tka_attempt_questions aq
             LEFT JOIN tka_questions q ON q.id = aq.question_id
@@ -2212,7 +2220,8 @@ def submit_tka_attempt(
                 difficulty,
                 topic,
                 explanation,
-                metadata
+                metadata,
+                COALESCE(answer_format, (metadata->>'question_format'), 'multiple_choice') AS answer_format
             FROM tka_attempt_questions
             WHERE attempt_id = %s
             ORDER BY order_index ASC
@@ -2248,7 +2257,7 @@ def submit_tka_attempt(
                 {
                     "label": row_meta.get("section_label") or section_key.title(),
                     "subject_area": row_meta.get("subject_area") or ("bahasa_indonesia" if section_key.startswith("bahasa") else "matematika"),
-                    "question_format": row_meta.get("question_format") or "multiple_choice",
+                    "question_format": row.get("answer_format") or "multiple_choice",
                     "total": 0,
                     "correct": 0,
                 },
@@ -2386,7 +2395,8 @@ def get_tka_result(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any]
                 topic,
                 explanation,
                 metadata,
-                order_index
+                order_index,
+                COALESCE(answer_format, (metadata->>'question_format'), 'multiple_choice') AS answer_format
             FROM tka_attempt_questions
             WHERE attempt_id = %s
             ORDER BY order_index ASC

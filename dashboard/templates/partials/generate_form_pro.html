@@ -1,12 +1,14 @@
 {% set default_section_key = 'bahasa_pg' %}
 <div class="row g-3 align-items-end">
     <div class="col-lg-4">
-        <label class="form-label">Jenis Latihan</label>
-        <select class="form-select" id="generateSubject" required>
-            {% for subject in subjects %}
-            <option value="{{ subject.id }}">{{ subject.name }} ({{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }})</option>
-            {% endfor %}
+        <label class="form-label">Tes</label>
+        <select class="form-select" id="generateTest">
+            <option value="">Pilih tes</option>
         </select>
+    </div>
+    <div class="col-lg-4">
+        <label class="form-label">Jenis Latihan</label>
+        <select class="form-select" id="generateSubject" required></select>
     </div>
     <div class="col-lg-8">
         <label class="form-label">Kategori Mapel & Tingkat</label>
