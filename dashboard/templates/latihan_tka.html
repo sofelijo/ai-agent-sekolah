@@ -550,9 +550,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const pgActual = findActualFormatCount(subject, 'multiple_choice');
         const tfActual = findActualFormatCount(subject, 'true_false');
         const topicBadges = buildTopicBadges(subject.topics);
-        const subjectId = escapeHtml(String(subject.subject_id || subject.mapel_id || ''));
+        const subjectId = escapeHtml(String(subject.mapel_id || ''));
         const testSubjectId = escapeHtml(String(subject.id || subject.test_subject_id || ''));
-        const mapelId = escapeHtml(String(subject.mapel_id || subject.subject_id || ''));
+        const mapelId = escapeHtml(String(subject.mapel_id || ''));
         const testId = escapeHtml(String(subject.test_id || subject.testId || ''));
         const gradeValue = escapeHtml(String(subject.grade_level || subject.mapel_grade_level || ''));
         return `

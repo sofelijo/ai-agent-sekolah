@@ -3081,11 +3081,13 @@ def fetch_tka_questions(
     subject_id: Optional[int] = None,
     *,
     test_subject_id: Optional[int] = None,
+    test_id: Optional[int] = None,
+    mapel_id: Optional[int] = None,
     difficulty: Optional[str] = None,
     topic: Optional[str] = None,
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
-    if not subject_id and not test_subject_id:
+    if not subject_id and not test_subject_id and not mapel_id and not test_id:
         return []
     clauses = []
     params: List[Any] = []
@@ -3095,6 +3097,12 @@ def fetch_tka_questions(
     if test_subject_id:
         clauses.append("q.test_subject_id = %s")
         params.append(test_subject_id)
+    if test_id:
+        clauses.append("q.test_id = %s")
+        params.append(test_id)
+    if mapel_id:
+        clauses.append("q.mapel_id = %s")
+        params.append(mapel_id)
     if difficulty:
         clauses.append("q.difficulty = %s")
         params.append(difficulty)
@@ -3347,7 +3355,7 @@ def delete_tka_stimulus(stimulus_id: int) -> bool:
 
 
 def create_tka_questions(
-    subject_id: int,
+    subject_id: Optional[int],
     questions: Iterable[Dict[str, Any]],
     *,
     created_by: Optional[int] = None,
@@ -3355,27 +3363,15 @@ def create_tka_questions(
     test_subject_id: Optional[int] = None,
     mapel_id: Optional[int] = None,
 ) -> int:
-    if not subject_id:
-        raise ValueError("subject_id wajib diisi.")
-
-    existing_prompts: set[str] = set()
-    with get_cursor() as cur:
-        cur.execute(
-            "SELECT LOWER(TRIM(prompt)) FROM tka_questions WHERE subject_id = %s",
-            (subject_id,),
-        )
-        for row in cur.fetchall():
-            value = row[0]
-            if isinstance(value, str):
-                existing_prompts.add(value.strip())
+    subject_id = subject_id or None
+    key_for_uniqueness = subject_id or mapel_id or test_subject_id
+    if not key_for_uniqueness:
+        raise ValueError("subject_id atau mapel_id atau test_subject_id wajib diisi.")
 
     question_records: List[Dict[str, Any]] = []
     for question in questions or []:
         prompt = (question.get("prompt") or "").strip()
         if not prompt:
-            continue
-        normalized_prompt = prompt.lower().strip()
-        if normalized_prompt in existing_prompts:
             continue
         difficulty = (question.get("difficulty") or "easy").strip().lower()
         if difficulty not in {"easy", "medium", "hard"}:
@@ -3413,20 +3409,26 @@ def create_tka_questions(
                 "answer_format": question_type,
             }
         )
-        existing_prompts.add(normalized_prompt)
     if not question_records:
         return 0
     with get_cursor(commit=True) as cur:
         stimulus_cache: Dict[str, int] = {}
         inserted = 0
         for record in question_records:
+            resolved_subject_id = subject_id or None
+            if not resolved_subject_id and record.get("mapel_id"):
+                try:
+                    resolved_subject_id = ensure_tka_subject_from_mapel(record.get("mapel_id"))
+                except Exception:
+                    resolved_subject_id = None
             stimulus_id = _resolve_question_stimulus(
                 cur,
-                subject_id,
+                resolved_subject_id,
                 record.get("stimulus"),
                 created_by,
                 stimulus_cache,
             )
+            # subject_id disimpan NULL; resolved_subject_id hanya untuk kebutuhan stimulus/dedup
             cur.execute(
                 """
                 INSERT INTO tka_questions (
@@ -3450,7 +3452,7 @@ def create_tka_questions(
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (
-                    subject_id,
+                    None,
                     record.get("mapel_id"),
                     record.get("test_id"),
                     record.get("test_subject_id"),
@@ -3469,15 +3471,16 @@ def create_tka_questions(
                 ),
             )
             inserted += cur.rowcount or 0
-        cur.execute(
-            """
-            UPDATE tka_subjects
-            SET question_revision = question_revision + 1,
-                updated_at = NOW()
-            WHERE id = %s
-            """,
-            (subject_id,),
-        )
+        if subject_id:
+            cur.execute(
+                """
+                UPDATE tka_subjects
+                SET question_revision = question_revision + 1,
+                    updated_at = NOW()
+                WHERE id = %s
+                """,
+                (subject_id,),
+            )
     return inserted
 
 

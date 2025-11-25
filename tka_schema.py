@@ -80,7 +80,7 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_questions (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER NOT NULL REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
             stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL,
             topic TEXT,
             difficulty TEXT NOT NULL,
@@ -96,6 +96,12 @@ def ensure_tka_schema(cursor) -> None:
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT tka_questions_difficulty_check CHECK (difficulty IN ('easy','medium','hard'))
         );
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_questions
+        ALTER COLUMN subject_id DROP NOT NULL;
         """
     )
     cursor.execute(

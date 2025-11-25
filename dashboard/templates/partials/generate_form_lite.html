@@ -10,9 +10,11 @@
         <select class="form-select" id="generateSubject" required></select>
     </div>
     <div class="col-12 col-md-4">
-        <label class="form-label">Format</label>
-        <select class="form-select" id="generateFormatType" disabled>
+        <label class="form-label">Format jawaban</label>
+        <select class="form-select" id="generateFormatType">
             <option value="multiple_choice" selected>Pilihan Ganda (PG)</option>
+            <option value="true_false">Benar / Salah (BS)</option>
+            <option value="mix">Campuran (PG + BS)</option>
         </select>
     </div>
 </div>
@@ -70,6 +72,8 @@
             <label class="form-label small">Format Jawaban</label>
             <select class="form-select" id="generateAnswerMode">
                 <option value="multiple_choice" selected>Pilihan ganda saja</option>
+                <option value="true_false">Benar / Salah saja</option>
+                <option value="mix">Campuran (PG + Benar/Salah)</option>
             </select>
         </div>
         <div class="col-12 col-md-6">

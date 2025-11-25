@@ -1,42 +1,33 @@
 {% set default_section_key = 'bahasa_pg' %}
 <div class="row g-3 align-items-end">
-    <div class="col-lg-4">
+    <div class="col-12 col-md-4">
         <label class="form-label">Tes</label>
         <select class="form-select" id="generateTest">
             <option value="">Pilih tes</option>
         </select>
     </div>
-    <div class="col-lg-4">
-        <label class="form-label">Jenis Latihan</label>
+    <div class="col-12 col-md-4">
+        <label class="form-label">Mapel pada Tes</label>
         <select class="form-select" id="generateSubject" required></select>
     </div>
-    <div class="col-lg-8">
-        <label class="form-label">Kategori Mapel & Tingkat</label>
-        <div class="row g-2 align-items-end">
-            <div class="col-sm-6">
-                <select class="form-select" id="generateSection">
-                    {% for section in section_templates %}
-                    <option value="{{ section.key }}" data-subject-area="{{ section.subject_area }}" {% if section.key == default_section_key %}selected{% endif %}>{{ section.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-sm-6">
-                <select class="form-select" id="generateGrade">
-                    {% for level, label in grade_labels.items() %}
-                    <option value="{{ level }}">{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label">Format</label>
+        <select class="form-select" id="generateFormatType">
+            <option value="multiple_choice" selected>Pilihan Ganda (PG)</option>
+            <option value="true_false">Benar / Salah (BS)</option>
+            <option value="mix">Campuran (PG + BS)</option>
+        </select>
     </div>
 </div>
 <div class="row g-3 align-items-end">
-    <div class="col-lg-4">
-        <label class="form-label">Topik utama</label>
-        <input type="text" class="form-control" id="generateTopic" placeholder="Contoh: Bilangan pecahan" required>
-     
+    <div class="col-12 col-lg-4">
+        <label class="form-label">Topik Mapel</label>
+        <select class="form-select" id="generateTopic" required data-manage-url="{{ url_for('main.latihan_tka_tests') }}">
+            <option value="__manage__">+ Tambah topik di halaman Tes</option>
+            <option value="" selected disabled>Pilih topik</option>
+        </select>
     </div>
-    <div class="col-lg-4">
+    <div class="col-12 col-lg-4">
         <label class="form-label">Mode pembuatan</label>
         <div class="btn-group w-100" role="group" aria-label="Pilih skenario pembuatan soal">
             <input type="radio" class="btn-check" name="generatorScope" id="generatorScopeBundle" value="bundle" checked>
@@ -46,27 +37,18 @@
         </div>
         
     </div>
-    <div class="col-lg-4">
-        <label class="form-label">Tipe & jawaban</label>
-        <div class="row g-2">
-            <div class="col-sm-6">
-                <select class="form-select" id="generateQuestionType">
-                    <option value="direct">Soal ringkas langsung</option>
-                    <option value="story" selected>Soal cerita penalaran</option>
-                </select>
-            </div>
-            <div class="col-sm-6">
-                <select class="form-select" id="generateAnswerMode">
-                    <option value="multiple_choice" selected>Pilihan ganda saja</option>
-                    <option value="true_false">Benar / Salah saja</option>
-                    <option value="mix">Campuran (PG + Benar/Salah)</option>
-                </select>
-            </div>
+    <div class="col-12 col-lg-4">
+        <label class="form-label">Tipe soal</label>
+        <div id="questionTypeWrapper" style="display: none;">
+            <select class="form-select" id="generateQuestionType">
+                <option value="story">Cerita penalaran</option>
+                <option value="direct">Ringkas langsung</option>
+            </select>
         </div>
     </div>
 </div>
 <div class="row g-3 align-items-end">
-    <div class="col-md-4">
+    <div class="col-12 col-md-4">
         <label class="form-label">Kesulitan</label>
         <select class="form-select" id="generateDifficulty">
             <option value="easy">Mudah</option>
@@ -74,14 +56,63 @@
             <option value="hard">Susah</option>
         </select>
     </div>
-    <div class="col-md-4" id="generateAmountGroup">
-        <label class="form-label" id="generateAmountLabel">Jumlah stimulus</label>
-        <input type="number" class="form-control" id="generateAmount" min="1" max="6" value="1" placeholder="Jumlah stimulus">
-        
+    <div class="col-12 col-md-4" id="stimulusFormatGroup">
+        <label class="form-label">Format stimulus</label>
+        <div class="btn-group w-100 stimulus-format-group" role="group" aria-label="Pilih format stimulus">
+            <input type="radio" class="btn-check" name="stimulusFormat" id="stimulusFormatStory" value="story" checked>
+            <label class="btn btn-outline-primary stimulus-format-option" for="stimulusFormatStory">
+                <select class="form-select form-select-sm stimulus-format-select" id="storyParagraphLength">
+                    <option value="2" selected>2 paragraf</option>
+                    <option value="3">3 paragraf</option>
+                    <option value="4">4 paragraf</option>
+                    <option value="5">5 paragraf</option>
+                    <option value="6">6 paragraf</option>
+                </select>
+            </label>
+            <input type="radio" class="btn-check" name="stimulusFormat" id="stimulusFormatTable" value="table">
+            <label class="btn btn-outline-primary stimulus-format-option" for="stimulusFormatTable">Tabel</label>
+        </div>
     </div>
-    <div class="col-md-4" id="generateBundleSizeGroup">
-        <label class="form-label" id="generateBundleLabel">Soal per stimulus</label>
-        <input type="number" class="form-control" id="generateBundleSize" step="1" value="3" placeholder="Soal per stimulus">
-        
+    <div class="col-12 col-md-4">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-xl-6" id="generateAmountGroup">
+                <label class="form-label" id="generateAmountLabel">Jumlah stimulus</label>
+                <input type="number" class="form-control" id="generateAmount" min="1" max="6" value="1" placeholder="Jumlah stimulus">
+                
+            </div>
+            <div class="col-12 col-xl-6" id="generateBundleSizeGroup">
+                <label class="form-label" id="generateBundleLabel">Soal per stimulus</label>
+                <input type="number" class="form-control" id="generateBundleSize" step="1" value="3" placeholder="Soal per stimulus">
+                
+            </div>
+        </div>
+    </div>
+</div>
+<div class="visually-hidden">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Kategori Mapel</label>
+            <select class="form-select" id="generateSection">
+                {% for section in section_templates %}
+                <option value="{{ section.key }}" data-subject-area="{{ section.subject_area }}" {% if section.key == default_section_key %}selected{% endif %}>{{ section.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Jenjang</label>
+            <select class="form-select" id="generateGrade">
+                {% for level, label in grade_labels.items() %}
+                <option value="{{ level }}">{{ label }}</option>
+            {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-6">
+            <label class="form-label small">Format Jawaban</label>
+            <select class="form-select" id="generateAnswerMode">
+                <option value="multiple_choice" selected>Pilihan ganda saja</option>
+                <option value="true_false">Benar / Salah saja</option>
+                <option value="mix">Campuran (PG + Benar/Salah)</option>
+            </select>
+        </div>
     </div>
 </div>

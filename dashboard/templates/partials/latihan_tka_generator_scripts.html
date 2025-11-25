@@ -11,6 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusBox = document.getElementById('tkaStatus');
     const triggerBtns = document.querySelectorAll('[data-generator-submit]');
     const copyPromptBtn = document.getElementById('copyPromptBtn');
+    const importJsonBtn = document.getElementById('importJsonBtn');
+    const importJsonInput = document.getElementById('importJsonInput');
+    const importJsonModalEl = document.getElementById('importJsonModal');
+    const importJsonTextarea = document.getElementById('importJsonTextarea');
+    const importJsonFileInput = document.getElementById('importJsonFileInput');
+    const confirmImportJsonBtn = document.getElementById('confirmImportJsonBtn');
+    const importMapelSelect = document.getElementById('importMapelSelect');
+    const importTopicSelect = document.getElementById('importTopicSelect');
+    const importJsonModal = importJsonModalEl && window.bootstrap
+        ? new bootstrap.Modal(importJsonModalEl)
+        : null;
+    let promptStale = true;
+    const PROMPT_PREFIX = 'baut langsung bisa di klik tombol copy :\n';
     const baseGeneratorMode = (generatorModeInput ? generatorModeInput.value : 'lite').toLowerCase();
     const isLitePage = baseGeneratorMode === 'lite';
     let stimulusCache = [];
@@ -18,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let testSubjectCache = {};
     let generatedBundle = null;
     let isGenerating = false;
+    let isSavingQuestions = false;
 
     const selectors = {
         test: () => document.getElementById('generateTest'),
@@ -35,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
         formatTf: () => document.getElementById('generateFormatTf'),
         styleSimilarity: () => document.getElementById('generateStyleSimilarity'),
         example: () => document.getElementById('generateExample'),
+        stimulusFormat: () => document.querySelector('input[name="stimulusFormat"]:checked'),
+        storyParagraphs: () => document.getElementById('storyParagraphLength'),
         imageDescription: () => document.getElementById('generateImageDescription'),
         imageDescriptionGroup: () => document.getElementById('generateImageDescriptionGroup'),
         scope: () => document.querySelector('input[name="generatorScope"]:checked'),
@@ -48,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bundleLabel: () => document.getElementById('generateBundleLabel'),
         amountHint: () => document.getElementById('generateAmountHint'),
         amountLabel: () => document.getElementById('generateAmountLabel'),
+        stimulusFormatGroup: () => document.getElementById('stimulusFormatGroup'),
     };
     const manualTestSelect = document.getElementById('manualTest');
     const manualSubjectSelect = document.getElementById('questionSubject');
@@ -72,11 +89,74 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function formatPromptForDisplay(rawPrompt) {
+        const normalized = (rawPrompt || '').replace(PROMPT_PREFIX, '').replace(`${PROMPT_PREFIX.trimEnd()} `, '').trimStart();
+        return `${PROMPT_PREFIX}${normalized}`;
+    }
+
+    function setPromptTextareaContent(rawPrompt) {
+        if (!promptTextArea) return;
+        promptTextArea.value = formatPromptForDisplay(rawPrompt);
+        promptStale = false;
+    }
+
+    function markPromptStale() {
+        promptStale = true;
+        if (promptTextArea) {
+            promptTextArea.value = '';
+        }
+    }
+
+    function normalizeImportedQuestion(question) {
+        if (!question || typeof question !== 'object') return null;
+        const options = (() => {
+            if (Array.isArray(question.options)) return question.options;
+            if (Array.isArray(question.choices)) {
+                return question.choices.map((text, idx) => ({
+                    key: String.fromCharCode(65 + idx),
+                    text,
+                }));
+            }
+            if (question.option_map && typeof question.option_map === 'object') {
+                return Object.entries(question.option_map).map(([key, text]) => ({ key, text }));
+            }
+            return [];
+        })();
+        return {
+            prompt: question.prompt || question.question || '',
+            topic: question.topic || '',
+            difficulty: question.difficulty || 'easy',
+            correct_key: question.correct_key || question.answer || (options[0]?.key || 'A'),
+            explanation: question.explanation || question.explain || '',
+            options,
+            metadata: Object.assign({}, question.metadata || {}, {
+                true_false_statements: Array.isArray(question.statements) ? question.statements : (question.metadata?.true_false_statements || []),
+            }),
+            stimulus: question.stimulus || null,
+            generator_mode: question.generator_mode || question.mode || 'import_json',
+            question_type: question.question_type || question.answer_format || 'multiple_choice',
+        };
+    }
+
+    function getStimulusFormatChoice() {
+        const radio = selectors.stimulusFormat();
+        return radio ? radio.value : 'story';
+    }
+
+    function syncStoryParagraphVisibility() {
+        const select = selectors.storyParagraphs();
+        if (!select) return;
+        const mode = resolveGeneratorMode();
+        const format = getStimulusFormatChoice();
+        const enable = mode !== 'pro' && format === 'story';
+        select.disabled = !enable;
+    }
+
     function resolveGeneratorMode() {
         if (baseGeneratorMode !== 'pro') return baseGeneratorMode;
         const scope = selectors.scope();
         if (scope && scope.value === 'questions_only') return 'pro';
-        return 'lite';
+        return 'bundle';
     }
 
     function showStatus(message, tone = 'info') {
@@ -152,6 +232,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return Number.isFinite(value) && value ? value : null;
     }
 
+    function getSelectedMapelInfo() {
+        const subjectSelect = selectors.subject();
+        const opt = subjectSelect && subjectSelect.selectedOptions && subjectSelect.selectedOptions.length
+            ? subjectSelect.selectedOptions[0]
+            : null;
+        const mapelId = opt ? parseInt(opt.dataset?.mapelId || opt.dataset?.mapel_id || opt.value, 10) : NaN;
+        const testSubjectId = opt ? parseInt(opt.dataset?.testSubjectId || '', 10) : NaN;
+        return {
+            mapelId: Number.isFinite(mapelId) ? mapelId : null,
+            testSubjectId: Number.isFinite(testSubjectId) ? testSubjectId : null,
+        };
+    }
+
     function getSectionMeta() {
         const sectionSelect = selectors.section();
         const fallback = { key: 'matematika', subject_area: 'matematika' };
@@ -171,13 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const pgInput = selectors.formatPg();
         const tfInput = selectors.formatTf();
         const answerSelect = selectors.answerMode();
-        let selectedFormat = (formatSelect?.value === 'true_false') ? 'true_false' : 'multiple_choice';
-        if (isLitePage) {
-            selectedFormat = 'multiple_choice';
-            if (formatSelect) {
-                formatSelect.value = 'multiple_choice';
-            }
-        }
+        let selectedFormat = (formatSelect?.value === 'true_false') ? 'true_false'
+            : (formatSelect?.value === 'mix') ? 'mix'
+            : 'multiple_choice';
         let total = parseInt(amountInput?.value || '0', 10);
         if (!Number.isFinite(total) || total <= 0) {
             total = 3;
@@ -188,12 +277,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedFormat === 'true_false') {
             if (pgInput) pgInput.value = '0';
             if (tfInput) tfInput.value = String(total);
+        } else if (selectedFormat === 'mix') {
+            const half = Math.max(1, Math.floor(total / 2));
+            if (pgInput) pgInput.value = String(total - half);
+            if (tfInput) tfInput.value = String(half);
         } else {
             if (pgInput) pgInput.value = String(total);
             if (tfInput) tfInput.value = '0';
         }
         if (answerSelect) {
-            answerSelect.value = isLitePage ? 'multiple_choice' : selectedFormat;
+            answerSelect.value = selectedFormat;
         }
     }
 
@@ -202,16 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tfValue = option ? parseInt(option.dataset.tf || '0', 10) || 0 : 0;
         const formatSelect = selectors.formatType();
         let selectedFormat = formatSelect ? formatSelect.value : 'multiple_choice';
-        if (!isLitePage) {
-            if (tfValue > 0 && pgValue === 0) {
-                selectedFormat = 'true_false';
-            } else if (pgValue > 0 && tfValue === 0) {
-                selectedFormat = 'multiple_choice';
-            } else if (pgValue > 0 || tfValue > 0) {
-                selectedFormat = pgValue >= tfValue ? 'multiple_choice' : 'true_false';
-            }
-        } else {
+        if (tfValue > 0 && pgValue === 0) {
+            selectedFormat = 'true_false';
+        } else if (pgValue > 0 && tfValue === 0) {
             selectedFormat = 'multiple_choice';
+        } else if (pgValue > 0 || tfValue > 0) {
+            selectedFormat = pgValue >= tfValue ? 'multiple_choice' : 'mix';
         }
         if (formatSelect) {
             formatSelect.value = selectedFormat;
@@ -391,6 +480,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const rawTopic = selectors.topic() ? selectors.topic().value : '';
         const topicValue = rawTopic === '__manage__' ? '' : rawTopic;
         const selectedMode = resolveGeneratorMode();
+        const stimulusFormat = getStimulusFormatChoice();
+        const storyParagraphSelect = selectors.storyParagraphs();
+        let storyParagraphs = storyParagraphSelect ? parseInt(storyParagraphSelect.value, 10) : NaN;
+        if (!Number.isFinite(storyParagraphs) || storyParagraphs <= 0) {
+            storyParagraphs = 2;
+        }
         const amountValue = selectors.amount() ? parseInt(selectors.amount().value, 10) || 0 : 0;
         const bundleInput = selectors.bundle();
         const rawBundle = bundleInput ? parseInt(bundleInput.value, 10) : NaN;
@@ -398,7 +493,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const resolvedAnswerMode = selectors.answerMode() ? selectors.answerMode().value : 'multiple_choice';
         return {
             test_id: Number.isFinite(testId) ? testId : null,
-            subject_id: Number.isFinite(subjectId) ? subjectId : null,
             test_subject_id: Number.isFinite(testSubjectId) ? testSubjectId : null,
             mapel_id: Number.isFinite(mapelId) ? mapelId : null,
             subject_hint: subjectLabel,
@@ -407,13 +501,15 @@ document.addEventListener('DOMContentLoaded', () => {
             amount: selectedMode === 'pro' ? 1 : amountValue,
             grade_level: selectors.grade() ? selectors.grade().value : '',
             question_type: selectors.questionType() ? selectors.questionType().value : 'direct',
-            answer_mode: isLitePage ? 'multiple_choice' : resolvedAnswerMode,
+            answer_mode: resolvedAnswerMode || 'multiple_choice',
             style_similarity: selectors.styleSimilarity() ? selectors.styleSimilarity().value : '50',
             example: selectors.example() ? selectors.example().value : '',
             generator_mode: selectedMode,
             section_key: selectors.section() ? selectors.section().value : 'matematika',
             bundle_size: bundleSize,
             image_description: selectors.imageDescription() ? selectors.imageDescription().value : '',
+            stimulus_style: stimulusFormat || '',
+            story_paragraphs: stimulusFormat === 'story' ? storyParagraphs : null,
             stimulus_id: getStimulusSelection(),
         };
     }
@@ -425,6 +521,120 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 
+    function importQuestionsFromJson(rawText) {
+        if (!rawText) {
+            showStatus('File JSON kosong.', 'warning');
+            return;
+        }
+        const parseJsonInput = (input) => {
+            const normalizeQuotes = (text) => text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+            const stripTrailingCommas = (text) => text.replace(/,\s*([}\]])/g, '$1');
+            let text = (input || '').trim().replace(/^\uFEFF/, '');
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                // coba perbaiki kutip miring atau koma gantung
+            }
+            text = stripTrailingCommas(normalizeQuotes(text));
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                return null;
+            }
+        };
+        let parsed;
+        parsed = parseJsonInput(rawText);
+        if (!parsed) {
+            showStatus('Format JSON tidak valid.', 'danger');
+            return;
+        }
+        const extractQuestions = (data) => {
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data?.questions)) return data.questions;
+            if (Array.isArray(data?.data?.questions)) return data.data.questions;
+            if (Array.isArray(data?.stimulus)) {
+                const collected = [];
+                data.stimulus.forEach(stim => {
+                    const stimQuestions = Array.isArray(stim?.questions) ? stim.questions : [];
+                    const bundleKey = stim.bundle_key || (stim.id ? `stim-${stim.id}` : `stim-${Math.random().toString(16).slice(2, 8)}`);
+                    const baseStim = Object.assign({}, stim, { bundle_key: bundleKey });
+                    stimQuestions.forEach(q => {
+                        collected.push(Object.assign({}, q, { stimulus: baseStim }));
+                    });
+                });
+                if (collected.length) return collected;
+            }
+            return [];
+        };
+        const questions = extractQuestions(parsed);
+        if (!questions.length) {
+            showStatus('Tidak ada soal ditemukan di file JSON.', 'warning');
+            return;
+        }
+        const normalized = questions.map(normalizeImportedQuestion).filter(item => item && item.prompt);
+        if (!normalized.length) {
+            showStatus('Tidak ada soal valid untuk ditampilkan.', 'warning');
+            return;
+        }
+        const topicSelect = selectors.topic();
+        const forcedTopic = topicSelect ? (topicSelect.value || '').trim() : '';
+        if (forcedTopic) {
+            normalized.forEach(item => {
+                item.topic = forcedTopic;
+                if (!item.metadata) item.metadata = {};
+                item.metadata.topic = forcedTopic;
+            });
+        }
+        normalized.forEach(item => {
+            item.generator_mode = 'bundle';
+            item.answer_format = item.question_type || item.answer_format || 'multiple_choice';
+        });
+        const tfCount = normalized.filter(q => (q.question_type === 'true_false')).length;
+        const pgCount = normalized.length - tfCount;
+        const answerModeSelect = selectors.answerMode();
+        const formatSelect = selectors.formatType();
+        if (answerModeSelect) {
+            if (tfCount && !pgCount) {
+                answerModeSelect.value = 'true_false';
+            } else if (tfCount && pgCount) {
+                answerModeSelect.value = 'mix';
+            } else {
+                answerModeSelect.value = 'multiple_choice';
+            }
+        }
+        if (formatSelect) {
+            if (tfCount && !pgCount) {
+                formatSelect.value = 'true_false';
+            } else if (tfCount && pgCount) {
+                formatSelect.value = 'mix';
+            } else {
+                formatSelect.value = 'multiple_choice';
+            }
+            syncFormatCountsFromInputs();
+        }
+        const importedMeta = {
+            prompt: parsed?.prompt || '',
+            mode: parsed?.generator_mode || parsed?.mode || 'import_json',
+            section_key: parsed?.section_key || parsed?.subject_area || '',
+        };
+        renderPreview(normalized, normalized.length);
+        generatedBundle = {
+            questions: normalized,
+            prompt: importedMeta.prompt,
+            mode: importedMeta.mode,
+            requested: normalized.length,
+            section_key: importedMeta.section_key,
+        };
+        setPromptTextareaContent(importedMeta.prompt || '');
+        showStatus('Soal dari JSON berhasil dimuat untuk direview.', 'success');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+        }
+        if (preview && typeof preview.scrollIntoView === 'function') {
+            preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     function renderStimulusPreview(stimulus) {
         const previewBox = selectors.stimulusPreview();
         if (!previewBox) return;
@@ -432,6 +642,9 @@ document.addEventListener('DOMContentLoaded', () => {
             previewBox.innerHTML = '<div class="alert alert-light border mb-0">Pilih stimulus untuk melihat detailnya.</div>';
             return;
         }
+        const tableHtml = stimulus.table
+            ? `<pre class="bg-light p-2 rounded border small mb-2">${escapeHtml(stimulus.table)}</pre>`
+            : '';
         const imageHtml = stimulus.image_url
             ? `<img src="${escapeHtml(stimulus.image_url)}" alt="Gambar stimulus" class="img-fluid rounded mb-2">`
             : '';
@@ -446,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${stimulus.type ? `<span class="badge text-bg-light text-uppercase">${escapeHtml(stimulus.type)}</span>` : ''}
                     </div>
                     ${imageHtml}
+                    ${tableHtml}
                     <p class="small mb-1">${escapeHtml(stimulus.narrative || 'Narasi belum tersedia.')}</p>
                     ${stimulus.image_prompt ? `<div class="small text-muted">Deskripsi gambar: ${escapeHtml(stimulus.image_prompt)}</div>` : ''}
                 </div>
@@ -483,15 +697,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = selectors.stimulusSelect();
         const subjectSelect = selectors.subject();
         const subjectId = subjectSelect ? parseInt(subjectSelect.value, 10) : NaN;
+        const resolved = resolveSubjectSelection();
+        const mapelId = resolved.mapelId;
         if (!select) return;
-        if (!Number.isFinite(subjectId) || !subjectId) {
+        if ((!Number.isFinite(subjectId) || !subjectId) && (!Number.isFinite(mapelId) || !mapelId)) {
             stimulusCache = [];
             renderStimulusOptions();
             return;
         }
         select.innerHTML = '<option value="">Memuat stimulus…</option>';
         try {
-            const response = await fetch(`/latihan-tka/stimulus?subject_id=${subjectId}`);
+            const params = new URLSearchParams();
+            if (Number.isFinite(subjectId) && subjectId) params.append('subject_id', subjectId);
+            if (Number.isFinite(mapelId) && mapelId) params.append('mapel_id', mapelId);
+            const response = await fetch(`/latihan-tka/stimulus?${params.toString()}`);
             const data = await response.json();
             if (response.ok && data.success !== false) {
                 stimulusCache = Array.isArray(data.stimulus) ? data.stimulus : [];
@@ -536,6 +755,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imageGroup) {
             imageGroup.classList.toggle('d-none', mode === 'pro');
         }
+        const stimFormatGroup = selectors.stimulusFormatGroup();
+        if (stimFormatGroup) {
+            stimFormatGroup.classList.toggle('d-none', mode === 'pro');
+        }
+        syncStoryParagraphVisibility();
     }
 
     function buildStimulusBlock(stimulus) {
@@ -558,6 +782,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label class="form-label small mb-1">Narasi</label>
                 <textarea class="form-control form-control-sm" rows="3" data-stimulus-field="narrative">${escapeHtml(payload.narrative || '')}</textarea>
             </div>
+            ${payload.table ? `
+            <div class="mb-2">
+                <label class="form-label small mb-1">Tabel</label>
+                <pre class="bg-light p-2 rounded border small" data-stimulus-field="table">${escapeHtml(payload.table)}</pre>
+            </div>
+            ` : ''}
             <div class="mb-2">
                 <label class="form-label small mb-1">Deskripsi gambar (opsional)</label>
                 <textarea class="form-control form-control-sm" rows="2" data-stimulus-field="image_prompt">${escapeHtml(payload.image_prompt || '')}</textarea>
@@ -580,10 +810,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Paksa subject_area mengikuti pilihan terkini supaya tidak ikut metadata lama/AI
         payload.metadata.section_key = sectionMeta.subject_area;
         payload.metadata.subject_area = sectionMeta.subject_area;
+        if ((questionType || question?.question_type) === 'true_false') {
+            const tfStatements = Array.isArray(question?.statements) ? question.statements : (payload.metadata.true_false_statements || []);
+            payload.metadata.true_false_statements = tfStatements;
+        }
         card.dataset.payload = encodePayload(payload);
     }
 
     function createQuestionCard(question, ordinal, sectionMeta, stimulus) {
+        const rawTfStatements = Array.isArray(question?.statements) && question.statements.length
+            ? question.statements
+            : (Array.isArray(question?.metadata?.true_false_statements) ? question.metadata.true_false_statements : []);
+        const tfStatements = [0, 1, 2].map(idx => rawTfStatements[idx] || { text: '', answer: 'benar' });
         const opts = Array.isArray(question?.options) && question.options.length ? question.options : [
             { key: 'A', text: '' },
             { key: 'B', text: '' },
@@ -629,13 +867,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" class="form-control" data-field="correct" value="${question?.correct_key || 'A'}">
                 </div>
             </div>
-            <div class="option-grid option-grid-4 mb-2">
-                ${opts.map(opt => `
-                    <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
-                `).join('')}
-            </div>
-            <label class="form-label small">Pembahasan</label>
-            <textarea class="form-control" data-field="explanation" rows="2">${question?.explanation || ''}</textarea>
+            ${questionType === 'true_false' ? `
+                <div class="mb-2">
+                    <label class="form-label small">Pernyataan Benar/Salah</label>
+                    <div class="row g-2">
+                        ${tfStatements.slice(0, 3).map((st, idx) => `
+                            <div class="col-12">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-9">
+                                        <textarea class="form-control form-control-sm" rows="2" data-tf-text="${idx}" placeholder="Pernyataan ${idx + 1}">${st.text || ''}</textarea>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select form-select-sm" data-tf-answer="${idx}">
+                                            <option value="benar" ${st.answer === 'benar' ? 'selected' : ''}>Benar</option>
+                                            <option value="salah" ${st.answer === 'salah' ? 'selected' : ''}>Salah</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Pembahasan</label>
+                    <textarea class="form-control" data-field="explanation" rows="2">${question?.explanation || ''}</textarea>
+                </div>
+            ` : `
+                <div class="option-grid option-grid-4 mb-2">
+                    ${opts.map(opt => `
+                        <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
+                    `).join('')}
+                </div>
+                <label class="form-label small">Pembahasan</label>
+                <textarea class="form-control" data-field="explanation" rows="2">${question?.explanation || ''}</textarea>
+            `}
         `;
         persistQuestionPayload(card, question || {}, sectionMeta, stimulus, questionType);
         return card;
@@ -771,6 +1036,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => loadStimulusList(stimSelect ? stimSelect.value : null));
         }
+        const formatRadios = document.querySelectorAll('input[name="stimulusFormat"]');
+        if (formatRadios && formatRadios.length) {
+            formatRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    syncStoryParagraphVisibility();
+                });
+            });
+        }
     }
 
     function bindSubmitTriggers() {
@@ -833,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         : (payload.amount || questions.length);
                     generatedBundle = {
                         questions,
-                        test_subject_id: payload.test_subject_id,
+                test_subject_id: payload.test_subject_id,
                         mapel_id: payload.mapel_id,
                         section_key: payload.section_key,
                         prompt: data.prompt || payload.example || '',
@@ -842,13 +1115,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     renderPreview(questions, expectedQuestions);
                     saveBtn.disabled = false;
-                    if (promptTextArea && data.prompt) {
-                        promptTextArea.value = data.prompt;
+                    if (data.prompt) {
+                        setPromptTextareaContent(data.prompt);
                     }
                     if (data.prompt) {
                         console.debug('[TKA][generate] prompt', data.prompt);
                         try {
-                            const copied = await copyTextToClipboard(data.prompt);
+                            const formattedPrompt = formatPromptForDisplay(data.prompt);
+                            setPromptTextareaContent(data.prompt);
+                            const copied = await copyTextToClipboard(formattedPrompt);
                             if (copied) {
                                 showStatus('ASKA berhasil menyiapkan draft soal dan prompt disalin.', 'success');
                             } else {
@@ -883,6 +1158,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleCopyPrompt() {
         if (!copyPromptBtn || copyPromptBtn.dataset.loading === '1') return;
+        const existingPrompt = promptTextArea ? (promptTextArea.value || '').trim() : '';
+        if (existingPrompt && !promptStale) {
+            const copied = await copyTextToClipboard(existingPrompt);
+            showStatus(copied ? 'Prompt disalin dari hasil terakhir.' : 'Prompt terbaru siap, tapi tidak bisa disalin otomatis.', copied ? 'success' : 'warning');
+            return;
+        }
         const payload = buildPayload();
         const validation = validateGeneratorPayload(payload);
         if (!validation.ok) {
@@ -908,10 +1189,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 data = {};
             }
             if (response.ok && data.success && data.prompt) {
-                if (promptTextArea) {
-                    promptTextArea.value = data.prompt;
-                }
-                const success = await copyTextToClipboard(data.prompt);
+                setPromptTextareaContent(data.prompt);
+                const formatted = formatPromptForDisplay(data.prompt);
+                const success = await copyTextToClipboard(formatted);
                 if (success) {
                     showStatus('Prompt disalin ke clipboard.', 'success');
                 } else {
@@ -936,10 +1216,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!preview) return [];
         const cards = Array.from(preview.querySelectorAll('.question-card'));
         const testId = selectors.test() ? parseInt(selectors.test().value || '', 10) : null;
-        const subjSelect = selectors.subject();
-        const testSubjectId = subjSelect ? parseInt(subjSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : null;
-        const resolved = resolveSubjectSelection();
-        const mapelId = resolved.mapelId;
+        const selection = getSelectedMapelInfo();
+        const testSubjectId = selection.testSubjectId;
+        const mapelId = selection.mapelId;
         const resolveStimulus = (stimulus) => {
             if (!stimulus) return null;
             const key = stimulus.bundle_key
@@ -954,7 +1233,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const globalFormatValue = formatSelect ? formatSelect.value : '';
         const answerModeValue = selectors.answerMode() ? selectors.answerMode().value : '';
         const forcedFormat = (() => {
-            if (isLitePage) return 'multiple_choice';
             if (answerModeValue && answerModeValue !== 'mix') return answerModeValue;
             if (globalFormatValue && globalFormatValue !== 'mix') return globalFormatValue;
             return '';
@@ -971,16 +1249,38 @@ document.addEventListener('DOMContentLoaded', () => {
             metadata.section_key = sectionMeta.subject_area;
             metadata.subject_area = sectionMeta.subject_area;
             metadata.question_format = questionType;
+            if (questionType === 'true_false' && !metadata.true_false_statements && basePayload.metadata?.true_false_statements) {
+                metadata.true_false_statements = basePayload.metadata.true_false_statements;
+            }
             const options = Array.from(card.querySelectorAll('[data-option]'))
                 .filter(input => input.value.trim())
                 .map(input => ({ key: input.dataset.option, text: input.value.trim() }));
-            return {
+            const tfStatements = [];
+            if (questionType === 'true_false') {
+                for (let i = 0; i < 3; i += 1) {
+                    const textEl = card.querySelector(`[data-tf-text="${i}"]`);
+                    const ansEl = card.querySelector(`[data-tf-answer="${i}"]`);
+                    const text = textEl ? textEl.value.trim() : '';
+                    const answer = ansEl ? ansEl.value : '';
+                    if (text) {
+                        tfStatements.push({ text, answer: answer === 'salah' ? 'salah' : 'benar' });
+                    }
+                }
+                if (tfStatements.length === 0 && Array.isArray(basePayload.metadata?.true_false_statements)) {
+                    tfStatements.push(...basePayload.metadata.true_false_statements);
+                }
+            }
+            const result = {
                 prompt: card.querySelector('[data-field="prompt"]')?.value?.trim() || '',
                 topic: card.querySelector('[data-field="topic"]')?.value?.trim() || '',
                 difficulty: card.querySelector('[data-field="difficulty"]')?.value || 'easy',
                 correct_key: card.querySelector('[data-field="correct"]')?.value?.trim() || 'A',
                 explanation: card.querySelector('[data-field="explanation"]')?.value?.trim() || '',
-                options,
+                options: questionType === 'true_false' ? [
+                    { key: 'A', text: 'Benar' },
+                    { key: 'B', text: 'Salah' },
+                ] : options,
+                statements: tfStatements.length ? tfStatements : (metadata.true_false_statements || basePayload.statements || []),
                 metadata,
                 stimulus: resolveStimulus(basePayload.stimulus),
                 generator_mode: basePayload.generator_mode || resolveGeneratorMode(),
@@ -990,6 +1290,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 test_subject_id: Number.isFinite(testSubjectId) ? testSubjectId : null,
                 mapel_id: Number.isFinite(mapelId) ? mapelId : null,
             };
+            if (questionType === 'true_false') {
+                result.correct_key = '';
+            }
+            return result;
         }).filter(item => item.prompt && (item.question_type === 'true_false' || item.options.length >= 2));
     }
 
@@ -1053,12 +1357,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attachSaveHandler() {
         if (!saveBtn || !preview) return;
+        if (saveBtn.dataset.boundSave) return;
+        saveBtn.dataset.boundSave = '1';
         saveBtn.addEventListener('click', async () => {
+            if (isSavingQuestions) return;
             const testSelect = selectors.test();
             const testId = testSelect ? parseInt(testSelect.value, 10) : null;
-            const resolved = resolveSubjectSelection();
-            const testSubjectId = resolved.testSubjectId;
-            const mapelId = resolved.mapelId;
+            const selection = getSelectedMapelInfo();
+            const mapelSelect = selectors.subject();
+            const rawMapelId = mapelSelect ? parseInt(mapelSelect.value, 10) : NaN;
+            const testSubjectId = selection.testSubjectId;
+            const mapelId = Number.isFinite(rawMapelId) ? rawMapelId : selection.mapelId;
             if (!testSubjectId && !mapelId) {
                 showStatus('Pilih mapel pada tes terlebih dahulu.', 'warning');
                 return;
@@ -1069,15 +1378,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const promptPayload = generatedBundle?.prompt || '';
-            const sourceLabel = generatedBundle?.mode === 'pro' ? 'ai_pro' : 'ai_lite';
+            const sourceLabel = generatedBundle?.mode === 'pro'
+                ? 'ai_pro'
+                : (generatedBundle?.mode === 'import_json' ? 'import_json' : 'ai_lite');
             questions.forEach(item => {
                 item.ai_prompt = promptPayload;
                 item.source = sourceLabel;
                 if (!item.test_id) item.test_id = Number.isFinite(testId) ? testId : null;
                 if (!item.test_subject_id) item.test_subject_id = testSubjectId;
             });
+            console.debug('[TKA][save] payload preview', {
+                testId,
+                mapelId,
+                testSubjectId,
+                count: questions.length,
+                sample: questions[0],
+            });
             saveBtn.disabled = true;
             saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan…';
+            isSavingQuestions = true;
             try {
                 const response = await fetch('/latihan-tka/questions', {
                     method: 'POST',
@@ -1102,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Simpan ke Bank Soal';
+                isSavingQuestions = false;
             }
         });
     }
@@ -1279,6 +1599,60 @@ document.addEventListener('DOMContentLoaded', () => {
     bindScopeControls();
     bindFormatControls();
     updateQuestionTypeVisibility('');
+    if (form) {
+        ['input', 'change'].forEach(evt => {
+            form.addEventListener(evt, () => markPromptStale(), { passive: true });
+        });
+    }
+    if (importJsonBtn && importJsonModal) {
+        importJsonBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (importJsonTextarea) {
+                importJsonTextarea.value = '';
+            }
+            if (importJsonFileInput) {
+                importJsonFileInput.value = '';
+            }
+            if (importMapelSelect && selectors.subject()) {
+                importMapelSelect.innerHTML = selectors.subject().innerHTML;
+                importMapelSelect.value = selectors.subject().value || '';
+            }
+            if (importTopicSelect && selectors.topic()) {
+                importTopicSelect.innerHTML = selectors.topic().innerHTML;
+                importTopicSelect.value = selectors.topic().value || '';
+            }
+            importJsonModal.show();
+        });
+    }
+    if (confirmImportJsonBtn) {
+        confirmImportJsonBtn.addEventListener('click', async () => {
+            const pasted = importJsonTextarea ? importJsonTextarea.value.trim() : '';
+            if (importMapelSelect && selectors.subject() && importMapelSelect.value !== selectors.subject().value) {
+                selectors.subject().value = importMapelSelect.value;
+                selectors.subject().dispatchEvent(new Event('change'));
+            }
+            if (importTopicSelect && selectors.topic()) {
+                selectors.topic().value = importTopicSelect.value || selectors.topic().value;
+            }
+            if (pasted) {
+                importQuestionsFromJson(pasted);
+                importJsonModal?.hide();
+                return;
+            }
+            const file = importJsonFileInput && importJsonFileInput.files ? importJsonFileInput.files[0] : null;
+            if (!file) {
+                showStatus('Pilih file JSON atau tempel konten terlebih dahulu.', 'warning');
+                return;
+            }
+            try {
+                const content = await file.text();
+                importQuestionsFromJson(content);
+                importJsonModal?.hide();
+            } catch (err) {
+                showStatus('Gagal membaca file JSON.', 'danger');
+            }
+        });
+    }
     if (copyPromptBtn) {
         copyPromptBtn.addEventListener('click', (event) => {
             event.preventDefault();

@@ -8,10 +8,13 @@
     let SUBJECTS = {{ subjects|tojson }};
     const GRADE_LABELS = {{ grade_labels|tojson }};
     const SECTION_TEMPLATES = {{ section_templates|tojson }};
-    const SECTION_TEMPLATE_MAP = Object.fromEntries((SECTION_TEMPLATES || []).map(section => [section.key, section]));
-    const DEFAULT_TKA_DURATION = {{ default_duration|int }};
-    const TKA_API_BASE = ((window.TKA_API_BASE || 'http://127.0.0.1:5002') + '').trim();
-    document.addEventListener('DOMContentLoaded', () => {
+const SECTION_TEMPLATE_MAP = Object.fromEntries((SECTION_TEMPLATES || []).map(section => [section.key, section]));
+const DEFAULT_TKA_DURATION = {{ default_duration|int }};
+const TKA_API_BASE = ((window.TKA_API_BASE || 'http://127.0.0.1:5002') + '').trim();
+document.addEventListener('DOMContentLoaded', () => {
+        if (TKA_PAGE_MODE === 'generator') {
+            return;
+        }
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
@@ -1639,6 +1642,7 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             const formatKey = (item.answer_format || '').toLowerCase();
             const formatLabel = formatKey === 'true_false' ? 'Benar / Salah' : 'Pilihan Ganda';
             const creatorLabel = formatCreatorLabel(item);
+            const tfStatements = (metadata.true_false_statements || item.statements || item.pernyataan || []).filter(Boolean);
             card.dataset.question = dataAttr;
             card.setAttribute('tabindex', '0');
             if (TKA_PAGE_MODE === 'manual') {
@@ -1699,10 +1703,19 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                         <i class="bi bi-person-circle me-1"></i>Pembuat: ${escapeHtml(creatorLabel)}
                     </div>
                     <p class="mb-2 fw-semibold">${item.prompt}</p>
-                    <ul class="options mb-2">
-                        ${(item.options || []).map(opt => `<li><strong>${opt.key}.</strong> ${opt.text}</li>`).join('')}
-                    </ul>
-                    <p class="mb-1"><strong>Kunci:</strong> ${item.correct_key}</p>
+                    ${formatKey === 'true_false' ? `
+                        <div class="mb-2">
+                            <div class="small text-muted mb-1">Pernyataan</div>
+                            <ul class="options mb-0">
+                                ${tfStatements.slice(0, 3).map((st, idx) => `<li><strong>${idx + 1}.</strong> ${st.text || ''} <span class="badge bg-${(st.answer === 'salah') ? 'danger' : 'success'} ms-1">${(st.answer || 'benar').toUpperCase()}</span></li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : `
+                        <ul class="options mb-2">
+                            ${(item.options || []).map(opt => `<li><strong>${opt.key}.</strong> ${opt.text}</li>`).join('')}
+                        </ul>
+                        <p class="mb-1"><strong>Kunci:</strong> ${item.correct_key}</p>
+                    `}
                     ${item.explanation ? `<p class="text-muted small mb-0">${item.explanation}</p>` : ''}
                     ${stimulusNarrative}
                     ${imageBlock}
@@ -1721,50 +1734,18 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         if (!questionList) {
             return;
         }
-        const mapelFilterValue = filterCategory ? (filterCategory.value || '').trim() : '';
-        const activeSelect = subjectSelect || questionSubjectSelect || generateSubjectSelect;
-        if (!activeSelect) {
-            questionList.innerHTML = '<div class="question-empty">Atur jenis latihan terlebih dahulu.</div>';
+        const testId = filterTestSelect ? (filterTestSelect.value || '').trim() : '';
+        if (!testId) {
+            questionList.innerHTML = '<div class="question-empty">Pilih tes terlebih dahulu.</div>';
             return;
-        }
-        const activeOption = activeSelect.selectedOptions ? activeSelect.selectedOptions[0] : null;
-        const testSubjectId = activeOption && activeOption.dataset ? activeOption.dataset.testSubjectId : '';
-        let subjectId = activeSelect.value;
-        if (!subjectId && !testSubjectId && SUBJECTS.length) {
-            subjectId = SUBJECTS[0].id;
-            activeSelect.value = subjectId;
-        }
-        if (!subjectId && !testSubjectId) {
-            questionList.innerHTML = '<div class="question-empty">Tambahkan jenis latihan terlebih dahulu.</div>';
-            return;
-        }
-        if (subjectSelect && subjectId && subjectSelect !== activeSelect) {
-            subjectSelect.value = subjectId;
-        }
-        if (questionSubjectSelect && subjectId && !questionSubjectSelect.value) {
-            questionSubjectSelect.value = subjectId;
-        }
-        if (generateSubjectSelect && subjectId && !generateSubjectSelect.value) {
-            generateSubjectSelect.value = subjectId;
         }
         updateSelectedGradeBadge();
         questionList.innerHTML = '<div class="py-4 text-center text-muted">Memuat soal…</div>';
         const params = new URLSearchParams();
-        if (testSubjectId) {
-            params.set('test_subject_id', testSubjectId);
-        } else if (subjectId) {
-            params.set('subject_id', subjectId);
-        }
+        params.set('test_id', testId);
         params.set('difficulty', filterDifficulty ? (filterDifficulty.value || '') : '');
-        if (mapelFilterValue) {
-            params.set('mapel_id', mapelFilterValue);
-        }
         if (filterTopic) {
             params.set('topic', filterTopic.disabled ? '' : (filterTopic.value || ''));
-        }
-        if (!params.has('subject_id') && !params.has('test_subject_id')) {
-            questionList.innerHTML = '<div class="question-empty">Pilih mapel terlebih dahulu.</div>';
-            return;
         }
         try {
             const response = await fetch(buildTkaUrl('/latihan-tka/questions', params));
@@ -2013,6 +1994,11 @@ const optionDField = document.getElementById('optionDField');
         const metadata = question.metadata || {};
         const category = (metadata.subject_area === 'bahasa_indonesia') ? 'bahasa_indonesia' : 'matematika';
         if (manualCategorySelect) manualCategorySelect.value = category;
+        const mapelId = question.mapel_id || metadata.mapel_id || '';
+        const mapelSelect = document.getElementById('questionSubject');
+        if (mapelSelect && mapelId) {
+            mapelSelect.value = String(mapelId);
+        }
         if (promptInput) promptInput.value = question.prompt || '';
         if (topicInput) topicInput.value = question.topic || '';
         if (explanationInput) explanationInput.value = question.explanation || '';
@@ -2623,6 +2609,8 @@ const optionDField = document.getElementById('optionDField');
     attachGenerateButtons();
 
     if (generateForm && generatePreview && saveGeneratedBtn) {
+        if (generateForm.dataset.boundSubmit) return;
+        generateForm.dataset.boundSubmit = '1';
         generateForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const submitBtn = generateForm.querySelector('[data-generator-submit]') || generateForm.querySelector('button[type="submit"]');
@@ -2641,13 +2629,7 @@ const optionDField = document.getElementById('optionDField');
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses…';
             }
             const payload = buildGeneratorPayload();
-            if (!payload.subject_id) {
-                generatePreview.innerHTML = '<div class="alert alert-warning">Pilih jenis latihan terlebih dahulu sebelum generate soal.</div>';
-                saveGeneratedBtn.disabled = false;
-                showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
-                restoreSubmitBtn();
-                return;
-            }
+            // subject_id tidak lagi wajib; gunakan mapel_id/test_subject_id
 
             const selectedMode = (payload.generator_mode || 'lite').toLowerCase();
             if (selectedMode === 'pro' && !payload.stimulus_id) {

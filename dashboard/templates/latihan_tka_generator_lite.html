@@ -64,13 +64,14 @@
                     <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
                         <label for="generateExample" class="form-label mb-0">Contoh Soal / Instruksi</label>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-secondary" id="importJsonBtn" data-bs-toggle="tooltip" title="Import from JSON"><i class="bi bi-upload"></i></button>
                             <button type="button" class="btn btn-outline-secondary" id="copyJsonTemplateBtn" data-bs-toggle="tooltip" title="Template JSON"><i class="bi bi-filetype-json"></i></button>
                             <button type="button" class="btn btn-outline-info" id="exportPromptBtn" data-bs-toggle="tooltip" title="Export Prompt"><i class="bi bi-terminal"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" id="importJsonBtn" data-bs-toggle="tooltip" title="Import JSON untuk review sebelum simpan"><i class="bi bi-upload"></i></button>
                             <button type="button" class="btn btn-outline-secondary" id="copyPromptBtn" data-bs-toggle="tooltip" title="Copy Prompt"><i class="bi bi-clipboard"></i></button>
                             <button type="button" class="btn btn-primary" data-bs-toggle="tooltip" title="Generate" data-generator-submit><i class="bi bi-magic me-1"></i>Generate</button>
                         </div>
                     </div>
+                    <input type="file" class="d-none" id="importJsonInput" accept="application/json">
                     <div class="position-relative">
                         <textarea class="form-control" id="generateExample" rows="2" placeholder="Tempelkan contoh soal, gaya cerita, atau instruksi lain yang diinginkan (opsional)"></textarea>
                         <div class="position-absolute" style="bottom: 8px; right: 8px; width: 180px;">
@@ -120,7 +121,50 @@
     </div>
 </div>
 
+<div class="modal fade" id="importJsonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import JSON</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Upload file (opsional)</label>
+                    <input type="file" class="form-control" id="importJsonFileInput" accept="application/json">
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Mapel tujuan</label>
+                        <select class="form-select" id="importMapelSelect"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Topik tujuan</label>
+                        <select class="form-select" id="importTopicSelect">
+                            <option value="">Pilih topik</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">Atau tempel JSON di sini</label>
+                    <textarea id="importJsonTextarea" class="form-control" rows="10" style="resize: vertical;" placeholder='[{"prompt":"...","options":[...]}, ...]'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="confirmImportJsonBtn">
+                    <i class="bi bi-upload me-1"></i>Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
     {% include 'partials/latihan_tka_generator_scripts.html' %}
+    <script>
+    // Matikan skrip bank soal umum di halaman generator Lite untuk mencegah double-bind
+    window.__TKA_PAGE_SCRIPT_LOADED__ = true;
+    </script>
 {% endblock %}
 {% endblock %}
