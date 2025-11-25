@@ -103,6 +103,11 @@
             flex-direction: column;
             height: 480px;
         }
+        .question-summary-btn {
+            border: 1px solid rgba(148,163,184,0.2);
+            margin-bottom: 8px;
+            border-radius: 12px;
+        }
         .widget-header {
             padding: 18px 20px;
             border-bottom: 1px solid rgba(148,163,184,0.2);
@@ -157,9 +162,15 @@
             border: 1px solid rgba(148,163,184,0.35);
             border-bottom-left-radius: 4px;
         }
+        .question-collapse {
+            display: none;
+        }
+        .question-collapse.show {
+            display: block;
+        }
     </style>
 </head>
-<body data-analysis="{{ 'true' if analysis_pending else 'false' }}">
+<body data-analysis="{{ 'true' if analysis_pending else 'false' }}" data-attempt-id="{{ attempt.id }}">
     <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('latihan_tka_home') }}">ASKA · Latihan TKA</a>
@@ -196,117 +207,169 @@
                 <span class="badge text-bg-warning text-dark"> {{ repeat_label }} </span>
                 {% endif %}
                 <p class="mb-0 text-white-75">
-                    Mapel: {{ attempt.subject_name }}
+                    Mapel: {{ attempt.subject_name or attempt.test_name }}
                     {% if preset_label and preset_label != '-' %}· Paket: {{ preset_label }}{% endif %}
                     · Skor dihitung otomatis oleh ASKA.
                 </p>
             </section>
                 <section class="question-review">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="h5 mb-0">Pembahasan Soal</h3>
-                        <small class="text-muted">Review setelah semua soal selesai.</small>
+                        <h3 class="h5 mb-0">Daftar Soal</h3>
+                        <small class="text-muted">Klik kartu soal untuk lihat detail.</small>
                     </div>
-                    {% for question in questions %}
-                    {% set is_correct = question.is_correct %}
-                    <article class="question-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <p class="mb-0 fw-semibold">Soal {{ loop.index }}</p>
+                    <div class="list-group">
+                        {% for question in questions %}
+                        {% set is_correct = question.is_correct %}
+                        <button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center question-summary-btn"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#q{{ loop.index }}-detail"
+                                aria-expanded="false"
+                                aria-controls="q{{ loop.index }}-detail">
+                            <div>
+                                <strong>Soal {{ loop.index }}</strong>
+                                {% if question.topic %}<small class="d-block text-muted">Topik: {{ question.topic }}</small>{% endif %}
+                            </div>
                             <span class="question-status {{ 'status-correct' if is_correct else 'status-wrong' }}">
-                                {{ 'Benar' if is_correct else 'Perlu diperbaiki' }}
+                                {{ 'Benar' if is_correct else 'Salah' }}
                             </span>
+                        </button>
+                        <div class="question-collapse" id="q{{ loop.index }}-detail">
+                            <div class="question-item mt-2">
+                                {% if question.stimulus %}
+                                <div class="mb-3 p-3 rounded-3 border bg-light">
+                                    {% if question.stimulus.title %}<h6 class="mb-2">{{ question.stimulus.title }}</h6>{% endif %}
+                                    {% if question.stimulus.text %}
+                                    <div class="mb-2" style="white-space: pre-line;">{{ question.stimulus.text }}</div>
+                                    {% endif %}
+                                    {% if question.stimulus.image_url %}
+                                    <div class="text-center">
+                                        <img src="{{ question.stimulus.image_url }}" alt="Stimulus {{ loop.index }}" style="max-width:100%; border-radius: 12px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                <p class="mb-2">{{ question.prompt }}</p>
+                                {% if question.topic %}
+                                <span class="badge text-bg-light mb-3">Topik: {{ question.topic }}</span>
+                                {% endif %}
+                                {% if question.answer_format == 'true_false' and question.true_false_statements %}
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-sm align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 48px;">No</th>
+                                                <th>Pernyataan</th>
+                                                <th class="text-center" style="width: 120px;">Kunci</th>
+                                                <th class="text-center" style="width: 140px;">Jawabanmu</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% set user_value = (question.selected_key or '').strip().upper() %}
+                                            {% for stmt in question.true_false_statements %}
+                                            {% set idx = loop.index0 %}
+                                            {% set expected = 'T' if (stmt.answer or stmt.value)|string|lower in ['t','true','benar','ya','y'] else 'F' %}
+                                            {% set user_pick = user_value[idx] if user_value|length > idx else '' %}
+                                            {% set correct_stmt = (user_pick == expected and user_pick) %}
+                                            <tr class="{% if correct_stmt %}table-success{% elif user_pick %}table-danger{% endif %}">
+                                                <td class="text-center">{{ loop.index }}</td>
+                                                <td>{{ stmt.text or stmt.statement or stmt.value or ('Pernyataan ' ~ loop.index) }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge {% if expected == 'T' %}text-bg-success{% else %}text-bg-danger{% endif %}">
+                                                        {{ 'Benar' if expected == 'T' else 'Salah' }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if user_pick %}
+                                                    <span class="badge {% if user_pick == expected %}text-bg-primary{% else %}text-bg-warning text-dark{% endif %}">
+                                                        {{ 'Benar' if user_pick == 'T' else 'Salah' }}
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+                                {% if question.answer_format != 'true_false' %}
+                                <ul class="options">
+                                    {% for option in question.options %}
+                                    {% set is_selected = question.selected_key == option.key %}
+                                    {% set is_answer = question.correct_key == option.key %}
+                                    <li class="
+                                        {% if is_answer %}correct{% endif %}
+                                        {% if is_selected and not is_answer %} selected{% endif %}
+                                    ">
+                                        <strong>{{ option.key }}.</strong>
+                                        <span>{{ option.text }}</span>
+                                        {% if is_answer %}<span class="ms-auto badge text-bg-success">Kunci</span>{% endif %}
+                                        {% if is_selected and not is_answer %}<span class="ms-auto badge text-bg-danger">Jawabanmu</span>{% elif is_selected and is_answer %}<span class="ms-auto badge text-bg-primary">Jawabanmu</span>{% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if question.explanation %}
+                                <div class="mt-3 p-3 rounded-3 bg-light border">
+                                    <strong>Pembahasan:</strong>
+                                    <p class="mb-0">{{ question.explanation }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <p class="mb-2">{{ question.prompt }}</p>
-                        {% if question.topic %}
-                        <span class="badge text-bg-light mb-3">Topik: {{ question.topic }}</span>
-                        {% endif %}
-                        <ul class="options">
-                            {% for option in question.options %}
-                            {% set is_selected = question.selected_key == option.key %}
-                            {% set is_answer = question.correct_key == option.key %}
-                            <li class="
-                                {% if is_answer %}correct{% endif %}
-                                {% if is_selected and not is_answer %} selected{% endif %}
-                            ">
-                                <strong>{{ option.key }}.</strong>
-                                <span>{{ option.text }}</span>
-                                {% if is_answer %}<span class="ms-auto badge text-bg-success">Kunci</span>{% endif %}
-                                {% if is_selected and not is_answer %}<span class="ms-auto badge text-bg-danger">Jawabanmu</span>{% elif is_selected and is_answer %}<span class="ms-auto badge text-bg-primary">Jawabanmu</span>{% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% if question.explanation %}
-                        <div class="mt-3 p-3 rounded-3 bg-light border">
-                            <strong>Pembahasan:</strong>
-                            <p class="mb-0">{{ question.explanation }}</p>
-                        </div>
-                        {% endif %}
-                    </article>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 </section>
             </div>
             <div class="col-lg-5">
-                {% if section_summary %}
-                <section class="difficulty-grid mb-4">
-                    {% for section in section_summary %}
-                    <div class="difficulty-card">
-                        <p class="mb-1 text-muted">{{ section.label }}</p>
-                        <h4 class="mb-0">{{ section.correct }} / {{ section.total }}</h4>
-                        <small class="text-muted">
-                            {{ 'Bahasa Indonesia' if section.subject_area == 'bahasa_indonesia' else 'Matematika' }} ·
-                            {{ 'Benar/Salah' if section.format == 'true_false' else 'Pilihan Ganda' }}
-                        </small>
-                    </div>
-                    {% endfor %}
-                </section>
-                {% endif %}
-                {% if format_summary %}
-                <section class="difficulty-grid mb-4">
-                    {% for fmt in format_summary %}
-                    <div class="difficulty-card">
-                        <p class="mb-1 text-muted">{{ fmt.label }}</p>
-                        <h4 class="mb-0">{{ fmt.correct }} / {{ fmt.total }}</h4>
-                        <small class="text-muted">Jawaban benar</small>
-                    </div>
-                    {% endfor %}
-                </section>
-                {% endif %}
-                {% if stimulus_summary %}
+                {% if topic_breakdown %}
                 <section class="card p-3 mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Ringkasan per Stimulus</h5>
-                        <small class="text-muted">Benar / total</small>
+                        <h5 class="mb-0">Ringkasan per Mapel</h5>
+                        <small class="text-muted">Klik mapel untuk lihat topik</small>
                     </div>
-                    <div class="list-group list-group-flush">
-                        {% for stim in stimulus_summary %}
-                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ stim.label }}</strong>
-                                <small class="d-block text-muted">{{ 'Gabungan' if stim.type == 'mixed' else ('Benar/Salah' if stim.type == 'true_false' else 'Pilihan Ganda') }}</small>
+                    <div class="accordion" id="mapelAccordion">
+                        {% for mapel, topics in topic_breakdown.items() %}
+                        {% set mapel_id = 'mapel-' ~ loop.index %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="{{ mapel_id }}-head">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#{{ mapel_id }}-body" aria-expanded="false" aria-controls="{{ mapel_id }}-body">
+                                    {{ mapel or 'Mapel' }}
+                                </button>
+                            </h2>
+                            <div id="{{ mapel_id }}-body" class="accordion-collapse collapse" aria-labelledby="{{ mapel_id }}-head" data-bs-parent="#mapelAccordion">
+                                <div class="accordion-body p-0">
+                                    <div class="list-group list-group-flush">
+                                        {% for topic in topics %}
+                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>{{ topic.topic }}</strong>
+                                                <small class="d-block text-muted">Salah {{ topic.wrong }} / {{ topic.total }}</small>
+                                            </div>
+                                            <span class="badge text-bg-primary">{{ topic.correct }} / {{ topic.total }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                             </div>
-                            <span class="badge text-bg-primary">{{ stim.correct }} / {{ stim.total }}</span>
                         </div>
                         {% endfor %}
                     </div>
                 </section>
                 {% endif %}
-                <section class="difficulty-grid">
-                    {% for item in difficulty_summary %}
-                    <div class="difficulty-card">
-                        <p class="mb-1 text-muted">{{ item.label }}</p>
-                        <h4 class="mb-0">{{ item.correct }} / {{ item.total }}</h4>
-                        <small class="text-muted">Jawaban benar</small>
-                    </div>
-                    {% endfor %}
-                </section>
                 <section class="analysis-widget mt-4" id="askaWidget">
                     <div class="widget-header">
                         <div>
                             <strong>ASKA Analyzer</strong>
                             <p class="mb-0 text-muted small">History chat kamu tetap tersimpan</p>
                         </div>
-                        {% if analysis_pending %}
-                        <span class="badge text-bg-warning text-dark">Menganalisa...</span>
-                        {% endif %}
+                        <div class="d-flex align-items-center gap-2" id="askaStatus">
+                            <span class="badge text-bg-warning text-dark d-none" id="askaBadge">Menganalisa...</span>
+                            <button type="button" class="btn btn-primary btn-sm" id="triggerAnalyzer" {% if not analysis_pending %}style="display:none"{% endif %}>
+                                Tanya ASKA
+                            </button>
+                        </div>
                     </div>
                     <div class="widget-messages" id="widgetMessages"></div>
                     <form class="widget-form" id="widgetForm">
@@ -326,7 +389,41 @@
             const input = document.getElementById('widgetInput');
             const sendBtn = document.getElementById('widgetSend');
             const pendingAnalysis = document.body.getAttribute('data-analysis') === 'true';
+            const attemptId = document.body.getAttribute('data-attempt-id');
+            const triggerBtn = document.getElementById('triggerAnalyzer');
+            const badge = document.getElementById('askaBadge');
             let isSending = false;
+
+            // Simple collapse for question list (Bootstrap-like without dependency)
+            const questionButtons = document.querySelectorAll('.question-summary-btn');
+            const closeAll = (exceptId = null) => {
+                document.querySelectorAll('.question-collapse.show').forEach(panel => {
+                    if (panel.id !== exceptId) {
+                        panel.classList.remove('show');
+                        const btn = document.querySelector(`[data-bs-target="#${panel.id}"]`);
+                        if (btn) btn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            };
+            questionButtons.forEach(btn => {
+                const target = btn.getAttribute('data-bs-target');
+                if (!target) return;
+                const panel = document.querySelector(target);
+                if (!panel) return;
+                btn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const isOpen = panel.classList.contains('show');
+                    closeAll(isOpen ? null : panel.id);
+                    if (isOpen) {
+                        panel.classList.remove('show');
+                        btn.setAttribute('aria-expanded', 'false');
+                    } else {
+                        panel.classList.add('show');
+                        btn.setAttribute('aria-expanded', 'true');
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
 
             function appendMessage(role, text) {
                 if (!text) return;
@@ -393,11 +490,46 @@
                 }
             });
 
-            loadHistory();
-            if (pendingAnalysis) {
-                setTimeout(() => loadHistory(true), 7000);
+            if (!pendingAnalysis) {
+                loadHistory();
+            } else if (widget) {
+                // Sembunyikan chat sampai user klik tombol
+                widget.querySelector('.widget-messages').style.display = 'none';
+                widget.querySelector('.widget-form').style.display = 'none';
             }
+
+            triggerBtn?.addEventListener('click', async () => {
+                if (!attemptId || isSending) return;
+                isSending = true;
+                triggerBtn.disabled = true;
+                badge.classList.remove('d-none');
+                try {
+                    const response = await fetch(`/latihan-tka/hasil/${attemptId}/analisa`, { method: 'POST' });
+                    if (response.status === 401) {
+                        window.location.href = "{{ url_for('login_page') }}";
+                        return;
+                    }
+                    const data = await response.json();
+                    if (!response.ok) {
+                        appendMessage('bot', data?.error || 'Gagal mengirim analisa. Coba lagi ya.');
+                    } else {
+                        appendMessage('bot', data?.message || 'Analisa dikirim ke ASKA.');
+                        setTimeout(() => {
+                            widget.querySelector('.widget-messages').style.display = '';
+                            widget.querySelector('.widget-form').style.display = '';
+                            loadHistory(true);
+                        }, 6000);
+                        triggerBtn.style.display = 'none';
+                    }
+                } catch (error) {
+                    appendMessage('bot', 'Gagal mengirim analisa. Coba lagi ya.');
+                } finally {
+                    isSending = false;
+                    triggerBtn.disabled = false;
+                }
+            });
         })();
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

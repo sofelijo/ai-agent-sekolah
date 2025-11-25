@@ -208,40 +208,59 @@
             </div>
         </div>
 
-        {% if subjects %}
+        {% if tests %}
         <div class="subjects-grid" id="subjectListAnchor">
-            {% for subject in subjects %}
-            {% set default_preset = subject.default_preset or 'mudah' %}
-            {% set sections = subject.advanced_config.sections if subject.advanced_config else [] %}
-            <div class="subject-card" data-grade="{{ subject.grade_level or 'sd6' }}">
+            {% for test in tests %}
+            {% set default_preset = 'mudah' %}
+            {% set compositions = test.subjects or [] %}
+            {% set total_questions = test.question_count or (compositions | sum(attribute='question_count_target')) %}
+            <div class="subject-card" data-grade="{{ test.grade_level or 'sd6' }}">
                 <div class="d-flex justify-content-between align-items-start">
-                    <h3>{{ subject.name }}</h3>
-                    <span class="chip">{{ subject.question_count or 90 }} Soal</span>
+                    <h3>{{ test.name }}</h3>
+                    <span class="chip">{{ total_questions or 0 }} Soal</span>
                 </div>
-                <span class="chip bg-light text-dark">Jenjang: {{ grade_labels[subject.grade_level]|default('Kelas 6 SD') }}</span>
-                <p class="mb-2 text-muted">{{ subject.description or "Soal pilihan ganda siap pakai untuk latihan intensif." }}</p>
+                <span class="chip bg-light text-dark">Jenjang: {{ grade_labels[test.grade_level]|default('Kelas 6 SD') }}</span>
+                <p class="mb-2 text-muted">{{ test.description or "Tes siap pakai dengan komposisi mapel sesuai konfigurasi dashboard." }}</p>
                 <div class="mb-3">
                     <p class="fw-semibold mb-2">Komposisi Soal</p>
-                    {% for section in sections %}
+                    {% for section in compositions %}
+                    {% set pg_fmt = (section.formats | selectattr('question_type','equalto','multiple_choice') | list | first) %}
+                    {% set tf_fmt = (section.formats | selectattr('question_type','equalto','true_false') | list | first) %}
                     <div class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2 mb-2">
                         <div>
-                            <div class="fw-semibold">{{ section.label }}</div>
-                            <small class="text-muted">{{ section.question_count }} soal · {{ 'Benar/Salah' if section.question_format == 'true_false' else 'Pilihan Ganda' }}</small>
+                            <div class="fw-semibold">{{ section.mapel_name or section.label }}</div>
+                            <small class="text-muted">
+                                {{ section.question_count_target }} soal · PG {{ pg_fmt.question_count_target if pg_fmt else 0 }} · BS {{ tf_fmt.question_count_target if tf_fmt else 0 }}
+                            </small>
+                            {% if section.topics %}
+                            <div class="small text-muted">Topik:
+                                {% for topic in section.topics %}
+                                    {{ topic.topic }}{% if topic.question_count_target %} ({{ topic.question_count_target }}){% endif %}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
-                        <span class="badge text-bg-light">{{ 'Bahasa Indonesia' if section.subject_area == 'bahasa_indonesia' else 'Matematika' }}</span>
+                        <span class="badge text-bg-light">{{ grade_labels[test.grade_level]|default('Kelas 6 SD') }}</span>
                     </div>
                     {% endfor %}
                 </div>
                 <ul class="stat-list">
-                    <li>⏳ {{ subject.time_limit_minutes or 120 }} menit</li>
+                    <li>⏳ {{ test.duration_minutes or 120 }} menit</li>
                     <li>🧠 Analisa otomatis dari ASKA</li>
                 </ul>
-                <form method="post" action="{{ url_for('latihan_tka_mulai', subject_id=subject.id) }}" class="mt-auto">
-                    <input type="hidden" name="preset" value="{{ default_preset }}">
+                <form method="post" action="{{ url_for('latihan_tka_mulai', test_id=test.id) }}" class="mt-auto">
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1">Pilih tingkat kesulitan</label>
+                        <select class="form-select form-select-sm" name="preset">
+                            {% for key, label in label_map.items() if key in ['mudah','sedang','susah'] %}
+                            <option value="{{ key }}" {% if key == default_preset %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="action-buttons">
                         <button type="button"
                                 class="start-btn secondary w-100 simulasi-trigger"
-                                data-simform="simulasiForm{{ subject.id }}">
+                                data-simform="simulasiForm{{ test.id }}">
                             Coba Simulasi
                         </button>
                         <button type="submit" class="start-btn w-100">
@@ -251,20 +270,20 @@
                 </form>
                 <form method="post"
                       action="{{ url_for('latihan_tka_simulasi_setup') }}"
-                      id="simulasiForm{{ subject.id }}">
-                    <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                      id="simulasiForm{{ test.id }}">
+                    <input type="hidden" name="subject_id" value="{{ test.id }}">
                     <input type="hidden" name="preset" value="{{ default_preset }}">
                 </form>
             </div>
             {% endfor %}
         </div>
         <div class="empty-state d-none" id="gradeEmptyState">
-            <h4>Belum ada mapel untuk jenjang ini</h4>
+            <h4>Belum ada tes untuk jenjang ini</h4>
             <p class="mb-0">Coba pilih jenjang lain atau hubungi admin untuk menambahkan bank soal baru.</p>
         </div>
         {% else %}
         <div class="empty-state" id="subjectListAnchor">
-            <h4>Mapel latihan belum tersedia</h4>
+            <h4>Tes latihan belum tersedia</h4>
             <p class="mb-0">Admin sedang menyiapkan bank soal terbaru. Cek lagi dalam beberapa saat ya!</p>
         </div>
         {% endif %}
@@ -299,8 +318,27 @@
                 button.addEventListener('click', () => {
                     const formId = button.getAttribute('data-simform');
                     const form = formId ? document.getElementById(formId) : null;
+                    const card = button.closest('.subject-card');
+                    const presetSelect = card ? card.querySelector('select[name=\"preset\"]') : null;
+                    const presetInput = form ? form.querySelector('input[name=\"preset\"]') : null;
+                    if (presetSelect && presetInput) {
+                        presetInput.value = presetSelect.value;
+                    }
                     if (!form) return;
                     form.submit();
+                });
+            });
+            const presetSelectors = document.querySelectorAll('.subject-card select[name=\"preset\"]');
+            presetSelectors.forEach(select => {
+                select.addEventListener('change', () => {
+                    const card = select.closest('.subject-card');
+                    const formId = card ? card.querySelector('.simulasi-trigger')?.getAttribute('data-simform') : null;
+                    if (!formId) return;
+                    const form = document.getElementById(formId);
+                    const presetInput = form ? form.querySelector('input[name=\"preset\"]') : null;
+                    if (presetInput) {
+                        presetInput.value = select.value;
+                    }
                 });
             });
         })();

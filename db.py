@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 
 import psycopg2
+from psycopg2 import extensions, InterfaceError, OperationalError, ProgrammingError
 from psycopg2.extras import Json, RealDictCursor
 from dotenv import load_dotenv
 from account_status import ACCOUNT_STATUS_CHOICES, ACCOUNT_STATUS_ACTIVE
@@ -68,7 +69,7 @@ VALID_TKA_DIFFICULTIES = {"easy", "medium", "hard"}
 DEFAULT_TKA_DIFFICULTY_MIX = {"easy": 10, "medium": 5, "hard": 5}
 DEFAULT_TKA_TIME_LIMIT = 15
 DEFAULT_TKA_QUESTION_COUNT = 20
-VALID_TKA_OPTION_KEYS = ("A", "B", "C", "D", "E", "F")
+VALID_TKA_OPTION_KEYS = ("A", "B", "C", "D", "E", "F", "T", "F")
 DEFAULT_TKA_PRESETS = {
     "mudah": {"easy": 10, "medium": 5, "hard": 5},
     "sedang": {"easy": 5, "medium": 10, "hard": 5},
@@ -1475,6 +1476,36 @@ def _truncate_for_prompt(value: Optional[str], limit: int = 320) -> str:
     return text[: limit - 3] + "..."
 
 
+def _refresh_conn(force: bool = False) -> None:
+    """Pastikan koneksi terbuka; re-open saat closed/broken."""
+    global conn
+    try:
+        if force or conn.closed or conn.status == extensions.STATUS_CLOSED:
+            conn = psycopg2.connect(**conn_args)
+            return
+        status = conn.get_transaction_status()
+        if status == extensions.TRANSACTION_STATUS_UNKNOWN:
+            conn.close()
+            conn = psycopg2.connect(**conn_args)
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        conn = psycopg2.connect(**conn_args)
+
+
+def _reset_conn_if_error() -> None:
+    """Rollback jika dalam error; refresh jika koneksi bermasalah."""
+    global conn
+    try:
+        _refresh_conn()
+        if conn.get_transaction_status() == extensions.TRANSACTION_STATUS_INERROR:
+            conn.rollback()
+    except Exception:
+        _refresh_conn(force=True)
+
+
 def _default_preset_payload() -> Dict[str, Dict[str, int]]:
     return {key: dict(value) for key, value in DEFAULT_TKA_PRESETS.items()}
 
@@ -1602,6 +1633,132 @@ def get_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
     return _enrich_subject_row(row)
 
 
+def list_tka_tests(active_only: bool = True) -> List[Dict[str, Any]]:
+    """Ambil daftar tes TKA beserta status aktifnya."""
+    _ensure_tka_schema()
+    query = """
+        SELECT id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+        FROM tka_tests
+    """
+    params: Tuple[Any, ...] = ()
+    if active_only:
+        query += " WHERE is_active = TRUE"
+    query += " ORDER BY created_at DESC"
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(row) for row in rows or []]
+
+
+def get_tka_test(test_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil detail tes TKA."""
+    if not test_id:
+        return None
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT id, name, grade_level, duration_minutes, is_active, created_at, updated_at
+            FROM tka_tests
+            WHERE id = %s
+            """,
+            (test_id,),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def _fetch_test_subject_formats(test_subject_id: int) -> List[Dict[str, Any]]:
+    if not test_subject_id:
+        return []
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT id, question_type, question_count_target
+            FROM tka_test_question_formats
+            WHERE test_subject_id = %s
+            ORDER BY id ASC
+            """,
+            (test_subject_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def _fetch_test_subject_topics(test_subject_id: int) -> List[Dict[str, Any]]:
+    if not test_subject_id:
+        return []
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT tt.id, tt.topic, tt.question_count_target, tt.order_index
+            FROM tka_test_topics tt
+            WHERE tt.test_subject_id = %s
+            ORDER BY tt.order_index ASC, tt.id ASC
+            """,
+            (test_subject_id,),
+        )
+        return [dict(row) for row in cur.fetchall() or []]
+
+
+def fetch_tka_test_subjects(test_id: int) -> List[Dict[str, Any]]:
+    """Ambil daftar mapel untuk tes tertentu beserta format & topik."""
+    if not test_id:
+        return []
+    _ensure_tka_schema()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT ts.id,
+                   ts.test_id,
+                   ts.mapel_id,
+                   mp.name AS mapel_name,
+                   mp.grade_level AS mapel_grade_level,
+                   ts.question_count_target,
+                   ts.order_index,
+                   COALESCE(qs.total_questions, 0) AS question_count_actual,
+                   COALESCE(qs.total_pg, 0) AS question_count_pg_actual,
+                   COALESCE(qs.total_tf, 0) AS question_count_tf_actual
+            FROM tka_test_subjects ts
+            LEFT JOIN tka_mata_pelajaran mp ON mp.id = ts.mapel_id
+            LEFT JOIN (
+                SELECT
+                    test_subject_id,
+                    mapel_id,
+                    COUNT(*) AS total_questions,
+                    SUM(CASE WHEN answer_format = 'true_false' THEN 1 ELSE 0 END) AS total_tf,
+                    SUM(CASE WHEN answer_format <> 'true_false' OR answer_format IS NULL THEN 1 ELSE 0 END) AS total_pg
+                FROM tka_questions
+                GROUP BY test_subject_id, mapel_id
+            ) qs ON (
+                (qs.test_subject_id IS NOT NULL AND qs.test_subject_id = ts.id)
+                OR (qs.test_subject_id IS NULL AND qs.mapel_id = ts.mapel_id)
+            )
+            WHERE ts.test_id = %s
+            ORDER BY ts.order_index ASC, ts.id ASC
+            """,
+            (test_id,),
+        )
+        subjects = [dict(row) for row in cur.fetchall() or []]
+    for item in subjects:
+        item["formats"] = _fetch_test_subject_formats(item["id"])
+        item["topics"] = _fetch_test_subject_topics(item["id"])
+        item["subject_name"] = item.get("mapel_name")
+        item["grade_level"] = _normalize_grade_level(item.get("mapel_grade_level"))
+        item["question_count_actual"] = item.get("question_count_actual") or 0
+        item["question_count_pg_actual"] = item.get("question_count_pg_actual") or 0
+        item["question_count_tf_actual"] = item.get("question_count_tf_actual") or 0
+    return subjects
+
+
+def get_tka_test_detail(test_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil tes beserta daftar mapel dan komposisi targetnya."""
+    test = get_tka_test(test_id)
+    if not test:
+        return None
+    test["subjects"] = fetch_tka_test_subjects(test_id)
+    return test
+
+
 def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str, int]]:
     """Return grouped question rows per difficulty plus totals."""
     buckets: dict[str, list] = {key: [] for key in VALID_TKA_DIFFICULTIES}
@@ -1666,6 +1823,303 @@ def _load_tka_question_bank(subject_id: int) -> tuple[dict[str, list], dict[str,
             buckets.setdefault(difficulty, []).append(row)
     totals = {key: len(rows) for key, rows in buckets.items()}
     return buckets, totals
+
+
+def _resolve_subject_area(raw: Optional[str], mapel_name: Optional[str]) -> str:
+    if raw:
+        value = raw.strip().lower()
+        if "bahasa" in value:
+            return "bahasa_indonesia"
+        if "matematika" in value:
+            return "matematika"
+    if mapel_name and "bahasa" in mapel_name.lower():
+        return "bahasa_indonesia"
+    return "matematika"
+
+
+def _resolve_subject_id_for_question(subjects: List[Dict[str, Any]], mapel_id: Optional[int]) -> Optional[int]:
+    if mapel_id is None:
+        return None
+    for item in subjects:
+        if item.get("mapel_id") == mapel_id:
+            return item.get("id")
+    return None
+
+
+def _load_test_question_bank(test_id: int, subjects: List[Dict[str, Any]]) -> Dict[int, List[Dict[str, Any]]]:
+    """Kelompokkan bank soal per mapel (test_subject)."""
+    buckets: Dict[int, List[Dict[str, Any]]] = {}
+    if not test_id:
+        return buckets
+    subject_ids = [s["id"] for s in subjects if s.get("id")]
+    mapel_ids = [s["mapel_id"] for s in subjects if s.get("mapel_id")]
+    if not subject_ids and not mapel_ids:
+        return buckets
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                q.id,
+                q.test_subject_id,
+                q.test_id,
+                q.mapel_id,
+                q.prompt,
+                q.options,
+                q.correct_key,
+                q.explanation,
+                q.difficulty,
+                q.topic,
+                q.metadata,
+                q.answer_format,
+                s.title AS stimulus_title,
+                s.type AS stimulus_type,
+                s.narrative AS stimulus_narrative,
+                s.image_url AS stimulus_image_url,
+                s.image_prompt AS stimulus_image_prompt,
+                s.metadata AS stimulus_metadata,
+                mp.name AS mapel_name
+            FROM tka_questions q
+            LEFT JOIN tka_stimulus s ON s.id = q.stimulus_id
+            LEFT JOIN tka_mata_pelajaran mp ON mp.id = q.mapel_id
+            WHERE (q.test_id = %s)
+               OR (q.test_subject_id = ANY(%s))
+               OR (q.mapel_id = ANY(%s))
+            """,
+            (test_id, subject_ids or [-1], mapel_ids or [-1]),
+        )
+        rows = cur.fetchall()
+    for row in rows or []:
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        difficulty = (row.get("difficulty") or "easy").strip().lower()
+        if difficulty not in VALID_TKA_DIFFICULTIES:
+            difficulty = "easy"
+        answer_format = (row.get("answer_format") or "").strip().lower()
+        if answer_format not in {"multiple_choice", "true_false"}:
+            answer_format = "multiple_choice"
+        topic = (row.get("topic") or "").strip()
+        subject_area = _resolve_subject_area(metadata.get("subject_area"), row.get("mapel_name"))
+        bucket_id = row.get("test_subject_id") or _resolve_subject_id_for_question(subjects, row.get("mapel_id"))
+        if not bucket_id:
+            continue
+        stimulus_meta = None
+        if row.get("stimulus_title") or row.get("stimulus_narrative") or row.get("stimulus_image_url"):
+            stimulus_meta = {
+                "id": row.get("stimulus_id"),
+                "title": row.get("stimulus_title") or metadata.get("stimulus_title"),
+                "type": row.get("stimulus_type") or metadata.get("stimulus_type") or "text",
+                "narrative": row.get("stimulus_narrative") or metadata.get("stimulus_text"),
+                "image_url": row.get("stimulus_image_url") or metadata.get("image_url"),
+                "image_prompt": row.get("stimulus_image_prompt") or metadata.get("image_prompt"),
+            }
+        normalized = {
+            "id": row["id"],
+            "prompt": row.get("prompt"),
+            "options": row.get("options"),
+            "correct_key": row.get("correct_key"),
+            "explanation": row.get("explanation"),
+            "difficulty": difficulty,
+            "topic": topic,
+            "metadata": metadata or {},
+            "answer_format": answer_format,
+            "section_key": metadata.get("section_key"),
+            "subject_area": subject_area,
+            "test_subject_id": bucket_id,
+            "test_id": row.get("test_id"),
+            "mapel_id": row.get("mapel_id"),
+            "mapel_name": row.get("mapel_name"),
+            "stimulus": stimulus_meta,
+        }
+        buckets.setdefault(bucket_id, []).append(normalized)
+    return buckets
+
+
+def _difficulty_order(choice: Optional[str]) -> List[str]:
+    if not choice:
+        return ["easy", "medium", "hard"]
+    normalized = str(choice).strip().lower()
+    if normalized == "mudah" or normalized == "easy":
+        return ["easy", "medium", "hard"]
+    if normalized == "sedang" or normalized == "medium":
+        return ["medium", "easy", "hard"]
+    return ["hard", "medium", "easy"]
+
+
+def _allowed_difficulties(choice: Optional[str]) -> set[str]:
+    if not choice:
+        return set(VALID_TKA_DIFFICULTIES)
+    normalized = str(choice).strip().lower()
+    if normalized in {"mudah", "easy"}:
+        return {"easy"}
+    if normalized in {"sedang", "medium"}:
+        return {"medium", "easy", "hard"}
+    return {"hard", "medium", "easy"}
+
+
+def _shuffle_pool_by_topic_stimulus(pool: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Acak urutan soal per topik, menjaga soal dengan stimulus sama tetap berdekatan."""
+    topic_groups: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    topic_sequence: List[str] = []
+    for row in pool or []:
+        topic_key = (row.get("topic") or "").strip().lower()
+        if topic_key not in topic_sequence:
+            topic_sequence.append(topic_key)
+        stim_key = row.get("stimulus_key") or f"solo-{row.get('id')}"
+        bucket = topic_groups.setdefault(topic_key, {})
+        group = bucket.setdefault(stim_key, {"rows": []})
+        group["rows"].append(row)
+    shuffled: List[Dict[str, Any]] = []
+    for topic_key in topic_sequence:
+        groups = list((topic_groups.get(topic_key) or {}).values())
+        random.shuffle(groups)
+        for group in groups:
+            shuffled.extend(group.get("rows") or [])
+    return shuffled
+
+
+def _select_questions_for_subject(
+    subject: Dict[str, Any],
+    pool: List[Dict[str, Any]],
+    difficulty_choice: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Pilih soal per mapel dengan toleransi komposisi format dan topik."""
+    allowed_diffs = _allowed_difficulties(difficulty_choice)
+    pool_filtered = [row for row in pool if (row.get("difficulty") or "easy") in allowed_diffs]
+    if not pool_filtered:
+        return []
+    pool_filtered = _shuffle_pool_by_topic_stimulus(pool_filtered)
+    order = _difficulty_order(difficulty_choice)
+    pool_sorted = sorted(
+        pool_filtered,
+        key=lambda item: order.index(item.get("difficulty")) if item.get("difficulty") in order else len(order),
+    )
+    topic_targets: Dict[str, int] = {}
+    for entry in subject.get("topics") or []:
+        name = (entry.get("topic") or entry.get("name") or "").strip()
+        if not name:
+            continue
+        try:
+            topic_targets[name.lower()] = max(0, int(entry.get("question_count_target") or entry.get("count") or 0))
+        except (TypeError, ValueError):
+            topic_targets[name.lower()] = 0
+    fmt_map = {fmt.get("question_type"): int(fmt.get("question_count_target") or 0) for fmt in subject.get("formats") or []}
+    pg_target = fmt_map.get("multiple_choice", 0)
+    tf_target = fmt_map.get("true_false", 0)
+    total_target = int(subject.get("question_count_target") or 0)
+    if pg_target + tf_target == 0 and total_target > 0:
+        pg_target = total_target
+    elif pg_target + tf_target > 0 and total_target == 0:
+        total_target = pg_target + tf_target
+    elif pg_target + tf_target == 0 and total_target == 0:
+        total_target = len(pool_sorted)
+        pg_target = total_target
+    format_targets = {
+        "multiple_choice": pg_target,
+        "true_false": tf_target,
+    }
+    if len(pool_sorted) < total_target:
+        raise ValueError("bank_insufficient")
+    allowed_total = total_target
+    selected: List[Dict[str, Any]] = []
+    used_ids: set[int] = set()
+    format_counts = {"multiple_choice": 0, "true_false": 0}
+    topic_counts: Dict[str, int] = {}
+
+    def _row_stimulus_id(question: Dict[str, Any]) -> Optional[Any]:
+        stim = question.get("stimulus")
+        if isinstance(stim, dict):
+            return stim.get("id")
+        return None
+
+    def can_take(question: Dict[str, Any]) -> bool:
+        fmt = question.get("answer_format") or "multiple_choice"
+        max_allowed = format_targets.get(fmt, 0) + 2
+        if len(selected) >= allowed_total:
+            return False
+        return format_counts.get(fmt, 0) < max_allowed and question.get("id") not in used_ids
+
+    # Alternasikan toleransi: mulai plus jika kuota cukup, minus jika kuota sempit
+    sum_targets = sum(topic_targets.values()) if topic_targets else 0
+    prefer_plus = allowed_total >= sum_targets
+    has_surplus = allowed_total >= sum_targets
+
+    for topic_name, target in topic_targets.items():
+        # Batasi toleransi distribusi per topik agar tidak terlalu melebar
+        if has_surplus:
+            min_take = max(target, 0)
+            max_take = min(target, allowed_total - len(selected))
+        else:
+            min_take = max(target - 1, 0)
+            offset = 1 if prefer_plus else -1
+            max_take = max(min(target + offset, allowed_total - len(selected)), 0)
+            prefer_plus = not prefer_plus
+        if max_take < min_take:
+            max_take = min_take
+        if max_take <= 0:
+            continue
+        candidates = [row for row in pool_sorted if row.get("topic", "").strip().lower() == topic_name and can_take(row)]
+        for idx, row in enumerate(candidates):
+            current_topic_count = topic_counts.get(topic_name, 0)
+            # Jika stimulus punya lebih dari satu soal berurutan, beri 1 slot ekstra agar tidak terpotong
+            allow_extra = False
+            current_stim_id = _row_stimulus_id(row)
+            if current_stim_id is not None and idx + 1 < len(candidates):
+                next_stim_id = _row_stimulus_id(candidates[idx + 1])
+                if next_stim_id == current_stim_id:
+                    allow_extra = True
+            max_for_topic = max_take + (1 if allow_extra else 0)
+            if len(selected) >= allowed_total or current_topic_count >= max_for_topic:
+                break
+            selected.append(row)
+            used_ids.add(row["id"])
+            fmt = row.get("answer_format") or "multiple_choice"
+            format_counts[fmt] = format_counts.get(fmt, 0) + 1
+            topic_counts[topic_name] = topic_counts.get(topic_name, 0) + 1
+        # Pastikan batas bawah terpenuhi jika memungkinkan
+        if topic_counts.get(topic_name, 0) < min_take:
+            extra_needed = min_take - topic_counts.get(topic_name, 0)
+            filler = [row for row in pool_sorted if row.get("id") not in used_ids and row.get("topic", "").strip().lower() == topic_name]
+            for row in filler:
+                if extra_needed <= 0 or len(selected) >= allowed_total:
+                    break
+                fmt = row.get("answer_format") or "multiple_choice"
+                if not can_take(row):
+                    continue
+                selected.append(row)
+                used_ids.add(row["id"])
+                format_counts[fmt] = format_counts.get(fmt, 0) + 1
+                topic_counts[topic_name] = topic_counts.get(topic_name, 0) + 1
+                extra_needed -= 1
+
+    pool_remaining = [row for row in pool_sorted if row.get("id") not in used_ids]
+    for row in pool_remaining:
+        if len(selected) >= allowed_total:
+            break
+        fmt = row.get("answer_format") or "multiple_choice"
+        target_fmt = format_targets.get(fmt, 0)
+        if format_counts.get(fmt, 0) >= target_fmt + 2:
+            continue
+        selected.append(row)
+        used_ids.add(row["id"])
+        format_counts[fmt] = format_counts.get(fmt, 0) + 1
+        topic_key = (row.get("topic") or "").strip().lower()
+        if topic_key:
+            topic_counts[topic_key] = topic_counts.get(topic_key, 0) + 1
+
+    if len(selected) < min(total_target, len(pool_sorted)):
+        filler_pool = [row for row in pool_sorted if row.get("id") not in used_ids]
+        for row in filler_pool:
+            if len(selected) >= allowed_total:
+                break
+            selected.append(row)
+            used_ids.add(row["id"])
+            fmt = row.get("answer_format") or "multiple_choice"
+            format_counts[fmt] = format_counts.get(fmt, 0) + 1
+            topic_key = (row.get("topic") or "").strip().lower()
+            if topic_key:
+                topic_counts[topic_key] = topic_counts.get(topic_key, 0) + 1
+    if len(selected) < total_target:
+        raise ValueError("bank_insufficient")
+    return selected
 
 
 def _stimulus_group_key(row: dict) -> str:
@@ -1866,90 +2320,72 @@ def get_tka_subject_availability(
 
 
 def create_tka_attempt(
-    subject_id: int,
+    test_id: int,
     web_user_id: int,
     *,
     allow_repeat: bool = False,
     preset_name: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Buat sesi latihan baru, pilih soal sesuai komposisi kesulitan."""
-    if not subject_id or not web_user_id:
-        raise ValueError("subject_id dan web_user_id wajib diisi.")
+    """Buat sesi latihan baru berdasarkan konfigurasi tes (tka_tests)."""
+    if not test_id or not web_user_id:
+        raise ValueError("test_id dan web_user_id wajib diisi.")
 
     _ensure_tka_schema()
-    subject = get_tka_subject(subject_id)
-    if not subject or not subject.get("is_active"):
-        raise ValueError("Mapel Latihan TKA tidak ditemukan atau tidak aktif.")
+    _reset_conn_if_error()
+    test = get_tka_test_detail(test_id)
+    if not test or not test.get("is_active"):
+        raise ValueError("Tes Latihan TKA tidak ditemukan atau tidak aktif.")
+    subjects = test.get("subjects") or []
+    if not subjects:
+        raise ValueError("Tes ini belum memiliki mapel.")
 
-    difficulty_mix, preset_used, _ = _resolve_preset_mix_for_subject(subject, preset_name)
-    question_bank, totals = _load_tka_question_bank(subject_id)
-    section_config = subject.get("advanced_config") or {}
-    sections = section_config.get("sections") or []
-    if sections:
-        bank_ready = all(
-            len([row for row in question_bank.get(diff, []) if row.get("section_key") == section.get("key")])
-            >= (section.get("difficulty") or {}).get(diff, 0)
-            for section in sections
-            for diff in VALID_TKA_DIFFICULTIES
+    question_bank = _load_test_question_bank(test_id, subjects)
+    selected_rows: List[Dict[str, Any]] = []
+    selection_summary: List[Dict[str, Any]] = []
+    difficulty_choice = preset_name
+
+    for idx, subject in enumerate(subjects):
+        pool = question_bank.get(subject["id"], [])
+        chosen = _select_questions_for_subject(subject, pool, difficulty_choice)
+        if not chosen:
+            continue
+        mapel_order_value = subject.get("order_index") if subject.get("order_index") is not None else (idx + 1)
+        for row in chosen:
+            row["test_subject_id"] = subject["id"]
+            row["mapel_id"] = row.get("mapel_id") or subject.get("mapel_id")
+            row["mapel_name"] = row.get("mapel_name") or subject.get("mapel_name")
+            row["mapel_order"] = mapel_order_value
+        selected_rows.extend(chosen)
+        selection_summary.append(
+            {
+                "test_subject_id": subject["id"],
+                "mapel_id": subject.get("mapel_id"),
+                "mapel_name": subject.get("mapel_name"),
+                "selected": len(chosen),
+                "target": subject.get("question_count_target") or 0,
+            }
         )
-    else:
-        bank_ready = all(totals.get(level, 0) >= difficulty_mix.get(level, 0) for level in difficulty_mix)
-    if not bank_ready:
-        raise ValueError("bank_insufficient")
 
-    revision_snapshot = subject.get("question_revision") or 1
-    used_ids = _fetch_user_used_question_ids(subject_id, web_user_id, revision_snapshot)
-    used_stimulus_keys: set[str] = set()
-    for rows in question_bank.values():
-        for row in rows:
-            key = _stimulus_group_key(row)
-            if row["id"] in used_ids:
-                used_stimulus_keys.add(key)
-    selected_packages: List[Dict[str, Any]] = []
-    stimulus_usage: Dict[str, int] = {}
+    if not selected_rows:
+        raise ValueError("Belum ada soal yang siap untuk tes ini.")
 
-    def append_packages(section: Optional[Dict[str, Any]], difficulty: str, amount: int) -> None:
-        if amount <= 0:
-            return
-        pool = question_bank.get(difficulty, [])
-        if section:
-            target_key = section.get("key")
-            pool = [row for row in pool if row.get("section_key") == target_key]
-        packages = _select_question_packages(
-            pool,
-            amount,
-            allow_repeat,
-            used_ids,
-            used_stimulus_keys,
-            stimulus_usage,
-        )
-        for pkg in packages:
-            pkg["section"] = section
-            pkg["difficulty"] = difficulty
-            selected_packages.append(pkg)
-
-    if sections:
-        for section in sections:
-            for difficulty, amount in (section.get("difficulty") or {}).items():
-                append_packages(section, difficulty, int(amount or 0))
-    else:
-        for difficulty, amount in difficulty_mix.items():
-            append_packages(None, difficulty, amount)
-
-    if not selected_packages:
-        raise ValueError("Belum ada soal untuk mapel ini.")
-
-    random.shuffle(selected_packages)
-    total_questions = sum(len(pkg["rows"]) for pkg in selected_packages)
-    time_limit = section_config.get("duration_minutes") or subject.get("time_limit_minutes") or DEFAULT_TKA_TIME_LIMIT
+    random.shuffle(selected_rows)
+    total_questions = len(selected_rows)
+    time_limit = test.get("duration_minutes") or DEFAULT_TKA_COMPOSITE_DURATION
     is_repeat = bool(allow_repeat)
-    repeat_iteration = _compute_repeat_iteration(subject_id, web_user_id, revision_snapshot) + 1 if is_repeat else 0
-
+    repeat_iteration = 1 if is_repeat else 0
+    metadata_payload = {
+        "test_id": test_id,
+        "test_name": test.get("name"),
+        "grade_level": _normalize_grade_level(test.get("grade_level")),
+        "selection": selection_summary,
+    }
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
             """
             INSERT INTO tka_quiz_attempts (
                 subject_id,
+                test_id,
                 web_user_id,
                 status,
                 time_limit_minutes,
@@ -1960,66 +2396,71 @@ def create_tka_attempt(
                 repeat_iteration,
                 difficulty_preset
             )
-            VALUES (%s, %s, 'in_progress', %s, %s, %s, %s, %s, %s, %s)
+            VALUES (NULL, %s, %s, 'in_progress', %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, started_at
             """,
             (
-                subject_id,
+                test_id,
                 web_user_id,
                 time_limit,
                 total_questions,
-                Json({"target_mix": difficulty_mix, "preset": preset_used}),
-                revision_snapshot,
+                Json(metadata_payload),
+                1,
                 is_repeat,
                 repeat_iteration,
-                preset_used,
+                preset_name or "",
             ),
         )
         attempt_row = cur.fetchone()
         attempt_id = attempt_row["id"]
-
         insert_rows: List[Tuple[Any, ...]] = []
         order_index = 1
-        for package in selected_packages:
-            section = package.get("section") or {}
-            section_key = section.get("key") or None
-            section_label = section.get("label") or (section_key.title() if isinstance(section_key, str) else "")
-            section_area = section.get("subject_area") or "matematika"
-            section_format = section.get("question_format") or None
-            pkg_rows = list(package.get("rows") or [])
-            random.shuffle(pkg_rows)
-            stimulus_meta = package.get("stimulus_meta") or {}
-            for row in pkg_rows:
-                row_section_key = section_key or row.get("section_key") or "matematika"
-                answer_format = row.get("answer_format") or "multiple_choice"
-                meta_payload = {
-                    "section_key": row_section_key,
-                    "section_label": section_label or row.get("metadata", {}).get("section_label") or row_section_key.title(),
-                    "subject_area": section_area or row.get("subject_area") or "matematika",
-                    "question_format": section_format or answer_format,
-                    "stimulus_id": package.get("stimulus_id"),
-                    "stimulus_title": stimulus_meta.get("title"),
-                    "stimulus_type": stimulus_meta.get("type"),
-                    "stimulus_text": stimulus_meta.get("narrative"),
-                    "stimulus_image_url": stimulus_meta.get("image_url"),
-                    "stimulus_image_prompt": stimulus_meta.get("image_prompt"),
+        for row in selected_rows:
+            answer_format = row.get("answer_format") or "multiple_choice"
+            meta_payload = dict(row.get("metadata") or {})
+            meta_payload.update(
+                {
+                    "section_key": meta_payload.get("section_key") or row.get("section_key"),
+                    "section_label": meta_payload.get("section_label") or (row.get("section_key") or "").title(),
+                    "subject_area": row.get("subject_area") or "matematika",
+                    "question_format": answer_format,
+                    "mapel_id": row.get("mapel_id"),
+                    "mapel_name": row.get("mapel_name"),
+                    "test_subject_id": row.get("test_subject_id"),
+                    "mapel_order": row.get("mapel_order"),
+                    "true_false_statements": meta_payload.get("true_false_statements") or row.get("true_false_statements"),
                 }
-                insert_rows.append(
-                    (
-                        attempt_id,
-                        row["id"],
-                        row["prompt"],
-                        Json(row.get("options") or []),
-                        row.get("correct_key"),
-                        row.get("explanation"),
-                        row.get("difficulty"),
-                        row.get("topic"),
-                        Json(meta_payload),
-                        order_index,
-                        answer_format,
-                    )
+            )
+            stimulus_meta = row.get("stimulus") or {}
+            if stimulus_meta:
+                meta_payload.update(
+                    {
+                        "stimulus_id": stimulus_meta.get("id"),
+                        "stimulus_title": stimulus_meta.get("title"),
+                        "stimulus_type": stimulus_meta.get("type"),
+                        "stimulus_text": stimulus_meta.get("narrative"),
+                        "stimulus_image_url": stimulus_meta.get("image_url"),
+                        "stimulus_image_prompt": stimulus_meta.get("image_prompt"),
+                    }
                 )
-                order_index += 1
+            insert_rows.append(
+                (
+                    attempt_id,
+                    row["id"],
+                    row.get("prompt"),
+                    Json(row.get("options") or []),
+                    row.get("correct_key"),
+                    row.get("explanation"),
+                    row.get("difficulty"),
+                    row.get("topic"),
+                    Json(meta_payload),
+                    order_index,
+                    answer_format,
+                    row.get("test_subject_id"),
+                    row.get("mapel_id"),
+                )
+            )
+            order_index += 1
 
         cur.executemany(
             """
@@ -2034,9 +2475,11 @@ def create_tka_attempt(
                 topic,
                 metadata,
                 order_index,
-                answer_format
+                answer_format,
+                test_subject_id,
+                mapel_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             insert_rows,
         )
@@ -2046,15 +2489,15 @@ def create_tka_attempt(
     expires_at = started_at + timedelta(minutes=time_limit)
     return {
         "attempt_id": attempt_id,
-        "subject": subject,
+        "test": test,
         "question_count": total_questions,
         "time_limit_minutes": time_limit,
         "started_at": started_at,
         "expires_at": expires_at,
         "is_repeat": is_repeat,
         "repeat_iteration": repeat_iteration,
-        "revision_snapshot": revision_snapshot,
-        "difficulty_preset": preset_used,
+        "revision_snapshot": 1,
+        "difficulty_preset": preset_name or "",
     }
 
 
@@ -2070,9 +2513,13 @@ def get_tka_attempt(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any
                 a.*,
                 s.name AS subject_name,
                 s.description AS subject_description,
-                s.grade_level AS subject_grade_level
+                s.grade_level AS subject_grade_level,
+                t.name AS test_name,
+                t.grade_level AS test_grade_level,
+                t.duration_minutes AS test_duration_minutes
             FROM tka_quiz_attempts a
-            JOIN tka_subjects s ON s.id = a.subject_id
+            LEFT JOIN tka_subjects s ON s.id = a.subject_id
+            LEFT JOIN tka_tests t ON t.id = a.test_id
             WHERE a.id = %s
               AND a.web_user_id = %s
             """,
@@ -2108,53 +2555,35 @@ def get_tka_attempt(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any
 
 
 def _build_tka_analysis_prompt(
-    subject_name: str,
+    test_label: str,
     score: int,
     correct_count: int,
     total_questions: int,
     difficulty_stats: Dict[str, Dict[str, int]],
-    question_rows: List[Dict[str, Any]],
+    topic_stats: Dict[str, Dict[str, Any]],
 ) -> str:
     lines = [
-        "ASKA, ini pesan otomatis setelah siswa menyelesaikan latihan TKA. Mohon analisa ringkasan berikut:",
-        f"- Mapel: {subject_name}",
-        f"- Skor: {score} (benar {correct_count} dari {total_questions} soal).",
-        "- Ringkasan per tingkat kesulitan:",
+        "ASKA, ini ringkasan otomatis setelah siswa menyelesaikan latihan TKA.",
+        f"- Tes: {test_label}",
+        f"- Skor akhir: {score} (benar {correct_count} dari {total_questions} soal).",
     ]
-    for level in ("easy", "medium", "hard"):
-        stats = difficulty_stats.get(level) or {"total": 0, "correct": 0}
-        lines.append(
-            f"  * {level.title()}: {stats['correct']} benar dari {stats['total']} soal"
+    if topic_stats:
+        lines.append("Urutkan fokus dari topik dengan persentase salah terbesar:")
+        ranked_topics = sorted(
+            topic_stats.items(),
+            key=lambda item: (
+                (item[1].get("wrong", item[1].get("total", 0) - item[1].get("correct", 0)))
+                / max(item[1].get("total", 0), 1),
+                item[1].get("wrong", 0),
+            ),
+            reverse=True,
         )
-
-    mistakes = []
-    for row in question_rows:
-        if row.get("is_correct"):
-            continue
-        mistakes.append(
-            {
-                "topic": row.get("topic") or "-",
-                "prompt": _truncate_for_prompt(row.get("prompt")),
-                "selected": row.get("selected_key") or "kosong",
-                "correct": row.get("correct_key"),
-                "explanation": _truncate_for_prompt(row.get("explanation"), 260),
-            }
-        )
-
-    if mistakes:
-        lines.append("Detail soal yang belum tepat:")
-        for idx, item in enumerate(mistakes, start=1):
-            lines.append(
-                f"{idx}. Topik {item['topic']} | Soal: {item['prompt']} | Jawaban siswa: {item['selected']} | Jawaban benar: {item['correct']} | Pembahasan: {item['explanation'] or '-'}"
-            )
-    else:
-        lines.append(
-            "Semua jawaban benar. Berikan apresiasi dan rekomendasikan materi lanjutan yang lebih menantang."
-        )
-
-    lines.append(
-        "Jelaskan analisa dalam 2-3 paragraf: soroti kelemahan utama, rekomendasikan strategi belajar, dan tawarkan motivasi singkat."
-    )
+        for topic, stats in ranked_topics:
+            total = stats.get("total", 0) or 1
+            wrong = stats.get("wrong", total - stats.get("correct", 0))
+            wrong_pct = round((wrong / total) * 100)
+            lines.append(f"- {topic}: salah {wrong}/{total} soal ({wrong_pct}%).")
+    lines.append("Berikan saran singkat (2-3 paragraf) dengan penekanan pada topik yang salahnya paling banyak, sertakan tips belajar cepat per topik.")
     return "\n".join(lines)
 
 
@@ -2167,6 +2596,7 @@ def submit_tka_attempt(
     if not attempt_id or not web_user_id:
         return None
 
+    _reset_conn_if_error()
     _ensure_tka_schema()
     normalized_answers: Dict[int, Optional[str]] = {}
     for key, value in (answers or {}).items():
@@ -2181,175 +2611,257 @@ def submit_tka_attempt(
         if not clean_value:
             normalized_answers[question_key] = None
             continue
-        if clean_value not in VALID_TKA_OPTION_KEYS:
-            normalized_answers[question_key] = None
+        if clean_value in VALID_TKA_OPTION_KEYS:
+            normalized_answers[question_key] = clean_value
             continue
-        normalized_answers[question_key] = clean_value
+        # Izinkan kombinasi TF (untuk soal BS multi pernyataan)
+        if all(ch in {"T", "F"} for ch in clean_value):
+            normalized_answers[question_key] = clean_value
+            continue
+        normalized_answers[question_key] = None
 
     now_utc = datetime.now(timezone.utc)
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(
-            """
-            SELECT
-                a.*,
-                s.name AS subject_name
-            FROM tka_quiz_attempts a
-            JOIN tka_subjects s ON s.id = a.subject_id
-            WHERE a.id = %s
-              AND a.web_user_id = %s
-            FOR UPDATE
-            """,
-            (attempt_id, web_user_id),
-        )
-        attempt = cur.fetchone()
-        if not attempt:
-            return None
-        if attempt.get("status") != "in_progress":
-            return {"attempt": attempt, "questions": []}
-        raw_metadata = attempt.get("metadata")
-        metadata_state = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
-
-        cur.execute(
-            """
-            SELECT
-                id,
-                question_id,
-                prompt,
-                options,
-                correct_key,
-                difficulty,
-                topic,
-                explanation,
-                metadata,
-                COALESCE(answer_format, (metadata->>'question_format'), 'multiple_choice') AS answer_format
-            FROM tka_attempt_questions
-            WHERE attempt_id = %s
-            ORDER BY order_index ASC
-            """,
-            (attempt_id,),
-        )
-        question_rows = cur.fetchall()
-
-        if not question_rows:
-            raise ValueError("Soal untuk sesi ini belum tersedia.")
-
-        difficulty_stats: Dict[str, Dict[str, int]] = {}
-        section_stats: Dict[str, Dict[str, Any]] = {}
-        stimulus_stats: Dict[str, Dict[str, Any]] = {}
-        updates: List[Tuple[Optional[str], bool, int]] = []
-        detailed_rows: List[Dict[str, Any]] = []
-        for row in question_rows:
-            difficulty = row.get("difficulty") or "easy"
-            stats = difficulty_stats.setdefault(
-                difficulty, {"total": 0, "correct": 0}
-            )
-            stats["total"] += 1
-            selected_key = normalized_answers.get(row["id"])
-            is_correct = bool(
-                selected_key and row.get("correct_key") and selected_key == row["correct_key"]
-            )
-            if is_correct:
-                stats["correct"] += 1
-            row_meta = row.get("metadata") or {}
-            section_key = row_meta.get("section_key") or "matematika"
-            section_entry = section_stats.setdefault(
-                section_key,
-                {
-                    "label": row_meta.get("section_label") or section_key.title(),
-                    "subject_area": row_meta.get("subject_area") or ("bahasa_indonesia" if section_key.startswith("bahasa") else "matematika"),
-                    "question_format": row.get("answer_format") or "multiple_choice",
-                    "total": 0,
-                    "correct": 0,
-                },
-            )
-            section_entry["total"] += 1
-            if is_correct:
-                section_entry["correct"] += 1
-            stimulus_key = row_meta.get("stimulus_id") or row_meta.get("stimulus_title")
-            if stimulus_key:
-                stim_entry = stimulus_stats.setdefault(
-                    str(stimulus_key),
-                    {
-                        "label": row_meta.get("stimulus_title") or f"Stimulus {stimulus_key}",
-                        "type": row_meta.get("stimulus_type") or "text",
-                        "total": 0,
-                        "correct": 0,
-                    },
+    attempt_retry = 0
+    while attempt_retry < 2:
+        try:
+            _refresh_conn()
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM tka_quiz_attempts
+                    WHERE id = %s
+                      AND web_user_id = %s
+                    FOR UPDATE
+                    """,
+                    (attempt_id, web_user_id),
                 )
-                stim_entry["total"] += 1
-                if is_correct:
-                    stim_entry["correct"] += 1
-            updates.append((selected_key, is_correct, row["id"]))
-            detailed = dict(row)
-            detailed["selected_key"] = selected_key
-            detailed["is_correct"] = is_correct
-            detailed_rows.append(detailed)
+                attempt = cur.fetchone()
+                if not attempt:
+                    return None
+                if attempt.get("status") != "in_progress":
+                    return {"attempt": attempt, "questions": []}
+                # Ambil label tes/mapel tanpa join FOR UPDATE untuk menghindari error
+                subject_row = None
+                test_row = None
+                if attempt.get("subject_id"):
+                    cur.execute(
+                        "SELECT name, grade_level FROM tka_subjects WHERE id = %s",
+                        (attempt.get("subject_id"),),
+                    )
+                    subject_row = cur.fetchone()
+                if attempt.get("test_id"):
+                    cur.execute(
+                        "SELECT name, grade_level FROM tka_tests WHERE id = %s",
+                        (attempt.get("test_id"),),
+                    )
+                    test_row = cur.fetchone()
+                if subject_row:
+                    attempt["subject_name"] = subject_row.get("name")
+                    attempt["subject_grade_level"] = subject_row.get("grade_level")
+                if test_row:
+                    attempt["test_name"] = test_row.get("name")
+                    attempt["test_grade_level"] = test_row.get("grade_level")
+                raw_metadata = attempt.get("metadata")
+                metadata_state = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
 
-        cur.executemany(
-            """
-            UPDATE tka_attempt_questions
-            SET selected_key = %s,
-                is_correct = %s,
-                updated_at = NOW()
-            WHERE id = %s
-            """,
-            updates,
-        )
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        question_id,
+                        prompt,
+                        options,
+                        correct_key,
+                        difficulty,
+                        topic,
+                        explanation,
+                        metadata,
+                        COALESCE(answer_format, (metadata->>'question_format'), 'multiple_choice') AS answer_format
+                    FROM tka_attempt_questions
+                    WHERE attempt_id = %s
+                    ORDER BY order_index ASC
+                    """,
+                    (attempt_id,),
+                )
+                question_rows = cur.fetchall()
 
-        total_questions = len(question_rows)
-        correct_count = sum(stats["correct"] for stats in difficulty_stats.values())
-        score = int(round((correct_count / total_questions) * 100)) if total_questions else 0
-        duration_seconds = max(
-            0, int((now_utc - (attempt.get("started_at") or now_utc)).total_seconds())
-        )
-        analysis_prompt = _build_tka_analysis_prompt(
-            attempt.get("subject_name", "TKA"),
-            score,
-            correct_count,
-            total_questions,
-            difficulty_stats,
-            detailed_rows,
-        )
+                if not question_rows:
+                    raise ValueError("Soal untuk sesi ini belum tersedia.")
 
-        if section_stats or stimulus_stats:
-            metadata_state = dict(metadata_state)
-            if section_stats:
-                metadata_state["section_breakdown"] = section_stats
-            if stimulus_stats:
-                metadata_state["stimulus_breakdown"] = stimulus_stats
-        cur.execute(
-            """
-            UPDATE tka_quiz_attempts
-            SET status = 'completed',
-                completed_at = %s,
-                correct_count = %s,
-                score = %s,
-                duration_seconds = %s,
-                difficulty_breakdown = %s,
-                analysis_prompt = %s,
-                metadata = %s,
-                updated_at = NOW()
-            WHERE id = %s
-            RETURNING *
-            """,
-            (
-                now_utc,
-                correct_count,
-                score,
-                duration_seconds,
-                Json(difficulty_stats),
-                analysis_prompt,
-                Json(metadata_state),
-                attempt_id,
-            ),
-        )
-        updated_attempt = cur.fetchone()
-    conn.commit()
+                difficulty_stats: Dict[str, Dict[str, int]] = {}
+                section_stats: Dict[str, Dict[str, Any]] = {}
+                stimulus_stats: Dict[str, Dict[str, Any]] = {}
+                topic_stats: Dict[str, Dict[str, Any]] = {}
+                updates: List[Tuple[Optional[str], bool, int]] = []
+                detailed_rows: List[Dict[str, Any]] = []
+                total_points = 0.0
+                earned_points = 0.0
+                for row in question_rows:
+                    difficulty = row.get("difficulty") or "easy"
+                    stats = difficulty_stats.setdefault(
+                        difficulty, {"total": 0, "correct": 0}
+                    )
+                    stats["total"] += 1
+                    selected_key = normalized_answers.get(row["id"])
+                    row_meta = row.get("metadata") or {}
+                    is_correct = False
+                    if row.get("answer_format") == "true_false" and isinstance(row_meta.get("true_false_statements"), list):
+                        statements = row_meta.get("true_false_statements") or []
+                        expected = "".join(
+                            "T"
+                            if str(stmt.get("answer") or stmt.get("value") or "").lower() in {"t", "true", "benar", "ya", "y"}
+                            else "F"
+                            for stmt in statements
+                        )
+                        user_value = selected_key or ""
+                        if isinstance(user_value, str):
+                            user_value = user_value.strip().upper()
+                        is_correct = bool(expected) and str(user_value) == expected
+                    else:
+                        is_correct = bool(
+                            selected_key and row.get("correct_key") and selected_key == row["correct_key"]
+                        )
+                    if is_correct:
+                        stats["correct"] += 1
+                    section_key = row_meta.get("section_key") or "matematika"
+                    subject_area = (row_meta.get("subject_area") or ("bahasa_indonesia" if section_key.startswith("bahasa") else "matematika")).strip().lower()
+                    weight = 1.25 if subject_area == "matematika" else 1.0
+                    total_points += weight
+                    if is_correct:
+                        earned_points += weight
+                    section_entry = section_stats.setdefault(
+                        section_key,
+                        {
+                            "label": row_meta.get("section_label") or section_key.title(),
+                            "subject_area": subject_area,
+                            "question_format": row.get("answer_format") or "multiple_choice",
+                            "total": 0,
+                            "correct": 0,
+                        },
+                    )
+                    section_entry["total"] += 1
+                    if is_correct:
+                        section_entry["correct"] += 1
+                    topic_key = (row.get("topic") or "-").strip() or "-"
+                    topic_entry = topic_stats.setdefault(
+                        topic_key,
+                        {"total": 0, "correct": 0, "wrong": 0, "section_key": section_key},
+                    )
+                    topic_entry["total"] += 1
+                    if is_correct:
+                        topic_entry["correct"] += 1
+                    else:
+                        topic_entry["wrong"] += 1
+                    stimulus_key = row_meta.get("stimulus_id") or row_meta.get("stimulus_title")
+                    if stimulus_key:
+                        stim_entry = stimulus_stats.setdefault(
+                            str(stimulus_key),
+                            {
+                                "label": row_meta.get("stimulus_title") or f"Stimulus {stimulus_key}",
+                                "type": row_meta.get("stimulus_type") or "text",
+                                "total": 0,
+                                "correct": 0,
+                            },
+                        )
+                        stim_entry["total"] += 1
+                        if is_correct:
+                            stim_entry["correct"] += 1
+                    updates.append((selected_key, is_correct, row["id"]))
+                    detailed = dict(row)
+                    detailed["selected_key"] = selected_key
+                    detailed["is_correct"] = is_correct
+                    detailed["subject_area"] = subject_area
+                    detailed_rows.append(detailed)
+
+                cur.executemany(
+                    """
+                    UPDATE tka_attempt_questions
+                    SET selected_key = %s,
+                        is_correct = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                    """,
+                    updates,
+                )
+
+                total_questions = len(question_rows)
+                correct_count = sum(stats["correct"] for stats in difficulty_stats.values())
+                score = int(round((earned_points / total_points) * 100)) if total_points else 0
+                duration_seconds = max(
+                    0, int((now_utc - (attempt.get("started_at") or now_utc)).total_seconds())
+                )
+                analysis_prompt = _build_tka_analysis_prompt(
+                    attempt.get("test_name") or attempt.get("subject_name") or "TKA",
+                    score,
+                    correct_count,
+                    total_questions,
+                    difficulty_stats,
+                    topic_stats,
+                )
+
+                if section_stats or stimulus_stats or topic_stats:
+                    metadata_state = dict(metadata_state)
+                    if section_stats:
+                        metadata_state["section_breakdown"] = section_stats
+                    if stimulus_stats:
+                        metadata_state["stimulus_breakdown"] = stimulus_stats
+                    if topic_stats:
+                        # Kelompokkan topik per mapel (label disimpan di metadata mapel_name)
+                        grouped_topics: Dict[str, list] = {}
+                        for topic_name, stats in topic_stats.items():
+                            mapel_label = (section_stats.get(stats.get("section_key", "")) or {}).get("label") if isinstance(stats, dict) else None
+                            bucket = grouped_topics.setdefault(mapel_label or "Mapel", [])
+                            entry = dict(stats)
+                            entry["topic"] = topic_name
+                            bucket.append(entry)
+                        metadata_state["topic_breakdown"] = grouped_topics
+                    cur.execute(
+                        """
+                        UPDATE tka_quiz_attempts
+                        SET status = 'completed',
+                            completed_at = %s,
+                            correct_count = %s,
+                            score = %s,
+                            duration_seconds = %s,
+                            difficulty_breakdown = %s,
+                            analysis_prompt = %s,
+                            metadata = %s,
+                            updated_at = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                        """,
+                        (
+                            now_utc,
+                            correct_count,
+                            score,
+                            duration_seconds,
+                            Json(difficulty_stats),
+                            analysis_prompt,
+                            Json(metadata_state),
+                            attempt_id,
+                        ),
+                    )
+                    updated_attempt = cur.fetchone()
+                conn.commit()
+                break
+        except (InterfaceError, OperationalError, ProgrammingError) as exc:
+            conn.rollback()
+            attempt_retry += 1
+            # Retry sekali jika cursor/connection bermasalah
+            if attempt_retry >= 2 or "cursor already closed" not in str(exc).lower():
+                raise
+            _refresh_conn(force=True)
+            continue
+        except Exception:
+            conn.rollback()
+            raise
 
     return {
         "attempt": updated_attempt,
         "questions": detailed_rows,
         "difficulty": difficulty_stats,
+        "topic_breakdown": topic_stats,
         "score": score,
         "correct_count": correct_count,
         "total_questions": total_questions,
@@ -2369,9 +2881,13 @@ def get_tka_result(attempt_id: int, web_user_id: int) -> Optional[Dict[str, Any]
                 a.*,
                 s.name AS subject_name,
                 s.description AS subject_description,
-                s.grade_level AS subject_grade_level
+                s.grade_level AS subject_grade_level,
+                t.name AS test_name,
+                t.grade_level AS test_grade_level,
+                t.duration_minutes AS test_duration_minutes
             FROM tka_quiz_attempts a
-            JOIN tka_subjects s ON s.id = a.subject_id
+            LEFT JOIN tka_subjects s ON s.id = a.subject_id
+            LEFT JOIN tka_tests t ON t.id = a.test_id
             WHERE a.id = %s
               AND a.web_user_id = %s
             """,

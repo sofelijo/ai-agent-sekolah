@@ -69,6 +69,7 @@ const filterDifficulty = document.getElementById('filterDifficulty');
 const filterCategory = document.getElementById('filterCategory');
 const filterGrade = document.getElementById('filterGrade');
 const filterTopic = document.getElementById('filterTopic');
+const checkAllDuplicatesBtn = document.getElementById('checkAllDuplicates');
 const refreshBtn = document.getElementById('refreshQuestions');
 const questionForm = document.getElementById('questionForm');
 const subjectForm = document.getElementById('subjectForm');
@@ -1392,6 +1393,87 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         statusBox.dataset.timer = String(timer);
     }
 
+    function renderDuplicateSuggestion(card, exists) {
+        if (!card) return;
+        const existingHint = card.querySelector('.duplicate-hint');
+        if (existingHint) existingHint.remove();
+        if (!exists) return;
+        const hint = document.createElement('div');
+        hint.className = 'alert alert-warning small duplicate-hint mb-2';
+        hint.innerHTML = `
+            <div class="fw-semibold mb-1">Duplikat terdeteksi</div>
+            <div>Soal serupa sudah ada di bank soal. Gunakan tombol <strong>Hapus</strong> di salah satu kartu untuk menghilangkan duplikat.</div>
+        `;
+        card.prepend(hint);
+    }
+
+    function extractQuestionDataFromCard(card) {
+        if (!card || !card.dataset.question) return null;
+        try {
+            return JSON.parse(decodeURIComponent(card.dataset.question));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function buildDuplicatePayload(data) {
+        if (!data) return null;
+        const metadata = data.metadata || {};
+        return {
+            subject_id: data.subject_id || metadata.subject_id || data.mapel_id || metadata.mapel_id || null,
+            test_subject_id: data.test_subject_id || metadata.test_subject_id || null,
+            mapel_id: data.mapel_id || metadata.mapel_id || null,
+            prompt: (data.prompt || '').trim(),
+        };
+    }
+
+    async function runDuplicateCheck(card, data, triggerBtn = null, options = {}) {
+        const { silent = false } = options;
+        const payload = buildDuplicatePayload(data);
+        if (!payload || !payload.prompt) {
+            if (!silent) showStatus('Teks soal kosong. Tidak bisa cek duplikat.', 'warning');
+            return;
+        }
+        if (!payload.subject_id && !payload.test_subject_id && !payload.mapel_id) {
+            if (!silent) showStatus('Pilih tes/mapel terlebih dahulu sebelum cek duplikat.', 'warning');
+            return;
+        }
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            triggerBtn.classList.add('disabled');
+        }
+        try {
+            const res = await fetch('/latihan-tka/questions/check-duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const body = await res.json();
+            if (!res.ok || !body.success) {
+                if (!silent) showStatus((body && body.message) || 'Gagal mengecek duplikat.', 'danger');
+                return;
+            }
+            if (body.exists) {
+                card.classList.remove('duplicate-clear');
+                card.classList.add('duplicate-found');
+                renderDuplicateSuggestion(card, true);
+                if (!silent) showStatus('Soal ini sudah ada di bank soal.', 'danger');
+            } else {
+                card.classList.remove('duplicate-found');
+                card.classList.add('duplicate-clear');
+                renderDuplicateSuggestion(card, false);
+                if (!silent) showStatus('Belum ditemukan duplikat untuk soal ini.', 'success');
+            }
+        } catch (error) {
+            if (!silent) showStatus('Terjadi kesalahan saat mengecek duplikat.', 'danger');
+        } finally {
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.classList.remove('disabled');
+            }
+        }
+    }
+
     async function loadTestsCatalog() {
         if (!generateTestSelect && !manualTestSelect && !filterTestSelect) return;
         try {
@@ -1695,9 +1777,14 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                             ${item.topic ? `<span class="badge-soft bg-secondary-subtle">${item.topic}</span>` : ''}
                             ${stimulus.title ? `<span class="badge-soft bg-warning-subtle">Stimulus: ${stimulus.title}</span>` : ''}
                         </div>
-                        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${item.id}">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" data-action="check-duplicate-existing" data-id="${item.id}">
+                                <i class="bi bi-search"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" data-action="delete" data-id="${item.id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="text-muted small mb-2">
                         <i class="bi bi-person-circle me-1"></i>Pembuat: ${escapeHtml(creatorLabel)}
@@ -2328,7 +2415,10 @@ const optionDField = document.getElementById('optionDField');
                     return;
                 }
                 try {
-                    const response = await fetch(`/latihan-tka/questions/${questionId}`, { method: 'DELETE' });
+                    const response = await fetch(buildTkaUrl(`/latihan-tka/questions/${questionId}`), {
+                        method: 'DELETE',
+                        credentials: 'include',
+                    });
                     const data = await response.json();
                     if (data.success) {
                         showStatus('Soal berhasil dihapus.', 'info');
@@ -2351,6 +2441,17 @@ const optionDField = document.getElementById('optionDField');
                 }
                 return;
             }
+            const dupBtn = event.target.closest('[data-action="check-duplicate-existing"]');
+            if (dupBtn) {
+                const card = dupBtn.closest('.question-card');
+                const data = extractQuestionDataFromCard(card);
+                if (!data) {
+                    showStatus('Gagal membaca data soal untuk cek duplikat.', 'danger');
+                    return;
+                }
+                runDuplicateCheck(card, data, dupBtn);
+                return;
+            }
             const card = event.target.closest('.question-card, .compact-card');
             if (card && card.dataset.question) {
                 try {
@@ -2366,6 +2467,34 @@ const optionDField = document.getElementById('optionDField');
             const input = event.target.closest('.question-image-upload');
             if (input && input.dataset.questionId) {
                 handleImageReplacement(input.dataset.questionId, input);
+            }
+        });
+    }
+
+    if (checkAllDuplicatesBtn && questionList) {
+        checkAllDuplicatesBtn.addEventListener('click', async () => {
+            const cards = Array.from(questionList.querySelectorAll('.question-card[data-question]'));
+            if (!cards.length) {
+                showStatus('Tidak ada soal yang bisa dicek.', 'warning');
+                return;
+            }
+            checkAllDuplicatesBtn.disabled = true;
+            checkAllDuplicatesBtn.classList.add('disabled');
+            for (const card of cards) {
+                const data = extractQuestionDataFromCard(card);
+                if (!data) continue;
+                await runDuplicateCheck(card, data, null, { silent: true });
+            }
+            checkAllDuplicatesBtn.disabled = false;
+            checkAllDuplicatesBtn.classList.remove('disabled');
+            const duplicates = cards.filter(card => card.classList.contains('duplicate-found'));
+            if (duplicates.length > 0) {
+                cards
+                    .filter(card => !card.classList.contains('duplicate-found'))
+                    .forEach(card => card.remove());
+                showStatus(`Ditemukan ${duplicates.length} soal duplikat. Menampilkan hanya duplikat.`, 'warning');
+            } else {
+                showStatus('Tidak ditemukan duplikat.', 'success');
             }
         });
     }
@@ -3022,10 +3151,12 @@ const optionDField = document.getElementById('optionDField');
                     if (data.exists) {
                         card.classList.remove('duplicate-clear');
                         card.classList.add('duplicate-found');
+                        renderDuplicateSuggestion(card, true);
                         showStatus('Soal ini sudah ada di bank soal.', 'danger');
                     } else {
                         card.classList.remove('duplicate-found');
                         card.classList.add('duplicate-clear');
+                        renderDuplicateSuggestion(card, false);
                         showStatus('Belum ditemukan duplikat untuk soal ini.', 'success');
                     }
                 } catch (error) {

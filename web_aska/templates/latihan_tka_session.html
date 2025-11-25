@@ -159,9 +159,9 @@
         }
         .question-body {
             display: grid;
-            grid-template-columns: minmax(180px, 1fr) 2fr;
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
-            min-height: 280px;
+            min-height: 320px;
             border: 1px solid #e2e8f0;
             border-radius: 24px;
             padding: 24px;
@@ -201,15 +201,104 @@
         .question-visual {
             border-right: 1px dotted #cbd5f5;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-start;
+            justify-content: flex-start;
             padding: 12px;
-            min-height: 240px;
+            min-height: 320px;
+            max-height: 420px;
+            overflow-y: auto;
         }
         .question-visual img {
             max-width: 100%;
-            max-height: 240px;
+            max-height: 320px;
             object-fit: contain;
+        }
+        .stimulus-content h4 {
+            margin: 0 0 10px;
+            font-weight: 700;
+        }
+        .stimulus-content p {
+            margin: 0;
+            line-height: 1.5;
+            color: #0f172a;
+        }
+        .stimulus-content .stimulus-pre {
+            margin: 8px 0 0;
+            padding: 12px;
+            border: 1px solid #cbd5f5;
+            border-radius: 12px;
+            background: #f8fafc;
+            font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+            white-space: pre-wrap;
+        }
+        .stimulus-richtext p {
+            margin: 0 0 12px;
+            text-indent: 1.5em;
+            line-height: 1.6;
+            text-align: justify;
+        }
+        .stimulus-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .stimulus-table th,
+        .stimulus-table td {
+            border: 1px solid #cbd5f5;
+            padding: 8px;
+            text-align: left;
+        }
+        .stimulus-table th {
+            background: #eef2ff;
+            font-weight: 700;
+        }
+        .stimulus-richtext table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .stimulus-richtext th,
+        .stimulus-richtext td {
+            border: 1px solid #cbd5f5;
+            padding: 8px;
+            text-align: left;
+        }
+        .stimulus-richtext th {
+            background: #eef2ff;
+            font-weight: 700;
+        }
+        .tf-statements {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .tf-row {
+            display: grid;
+            grid-template-columns: 1.4fr 0.6fr;
+            gap: 16px;
+            align-items: center;
+            padding: 14px 16px;
+            border: 1px solid #cbd5f5;
+            border-radius: 16px;
+            background: #fff;
+        }
+        .tf-options {
+            display: inline-flex;
+            gap: 10px;
+        }
+        .tf-options .option-label {
+            border: 1px solid #cbd5f5;
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+        }
+        .tf-options input[type="radio"] {
+            width: 18px;
+            height: 18px;
         }
         .question-content p {
             font-size: 1.1rem;
@@ -392,8 +481,11 @@
         }
         .question-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+            grid-template-columns: repeat(5, minmax(40px, 1fr));
             gap: 10px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
         }
         .question-grid button {
             border: 1px solid #cbd5f5;
@@ -466,21 +558,11 @@
                 <div class="question-stage" id="questionStage">
                     {% for package in question_packages %}
                     {% set stim = package.stimulus or {} %}
-                    <section class="question-frame {% if loop.first %}active{% endif %}" data-package-index="{{ loop.index0 }}">
-                        <div class="stimulus-panel">
-                            <p class="text-muted mb-1">Stimulus {{ loop.index }}</p>
-                            <h3 class="mb-1">{{ stim.title or 'Stimulus Pembacaan' }}</h3>
-                            {% if stim.text %}
-                            <p class="mb-2">{{ stim.text }}</p>
-                            {% endif %}
-                            {% if stim.image_url %}
-                            <img src="{{ stim.image_url }}" alt="Stimulus {{ stim.title or loop.index }}">
-                            {% endif %}
-                        </div>
-                        <div class="stimulus-questions">
-                            {% for question in package.questions %}
-                            {% set question_image = question.image_url %}
-                            {% set option_base = "answer-{}".format(question.id) %}
+                    {% set pkg_loop = loop %}
+                        {% for question in package.questions %}
+                        {% set question_image = question.image_url %}
+                        {% set option_base = "answer-{}".format(question.id) %}
+                        <section class="question-frame {% if pkg_loop.first and loop.first %}active{% endif %}" data-package-index="{{ question.global_index - 1 }}">
                             <article class="question-block" data-question-id="{{ question.id }}" data-question-index="{{ question.global_index - 1 }}">
                                 <div class="question-heading">
                                     <h2>Soal nomor {{ question.global_index }}</h2>
@@ -508,12 +590,99 @@
                                 </div>
                                 <div class="question-body">
                                     <div class="question-visual">
-                                        {% if question_image %}
+                                        {% if stim.title or stim.text or stim.image_url %}
+                                                <div class="stimulus-content">
+                                                {% if stim.title %}<h4>{{ stim.title }}</h4>{% endif %}
+                                                {% if stim.text %}
+                                                    {% set lines = stim.text.split('\n') %}
+                                                    {% set table_rows = [] %}
+                                                    {% set narrative_lines = [] %}
+                                                    {% for line in lines %}
+                                                        {% set cleaned = line.strip() %}
+                                                        {% if cleaned and '|' in cleaned %}
+                                                            {% set no_edge = cleaned.strip('|') %}
+                                                            {% set cells = no_edge.split('|') %}
+                                                            {% set cells = cells | map('trim') | list %}
+                                                            {% if cells and not cells[0].startswith('-') %}
+                                                            {% set _ = table_rows.append(cells) %}
+                                                            {% endif %}
+                                                        {% elif cleaned %}
+                                                            {% set _ = narrative_lines.append(cleaned) %}
+                                                        {% else %}
+                                                            {# Simpan baris kosong agar jadi jeda paragraf (<br><br>) #}
+                                                            {% set _ = narrative_lines.append('') %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    {% if narrative_lines %}
+                                                    {% set paragraphs = [] %}
+                                                    {% for line in narrative_lines %}
+                                                        {% if line == '' %}
+                                                            {% set _ = paragraphs.append('<br>') %}
+                                                        {% else %}
+                                                            {% set _ = paragraphs.append('<p class=\"stimulus-paragraph\">' ~ line ~ '</p>') %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    <div class="stimulus-richtext">{{ paragraphs|join('')|safe }}</div>
+                                                    {% endif %}
+                                                    {% if table_rows %}
+                                                    <table class="stimulus-table">
+                                                        <thead>
+                                                            <tr>
+                                                                {% for cell in table_rows[0] %}
+                                                                <th>{{ cell }}</th>
+                                                                {% endfor %}
+                                                            </tr>
+                                                        </thead>
+                                                        {% if table_rows|length > 1 %}
+                                                        <tbody>
+                                                            {% for row in table_rows[1:] %}
+                                                            <tr>
+                                                                {% for cell in row %}
+                                                                <td>{{ cell }}</td>
+                                                                {% endfor %}
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                        {% endif %}
+                                                    </table>
+                                                    {% endif %}
+                                                    {% if not narrative_lines and not table_rows %}
+                                                    <div class="stimulus-richtext">{{ stim.text | replace('\n', '<br>') | safe }}</div>
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% if stim.image_url %}
+                                                <div class="mt-2">
+                                                    <img src="{{ stim.image_url }}" alt="Stimulus {{ stim.title or question.global_index }}">
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        {% elif question_image %}
                                             <img src="{{ question_image }}" alt="Ilustrasi soal {{ question.global_index }}">
                                         {% endif %}
                                     </div>
                                     <div class="question-content" data-font-size="medium">
                                         <p>{{ question.prompt }}</p>
+                                        {% if question.answer_format == 'true_false' and question.true_false_statements %}
+                                        <div class="tf-statements">
+                                            {% for stmt in question.true_false_statements %}
+                                            {% set stmt_idx = loop.index0 %}
+                                            {% set stmt_name = option_base ~ '-' ~ stmt_idx %}
+                                            <div class="tf-row">
+                                                <div class="tf-text">{{ stmt.text or stmt.statement or stmt_idx + 1 }}</div>
+                                                <div class="tf-options">
+                                                    <label class="option-label">
+                                                        <input type="radio" name="{{ stmt_name }}" value="T">
+                                                        <span>Benar</span>
+                                                    </label>
+                                                    <label class="option-label">
+                                                        <input type="radio" name="{{ stmt_name }}" value="F">
+                                                        <span>Salah</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
                                         <ul class="options-list">
                                             {% for option in question.options %}
                                             {% set option_id = "q%s_%s"|format(question.id, option.key) %}
@@ -526,21 +695,21 @@
                                             </li>
                                             {% endfor %}
                                         </ul>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </article>
-                            {% endfor %}
-                        </div>
-                    </section>
+                        </section>
+                        {% endfor %}
                     {% endfor %}
                 </div>
                 <div class="question-actions">
-                    <button type="button" class="nav-btn prev" id="navPrev">Stimulus sebelumnya</button>
+                    <button type="button" class="nav-btn prev" id="navPrev">Soal sebelumnya</button>
                     <label class="flag-checkbox">
                         <input type="checkbox" id="flagToggle">
                         <span id="flagQuestionLabel">Ragu-ragu soal #1</span>
                     </label>
-                    <button type="button" class="nav-btn next" id="navNext">Stimulus berikutnya</button>
+                    <button type="button" class="nav-btn next" id="navNext">Soal berikutnya</button>
                 </div>
                 <div class="submit-panel">
                     <p>Pastikan semua jawaban terisi. Jika waktunya habis, jawaban akan otomatis dikirim.</p>
@@ -640,6 +809,27 @@
                 return defaults[0] || 0;
             })();
             const flagged = new Set(savedState.flagged || []);
+
+            function setPackageIndex(targetIndex, scrollToQuestion = true) {
+                currentPackageIndex = Math.min(Math.max(targetIndex, 0), packageFrames.length - 1);
+                const packageQuestions = packageQuestionMap.get(currentPackageIndex) || [];
+                if (packageQuestions.length) {
+                    activeQuestionIndex = packageQuestions[0];
+                }
+                updateNavState(scrollToQuestion);
+            }
+
+            function setActiveQuestion(targetIndex, scrollToQuestion = false) {
+                if (Number.isNaN(targetIndex) || targetIndex < 0 || targetIndex >= questionMetaByIndex.length) {
+                    return;
+                }
+                activeQuestionIndex = targetIndex;
+                const meta = questionMetaByIndex[targetIndex];
+                if (meta) {
+                    currentPackageIndex = meta.packageIndex;
+                }
+                updateNavState(scrollToQuestion);
+            }
 
             questionCards.forEach(card => {
                 const qid = card.getAttribute('data-question-id');
@@ -839,32 +1029,8 @@
             updateTimer();
             setInterval(updateTimer, 1000);
 
-            if (quizForm) {
-                quizForm.addEventListener('submit', () => {
-                    clearState();
-                });
-            }
+            // Jangan hapus local storage saat submit, supaya jawaban tetap aman jika gagal kirim
         })();
     </script>
 </body>
 </html>
-            function setPackageIndex(targetIndex, scrollToQuestion = true) {
-                currentPackageIndex = Math.min(Math.max(targetIndex, 0), packageFrames.length - 1);
-                const packageQuestions = packageQuestionMap.get(currentPackageIndex) || [];
-                if (packageQuestions.length) {
-                    activeQuestionIndex = packageQuestions[0];
-                }
-                updateNavState(scrollToQuestion);
-            }
-
-            function setActiveQuestion(targetIndex, scrollToQuestion = false) {
-                if (Number.isNaN(targetIndex) || targetIndex < 0 || targetIndex >= questionMetaByIndex.length) {
-                    return;
-                }
-                activeQuestionIndex = targetIndex;
-                const meta = questionMetaByIndex[targetIndex];
-                if (meta) {
-                    currentPackageIndex = meta.packageIndex;
-                }
-                updateNavState(scrollToQuestion);
-            }

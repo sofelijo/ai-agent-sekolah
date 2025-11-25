@@ -526,6 +526,24 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('File JSON kosong.', 'warning');
             return;
         }
+        const splitNarrativeAndTable = (stimulus, fallbackNarrative = '') => {
+            const rawNarrative = (stimulus && typeof stimulus.narrative === 'string')
+                ? stimulus.narrative
+                : (typeof fallbackNarrative === 'string' ? fallbackNarrative : '');
+            const lines = rawNarrative.split('\n');
+            const tableStart = lines.findIndex(line => line.trim().startsWith('|'));
+            const tableLines = tableStart !== -1 ? lines.slice(tableStart).join('\n').trim() : '';
+            const narrativeLines = tableStart !== -1 ? lines.slice(0, tableStart).join('\n').trim() : rawNarrative.trim();
+            const bestNarrative = narrativeLines
+                || (typeof fallbackNarrative === 'string' ? fallbackNarrative.trim() : '')
+                || stimulus?.description
+                || stimulus?.context
+                || rawNarrative;
+            return {
+                table: (stimulus && stimulus.table) ? stimulus.table : (tableLines || null),
+                narrative: bestNarrative,
+            };
+        };
         const parseJsonInput = (input) => {
             const normalizeQuotes = (text) => text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
             const stripTrailingCommas = (text) => text.replace(/,\s*([}\]])/g, '$1');
@@ -542,6 +560,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return null;
             }
         };
+        const narrativeCandidates = (() => {
+            const matches = [];
+            const regex = /"narrative"\s*:\s*"([\s\S]*?)"/g;
+            let match;
+            while ((match = regex.exec(rawText)) !== null) {
+                const value = match[1] || '';
+                matches.push(value.replace(/\\n/g, '\n').replace(/\\"/g, '"'));
+            }
+            return matches;
+        })();
         let parsed;
         parsed = parseJsonInput(rawText);
         if (!parsed) {
@@ -554,10 +582,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(data?.data?.questions)) return data.data.questions;
             if (Array.isArray(data?.stimulus)) {
                 const collected = [];
-                data.stimulus.forEach(stim => {
+                data.stimulus.forEach((stim, idx) => {
                     const stimQuestions = Array.isArray(stim?.questions) ? stim.questions : [];
                     const bundleKey = stim.bundle_key || (stim.id ? `stim-${stim.id}` : `stim-${Math.random().toString(16).slice(2, 8)}`);
-                    const baseStim = Object.assign({}, stim, { bundle_key: bundleKey });
+                    const fallbackNarrative = narrativeCandidates[idx] || '';
+                    const { table: detectedTable, narrative: cleanedNarrative } = splitNarrativeAndTable(stim, fallbackNarrative);
+                    const baseStim = Object.assign({}, stim, {
+                        bundle_key: bundleKey,
+                        narrative: cleanedNarrative ?? (stim.narrative || ''),
+                    });
+                    if (detectedTable) baseStim.table = detectedTable;
                     stimQuestions.forEach(q => {
                         collected.push(Object.assign({}, q, { stimulus: baseStim }));
                     });
@@ -765,6 +799,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildStimulusBlock(stimulus) {
         const bundleKey = stimulus?.bundle_key || (stimulus?.id ? `stim-${stimulus.id}` : `stim-${Math.random().toString(16).slice(2, 8)}`);
         const payload = Object.assign({}, stimulus || {}, { bundle_key: bundleKey });
+        const narrativeHasTable = (payload.narrative || '').split('\n').some(line => line.trim().startsWith('|'));
+        const showTableBlock = payload.table && !narrativeHasTable;
         const stimCard = document.createElement('div');
         stimCard.className = 'stimulus-block mb-3';
         stimCard.dataset.bundleKey = bundleKey;
@@ -782,10 +818,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label class="form-label small mb-1">Narasi</label>
                 <textarea class="form-control form-control-sm" rows="3" data-stimulus-field="narrative">${escapeHtml(payload.narrative || '')}</textarea>
             </div>
-            ${payload.table ? `
+            ${showTableBlock ? `
             <div class="mb-2">
                 <label class="form-label small mb-1">Tabel</label>
-                <pre class="bg-light p-2 rounded border small" data-stimulus-field="table">${escapeHtml(payload.table)}</pre>
+                <textarea class="form-control form-control-sm font-monospace" rows="4" data-stimulus-field="table" readonly>${escapeHtml(payload.table)}</textarea>
             </div>
             ` : ''}
             <div class="mb-2">
@@ -914,16 +950,43 @@ document.addEventListener('DOMContentLoaded', () => {
             const key = block.dataset.bundleKey || base.bundle_key || (base.id ? `stim-${base.id}` : 'no-stimulus');
             const titleInput = block.querySelector('[data-stimulus-field="title"]');
             const narrativeInput = block.querySelector('[data-stimulus-field="narrative"]');
+            const tableInput = block.querySelector('[data-stimulus-field="table"]');
             const imagePromptInput = block.querySelector('[data-stimulus-field="image_prompt"]');
             const updated = Object.assign({}, base, {
                 bundle_key: key,
                 title: titleInput ? titleInput.value : base.title,
                 narrative: narrativeInput ? narrativeInput.value : base.narrative,
+                table: tableInput ? (tableInput.value || tableInput.textContent || base.table) : base.table,
                 image_prompt: imagePromptInput ? imagePromptInput.value : base.image_prompt,
             });
             map[key] = updated;
         });
         return map;
+    }
+
+    function attachStimulusTableMetadata(stimulus) {
+        if (!stimulus) return stimulus;
+        const meta = stimulus.metadata && typeof stimulus.metadata === 'object'
+            ? Object.assign({}, stimulus.metadata)
+            : {};
+        if (stimulus.table && !meta.table) {
+            meta.table = stimulus.table;
+        }
+        stimulus.metadata = meta;
+        return stimulus;
+    }
+
+    function normalizeStimulusForSave(stimulus) {
+        if (!stimulus) return stimulus;
+        const merged = attachStimulusTableMetadata(Object.assign({}, stimulus));
+        if (merged.table) {
+            const narrative = merged.narrative || '';
+            const hasTableInline = narrative.split('\n').some(line => line.trim().startsWith('|'));
+            if (!hasTableInline) {
+                merged.narrative = narrative ? `${narrative}\n${merged.table}` : merged.table;
+            }
+        }
+        return merged;
     }
 
     function renderPreview(questions, requested = 0) {
@@ -1106,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         : (payload.amount || questions.length);
                     generatedBundle = {
                         questions,
-                test_subject_id: payload.test_subject_id,
+                        test_subject_id: payload.test_subject_id,
                         mapel_id: payload.mapel_id,
                         section_key: payload.section_key,
                         prompt: data.prompt || payload.example || '',
@@ -1219,16 +1282,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const selection = getSelectedMapelInfo();
         const testSubjectId = selection.testSubjectId;
         const mapelId = selection.mapelId;
-        const resolveStimulus = (stimulus) => {
-            if (!stimulus) return null;
-            const key = stimulus.bundle_key
-                || (stimulus.id ? `stim-${stimulus.id}` : null)
-                || 'no-stimulus';
-            const edited = stimulusMap[key];
-            const merged = Object.assign({}, edited || stimulus);
-            merged.bundle_key = key;
-            return merged;
-        };
+            const resolveStimulus = (stimulus) => {
+                if (!stimulus) return null;
+                const key = stimulus.bundle_key
+                    || (stimulus.id ? `stim-${stimulus.id}` : null)
+                    || 'no-stimulus';
+                const edited = stimulusMap[key];
+                const merged = Object.assign({}, edited || stimulus);
+                merged.bundle_key = key;
+                return normalizeStimulusForSave(merged);
+            };
         const formatSelect = selectors.formatType();
         const globalFormatValue = formatSelect ? formatSelect.value : '';
         const answerModeValue = selectors.answerMode() ? selectors.answerMode().value : '';

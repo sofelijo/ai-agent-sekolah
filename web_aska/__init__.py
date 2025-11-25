@@ -19,15 +19,16 @@ from db import (
     get_web_user_status,
     DEFAULT_LIMITED_QUOTA,
     DEFAULT_LIMITED_REASON,
-    list_tka_subjects,
-    get_tka_subject,
+    DEFAULT_TKA_GRADE_LEVEL,
+    list_tka_tests,
+    get_tka_test_detail,
+    fetch_tka_test_subjects,
     create_tka_attempt,
     get_tka_attempt,
     submit_tka_attempt,
     get_tka_result,
     get_tka_analysis_job,
     mark_tka_analysis_sent,
-    get_tka_subject_availability,
 )
 from account_status import (
     BLOCKING_STATUSES,
@@ -229,6 +230,9 @@ def create_app() -> Flask:
             item["section_key"] = merged_meta.get("section_key")
             item["section_label"] = merged_meta.get("section_label")
             item["subject_area"] = merged_meta.get("subject_area")
+            item["mapel_order"] = merged_meta.get("mapel_order")
+            item["mapel_name"] = merged_meta.get("mapel_name") or item.get("mapel_name")
+            item["true_false_statements"] = merged_meta.get("true_false_statements") or merged_meta.get("statements")
             answer_format = (item.get("answer_format") or "").strip().lower()
             if answer_format not in {"multiple_choice", "true_false"}:
                 answer_format = "multiple_choice"
@@ -273,6 +277,35 @@ def create_app() -> Flask:
             counter += 1
         return packages
 
+    def _sort_questions_for_display(rows):
+        """Urutkan soal untuk halaman sesi: mapel dulu, lalu stimulus."""
+        def stim_key(row):
+            return row.get("stimulus_key") or f"solo-{row.get('id')}"
+
+        return sorted(
+            rows or [],
+            key=lambda r: (
+                int(r.get("mapel_order") or 9999),
+                stim_key(r),
+                r.get("id") or 0,
+            ),
+        )
+
+    def _sort_questions_by_order(rows):
+        """Urutkan soal sesuai order_index saat pengerjaan (untuk halaman hasil)."""
+        def stim_key(row):
+            return row.get("stimulus_key") or f"solo-{row.get('id')}"
+
+        return sorted(
+            rows or [],
+            key=lambda r: (
+                int(r.get("order_index") if r.get("order_index") is not None else 9999),
+                int(r.get("mapel_order") or 9999),
+                stim_key(r),
+                r.get("id") or 0,
+            ),
+        )
+
     def _clear_simulation_state():
         if SIMULATION_STATE_KEY in session:
             session.pop(SIMULATION_STATE_KEY, None)
@@ -288,7 +321,7 @@ def create_app() -> Flask:
         session[SIMULATION_STATE_KEY] = value
         session.modified = True
 
-    def _initiate_tka_attempt(subject_id: int, user: dict | None, requested_preset: str | None, allow_repeat: bool = False, flash_ready: bool = True):
+    def _initiate_tka_attempt(test_id: int, user: dict | None, requested_preset: str | None, allow_repeat: bool = False, flash_ready: bool = True):
         if not user:
             flash("Silakan login ulang sebelum mulai latihan.", "warning")
             return redirect(url_for("login_page")), False
@@ -297,46 +330,21 @@ def create_app() -> Flask:
             flash("Akun web kamu belum lengkap. Coba login ulang ya.", "error")
             return redirect(url_for("login_page")), False
         preset_value = (requested_preset or "").strip().lower() or None
-        availability = get_tka_subject_availability(subject_id, user_id, preset_name=preset_value)
-        if not availability:
-            flash("Mapel latihan tidak ditemukan.", "error")
+        test_detail = get_tka_test_detail(test_id)
+        if not test_detail:
+            flash("Tes latihan tidak ditemukan.", "error")
             return redirect(url_for("latihan_tka_home")), False
-        subject = availability["subject"]
-        selected_preset = availability.get("selectedPreset") or preset_value
-        preset_label = _format_preset_label(selected_preset)
-        if not availability.get("bank_ready"):
-            label_text = preset_label if selected_preset else "yang dipilih"
-            flash(f"Bank soal untuk preset {label_text} belum memenuhi komposisi minimal.", "warning")
+        if not test_detail.get("is_active"):
+            flash("Tes latihan sedang tidak aktif.", "warning")
             return redirect(url_for("latihan_tka_home")), False
-
-        def render_repeat_prompt():
-            return render_template(
-                "latihan_tka_repeat.html",
-                user=user,
-                subject=subject,
-                availability=availability,
-                selected_preset=selected_preset,
-                preset_label=preset_label,
-                grade_label=_format_grade_label(subject.get("grade_level")),
-            ), False
-
-        if availability.get("needs_repeat") and not allow_repeat:
-            return render_repeat_prompt()
         try:
             attempt_info = create_tka_attempt(
-                subject_id,
+                test_id,
                 user_id,
                 allow_repeat=allow_repeat,
-                preset_name=selected_preset or preset_value,
+                preset_name=preset_value,
             )
         except ValueError as exc:
-            error_code = str(exc)
-            if error_code == "repeat_required":
-                return render_repeat_prompt()
-            if error_code == "bank_insufficient":
-                label_text = preset_label if selected_preset else "yang dipilih"
-                flash(f"Bank soal preset {label_text} belum memenuhi komposisi minimal. Hubungi admin ya.", "warning")
-                return redirect(url_for("latihan_tka_home")), False
             flash(str(exc), "error")
             return redirect(url_for("latihan_tka_home")), False
         except Exception as exc:
@@ -624,15 +632,23 @@ def create_app() -> Flask:
             flash("Silakan login terlebih dahulu untuk mengakses Latihan TKA.", "warning")
             return redirect(url_for("login_page"))
         try:
-            subjects = list_tka_subjects(active_only=True)
+            tests = list_tka_tests(active_only=True)
+            for test in tests:
+                try:
+                    test["subjects"] = fetch_tka_test_subjects(test["id"])
+                except Exception:
+                    test["subjects"] = []
+                if not test.get("grade_level") and test.get("subjects"):
+                    test["grade_level"] = (test["subjects"][0].get("grade_level") or DEFAULT_TKA_GRADE_LEVEL)
+                test["question_count"] = sum(sub.get("question_count_target") or 0 for sub in test.get("subjects") or [])
         except Exception as exc:
-            app.logger.error("Gagal memuat daftar mapel TKA: %s", exc)
-            subjects = []
-            flash("Daftar mapel belum bisa dimuat. Coba lagi beberapa saat lagi ya!", "error")
+            app.logger.error("Gagal memuat daftar tes TKA: %s", exc)
+            tests = []
+            flash("Daftar tes belum bisa dimuat. Coba lagi beberapa saat lagi ya!", "error")
         return render_template(
             "latihan_tka_home.html",
             user=user,
-            subjects=subjects,
+            tests=tests,
             preset_labels=PRESET_LABELS,
             grade_labels=GRADE_LABELS,
         )
@@ -644,19 +660,19 @@ def create_app() -> Flask:
             flash("Silakan login terlebih dahulu sebelum mencoba simulasi.", "warning")
             return redirect(url_for("login_page"))
         try:
-            subject_id = int(request.form.get("subject_id"))
+            test_id = int(request.form.get("subject_id") or request.form.get("test_id"))
         except (TypeError, ValueError):
-            subject_id = None
-        if not subject_id:
-            flash("Pilihan mapel simulasi tidak valid.", "error")
+            test_id = None
+        if not test_id:
+            flash("Pilihan tes simulasi tidak valid.", "error")
             return redirect(url_for("latihan_tka_home"))
         preset_value = (request.form.get("preset") or "").strip().lower() or None
-        subject = get_tka_subject(subject_id)
+        subject = get_tka_test_detail(test_id)
         if not subject:
-            flash("Mapel latihan tidak ditemukan.", "error")
+            flash("Tes latihan tidak ditemukan.", "error")
             return redirect(url_for("latihan_tka_home"))
         sim_state = {
-            "subject_id": subject_id,
+            "subject_id": test_id,
             "preset": preset_value,
             "stage": "login",
             "token": _generate_simulation_token(),
@@ -681,9 +697,9 @@ def create_app() -> Flask:
             return redirect(url_for("latihan_tka_simulasi_confirm"))
         if stage == "review" and request.method == "GET":
             return redirect(url_for("latihan_tka_simulasi_review"))
-        subject = get_tka_subject(sim_state.get("subject_id"))
+        subject = get_tka_test_detail(sim_state.get("subject_id"))
         if not subject:
-            flash("Mapel simulasi tidak tersedia.", "error")
+            flash("Tes simulasi tidak tersedia.", "error")
             _clear_simulation_state()
             return redirect(url_for("latihan_tka_home"))
         if request.method == "POST" and stage == "login":
@@ -711,9 +727,9 @@ def create_app() -> Flask:
             return redirect(url_for("latihan_tka_simulasi_login"))
         if sim_state.get("stage") == "review" and request.method == "GET":
             return redirect(url_for("latihan_tka_simulasi_review"))
-        subject = get_tka_subject(sim_state.get("subject_id"))
+        subject = get_tka_test_detail(sim_state.get("subject_id"))
         if not subject:
-            flash("Mapel simulasi tidak ditemukan.", "error")
+            flash("Tes simulasi tidak ditemukan.", "error")
             _clear_simulation_state()
             return redirect(url_for("latihan_tka_home"))
         if not sim_state.get("token"):
@@ -756,9 +772,9 @@ def create_app() -> Flask:
             return redirect(url_for("latihan_tka_simulasi_login"))
         if stage == "confirm" and request.method == "GET":
             return redirect(url_for("latihan_tka_simulasi_confirm"))
-        subject = get_tka_subject(sim_state.get("subject_id"))
+        subject = get_tka_test_detail(sim_state.get("subject_id"))
         if not subject:
-            flash("Mapel simulasi tidak ditemukan.", "error")
+            flash("Tes simulasi tidak ditemukan.", "error")
             _clear_simulation_state()
             return redirect(url_for("latihan_tka_home"))
         review_iso = sim_state.get("review_at")
@@ -787,16 +803,16 @@ def create_app() -> Flask:
             user=user,
             subject=subject,
             review_display_time=review_display_time,
-            duration_minutes=subject.get("time_limit_minutes") or 15,
+            duration_minutes=subject.get("duration_minutes") or 15,
             simulasi_credentials=SIMULATION_LOGIN,
         )
 
-    @app.route("/latihan-tka/mulai/<int:subject_id>", methods=["POST"])
-    def latihan_tka_mulai(subject_id: int):
+    @app.route("/latihan-tka/mulai/<int:test_id>", methods=["POST"])
+    def latihan_tka_mulai(test_id: int):
         user = session.get("user")
         allow_repeat = request.form.get("allow_repeat") == "1"
         requested_preset = request.form.get("preset")
-        response, _ = _initiate_tka_attempt(subject_id, user, requested_preset, allow_repeat=allow_repeat)
+        response, _ = _initiate_tka_attempt(test_id, user, requested_preset, allow_repeat=allow_repeat)
         return response
 
     @app.route("/latihan-tka/sesi/<int:attempt_id>", methods=["GET"])
@@ -810,9 +826,12 @@ def create_app() -> Flask:
             flash("Sesi latihan tidak ditemukan.", "error")
             return redirect(url_for("latihan_tka_home"))
         attempt = attempt_bundle["attempt"]
+        if not attempt.get("subject_name") and attempt.get("test_name"):
+            attempt["subject_name"] = attempt.get("test_name")
         if attempt.get("status") != "in_progress":
             return redirect(url_for("latihan_tka_result", attempt_id=attempt_id))
-        questions = _prepare_question_payloads(attempt_bundle["questions"])
+        # Saat mengerjakan, tampilkan soal berurutan per mapel (bukan urutan acak insert)
+        questions = _sort_questions_for_display(_prepare_question_payloads(attempt_bundle["questions"]))
         question_packages = _group_questions_by_stimulus(questions)
         started_at = attempt.get("started_at") or datetime.now(timezone.utc)
         time_limit = attempt.get("time_limit_minutes") or 15
@@ -823,9 +842,8 @@ def create_app() -> Flask:
             iteration = attempt.get("repeat_iteration") or 1
             repeat_label = f"Mengulang ({iteration} kali)"
         preset_label = _format_preset_label(attempt.get("difficulty_preset"))
-        grade_label = _format_grade_label(attempt.get("subject_grade_level"))
-        subject_detail = get_tka_subject(attempt.get("subject_id")) if attempt.get("subject_id") else None
-        section_config = (subject_detail or {}).get("advanced_config") or {}
+        grade_label = _format_grade_label(attempt.get("test_grade_level") or attempt.get("subject_grade_level"))
+        section_config: dict[str, Any] = {}
         return render_template(
             "latihan_tka_session.html",
             user=user,
@@ -847,16 +865,38 @@ def create_app() -> Flask:
         if not user:
             return redirect(url_for("login_page"))
         user_id = user.get("id")
+        # Pastikan koneksi DB tidak berada pada state error sebelum proses submit
+        from db import _reset_conn_if_error  # type: ignore
+        try:
+            _reset_conn_if_error()
+        except Exception:
+            pass
         answers: dict[int, str] = {}
+        tf_segments: dict[int, dict[int, str]] = {}
         for key, value in request.form.items():
             if not key.startswith("answer-"):
                 continue
-            raw_id = key.split("-", 1)[1]
+            parts = key.split("-")
+            if len(parts) < 2:
+                continue
             try:
-                question_id = int(raw_id)
+                question_id = int(parts[1])
             except (TypeError, ValueError):
                 continue
+            if len(parts) == 3:
+                try:
+                    stmt_idx = int(parts[2])
+                except (TypeError, ValueError):
+                    stmt_idx = None
+                if stmt_idx is not None:
+                    tf_bucket = tf_segments.setdefault(question_id, {})
+                    tf_bucket[stmt_idx] = (value or "").strip().upper()
+                    continue
             answers[question_id] = value
+        for qid, bucket in tf_segments.items():
+            ordered = "".join(bucket[idx] for idx in sorted(bucket.keys()) if bucket[idx])
+            if ordered:
+                answers[qid] = ordered
         try:
             result = submit_tka_attempt(attempt_id, user_id, answers)
         except ValueError as exc:
@@ -870,8 +910,7 @@ def create_app() -> Flask:
             flash("Sesi latihan tidak ditemukan.", "error")
             return redirect(url_for("latihan_tka_home"))
         attempt = result.get("attempt")
-        if attempt:
-            _trigger_tka_analysis(attempt.get("id"), user)
+        # Analisa hanya ketika diminta, tidak otomatis
         return redirect(url_for("latihan_tka_result", attempt_id=attempt_id))
 
     @app.route("/latihan-tka/hasil/<int:attempt_id>")
@@ -888,6 +927,8 @@ def create_app() -> Flask:
         if attempt.get("status") != "completed":
             flash("Sesi ini belum selesai. Lanjutkan latihan dulu ya!", "warning")
             return redirect(url_for("latihan_tka_session", attempt_id=attempt_id))
+        if not attempt.get("subject_name") and attempt.get("test_name"):
+            attempt["subject_name"] = attempt.get("test_name")
         difficulty_breakdown = attempt.get("difficulty_breakdown") or {}
         labels = {"easy": "Mudah", "medium": "Sedang", "hard": "Susah"}
         summary = []
@@ -941,15 +982,13 @@ def create_app() -> Flask:
                     "type": stats.get("type"),
                 }
             )
-        questions = _prepare_question_payloads(attempt_bundle["questions"])
-        if attempt.get("analysis_sent_at") is None:
-            _trigger_tka_analysis(attempt_id, user)
+        questions = _sort_questions_for_display(_prepare_question_payloads(attempt_bundle["questions"]))
         repeat_label = None
         if attempt.get("is_repeat"):
             iteration = attempt.get("repeat_iteration") or 1
             repeat_label = f"Mengulang ({iteration} kali)"
         preset_label = _format_preset_label(attempt.get("difficulty_preset"))
-        grade_label = _format_grade_label(attempt.get("subject_grade_level"))
+        grade_label = _format_grade_label(attempt.get("test_grade_level") or attempt.get("subject_grade_level"))
         return render_template(
             "latihan_tka_result.html",
             user=user,
@@ -965,5 +1004,26 @@ def create_app() -> Flask:
             preset_label=preset_label,
             grade_label=grade_label,
         )
+
+    @app.route("/latihan-tka/hasil/<int:attempt_id>/analisa", methods=["POST"])
+    def latihan_tka_trigger_analysis(attempt_id: int):
+        user = session.get("user")
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+        user_id = user.get("id")
+        if not user_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        attempt_bundle = get_tka_result(attempt_id, user_id)
+        if not attempt_bundle:
+            return jsonify({"error": "Not found"}), 404
+        attempt = attempt_bundle["attempt"]
+        if attempt.get("analysis_sent_at"):
+            return jsonify({"status": "ok", "message": "Analisa sudah pernah dikirim ke ASKA."})
+        try:
+            _trigger_tka_analysis(attempt_id, user)
+            return jsonify({"status": "ok", "message": "Analisa dikirim ke ASKA. Tunggu beberapa detik lalu buka chat."})
+        except Exception as exc:
+            app.logger.error("Gagal memicu analisa manual TKA %s: %s", attempt_id, exc)
+            return jsonify({"error": "Gagal memicu analisa. Coba lagi ya."}), 500
 
     return app

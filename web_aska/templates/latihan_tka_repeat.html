@@ -65,7 +65,7 @@
         <div class="alert alert-info">
             Jika memilih lanjut, sesi akan diberi label <strong>"Mengulang"</strong> dengan komposisi preset {{ label_text }}.
         </div>
-        <form method="post" action="{{ url_for('latihan_tka_mulai', subject_id=subject.id) }}" class="d-flex flex-column gap-2">
+        <form method="post" action="{{ url_for('latihan_tka_mulai', test_id=subject.id) }}" class="d-flex flex-column gap-2">
             <input type="hidden" name="allow_repeat" value="1">
             <input type="hidden" name="preset" value="{{ selected_preset or '' }}">
             <button type="submit" class="btn btn-primary w-100">Iya, lanjutkan mengulang</button>

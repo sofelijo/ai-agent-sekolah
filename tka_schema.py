@@ -150,7 +150,8 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_quiz_attempts (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER NOT NULL REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            test_id INTEGER,
             web_user_id BIGINT NOT NULL,
             status TEXT NOT NULL DEFAULT 'in_progress',
             started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -202,6 +203,18 @@ def ensure_tka_schema(cursor) -> None:
     )
     cursor.execute(
         """
+        ALTER TABLE tka_quiz_attempts
+        ALTER COLUMN subject_id DROP NOT NULL;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_quiz_attempts
+        ADD COLUMN IF NOT EXISTS test_id INTEGER;
+        """
+    )
+    cursor.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_tka_attempts_user
         ON tka_quiz_attempts (web_user_id, status);
         """
@@ -237,6 +250,18 @@ def ensure_tka_schema(cursor) -> None:
         """
         ALTER TABLE tka_attempt_questions
         ADD COLUMN IF NOT EXISTS answer_format TEXT NOT NULL DEFAULT 'multiple_choice';
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_attempt_questions
+        ADD COLUMN IF NOT EXISTS test_subject_id INTEGER;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_attempt_questions
+        ADD COLUMN IF NOT EXISTS mapel_id INTEGER;
         """
     )
 
