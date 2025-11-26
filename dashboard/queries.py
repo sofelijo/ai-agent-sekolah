@@ -2580,7 +2580,20 @@ def fetch_tka_test_subjects(test_id: int) -> List[Dict[str, Any]]:
             """,
             (test_id,),
         )
-        subjects = [dict(row) for row in cur.fetchall() or []]
+        raw_subjects = [dict(row) for row in cur.fetchall() or []]
+    # Pastikan tidak ada mapel ganda (kadang tersimpan dua baris untuk mapel yang sama)
+    subjects: list[dict] = []
+    seen_mapel: set[str] = set()
+    for entry in raw_subjects:
+        key_parts = [
+            str(entry.get("mapel_id") or "none"),
+            str(entry.get("subject_id") or entry.get("id") or "none"),
+        ]
+        key = "|".join(key_parts)
+        if key in seen_mapel:
+            continue
+        seen_mapel.add(key)
+        subjects.append(entry)
     for item in subjects:
         item["subject_name"] = item.get("mapel_name")
         item["grade_level"] = item.get("mapel_grade_level") or item.get("grade_level")

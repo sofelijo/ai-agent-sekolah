@@ -1738,7 +1738,17 @@ def fetch_tka_test_subjects(test_id: int) -> List[Dict[str, Any]]:
             """,
             (test_id,),
         )
-        subjects = [dict(row) for row in cur.fetchall() or []]
+        raw_subjects = [dict(row) for row in cur.fetchall() or []]
+
+    subjects: list[dict] = []
+    seen_keys: set[str] = set()
+    for entry in raw_subjects:
+        key = f"{entry.get('mapel_id') or 'mapel-none'}|{entry.get('id') or 'id-none'}"
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        subjects.append(entry)
+
     for item in subjects:
         item["formats"] = _fetch_test_subject_formats(item["id"])
         item["topics"] = _fetch_test_subject_topics(item["id"])
@@ -1888,7 +1898,15 @@ def _load_test_question_bank(test_id: int, subjects: List[Dict[str, Any]]) -> Di
             (test_id, subject_ids or [-1], mapel_ids or [-1]),
         )
         rows = cur.fetchall()
+    # Hindari duplikasi soal jika memenuhi lebih dari satu kondisi WHERE (test_id & mapel/test_subject)
+    unique_rows = {}
     for row in rows or []:
+        qid = row.get("id")
+        if qid in unique_rows:
+            continue
+        unique_rows[qid] = row
+
+    for row in unique_rows.values():
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
         difficulty = (row.get("difficulty") or "easy").strip().lower()
         if difficulty not in VALID_TKA_DIFFICULTIES:
