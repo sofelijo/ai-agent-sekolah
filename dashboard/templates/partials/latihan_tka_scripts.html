@@ -1978,6 +1978,9 @@ const generatorModeDescriptions = {
                             ${stimulus.title ? `<span class="badge-soft bg-warning-subtle">Stimulus: ${stimulus.title}</span>` : ''}
                         </div>
                         <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" data-action="preview" data-id="${item.id}">
+                                <i class="bi bi-eye"></i>
+                            </button>
                             <button class="btn btn-outline-info" data-action="check-duplicate-existing" data-id="${item.id}">
                                 <i class="bi bi-search"></i>
                             </button>
@@ -2644,6 +2647,12 @@ const optionCInput = document.getElementById('optionC');
                 } catch (error) {
                     showStatus('Terjadi kesalahan saat menghapus soal.', 'danger');
                 }
+                return;
+            }
+            const previewBtn = event.target.closest('[data-action="preview"]');
+            if (previewBtn && previewBtn.dataset.id) {
+                const url = `/latihan-tka/questions/${previewBtn.dataset.id}/preview`;
+                window.open(url, '_blank', 'noopener');
                 return;
             }
             const editBtn = event.target.closest('[data-action="edit"]');

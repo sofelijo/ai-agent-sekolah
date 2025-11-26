@@ -59,14 +59,14 @@
             letter-spacing: 0.02em;
         }
         .session-shell {
-            max-width: 1180px;
+            max-width: 1320px;
             margin: 0 auto;
-            padding: 32px 20px 64px;
+            padding: 32px 24px 64px;
         }
         .session-card {
             background: #fff;
             border-radius: 28px;
-            padding: 28px 32px 40px;
+            padding: 32px 36px 44px;
             box-shadow: 0 30px 90px rgba(15,23,42,0.16);
             position: relative;
         }
@@ -201,12 +201,15 @@
         .question-visual {
             border-right: 1px dotted #cbd5f5;
             display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
+            align-items: center;
+            justify-content: center;
             padding: 12px;
             min-height: 320px;
             max-height: 420px;
-            overflow-y: auto;
+            overflow: hidden;
+            position: relative;
+            background: #f8fafc;
+            border-radius: 18px;
         }
         .question-visual img {
             max-width: 100%;
@@ -416,6 +419,61 @@
         .question-frame.flagged {
             border-left: 6px solid #fbbf24;
             padding-left: 18px;
+        }
+        .zoom-shell {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+        .zoom-img {
+            display: block;
+            max-width: none;
+            max-height: none;
+            transform-origin: 0 0;
+            cursor: grab;
+            transition: transform 0.08s ease-out;
+        }
+        .zoom-img.is-dragging {
+            cursor: grabbing;
+        }
+        .zoom-controls {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            display: inline-flex;
+            gap: 6px;
+            background: rgba(15, 23, 42, 0.8);
+            color: #fff;
+            border-radius: 999px;
+            padding: 6px 8px;
+            box-shadow: 0 8px 20px rgba(15,23,42,0.25);
+            z-index: 3;
+        }
+        .zoom-controls button {
+            border: none;
+            background: transparent;
+            color: #fff;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .zoom-controls button:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .zoom-hint {
+            position: absolute;
+            left: 12px;
+            bottom: 10px;
+            background: rgba(255,255,255,0.9);
+            color: #0f172a;
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            box-shadow: 0 8px 20px rgba(15,23,42,0.12);
         }
         @media (max-width: 900px) {
             .question-body {
@@ -651,13 +709,15 @@
                                                     {% endif %}
                                                 {% endif %}
                                                 {% if stim.image_url %}
-                                                <div class="mt-2">
-                                                    <img src="{{ stim.image_url }}" alt="Stimulus {{ stim.title or question.global_index }}">
+                                                <div class="mt-2 zoom-shell" data-zoom-wrapper>
+                                                    <img src="{{ stim.image_url }}" alt="Stimulus {{ stim.title or question.global_index }}" class="zoom-img">
                                                 </div>
                                                 {% endif %}
                                             </div>
                                         {% elif question_image %}
-                                            <img src="{{ question_image }}" alt="Ilustrasi soal {{ question.global_index }}">
+                                            <div class="zoom-shell" data-zoom-wrapper>
+                                                <img src="{{ question_image }}" alt="Ilustrasi soal {{ question.global_index }}" class="zoom-img">
+                                            </div>
                                         {% endif %}
                                     </div>
                                     <div class="question-content" data-font-size="medium">
@@ -1028,6 +1088,115 @@
             }
             updateTimer();
             setInterval(updateTimer, 1000);
+
+            // Zoom & pan for question images
+            const ZOOM_MIN = 1;
+            const ZOOM_MAX = 4;
+            const ZOOM_STEP = 0.25;
+            function initZoom(wrapper) {
+                const img = wrapper.querySelector('img');
+                if (!img) return;
+                let scale = 1;
+                let tx = 0;
+                let ty = 0;
+                const controls = document.createElement('div');
+                controls.className = 'zoom-controls';
+                controls.innerHTML = `
+                    <button type="button" data-zoom="out" aria-label="Perkecil">-</button>
+                    <button type="button" data-zoom="reset" aria-label="Reset">&#8634;</button>
+                    <button type="button" data-zoom="in" aria-label="Perbesar">+</button>
+                `;
+                wrapper.appendChild(controls);
+
+                const clampScale = (value) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+                const applyTransform = () => {
+                    img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+                };
+                const reset = () => {
+                    scale = 1;
+                    tx = 0;
+                    ty = 0;
+                    applyTransform();
+                };
+                const zoom = (delta, center) => {
+                    const next = clampScale(scale + delta);
+                    if (next === scale) return;
+                    if (center) {
+                        const rect = img.getBoundingClientRect();
+                        const cx = center.x - rect.left;
+                        const cy = center.y - rect.top;
+                        const factor = next / scale;
+                        tx = (tx - cx) * factor + cx;
+                        ty = (ty - cy) * factor + cy;
+                    }
+                    scale = next;
+                    applyTransform();
+                };
+
+                controls.addEventListener('click', (event) => {
+                    const btn = event.target.closest('button[data-zoom]');
+                    if (!btn) return;
+                    const action = btn.dataset.zoom;
+                    if (action === 'in') zoom(ZOOM_STEP);
+                    if (action === 'out') zoom(-ZOOM_STEP);
+                    if (action === 'reset') reset();
+                });
+
+                wrapper.addEventListener('wheel', (event) => {
+                    if (!event.ctrlKey) event.preventDefault();
+                    const delta = event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+                    zoom(delta, { x: event.clientX, y: event.clientY });
+                }, { passive: false });
+
+                let dragging = false;
+                let startX = 0;
+                let startY = 0;
+                let startTx = 0;
+                let startTy = 0;
+                const startDrag = (x, y) => {
+                    if (scale <= 1.02) return;
+                    dragging = true;
+                    startX = x;
+                    startY = y;
+                    startTx = tx;
+                    startTy = ty;
+                    img.classList.add('is-dragging');
+                };
+                const moveDrag = (x, y) => {
+                    if (!dragging) return;
+                    tx = startTx + (x - startX);
+                    ty = startTy + (y - startY);
+                    applyTransform();
+                };
+                const endDrag = () => {
+                    dragging = false;
+                    img.classList.remove('is-dragging');
+                };
+
+                img.addEventListener('mousedown', (event) => {
+                    startDrag(event.clientX, event.clientY);
+                    if (dragging) event.preventDefault();
+                });
+                window.addEventListener('mousemove', (event) => moveDrag(event.clientX, event.clientY));
+                window.addEventListener('mouseup', endDrag);
+
+                img.addEventListener('touchstart', (event) => {
+                    if (event.touches.length !== 1) return;
+                    const t = event.touches[0];
+                    startDrag(t.clientX, t.clientY);
+                }, { passive: true });
+                img.addEventListener('touchmove', (event) => {
+                    if (!dragging || event.touches.length !== 1) return;
+                    const t = event.touches[0];
+                    moveDrag(t.clientX, t.clientY);
+                }, { passive: true });
+                img.addEventListener('touchend', endDrag);
+                img.addEventListener('touchcancel', endDrag);
+
+                applyTransform();
+            }
+
+            document.querySelectorAll('[data-zoom-wrapper]').forEach(initZoom);
 
             // Jangan hapus local storage saat submit, supaya jawaban tetap aman jika gagal kirim
         })();

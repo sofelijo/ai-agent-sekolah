@@ -3080,6 +3080,7 @@ def _normalize_options_for_insert(options: Iterable[Dict[str, Any]]) -> List[Dic
 def fetch_tka_questions(
     subject_id: Optional[int] = None,
     *,
+    question_id: Optional[int] = None,
     test_subject_id: Optional[int] = None,
     test_id: Optional[int] = None,
     mapel_id: Optional[int] = None,
@@ -3087,10 +3088,13 @@ def fetch_tka_questions(
     topic: Optional[str] = None,
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
-    if not subject_id and not test_subject_id and not mapel_id and not test_id:
+    if not subject_id and not test_subject_id and not mapel_id and not test_id and not question_id:
         return []
     clauses = []
     params: List[Any] = []
+    if question_id:
+        clauses.append("q.id = %s")
+        params.append(question_id)
     if subject_id:
         clauses.append("q.subject_id = %s")
         params.append(subject_id)

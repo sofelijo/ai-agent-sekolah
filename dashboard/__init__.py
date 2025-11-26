@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import atexit
 from datetime import timedelta
+from pathlib import Path
 
 from flask import Flask
 
@@ -21,6 +22,10 @@ def create_app() -> Flask:
         template_folder="templates",
         static_folder="static",
     )
+    # Sertakan template folder web_aska agar halaman preview bisa memanggil layout latihan_tka_session.html
+    extra_template_dir = Path(__file__).resolve().parent.parent / "web_aska" / "templates"
+    if extra_template_dir.exists():
+        app.jinja_loader.searchpath.append(str(extra_template_dir))
 
     app.config["SECRET_KEY"] = os.getenv("DASHBOARD_SECRET_KEY", "change-me")
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(

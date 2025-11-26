@@ -1943,6 +1943,58 @@ def latihan_tka_questions():
     return jsonify({"success": True, "questions": questions})
 
 
+@main_bp.route("/latihan-tka/questions/<int:question_id>/preview")
+@login_required
+@role_required("admin")
+def latihan_tka_preview_question(question_id: int):
+    records = fetch_tka_questions(question_id=question_id, limit=1)
+    if not records:
+        flash("Soal tidak ditemukan atau sudah dihapus.", "warning")
+        return redirect(url_for("main.latihan_tka_bank"))
+    question = records[0]
+    metadata = question.get("metadata") or {}
+    answer_format = (question.get("answer_format") or metadata.get("answer_format") or "multiple_choice").lower()
+    tf_statements = metadata.get("true_false_statements") or metadata.get("true_false") or []
+    section_label = metadata.get("section_label") or question.get("mapel_name") or "Latihan TKA"
+    image_url = metadata.get("image_url") or question.get("image_url") or (question.get("stimulus") or {}).get("image_url")
+    stimulus = question.get("stimulus") or {}
+    if image_url and not stimulus.get("image_url"):
+        stimulus = {**stimulus, "image_url": image_url}
+    question_payload = {
+        "id": question.get("id"),
+        "global_index": 1,
+        "difficulty": question.get("difficulty") or "easy",
+        "topic": question.get("topic"),
+        "section_label": section_label,
+        "answer_format": answer_format,
+        "true_false_statements": tf_statements,
+        "options": question.get("options") or [],
+        "prompt": question.get("prompt") or "",
+        "image_url": None if stimulus.get("image_url") else image_url,
+    }
+    package = {"stimulus": stimulus, "questions": [question_payload]}
+    now = datetime.now(timezone.utc)
+    deadline = now + timedelta(minutes=15)
+    grade_value = (metadata.get("grade_level") or question.get("grade_level") or "").lower()
+    grade_label = GRADE_LABELS.get(grade_value) if grade_value else None
+    attempt_stub = {"id": f"preview-{question_id}"}
+    user_info = current_user() or {"full_name": "Admin"}
+    return render_template(
+        "latihan_tka_session.html",
+        user=user_info,
+        attempt=attempt_stub,
+        questions=[question_payload],
+        question_packages=[package],
+        question_total=1,
+        deadline_iso=deadline.isoformat(),
+        server_time=now.isoformat(),
+        repeat_label=None,
+        preset_label="Preview",
+        grade_label=grade_label or grade_value,
+        sections=[],
+    )
+
+
 @main_bp.route("/latihan-tka/stimulus")
 @login_required
 @role_required("admin")
