@@ -11,7 +11,10 @@
     const SECTION_TEMPLATES = {{ section_templates|tojson }};
 const SECTION_TEMPLATE_MAP = Object.fromEntries((SECTION_TEMPLATES || []).map(section => [section.key, section]));
 const DEFAULT_TKA_DURATION = {{ default_duration|int }};
-const TKA_API_BASE = ((window.TKA_API_BASE || 'http://127.0.0.1:5002') + '').trim();
+const TKA_API_BASE = (() => {
+    const fallback = (window.location && window.location.origin) ? window.location.origin : '';
+    return ((window.TKA_API_BASE || fallback) + '').trim().replace(/\/$/, '');
+})();
 let manageTopicsUrl = '';
 const STIMULUS_CACHE = {};
 document.addEventListener('DOMContentLoaded', () => {
