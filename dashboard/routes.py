@@ -1649,9 +1649,11 @@ def latihan_tka_bank():
 @role_required("admin")
 def latihan_tka_manual():
     subjects = fetch_tka_subjects(include_inactive=True)
+    tests = fetch_tka_tests()
     return render_template(
         "latihan_tka_manual.html",
         subjects=subjects,
+        tests=tests,
         grade_labels=GRADE_LABELS,
         section_templates=TKA_SECTION_TEMPLATES,
         default_duration=DEFAULT_TKA_COMPOSITE_DURATION,
@@ -1945,19 +1947,11 @@ def latihan_tka_questions():
 @login_required
 @role_required("admin")
 def latihan_tka_stimulus():
-    subject_id = request.args.get("subject_id", type=int)
     mapel_id = request.args.get("mapel_id", type=int)
-    if not subject_id and not mapel_id:
-        return jsonify({"success": False, "message": "subject_id atau mapel_id wajib diisi."}), 400
-    resolved_subject_id = subject_id
-    if not resolved_subject_id and mapel_id:
-        try:
-            resolved_subject_id = ensure_tka_subject_from_mapel(mapel_id)
-        except Exception:
-            resolved_subject_id = None
-    if not resolved_subject_id:
-        return jsonify({"success": False, "message": "Mapel tidak ditemukan untuk stimulus."}), 400
-    stimulus = fetch_tka_stimulus_list(resolved_subject_id)
+    test_id = request.args.get("test_id", type=int)
+    if not mapel_id and not test_id:
+        return jsonify({"success": False, "message": "mapel_id atau test_id wajib diisi."}), 400
+    stimulus = fetch_tka_stimulus_list(mapel_id=mapel_id, test_id=test_id)
     return jsonify({"success": True, "stimulus": stimulus})
 
 
@@ -1967,12 +1961,22 @@ def latihan_tka_stimulus():
 def latihan_tka_create_stimulus():
     data = request.get_json(silent=True) or {}
     subject_id = data.get("subject_id")
+    mapel_id = data.get("mapel_id")
+    test_id = data.get("test_id", 22)
     try:
         subject_id = int(subject_id)
     except (TypeError, ValueError):
         subject_id = None
-    if not subject_id:
-        return jsonify({"success": False, "message": "subject_id wajib diisi."}), 400
+    try:
+        mapel_id = int(mapel_id)
+    except (TypeError, ValueError):
+        mapel_id = None
+    try:
+        test_id = int(test_id)
+    except (TypeError, ValueError):
+        test_id = 22
+    if not mapel_id:
+        return jsonify({"success": False, "message": "mapel_id wajib diisi."}), 400
     title = (data.get("title") or "").strip()
     narrative = (data.get("narrative") or "").strip()
     image_prompt = (data.get("image_prompt") or "").strip() or None
@@ -1981,7 +1985,9 @@ def latihan_tka_create_stimulus():
     created_by = user.get("id")
     try:
         stimulus = create_tka_stimulus(
-            subject_id,
+            mapel_id=mapel_id,
+            test_id=test_id,
+            subject_id=subject_id,
             title=title,
             narrative=narrative or None,
             image_data=image_data or None,
@@ -2002,10 +2008,25 @@ def latihan_tka_create_stimulus():
 def latihan_tka_generate_stimulus():
     data = request.get_json(silent=True) or {}
     subject_id = data.get("subject_id")
+    mapel_id = data.get("mapel_id")
+    test_id = data.get("test_id", 22)
     try:
         subject_id = int(subject_id)
     except (TypeError, ValueError):
         subject_id = None
+    try:
+        mapel_id = int(mapel_id)
+    except (TypeError, ValueError):
+        mapel_id = None
+    try:
+        test_id = int(test_id)
+    except (TypeError, ValueError):
+        test_id = 22
+    if not subject_id and mapel_id:
+        try:
+            subject_id = ensure_tka_subject_from_mapel(mapel_id)
+        except Exception:
+            subject_id = None
     topic = (data.get("topic") or "").strip()
     tone = (data.get("tone") or "narasi").strip().lower()
     include_image = bool(data.get("include_image"))
@@ -2093,14 +2114,26 @@ def latihan_tka_generate_stimulus():
 @role_required("admin")
 def latihan_tka_update_stimulus(stimulus_id: int):
     data = request.get_json(silent=True) or {}
+    mapel_id = data.get("mapel_id")
+    test_id = data.get("test_id")
     title = data.get("title")
     narrative = data.get("narrative")
     image_prompt = data.get("image_prompt")
     image_data = data.get("image_data")
     metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else None
     try:
+        mapel_id = int(mapel_id) if mapel_id is not None else None
+    except (TypeError, ValueError):
+        mapel_id = None
+    try:
+        test_id = int(test_id) if test_id is not None else None
+    except (TypeError, ValueError):
+        test_id = None
+    try:
         stimulus = update_tka_stimulus(
             stimulus_id,
+            mapel_id=mapel_id,
+            test_id=test_id,
             title=title,
             narrative=narrative,
             image_data=image_data,

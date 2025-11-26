@@ -3174,20 +3174,29 @@ def fetch_tka_questions(
         return rows
 
 
-def fetch_tka_stimulus_list(subject_id: int) -> List[Dict[str, Any]]:
-    if not subject_id:
+def fetch_tka_stimulus_list(mapel_id: Optional[int] = None, test_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    if not mapel_id and not test_id:
         return []
     with get_cursor() as cur:
         table_name = _get_stimulus_table_name(cur)
+        conditions = []
+        values: list[Any] = []
+        if mapel_id:
+            conditions.append("mapel_id = %s")
+            values.append(mapel_id)
+        if test_id:
+            conditions.append("test_id = %s")
+            values.append(test_id)
+        where_clause = " AND ".join(conditions) if conditions else "TRUE"
         cur.execute(
             f"""
-            SELECT id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            SELECT id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             FROM {table_name}
-            WHERE subject_id = %s
+            WHERE {where_clause}
             ORDER BY updated_at DESC, id DESC
             LIMIT 200
             """,
-            (subject_id,),
+            tuple(values),
         )
         rows = []
         for row in cur.fetchall():
@@ -3224,8 +3233,10 @@ def fetch_tka_stimulus(stimulus_id: int) -> Optional[Dict[str, Any]]:
 
 
 def create_tka_stimulus(
-    subject_id: int,
     *,
+    mapel_id: int,
+    test_id: Optional[int] = None,
+    subject_id: Optional[int] = None,
     title: str,
     narrative: Optional[str] = None,
     image_data: Optional[str] = None,
@@ -3233,8 +3244,8 @@ def create_tka_stimulus(
     created_by: Optional[int] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    if not subject_id:
-        raise ValueError("subject_id wajib diisi.")
+    if not mapel_id:
+        raise ValueError("mapel_id wajib diisi.")
     title = (title or "").strip()
     if not title:
         raise ValueError("Judul stimulus wajib diisi.")
@@ -3248,6 +3259,8 @@ def create_tka_stimulus(
             f"""
             INSERT INTO {table_name} (
                 subject_id,
+                mapel_id,
+                test_id,
                 title,
                 type,
                 narrative,
@@ -3256,11 +3269,13 @@ def create_tka_stimulus(
                 metadata,
                 created_by
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             """,
             (
                 subject_id,
+                mapel_id,
+                test_id,
                 title,
                 stimulus_type,
                 narrative_value,
@@ -3285,6 +3300,8 @@ def create_tka_stimulus(
 def update_tka_stimulus(
     stimulus_id: int,
     *,
+    mapel_id: Optional[int] = None,
+    test_id: Optional[int] = None,
     title: Optional[str] = None,
     narrative: Optional[str] = None,
     image_data: Optional[str] = None,
@@ -3295,6 +3312,12 @@ def update_tka_stimulus(
         raise ValueError("stimulus_id wajib diisi.")
     fields: list[str] = []
     values: list[Any] = []
+    if mapel_id is not None:
+        fields.append("mapel_id = %s")
+        values.append(mapel_id)
+    if test_id is not None:
+        fields.append("test_id = %s")
+        values.append(test_id)
     if title is not None:
         fields.append("title = %s")
         values.append(title.strip())
@@ -3321,7 +3344,7 @@ def update_tka_stimulus(
             UPDATE {table_name}
             SET {set_clause}
             WHERE id = %s
-            RETURNING id, subject_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            RETURNING id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             """,
             tuple(values),
         )

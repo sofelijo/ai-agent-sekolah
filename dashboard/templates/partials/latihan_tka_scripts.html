@@ -6,11 +6,14 @@
     window.__TKA_PAGE_SCRIPT_LOADED__ = true;
     const TKA_PAGE_MODE = {{ tka_page_mode|default('bank')|tojson }};
     let SUBJECTS = {{ subjects|tojson }};
+    const INITIAL_TESTS = (window.INIT_TKA_TESTS || []);
     const GRADE_LABELS = {{ grade_labels|tojson }};
     const SECTION_TEMPLATES = {{ section_templates|tojson }};
 const SECTION_TEMPLATE_MAP = Object.fromEntries((SECTION_TEMPLATES || []).map(section => [section.key, section]));
 const DEFAULT_TKA_DURATION = {{ default_duration|int }};
 const TKA_API_BASE = ((window.TKA_API_BASE || 'http://127.0.0.1:5002') + '').trim();
+let manageTopicsUrl = '';
+const STIMULUS_CACHE = {};
 document.addEventListener('DOMContentLoaded', () => {
         if (TKA_PAGE_MODE === 'generator') {
             return;
@@ -48,6 +51,7 @@ const stimulusModeInputs = document.querySelectorAll('input[name="stimulusUsage"
 const stimulusExistingWrap = document.getElementById('stimulusExistingFields');
 const stimulusExistingSelect = document.getElementById('questionStimulusSelect');
 const stimulusSearchInput = document.getElementById('stimulusSearchInput');
+const stimulusTypeFilter = document.getElementById('stimulusTypeFilter');
 const refreshStimulusBtn = document.getElementById('refreshStimulusBtn');
 const openStimulusCreatorBtn = document.getElementById('openStimulusCreator');
 const stimulusCreatorWrap = document.getElementById('stimulusCreatorFields');
@@ -61,7 +65,7 @@ const newStimulusImagePromptInput = document.getElementById('newStimulusImagePro
 const generateStimulusBtn = document.getElementById('generateStimulusStory');
 const saveStimulusBtn = document.getElementById('saveNewStimulus');
 const cancelStimulusBtn = document.getElementById('cancelStimulusCreator');
-const manualCategorySelect = document.getElementById('questionCategory');
+const manualTopicSelect = document.getElementById('questionTopic');
 const generateSectionSelect = document.getElementById('generateSection');
 const questionList = document.getElementById('questionList');
 const statusBox = document.getElementById('tkaStatus');
@@ -83,6 +87,10 @@ const generatorModeHint = document.getElementById('generatorModeHint');
 let generatorStimulusSection = document.getElementById('generatorStimulusSection');
     const generatorButtons = document.querySelectorAll('.open-generator[data-generator-mode]');
     const generatorModalEl = document.getElementById('generateModal');
+        if (manualTopicSelect && manualTopicSelect.dataset.manageUrl) {
+            manageTopicsUrl = manualTopicSelect.dataset.manageUrl;
+        }
+        bindManualTopicSelect();
     const generatorModal = generatorModalEl ? new bootstrap.Modal(generatorModalEl) : null;
 const copyJsonTemplateBtn = document.getElementById('copyJsonTemplateBtn');
 const exportPromptBtn = document.getElementById('exportPromptBtn');
@@ -152,7 +160,6 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     let editingQuestionId = null;
     let editingQuestionData = null;
     let editingSubjectId = null;
-    const STIMULUS_CACHE = {};
     const editStimulusMode = document.getElementById('editStimulusMode');
     const editStimulusExistingWrap = document.getElementById('editStimulusExistingFields');
     const editStimulusExistingSelect = document.getElementById('editStimulusSelect');
@@ -167,9 +174,9 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     const sectionConfigList = document.getElementById('sectionConfigList');
     const sectionTotalsSummary = document.getElementById('sectionTotalsSummary');
     const sectionConfigStatus = document.getElementById('sectionConfigStatus');
-    const saveSectionConfigBtn = document.getElementById('saveSectionConfig');
-    const selectedGradeBadge = document.getElementById('selectedGradeBadge');
-    const generatorModeDescriptions = {
+const saveSectionConfigBtn = document.getElementById('saveSectionConfig');
+const selectedGradeBadge = document.getElementById('selectedGradeBadge');
+const generatorModeDescriptions = {
         lite: 'Mode Lite · ASKA membuat soal pilihan ganda standar tanpa stimulus tambahan sehingga proses lebih cepat.',
         pro: 'Mode Pro · Gunakan stimulus pilihanmu lalu ASKA menulis soal yang sesuai dengan cerita/gambar tersebut.',
         normal: 'Mode Normal · ASKA membuat soal pilihan ganda standar tanpa gambar.',
@@ -183,6 +190,42 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         if (!mapelId) return null;
         const cache = window.MAPEL_CACHE || [];
         return cache.find((mapel) => String(mapel.id) === String(mapelId)) || null;
+    }
+
+    function getSelectedSubjectIds() {
+        const opt = questionSubjectSelect && questionSubjectSelect.selectedOptions && questionSubjectSelect.selectedOptions[0]
+            ? questionSubjectSelect.selectedOptions[0]
+            : null;
+        const mapelIdRaw = opt ? opt.value : (questionSubjectSelect ? questionSubjectSelect.value : null);
+        const subjectIdRaw = opt ? (opt.dataset.subjectId || opt.dataset.subject_id) : null;
+        const testIdRaw = manualTestSelect ? manualTestSelect.value : null;
+        const mapelId = mapelIdRaw ? parseInt(mapelIdRaw, 10) : NaN;
+        const subjectId = subjectIdRaw ? parseInt(subjectIdRaw, 10) : NaN;
+        const testId = testIdRaw ? parseInt(testIdRaw, 10) : NaN;
+        return {
+            mapelId: Number.isFinite(mapelId) ? mapelId : null,
+            subjectId: Number.isFinite(subjectId) ? subjectId : null,
+            testId: Number.isFinite(testId) ? testId : null,
+        };
+    }
+
+    function getStimulusCacheKey(subjectId, mapelId, testId) {
+        if (mapelId || testId || subjectId) {
+            return `t-${testId || 'x'}-m-${mapelId || 'x'}-s-${subjectId || 'x'}`;
+        }
+        return 'default';
+    }
+
+    function sortStimulusList(list) {
+        if (!Array.isArray(list)) return [];
+        return [...list].sort((a, b) => {
+            const aDate = a?.created_at ? Date.parse(a.created_at) : 0;
+            const bDate = b?.created_at ? Date.parse(b.created_at) : 0;
+            if (aDate !== bDate) return bDate - aDate;
+            const aId = Number(a?.id) || 0;
+            const bId = Number(b?.id) || 0;
+            return bId - aId;
+        });
     }
 
     function populateMapelFilter(list) {
@@ -202,6 +245,18 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 
     function populateTopicFilter(mapelId) {
         if (!filterTopic) return;
+        const isSelect = filterTopic.tagName === 'SELECT';
+        if (!isSelect) {
+            if (!mapelId) {
+                filterTopic.value = '';
+                filterTopic.placeholder = 'Pilih mapel terlebih dahulu';
+                filterTopic.disabled = true;
+                return;
+            }
+            filterTopic.placeholder = 'Topik (opsional)';
+            filterTopic.disabled = false;
+            return;
+        }
         const previous = filterTopic.value;
         filterTopic.innerHTML = '';
         const placeholder = document.createElement('option');
@@ -251,6 +306,95 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         return null;
     }
 
+    function findTestSubjectEntry(testId, testSubjectId) {
+        if (!testId || !testSubjectId) return null;
+        const list = TEST_SUBJECT_CACHE[testId] || [];
+        return list.find((item) => String(item.id) === String(testSubjectId)) || null;
+    }
+
+    function populateManualTopicOptions(subjectEntry) {
+        if (!manualTopicSelect || manualTopicSelect.tagName !== 'SELECT') return;
+        const prevValue = manualTopicSelect.dataset.lastValue || '';
+        manualTopicSelect.innerHTML = '';
+        const manageOption = document.createElement('option');
+        manageOption.value = '__manage__';
+        manageOption.textContent = '+ Tambah topik di halaman Tes';
+        manualTopicSelect.appendChild(manageOption);
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.textContent = (subjectEntry && Array.isArray(subjectEntry.topics) && subjectEntry.topics.length)
+            ? 'Pilih topik'
+            : 'Belum ada topik';
+        placeholder.selected = true;
+        manualTopicSelect.appendChild(placeholder);
+        if (!subjectEntry || !Array.isArray(subjectEntry.topics) || !subjectEntry.topics.length) {
+            manualTopicSelect.dataset.lastValue = '';
+            return;
+        }
+        let matched = false;
+        subjectEntry.topics.forEach(topic => {
+            if (!topic || !topic.topic) return;
+            const opt = document.createElement('option');
+            opt.value = topic.topic;
+            opt.textContent = topic.topic;
+            if (topic.topic === prevValue) {
+                opt.selected = true;
+                matched = true;
+            }
+            manualTopicSelect.appendChild(opt);
+        });
+        if (matched) {
+            manualTopicSelect.dataset.lastValue = prevValue;
+            return;
+        }
+        manualTopicSelect.selectedIndex = 1;
+        manualTopicSelect.dataset.lastValue = '';
+    }
+
+    function bindManualTopicSelect() {
+        if (!manualTopicSelect || manualTopicSelect.tagName !== 'SELECT') return;
+        manualTopicSelect.addEventListener('change', () => {
+            if (manualTopicSelect.value === '__manage__') {
+                const targetUrl = manualTopicSelect.dataset.manageUrl || manageTopicsUrl || '/latihan-tka/tests';
+                window.open(targetUrl, '_blank', 'noopener');
+                const revertValue = manualTopicSelect.dataset.lastValue || '';
+                if (revertValue) {
+                    manualTopicSelect.value = revertValue;
+                } else {
+                    manualTopicSelect.selectedIndex = 1;
+                }
+                return;
+            }
+            manualTopicSelect.dataset.lastValue = manualTopicSelect.value;
+        });
+        populateManualTopicOptions(null);
+    }
+
+    function setManualTopicValue(topicValue) {
+        if (!manualTopicSelect) return;
+        const normalized = (topicValue || '').trim();
+        if (!manualTopicSelect.options.length) {
+            populateManualTopicOptions(null);
+        }
+        let matched = Array.from(manualTopicSelect.options).some(opt => opt.value === normalized);
+        if (!matched && normalized) {
+            const opt = document.createElement('option');
+            opt.value = normalized;
+            opt.textContent = normalized;
+            manualTopicSelect.appendChild(opt);
+            matched = true;
+        }
+        if (matched && normalized) {
+            manualTopicSelect.value = normalized;
+            manualTopicSelect.dataset.lastValue = normalized;
+        } else {
+            manualTopicSelect.selectedIndex = manualTopicSelect.options.length > 1 ? 1
+                : (manualTopicSelect.options.length ? 0 : -1);
+            manualTopicSelect.dataset.lastValue = '';
+        }
+    }
+
     async function focusMapelById(mapelId) {
         if (!mapelId) {
             populateTopicFilter('');
@@ -281,6 +425,18 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             return mode === 'truefalse' ? 'bahasa_tf' : 'bahasa_pg';
         }
         return 'matematika';
+    }
+
+    function getManualCategory() {
+        const opt = questionSubjectSelect && questionSubjectSelect.selectedOptions && questionSubjectSelect.selectedOptions[0]
+            ? questionSubjectSelect.selectedOptions[0]
+            : null;
+        const subjectArea = (opt && (opt.dataset.subjectArea || opt.dataset.subject_area)) || '';
+        if (subjectArea) {
+            return subjectArea.toLowerCase().includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
+        }
+        const name = (opt && opt.textContent ? opt.textContent : '').toLowerCase();
+        return name.includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
     }
 
     function formatSectionLabel(sectionKey) {
@@ -524,6 +680,17 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                 ensureManualTfRows();
             }
         }
+        const pgWrapper = document.getElementById('manualPgOptions');
+        const pgInputs = [document.getElementById('optionA'), document.getElementById('optionB'), document.getElementById('optionC'), document.getElementById('optionD')];
+        if (pgWrapper) {
+            pgWrapper.classList.toggle('d-none', mode === 'truefalse');
+        }
+        pgInputs.forEach((input, idx) => {
+            if (!input) return;
+            const isRequired = mode !== 'truefalse' && idx < 2;
+            input.required = isRequired;
+            input.disabled = mode === 'truefalse';
+        });
     }
 
     updateManualModeSections('normal');
@@ -533,9 +700,11 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     refreshStimulusDropdown();
     renderGeneratorForm(generatorModeInput ? generatorModeInput.value : 'lite');
 
-    async function fetchStimulus(subjectId) {
-        if (!subjectId) return [];
-        const params = new URLSearchParams({ subject_id: subjectId || '' });
+    async function fetchStimulus(subjectId, mapelId, testId) {
+        const params = new URLSearchParams();
+        if (mapelId) params.append('mapel_id', mapelId);
+        if (testId) params.append('test_id', testId);
+        if (!params.toString()) return [];
         try {
             const response = await fetch(buildTkaUrl('/latihan-tka/stimulus', params));
             const data = await response.json();
@@ -548,21 +717,25 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         return [];
     }
 
-    function findStimulusById(subjectId, stimulusId) {
-        if (!subjectId || !stimulusId) return null;
-        const list = STIMULUS_CACHE[subjectId] || [];
+    function findStimulusById(stimulusId, subjectId, mapelId, testId) {
+        if (!stimulusId) return null;
+        const cacheKey = getStimulusCacheKey(subjectId, mapelId, testId);
+        const list = STIMULUS_CACHE[cacheKey] || [];
         return list.find(item => Number(item.id) === Number(stimulusId)) || null;
     }
 
-    async function populateStimulusOptions(selectEl, subjectId, selectedId) {
+    async function populateStimulusOptions(selectEl, subjectId, mapelId, testId, selectedId) {
         if (!selectEl) return [];
         const subjectIdNum = Number(subjectId || 0) || null;
-        const cacheKey = subjectIdNum || 'default';
+        const mapelIdNum = Number(mapelId || 0) || null;
+        const testIdNum = Number(testId || 0) || null;
+        const cacheKey = getStimulusCacheKey(subjectIdNum, mapelIdNum, testIdNum);
         let cached = STIMULUS_CACHE[cacheKey];
         if (!cached) {
-            cached = await fetchStimulus(subjectIdNum);
-            STIMULUS_CACHE[cacheKey] = cached;
+            cached = await fetchStimulus(subjectIdNum, mapelIdNum, testIdNum);
+            STIMULUS_CACHE[cacheKey] = sortStimulusList(cached);
         }
+        cached = sortStimulusList(cached);
         selectEl.innerHTML = '';
         const placeholder = document.createElement('option');
         placeholder.value = '';
@@ -589,16 +762,18 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     }
 
     async function refreshStimulusDropdown(selectedId) {
-        const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
-        if (!subjectId) return [];
-        STIMULUS_CACHE[subjectId] = null;
-        await populateStimulusOptions(stimulusExistingSelect, subjectId, selectedId);
+        const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+        if (!mapelId && !testId) return [];
+        const cacheKey = getStimulusCacheKey(subjectId, mapelId, testId);
+        STIMULUS_CACHE[cacheKey] = null;
+        await populateStimulusOptions(stimulusExistingSelect, subjectId, mapelId, testId, selectedId);
+        if (stimulusTypeFilter) stimulusTypeFilter.value = '';
         return renderQuestionStimulusOptions(selectedId);
     }
 
     async function refreshEditStimulusDropdown(selectedId) {
         if (!editingSubjectId) return [];
-        return populateStimulusOptions(editStimulusExistingSelect, editingSubjectId, selectedId);
+        return populateStimulusOptions(editStimulusExistingSelect, editingSubjectId, null, null, selectedId);
     }
 
     function getStimulusUsageMode() {
@@ -639,8 +814,8 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             editingStimulusId = null;
             renderSelectedStimulusPreview(null);
         } else if (stimulusExistingSelect) {
-            const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
-            const current = findStimulusById(subjectId, stimulusExistingSelect.value);
+            const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+            const current = findStimulusById(stimulusExistingSelect.value, subjectId, mapelId, testId);
             selectedStimulusId = current && current.id ? String(current.id) : null;
             renderSelectedStimulusPreview(current || null);
         }
@@ -648,12 +823,23 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 
     function renderQuestionStimulusOptions(selectedId) {
         if (!questionSubjectSelect || !stimulusExistingSelect) return [];
-        const subjectId = questionSubjectSelect.value;
-        const list = STIMULUS_CACHE[subjectId] || [];
+        const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+        const cacheKey = getStimulusCacheKey(subjectId, mapelId, testId);
+        const list = sortStimulusList(STIMULUS_CACHE[cacheKey] || []);
         const keyword = (stimulusSearchInput?.value || '').trim().toLowerCase();
-        const filtered = keyword
+        const typeFilter = (stimulusTypeFilter?.value || '').trim().toLowerCase();
+        let filtered = keyword
             ? list.filter(item => (item.title || `stimulus-${item.id}`).toLowerCase().includes(keyword))
             : list;
+        if (typeFilter) {
+            filtered = filtered.filter(item => {
+                const t = (item.type || '').toLowerCase();
+                if (typeFilter === 'mixed') return t === 'mixed' || t === 'text_image' || t === 'image_text';
+                if (typeFilter === 'image') return t === 'image';
+                if (typeFilter === 'table') return t === 'table';
+                return t === 'text' || !t;
+            });
+        }
         stimulusExistingSelect.innerHTML = '';
         const placeholder = document.createElement('option');
         placeholder.value = '';
@@ -688,24 +874,26 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
         }
     }
 
-    function updateStimulusCache(subjectId, stimulus) {
-        if (!subjectId || !stimulus || !stimulus.id) return;
-        const list = STIMULUS_CACHE[subjectId] || [];
+    function updateStimulusCache(subjectId, mapelId, testId, stimulus) {
+        if (!stimulus || !stimulus.id) return;
+        const cacheKey = getStimulusCacheKey(subjectId, mapelId, testId);
+        const list = STIMULUS_CACHE[cacheKey] || [];
         const idx = list.findIndex(item => Number(item.id) === Number(stimulus.id));
         if (idx >= 0) {
             list[idx] = stimulus;
         } else {
             list.unshift(stimulus);
         }
-        STIMULUS_CACHE[subjectId] = list;
+        STIMULUS_CACHE[cacheKey] = sortStimulusList(list);
         renderQuestionStimulusOptions(stimulus.id);
     }
 
-    function removeStimulusFromCache(subjectId, stimulusId) {
-        if (!subjectId || !stimulusId) return;
-        const list = STIMULUS_CACHE[subjectId] || [];
+    function removeStimulusFromCache(subjectId, mapelId, testId, stimulusId) {
+        if (!stimulusId) return;
+        const cacheKey = getStimulusCacheKey(subjectId, mapelId, testId);
+        const list = STIMULUS_CACHE[cacheKey] || [];
         const filtered = list.filter(item => Number(item.id) !== Number(stimulusId));
-        STIMULUS_CACHE[subjectId] = filtered;
+        STIMULUS_CACHE[cacheKey] = filtered;
         renderQuestionStimulusOptions('');
     }
 
@@ -776,6 +964,9 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     if (stimulusSearchInput) {
         stimulusSearchInput.addEventListener('input', () => renderQuestionStimulusOptions());
     }
+    if (stimulusTypeFilter) {
+        stimulusTypeFilter.addEventListener('change', () => renderQuestionStimulusOptions());
+    }
     if (refreshStimulusBtn) {
         refreshStimulusBtn.addEventListener('click', () => refreshStimulusDropdown());
     }
@@ -798,9 +989,13 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     }
     if (generateStimulusBtn) {
         generateStimulusBtn.addEventListener('click', async () => {
-            const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
-            if (!subjectId) {
+            const { mapelId, testId } = getSelectedSubjectIds();
+            if (!mapelId) {
                 showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            if (!testId) {
+                showStatus('Pilih tes terlebih dahulu.', 'warning');
                 return;
             }
             const briefValue = newStimulusBriefInput ? newStimulusBriefInput.value.trim() : '';
@@ -816,7 +1011,8 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        subject_id: subjectId,
+                        mapel_id: mapelId,
+                        test_id: testId,
                         topic: briefValue,
                         length: lengthValue,
                         include_image: true,
@@ -842,9 +1038,13 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     }
     if (saveStimulusBtn) {
         saveStimulusBtn.addEventListener('click', async () => {
-            const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
-            if (!subjectId) {
+            const { mapelId, testId } = getSelectedSubjectIds();
+            if (!mapelId) {
                 showStatus('Pilih jenis latihan terlebih dahulu.', 'warning');
+                return;
+            }
+            if (!testId) {
+                showStatus('Pilih tes terlebih dahulu.', 'warning');
                 return;
             }
             const title = (newStimulusTitleInput ? newStimulusTitleInput.value : '').trim();
@@ -865,7 +1065,9 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             }
             saveStimulusBtn.disabled = true;
             const payload = {
-                subject_id: subjectId,
+                subject_id: null,
+                mapel_id: mapelId,
+                test_id: testId,
                 title,
                 narrative,
                 image_prompt: newStimulusImagePromptInput ? newStimulusImagePromptInput.value : '',
@@ -923,8 +1125,8 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
     }
     if (stimulusExistingSelect) {
         stimulusExistingSelect.addEventListener('change', () => {
-            const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
-            const stimulus = findStimulusById(subjectId, stimulusExistingSelect.value);
+            const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+            const stimulus = findStimulusById(stimulusExistingSelect.value, subjectId, mapelId, testId);
             selectedStimulusId = stimulus && stimulus.id ? String(stimulus.id) : null;
             editingStimulusId = null;
             renderSelectedStimulusPreview(stimulus || null);
@@ -937,14 +1139,6 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
             toggleEditStimulusFields(mode);
             if (mode === 'existing') {
                 refreshEditStimulusDropdown();
-            }
-        });
-    }
-
-    if (manualCategorySelect) {
-        manualCategorySelect.addEventListener('change', () => {
-            if (getStimulusUsageMode() === 'existing') {
-                refreshStimulusDropdown();
             }
         });
     }
@@ -1476,6 +1670,10 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 
     async function loadTestsCatalog() {
         if (!generateTestSelect && !manualTestSelect && !filterTestSelect) return;
+        if (Array.isArray(INITIAL_TESTS) && INITIAL_TESTS.length) {
+            TEST_CACHE = INITIAL_TESTS;
+            renderTestOptions();
+        }
         try {
             const res = await fetch('/latihan-tka/tests');
             const data = await res.json();
@@ -1484,7 +1682,9 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                 renderTestOptions();
             }
         } catch (error) {
-            // silent fail
+            if (!TEST_CACHE.length) {
+                showStatus('Gagal memuat daftar tes. Coba refresh halaman.', 'warning');
+            }
         }
     }
 
@@ -1878,7 +2078,6 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
                     if (generateSubjectSelect) generateSubjectSelect.value = newId;
                     subjectForm.reset();
                     if (subjectGradeSelect) subjectGradeSelect.value = 'sd6';
-                    if (manualCategorySelect) manualCategorySelect.value = 'matematika';
                     showStatus('Jenis latihan baru berhasil ditambahkan.');
                     loadQuestions();
                     pendingQuestions = [];
@@ -1901,14 +2100,21 @@ const saveEditQuestionBtn = document.getElementById('saveEditQuestion');
 const optionAInput = document.getElementById('optionA');
 const optionBInput = document.getElementById('optionB');
 const optionCInput = document.getElementById('optionC');
-const optionDInput = document.getElementById('optionD');
-const optionAField = document.getElementById('optionAField');
-const optionBField = document.getElementById('optionBField');
-const optionCField = document.getElementById('optionCField');
-const optionDField = document.getElementById('optionDField');
+        const optionDInput = document.getElementById('optionD');
+        const optionAField = document.getElementById('optionAField');
+        const optionBField = document.getElementById('optionBField');
+        const optionCField = document.getElementById('optionCField');
+        const optionDField = document.getElementById('optionDField');
         const difficultySelect = document.getElementById('questionDifficulty');
         if (promptInput) promptInput.value = '';
-        if (topicInput) topicInput.value = '';
+        if (topicInput) {
+            if (topicInput.tagName === 'SELECT') {
+                topicInput.selectedIndex = topicInput.options.length > 1 ? 1 : (topicInput.options.length ? 0 : -1);
+                topicInput.dataset.lastValue = '';
+            } else {
+                topicInput.value = '';
+            }
+        }
         if (explanationInput) explanationInput.value = '';
         if (optionAInput) optionAInput.value = '';
         if (optionBInput) optionBInput.value = '';
@@ -1927,29 +2133,23 @@ const optionDField = document.getElementById('optionDField');
             ensureManualTfRows();
         }
         if (!preserveStimulus) {
-            if (manualCategorySelect) manualCategorySelect.value = 'matematika';
             setStimulusUsageMode('none');
             if (stimulusExistingSelect) {
                 stimulusExistingSelect.value = '';
             }
             renderSelectedStimulusPreview(null);
             resetStimulusCreatorFields();
-        } else {
-            if (manualCategorySelect && !manualCategorySelect.value) {
-                manualCategorySelect.value = 'matematika';
-            }
         }
     }
 
     async function buildManualQuestionPayload() {
         const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
         const testId = manualTestSelect ? parseInt(manualTestSelect.value || '', 10) : NaN;
-        const testSubjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : NaN;
         if (!subjectId) {
             showStatus('Pilih mapel dalam tes terlebih dahulu.', 'warning');
             return null;
         }
-        if (!testId || !testSubjectId) {
+        if (!testId) {
             showStatus('Pilih tes terlebih dahulu.', 'warning');
             return null;
         }
@@ -1982,7 +2182,7 @@ const optionDField = document.getElementById('optionDField');
             }
             metadata.true_false_statements = statements;
         }
-        const categoryKey = manualCategorySelect ? manualCategorySelect.value : 'matematika';
+        const categoryKey = getManualCategory();
         const sectionKey = mapCategoryToSectionKey(categoryKey, manualMode);
         const sectionTemplate = getSectionTemplate(sectionKey);
         metadata.section_key = sectionKey;
@@ -2028,25 +2228,35 @@ const optionDField = document.getElementById('optionDField');
                 type: imageData && narrativeValue ? 'mixed' : (imageData ? 'image' : 'text'),
             };
         }
-        const optionAValue = optionAInput ? optionAInput.value.trim() : '';
-        const optionBValue = optionBInput ? optionBInput.value.trim() : '';
-        if (!optionAValue || !optionBValue) {
-            showStatus('Minimal opsi A dan B harus diisi.', 'warning');
-            return null;
+        const rawTopic = topicInput ? topicInput.value.trim() : '';
+        const resolvedTopic = rawTopic === '__manage__' ? '' : rawTopic;
+        let options = [];
+        if (manualMode === 'truefalse') {
+            options = [
+                { key: 'A', text: 'Benar' },
+                { key: 'B', text: 'Salah' },
+            ];
+            setSelectedAnswerKey('A');
+        } else {
+            const optionAValue = optionAInput ? optionAInput.value.trim() : '';
+            const optionBValue = optionBInput ? optionBInput.value.trim() : '';
+            if (!optionAValue || !optionBValue) {
+                showStatus('Minimal opsi A dan B harus diisi.', 'warning');
+                return null;
+            }
+            options = [
+                { key: 'A', text: optionAValue },
+                { key: 'B', text: optionBValue },
+            ];
+            const optionCValue = optionCInput ? optionCInput.value.trim() : '';
+            const optionDValue = optionDInput ? optionDInput.value.trim() : '';
+            if (optionCValue) options.push({ key: 'C', text: optionCValue });
+            if (optionDValue) options.push({ key: 'D', text: optionDValue });
         }
-        const options = [
-            { key: 'A', text: optionAValue },
-            { key: 'B', text: optionBValue },
-        ];
-        const optionCValue = optionCInput ? optionCInput.value.trim() : '';
-        const optionDValue = optionDInput ? optionDInput.value.trim() : '';
-        if (optionCValue) options.push({ key: 'C', text: optionCValue });
-        if (optionDValue) options.push({ key: 'D', text: optionDValue });
         const questionPayload = {
             test_id: testId,
-            test_subject_id: testSubjectId,
             prompt: promptInput ? promptInput.value.trim() : '',
-            topic: topicInput ? topicInput.value.trim() : '',
+            topic: resolvedTopic,
             difficulty: difficultySelect ? difficultySelect.value : 'easy',
             options,
             correct_key: getSelectedAnswerKey(),
@@ -2079,15 +2289,23 @@ const optionDField = document.getElementById('optionDField');
         const optionDInput = document.getElementById('optionD');
         const difficultySelect = document.getElementById('questionDifficulty');
         const metadata = question.metadata || {};
-        const category = (metadata.subject_area === 'bahasa_indonesia') ? 'bahasa_indonesia' : 'matematika';
-        if (manualCategorySelect) manualCategorySelect.value = category;
         const mapelId = question.mapel_id || metadata.mapel_id || '';
         const mapelSelect = document.getElementById('questionSubject');
         if (mapelSelect && mapelId) {
             mapelSelect.value = String(mapelId);
         }
+        const prefillTestId = question.test_id || question.testId || (mapelSelect && mapelSelect.selectedOptions[0]?.dataset?.testId) || (manualTestSelect ? manualTestSelect.value : null);
+        const prefillTestSubjectId = question.test_subject_id || question.testSubjectId || question.test_subject || (mapelSelect && mapelSelect.selectedOptions[0]?.dataset?.testSubjectId);
+        const prefillSubjectEntry = findTestSubjectEntry(prefillTestId, prefillTestSubjectId);
+        populateManualTopicOptions(prefillSubjectEntry);
         if (promptInput) promptInput.value = question.prompt || '';
-        if (topicInput) topicInput.value = question.topic || '';
+        if (topicInput) {
+            if (topicInput.tagName === 'SELECT') {
+                setManualTopicValue(question.topic || '');
+            } else {
+                topicInput.value = question.topic || '';
+            }
+        }
         if (explanationInput) explanationInput.value = question.explanation || '';
         const pickOption = (key) => {
             const opt = (question.options || []).find(entry => (entry.key || '').toUpperCase() === key);
@@ -2189,21 +2407,18 @@ const optionDField = document.getElementById('optionDField');
             showStatus('Belum ada soal dalam daftar. Tambahkan dulu sebelum menyimpan.', 'warning');
             return;
         }
-        const subjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.value, 10) : NaN;
-        const testId = manualTestSelect ? parseInt(manualTestSelect.value || '', 10) : NaN;
-        const testSubjectId = questionSubjectSelect ? parseInt(questionSubjectSelect.selectedOptions[0]?.dataset?.testSubjectId || '', 10) : NaN;
-        if (!subjectId) {
+        const { mapelId, testId } = getSelectedSubjectIds();
+        if (!mapelId) {
             showStatus('Pilih mapel dalam tes terlebih dahulu.', 'warning');
             return;
         }
-        if (!testId || !testSubjectId) {
+        if (!testId) {
             showStatus('Pilih tes terlebih dahulu.', 'warning');
             return;
         }
         const payload = {
             test_id: testId,
-            test_subject_id: testSubjectId,
-            subject_id: subjectId,
+            mapel_id: mapelId,
             questions: pendingQuestions,
         };
         try {
@@ -2217,10 +2432,8 @@ const optionDField = document.getElementById('optionDField');
                 showStatus(`${data.inserted} soal berhasil disimpan.`);
                 pendingQuestions = [];
                 renderPendingQuestions();
-                const numericSubjectId = Number(subjectId);
-                if (!Number.isNaN(numericSubjectId)) {
-                    delete STIMULUS_CACHE[numericSubjectId];
-                }
+                const cacheKey = getStimulusCacheKey(null, mapelId, testId);
+                delete STIMULUS_CACHE[cacheKey];
                 refreshStimulusDropdown();
                 resetQuestionFields();
                 loadQuestions();
@@ -2237,16 +2450,16 @@ const optionDField = document.getElementById('optionDField');
             const editBtn = event.target.closest('[data-action="edit-selected-stimulus"]');
             if (editBtn) {
                 editingStimulusId = editBtn.dataset.stimulusId;
-                const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
-                const targetStimulus = findStimulusById(subjectId, editingStimulusId);
+                const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+                const targetStimulus = findStimulusById(editingStimulusId, subjectId, mapelId, testId);
                 renderSelectedStimulusPreview(targetStimulus || null);
                 return;
             }
             const cancelBtn = event.target.closest('[data-action="cancel-stimulus-edit"]');
             if (cancelBtn) {
                 editingStimulusId = null;
-                const subjectId = questionSubjectSelect ? questionSubjectSelect.value : null;
-                const targetStimulus = findStimulusById(subjectId, selectedStimulusId);
+                const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+                const targetStimulus = findStimulusById(selectedStimulusId, subjectId, mapelId, testId);
                 renderSelectedStimulusPreview(targetStimulus || null);
                 return;
             }
@@ -2266,7 +2479,8 @@ const optionDField = document.getElementById('optionDField');
                         showStatus((data && data.message) || 'Gagal menghapus stimulus.', 'danger');
                         return;
                     }
-                    removeStimulusFromCache(questionSubjectSelect ? questionSubjectSelect.value : null, stimulusId);
+                    const { subjectId, mapelId, testId } = getSelectedSubjectIds();
+                    removeStimulusFromCache(subjectId, mapelId, testId, stimulusId);
                     editingStimulusId = null;
                     selectedStimulusId = null;
                     renderSelectedStimulusPreview(null);
@@ -2314,7 +2528,8 @@ const optionDField = document.getElementById('optionDField');
                         showStatus((data && data.message) || 'Gagal memperbarui stimulus.', 'danger');
                         return;
                     }
-                    updateStimulusCache(subjectId, data.stimulus);
+                    const cacheIds = getSelectedSubjectIds();
+                    updateStimulusCache(cacheIds.subjectId || subjectId, cacheIds.mapelId, cacheIds.testId, data.stimulus);
                     editingStimulusId = null;
                     selectedStimulusId = String(data.stimulus.id);
                     renderSelectedStimulusPreview(data.stimulus);
@@ -2578,17 +2793,13 @@ const optionDField = document.getElementById('optionDField');
     if (questionSubjectSelect && questionSubjectSelect !== generateSubjectSelect) {
         questionSubjectSelect.addEventListener('change', () => {
             const opt = questionSubjectSelect.selectedOptions[0];
-            if (opt) {
-                const categorySelect = document.getElementById('questionCategory');
-                if (categorySelect) {
-                    categorySelect.value = (opt.textContent || '').toLowerCase().includes('bahasa') ? 'bahasa_indonesia' : 'matematika';
-                }
-            }
             if (stimulusSearchInput) stimulusSearchInput.value = '';
             refreshStimulusDropdown();
             const selected = questionSubjectSelect.value;
             const testId = opt ? opt.dataset.testId : null;
             const testSubjectId = opt ? opt.dataset.testSubjectId : null;
+            const subjectEntry = findTestSubjectEntry(testId, testSubjectId);
+            populateManualTopicOptions(subjectEntry);
             if (filterTestSelect && testId && filterTestSelect.value !== testId) {
                 filterTestSelect.value = testId;
                 populateFilterSubjects(testId, testSubjectId);
@@ -3445,12 +3656,11 @@ const optionDField = document.getElementById('optionDField');
                     if (editStimulusTitleInput) editStimulusTitleInput.value = '';
                     if (editStimulusImagePromptInput) editStimulusImagePromptInput.value = '';
                     if (editingSubjectId) {
-                        const numericSubjectId = Number(editingSubjectId);
-                        if (!Number.isNaN(numericSubjectId)) {
-                            delete STIMULUS_CACHE[numericSubjectId];
-                            if (questionSubjectSelect && Number(questionSubjectSelect.value) === numericSubjectId) {
-                                refreshStimulusDropdown();
-                            }
+                        const { mapelId, testId } = getSelectedSubjectIds();
+                        const cacheKey = getStimulusCacheKey(editingSubjectId, mapelId, testId);
+                        delete STIMULUS_CACHE[cacheKey];
+                        if (questionSubjectSelect && String(getSelectedSubjectIds().subjectId || '') === String(editingSubjectId)) {
+                            refreshStimulusDropdown();
                         }
                         refreshEditStimulusDropdown();
                     }

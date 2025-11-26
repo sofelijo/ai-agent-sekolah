@@ -56,7 +56,9 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_stimulus (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER NOT NULL REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
+            test_id INTEGER,
             title TEXT,
             type TEXT NOT NULL DEFAULT 'text',
             narrative TEXT,
@@ -108,6 +110,31 @@ def ensure_tka_schema(cursor) -> None:
         """
         ALTER TABLE tka_questions
         ADD COLUMN IF NOT EXISTS stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_stimulus
+        ALTER COLUMN subject_id DROP NOT NULL;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_stimulus
+        ADD COLUMN IF NOT EXISTS mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_stimulus
+        ADD COLUMN IF NOT EXISTS test_id INTEGER;
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE tka_stimulus
+        SET test_id = COALESCE(test_id, 22)
+        WHERE test_id IS NULL;
         """
     )
     cursor.execute(

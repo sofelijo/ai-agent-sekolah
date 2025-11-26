@@ -103,22 +103,14 @@
                         <form id="questionForm" class="mt-3">
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label">Pilih Tes</label>
+                                    <label class="form-label">Tes</label>
                                     <select class="form-select" id="manualTest">
                                         <option value="">Pilih tes</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Pilih Jenis Latihan</label>
+                                    <label class="form-label">Mapel pada Tes</label>
                                     <select class="form-select" id="questionSubject" required></select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Kategori Mapel</label>
-                                    <select class="form-select" id="questionCategory">
-                                        <option value="matematika">Matematika</option>
-                                        <option value="bahasa_indonesia">Bahasa Indonesia</option>
-                                    </select>
-                                    <small class="text-muted">Menentukan mapel utama; format soal dipilih di bawah.</small>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -140,6 +132,16 @@
                                     <button type="button" class="btn btn-outline-secondary" id="refreshStimulusBtn">
                                         <i class="bi bi-arrow-repeat"></i>
                                     </button>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Filter tipe stimulus</label>
+                                    <select class="form-select form-select-sm" id="stimulusTypeFilter">
+                                        <option value="">Semua tipe</option>
+                                        <option value="text">Teks</option>
+                                        <option value="image">Gambar</option>
+                                        <option value="mixed">Teks + Gambar</option>
+                                        <option value="table">Tabel</option>
+                                    </select>
                                 </div>
                                 <select class="form-select" id="questionStimulusSelect"></select>
                                 <div class="d-flex justify-content-end mt-2">
@@ -187,7 +189,10 @@
                             <div class="row g-3">
                                 <div class="col-md-7">
                                     <label class="form-label">Topik</label>
-                                    <input type="text" class="form-control" id="questionTopic" placeholder="Contoh: Bilangan pecahan">
+                                    <select class="form-select" id="questionTopic" required data-manage-url="{{ url_for('main.latihan_tka_tests') }}">
+                                        <option value="__manage__">+ Tambah topik di halaman Tes</option>
+                                        <option value="" selected disabled>Pilih topik</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-5">
                                     <label class="form-label">Tingkat Kesulitan</label>
@@ -222,7 +227,7 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Pilihan Jawaban</label>
-                                <div class="row g-3">
+                                <div class="row g-3" id="manualPgOptions">
                                     <div class="col-sm-6 col-lg-3">
                                         <div class="input-group answer-option">
                                             <input type="radio" class="btn-check" name="questionAnswer" id="answerKeyA" value="A" checked>
@@ -322,5 +327,8 @@
 {% endblock %}
 
 {% block scripts %}
+    <script>
+        window.INIT_TKA_TESTS = {{ tests|default([])|tojson }};
+    </script>
     {% include 'partials/latihan_tka_scripts.html' %}
 {% endblock %}
