@@ -9,6 +9,19 @@ def ensure_tka_schema(cursor) -> None:
     """Create core Latihan TKA tables and indexes if they do not exist."""
     cursor.execute(
         """
+        CREATE TABLE IF NOT EXISTS tka_mata_pelajaran (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            grade_level TEXT NOT NULL DEFAULT 'sd6',
+            description TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    )
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS tka_subjects (
             id SERIAL PRIMARY KEY,
             slug TEXT UNIQUE,
@@ -50,6 +63,57 @@ def ensure_tka_schema(cursor) -> None:
         """
         ALTER TABLE tka_subjects
         ADD COLUMN IF NOT EXISTS grade_level TEXT NOT NULL DEFAULT 'sd6';
+        """
+    )
+    # Tes dan mata pelajaran per tes dibuat lebih awal supaya referensi FK aman
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tka_tests (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            grade_level TEXT,
+            duration_minutes INTEGER NOT NULL DEFAULT 120,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            metadata JSONB,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_tests
+        ALTER COLUMN grade_level DROP NOT NULL;
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_tests
+        ALTER COLUMN grade_level DROP DEFAULT;
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tka_test_subjects (
+            id SERIAL PRIMARY KEY,
+            test_id INTEGER NOT NULL REFERENCES tka_tests(id) ON DELETE CASCADE,
+            mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
+            question_count_target INTEGER NOT NULL DEFAULT 0,
+            order_index INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE tka_test_subjects
+        DROP COLUMN IF EXISTS subject_id;
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_tka_test_subjects_test
+        ON tka_test_subjects (test_id, order_index);
         """
     )
     cursor.execute(
@@ -292,46 +356,6 @@ def ensure_tka_schema(cursor) -> None:
         """
     )
 
-    # Tes berisi banyak mapel + format + topik
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS tka_tests (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            grade_level TEXT,
-            duration_minutes INTEGER NOT NULL DEFAULT 120,
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            metadata JSONB,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_tests
-        ALTER COLUMN grade_level DROP NOT NULL;
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_tests
-        ALTER COLUMN grade_level DROP DEFAULT;
-        """
-    )
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS tka_mata_pelajaran (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            grade_level TEXT NOT NULL DEFAULT 'sd6',
-            description TEXT,
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        """
-    )
     cursor.execute(
         """
         ALTER TABLE tka_mata_pelajaran
@@ -387,30 +411,6 @@ def ensure_tka_schema(cursor) -> None:
         """
     )
 
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS tka_test_subjects (
-            id SERIAL PRIMARY KEY,
-            test_id INTEGER NOT NULL REFERENCES tka_tests(id) ON DELETE CASCADE,
-            mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
-            question_count_target INTEGER NOT NULL DEFAULT 0,
-            order_index INTEGER NOT NULL DEFAULT 1,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_test_subjects
-        DROP COLUMN IF EXISTS subject_id;
-        """
-    )
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_tka_test_subjects_test
-        ON tka_test_subjects (test_id, order_index);
-        """
-    )
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS tka_mapel_formats (
