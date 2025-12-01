@@ -245,8 +245,52 @@ CREATE TABLE IF NOT EXISTS telegram_users (
 );
 """
 
+
 _TELEGRAM_USERS_INDEX_STATUS = """
 CREATE INDEX IF NOT EXISTS idx_telegram_users_status ON telegram_users (status);
+"""
+
+_BOOKS_SQL = """
+CREATE TABLE IF NOT EXISTS books (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT,
+    publisher TEXT,
+    year INTEGER,
+    code TEXT UNIQUE NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 1,
+    location TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_BOOKS_CODE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_books_code ON books (code);
+"""
+
+_BORROWING_RECORDS_SQL = """
+CREATE TABLE IF NOT EXISTS borrowing_records (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    borrow_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE,
+    return_date DATE,
+    status TEXT NOT NULL DEFAULT 'borrowed' CHECK (status IN ('borrowed', 'returned', 'lost')),
+    note TEXT,
+    recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_BORROWING_RECORDS_STUDENT_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_borrowing_records_student ON borrowing_records (student_id);
+"""
+
+_BORROWING_RECORDS_STATUS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_borrowing_records_status ON borrowing_records (status);
 """
 
 
@@ -276,6 +320,11 @@ def ensure_dashboard_schema() -> None:
         _TWITTER_LOGS_INDEX_LEVEL,
         _TELEGRAM_USERS_SQL,
         _TELEGRAM_USERS_INDEX_STATUS,
+        _BOOKS_SQL,
+        _BOOKS_CODE_INDEX_SQL,
+        _BORROWING_RECORDS_SQL,
+        _BORROWING_RECORDS_STUDENT_INDEX_SQL,
+        _BORROWING_RECORDS_STATUS_INDEX_SQL,
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nrk TEXT",
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nip TEXT",

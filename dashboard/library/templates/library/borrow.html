@@ -1,0 +1,321 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Peminjaman Buku{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-qr-code-scan me-2"></i>Scan Peminjaman</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('library.borrow') }}" id="borrowForm">
+                    <div class="mb-3">
+                        <label for="student_search" class="form-label">Cari Siswa</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="student_search"
+                                placeholder="Ketik nama siswa..." autocomplete="off">
+                            <input type="hidden" name="student_id" id="student_id" value="{{ student_id or '' }}">
+                            <div id="student_results" class="list-group position-absolute w-100 mt-1 shadow"
+                                style="z-index: 1000; display: none;"></div>
+                        </div>
+                        <div id="selected_student_display" class="mt-2 text-primary fw-bold"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="book_code" class="form-label">Kode Buku (Scan QR)</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="book_code" name="book_code"
+                                placeholder="Scan atau ketik kode buku" autofocus required>
+                            <button class="btn btn-outline-secondary" type="button" id="btnScanQR">
+                                <i class="bi bi-camera"></i>
+                            </button>
+                        </div>
+                        <div id="reader" style="width: 100%; display: none;" class="mb-2 border rounded"></div>
+                        <div class="form-text">Pastikan kursor aktif di sini saat scan (jika pakai scanner fisik).</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100" id="btnSubmit" disabled>
+                        <i class="bi bi-arrow-right-circle me-2"></i>Proses Peminjaman
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-journal-bookmark me-2"></i>Buku Sedang Dipinjam</h5>
+                <div class="ms-auto">
+                    <input type="text" id="borrow_search" class="form-control form-control-sm"
+                        placeholder="Cari buku/siswa..." style="width: 200px;">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" id="borrowings-table">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Siswa</th>
+                                <th>Judul Buku</th>
+                                <th>Kode</th>
+                                <th>Tgl Pinjam</th>
+                                <th>Status</th>
+                                <th>Petugas</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="borrowings-tbody">
+                            {% for item in borrowings %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ item.student_name }} ({{ item.class_name }})</div>
+                                </td>
+                                <td>{{ item.title }}</td>
+                                <td><span class="badge bg-light text-dark">{{ item.code }}</span></td>
+                                <td>{{ item.borrow_date }}</td>
+                                <td>
+                                    {% if item.status == 'borrowed' %}
+                                    <span class="badge bg-warning text-dark">Dipinjam</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Dikembalikan</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ item.recorded_by_name or '-' }}</small></td>
+                                <td>
+                                    {% if item.status == 'borrowed' %}
+                                    <form action="{{ url_for('library.return_item', borrow_id=item.id) }}" method="POST"
+                                        onsubmit="return confirm('Kembalikan buku ini?');">
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="bi bi-check-circle me-1"></i> Kembali
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form action="{{ url_for('library.cancel_return_item', borrow_id=item.id) }}"
+                                        method="POST"
+                                        onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-state" class="text-center py-5 text-muted"
+                    style="display: {% if borrowings %}none{% else %}block{% endif %};">
+                    <i class="bi bi-journal-x fs-1 d-block mb-3"></i>
+                    <p>Belum ada data peminjaman.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+    const searchInput = document.getElementById('student_search');
+    const resultsDiv = document.getElementById('student_results');
+    const studentIdInput = document.getElementById('student_id');
+    const displayDiv = document.getElementById('selected_student_display');
+    const submitBtn = document.getElementById('btnSubmit');
+    const bookCodeInput = document.getElementById('book_code');
+    const btnScanQR = document.getElementById('btnScanQR');
+    const readerDiv = document.getElementById('reader');
+    const borrowSearchInput = document.getElementById('borrow_search');
+
+    let html5QrcodeScanner = null;
+    let debounceTimer;
+    let borrowSearchTimer;
+
+    // Load initial data (global list)
+    fetchBorrowings();
+
+    btnScanQR.addEventListener('click', function () {
+        if (readerDiv.style.display === 'none') {
+            readerDiv.style.display = 'block';
+            startScanner();
+        } else {
+            stopScanner();
+        }
+    });
+
+    function startScanner() {
+        if (html5QrcodeScanner) {
+            return;
+        }
+
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            (decodedText, decodedResult) => {
+                bookCodeInput.value = decodedText;
+                stopScanner();
+                if (!submitBtn.disabled) {
+                    bookCodeInput.focus();
+                }
+            },
+            (errorMessage) => {
+            }
+        ).catch(err => {
+            console.error("Error starting scanner", err);
+            alert("Gagal membuka kamera: " + err);
+            readerDiv.style.display = 'none';
+        });
+    }
+
+    function stopScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                readerDiv.style.display = 'none';
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+            }).catch(err => {
+                console.error("Failed to stop scanner", err);
+            });
+        } else {
+            readerDiv.style.display = 'none';
+        }
+    }
+
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        const query = this.value;
+
+        if (query.length < 3) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`{{ url_for('library.api_search_students') }}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsDiv.innerHTML = '';
+                    if (data.length > 0) {
+                        data.forEach(student => {
+                            const a = document.createElement('a');
+                            a.href = '#';
+                            a.className = 'list-group-item list-group-item-action';
+                            a.innerHTML = `<strong>${student.full_name}</strong> <small class="text-muted">(${student.class_name})</small>`;
+                            a.onclick = (e) => {
+                                e.preventDefault();
+                                selectStudent(student);
+                            };
+                            resultsDiv.appendChild(a);
+                        });
+                        resultsDiv.style.display = 'block';
+                    } else {
+                        resultsDiv.style.display = 'none';
+                    }
+                });
+        }, 300);
+    });
+
+    borrowSearchInput.addEventListener('input', function () {
+        clearTimeout(borrowSearchTimer);
+        const query = this.value;
+        borrowSearchTimer = setTimeout(() => {
+            fetchBorrowings(null, query);
+        }, 300);
+    });
+
+    function selectStudent(student) {
+        searchInput.value = student.full_name;
+        studentIdInput.value = student.id;
+        displayDiv.textContent = `Siswa Terpilih: ${student.full_name} (${student.class_name})`;
+        resultsDiv.style.display = 'none';
+        submitBtn.disabled = false;
+        bookCodeInput.focus();
+
+        // Fetch borrowings for this student
+        fetchBorrowings(student.id);
+    }
+
+    function fetchBorrowings(studentId = null, query = '') {
+        const tbody = document.getElementById('borrowings-tbody');
+        const emptyState = document.getElementById('empty-state');
+
+        // Show loading state
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Memuat data...</td></tr>';
+
+        let url = `{{ url_for('library.api_borrowings') }}?`;
+        if (studentId) url += `student_id=${studentId}&`;
+        if (query) url += `q=${encodeURIComponent(query)}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                tbody.innerHTML = '';
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        const row = `
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">${item.student_name} (${item.class_name})</div>
+                                </td>
+                                <td>${item.title}</td>
+                                <td><span class="badge bg-light text-dark">${item.code}</span></td>
+                                <td>${formatDate(item.borrow_date)}</td>
+                                <td>
+                                    ${item.status === 'borrowed' ?
+                                '<span class="badge bg-warning text-dark">Dipinjam</span>' :
+                                '<span class="badge bg-success">Dikembalikan</span>'}
+                                </td>
+                                <td><small>${item.recorded_by_name || '-'}</small></td>
+                                <td>
+                                    ${item.status === 'borrowed' ? `
+                                    <form action="/library/return/${item.id}" method="POST" onsubmit="return confirm('Kembalikan buku ini?');">
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="bi bi-check-circle me-1"></i> Kembali
+                                        </button>
+                                    </form>
+                                    ` : `
+                                    <form action="/library/cancel_return/${item.id}" method="POST" onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
+                                        </button>
+                                    </form>
+                                    `}
+                                </td>
+                            </tr >
+                        `;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                    if (emptyState) emptyState.style.display = 'none';
+                } else {
+                    if (emptyState) emptyState.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching borrowings:', error);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Gagal memuat data.</td></tr>';
+            });
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    // Auto-focus book code on load if student is selected
+    {% if student %}
+    searchInput.value = "{{ student.full_name }}";
+    displayDiv.textContent = "Siswa Terpilih: {{ student.full_name }} ({{ student.class_name }})";
+    submitBtn.disabled = false;
+    bookCodeInput.focus();
+    {% endif %}
+</script>
+{% endblock %}
