@@ -30,6 +30,7 @@ from db import (
     get_tka_analysis_job,
     mark_tka_analysis_sent,
 )
+from dashboard.TKA.queries import fetch_tka_attempts
 from account_status import (
     BLOCKING_STATUSES,
     build_status_notice,
@@ -913,7 +914,25 @@ def create_app() -> Flask:
         # Analisa hanya ketika diminta, tidak otomatis
         return redirect(url_for("latihan_tka_result", attempt_id=attempt_id))
 
-    @app.route("/latihan-tka/hasil/<int:attempt_id>")
+    @app.route("/latihan-tka/history")
+    def latihan_tka_history():
+        user = session.get("user")
+        if not user:
+            flash("Silakan login terlebih dahulu.", "warning")
+            return redirect(url_for("index"))
+
+        attempts = fetch_tka_attempts(user_id=user["id"], limit=50)
+        
+        # Format dates and grades for display
+        for attempt in attempts:
+            if attempt.get("start_time"):
+                attempt["start_time_formatted"] = attempt["start_time"].strftime("%d %b %Y, %H:%M")
+            attempt["grade_label"] = GRADE_LABELS.get(attempt.get("grade_level"), attempt.get("grade_level"))
+
+        return render_template("latihan_tka_history.html", attempts=attempts)
+
+
+    @app.route("/latihan-tka/result/<int:attempt_id>")
     def latihan_tka_result(attempt_id: int):
         user = session.get("user")
         if not user:

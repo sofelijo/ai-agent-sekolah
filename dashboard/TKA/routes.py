@@ -977,7 +977,7 @@ def latihan_tka_create_stimulus():
             narrative=narrative or None,
             image_data=image_data or None,
             image_prompt=image_prompt,
-            created_by=current_user.id,
+            created_by=created_by,
         )
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400

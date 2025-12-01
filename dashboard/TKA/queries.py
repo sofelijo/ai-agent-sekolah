@@ -1028,7 +1028,7 @@ def create_tka_stimulus(
                 metadata,
                 created_by
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             """,
             (
@@ -1367,6 +1367,7 @@ def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
 def fetch_tka_attempts(
     *,
     mapel_id: Optional[int] = None,
+    user_id: Optional[int] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 200,
@@ -1376,6 +1377,9 @@ def fetch_tka_attempts(
     if mapel_id:
         clauses.append("a.mapel_id = %s")
         params.append(mapel_id)
+    if user_id:
+        clauses.append("a.web_user_id = %s")
+        params.append(user_id)
     normalized_status = (status or "").strip().lower()
     if normalized_status in {"in_progress", "completed", "expired", "cancelled"}:
         clauses.append("a.status = %s")
