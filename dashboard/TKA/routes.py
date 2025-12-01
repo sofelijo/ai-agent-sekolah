@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import base64
-import csv
 import json
 import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
-from io import StringIO
+from datetime import datetime, timedelta, timezone
 from math import ceil
 from typing import Any, Dict, List, Optional
-from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from flask import (
     Blueprint,
-    Response,
     current_app,
     flash,
     jsonify,
@@ -36,33 +34,31 @@ from db import (
     DEFAULT_TKA_GRADE_LEVEL,
     DEFAULT_TKA_PRESET_KEY,
     GRADE_LABELS,
+    TKA_PRESET_LABELS,
+    TKA_PRESET_LABELS,
     TKA_SECTION_TEMPLATES,
+    VALID_TKA_GRADE_LEVELS,
 )
 from .queries import (
     create_tka_mapel,
+    fetch_tka_attempts,
     create_tka_questions,
     create_tka_stimulus,
-    create_tka_subject,
     create_tka_test,
     create_tka_test_subject,
     delete_tka_mapel,
     delete_tka_test,
     delete_tka_test_subject,
-    ensure_tka_subject_from_mapel,
     fetch_tka_mapel,
     fetch_tka_mapel_list,
     fetch_tka_questions,
     fetch_tka_stimulus,
     fetch_tka_stimulus_list,
-    fetch_tka_subject,
-    fetch_tka_subjects,
     fetch_tka_test,
     fetch_tka_test_subject,
     fetch_tka_test_subjects,
     fetch_tka_tests,
     set_tka_test_grade_level,
-    update_tka_subject_difficulty,
-    update_tka_subject_sections,
     update_tka_test_subject_topics,
     delete_tka_question,
     update_tka_stimulus,
@@ -274,12 +270,7 @@ def _repair_bare_fields(text: str) -> str:
     return text
 
 
-def _repair_split_question_arrays(text: str) -> str:
-    if not text:
-        return text
-    text = re.sub(r"}\s*],\s*\[{", "},{", text)
-    text = re.sub(r"]\s*,\s*\[{", ",{", text)
-    return text
+
 
 
 def _close_unbalanced_json(text: str) -> str:
@@ -348,88 +339,10 @@ def _repair_unterminated_strings(text: str) -> str:
     return text
 
 
-def _salvage_questions_from_text(text: str) -> list[dict]:
-    """
-    Ambil sebanyak mungkin objek pertanyaan dari teks JSON yang terpotong.
-    Mengabaikan entri terakhir yang belum lengkap agar parsing tetap berhasil.
-    """
-    if not text:
-        return []
-    anchor = text.find('"questions"')
-    if anchor == -1:
-        return []
-    start = text.find("[", anchor)
-    if start == -1:
-        return []
-    items: list[str] = []
-    in_string = False
-    escape = False
-    depth = 0
-    obj_start = None
-    for idx in range(start, len(text)):
-        ch = text[idx]
-        if escape:
-            escape = False
-            continue
-        if ch == "\\":
-            escape = True
-            continue
-        if ch == '"':
-            in_string = not in_string
-            continue
-        if in_string:
-            continue
-        if ch == "{":
-            depth += 1
-            if depth == 1:
-                obj_start = idx
-        elif ch == "}":
-            if depth == 1 and obj_start is not None:
-                items.append(text[obj_start : idx + 1])
-                obj_start = None
-            if depth > 0:
-                depth -= 1
-        elif ch == "]" and depth == 0:
-            break
-    recovered: list[dict] = []
-    for raw in items:
-        normalized = _close_unbalanced_json(
-            _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(raw)))
-        )
-        try:
-            parsed = json.loads(normalized)
-            if isinstance(parsed, dict):
-                recovered.append(parsed)
-        except Exception:
-            continue
-    return recovered
 
 
-def _salvage_stimulus_from_text(text: str) -> Optional[dict]:
-    """
-    Ambil data stimulus pertama tanpa daftar questions agar bisa dipakai menyelamatkan output terpotong.
-    """
-    if not text:
-        return None
-    anchor = text.find('"stimulus"')
-    if anchor == -1:
-        return None
-    obj_start = text.find("{", anchor)
-    if obj_start == -1:
-        return None
-    questions_anchor = text.find('"questions"', obj_start)
-    block = text[obj_start : questions_anchor if questions_anchor != -1 else None]
-    block = block.rstrip()
-    if block.endswith(","):
-        block = block[:-1]
-    normalized = _close_unbalanced_json(
-        _repair_trailing_commas(_repair_unterminated_strings(_normalize_jsonish_text(block)))
-    )
-    try:
-        parsed = json.loads(normalized)
-        return parsed if isinstance(parsed, dict) else None
-    except Exception:
-        return None
+
+
 
 
 MIN_GENERATED_CHILDREN = 3
@@ -675,7 +588,7 @@ def _encode_uploaded_image(file_storage) -> Optional[str]:
 @login_required
 @role_required("admin")
 def latihan_tka_bank():
-    subjects = fetch_tka_subjects(include_inactive=True)
+    subjects = fetch_tka_mapel_list(include_inactive=True)
     return render_template(
         "TKA/latihan_tka.html",
         subjects=subjects,
@@ -689,7 +602,7 @@ def latihan_tka_bank():
 @login_required
 @role_required("admin")
 def latihan_tka_manual():
-    subjects = fetch_tka_subjects(include_inactive=True)
+    subjects = fetch_tka_mapel_list(include_inactive=True)
     tests = fetch_tka_tests()
     return render_template(
         "TKA/latihan_tka_manual.html",
@@ -935,30 +848,8 @@ def latihan_tka_generator_page(mode: str):
 @login_required
 @role_required("admin")
 def latihan_tka_results():
-    subjects = fetch_tka_subjects(include_inactive=True)
+    subjects = fetch_tka_mapel_list(include_inactive=True)
     return render_template("TKA/latihan_tka_results.html", subjects=subjects, grade_labels=GRADE_LABELS)
-
-
-@tka_bp.route("/latihan-tka/subjects", methods=["POST"])
-@login_required
-@role_required("admin")
-def latihan_tka_create_subject():
-    payload = request.get_json(silent=True) or {}
-    try:
-        subject = create_tka_subject(
-            name=payload.get("name"),
-            description=payload.get("description"),
-            time_limit_minutes=int(payload.get("time_limit_minutes") or 15),
-            difficulty_mix=payload.get("difficulty_mix"),
-            is_active=bool(payload.get("is_active", True)),
-            grade_level=payload.get("grade_level"),
-        )
-    except ValueError as exc:
-        return jsonify({"success": False, "message": str(exc)}), 400
-    except Exception as exc:
-        current_app.logger.error("Gagal membuat mapel TKA: %s", exc)
-        return jsonify({"success": False, "message": "Gagal menyimpan mapel."}), 500
-    return jsonify({"success": True, "subject": subject})
 
 
 @tka_bp.route("/latihan-tka/questions")
@@ -999,6 +890,8 @@ def latihan_tka_preview_question(question_id: int):
     section_label = metadata.get("section_label") or question.get("mapel_name") or "Latihan TKA"
     image_url = metadata.get("image_url") or question.get("image_url") or (question.get("stimulus") or {}).get("image_url")
     stimulus = question.get("stimulus") or {}
+    if "narrative" in stimulus and "text" not in stimulus:
+        stimulus["text"] = stimulus["narrative"]
     if image_url and not stimulus.get("image_url"):
         stimulus = {**stimulus, "image_url": image_url}
     question_payload = {
@@ -1080,12 +973,11 @@ def latihan_tka_create_stimulus():
         stimulus = create_tka_stimulus(
             mapel_id=mapel_id,
             test_id=test_id,
-            subject_id=subject_id,
             title=title,
             narrative=narrative or None,
             image_data=image_data or None,
             image_prompt=image_prompt,
-            created_by=created_by,
+            created_by=current_user.id,
         )
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
@@ -1301,11 +1193,9 @@ def latihan_tka_store_questions():
     if not (subject_id or mapel_id or test_subject_id):
         return jsonify({"success": False, "message": "Mapel belum diketahui. Pilih mapel pada tes terlebih dahulu."}), 400
     try:
-        inserted = create_tka_questions(
-            subject_id,
-            questions,
+        inserted_count = create_tka_questions(
+            questions=questions,
             created_by=created_by,
-            test_id=test_id,
             test_subject_id=test_subject_id,
             mapel_id=mapel_id,
         )
@@ -1317,7 +1207,7 @@ def latihan_tka_store_questions():
             "success": False,
             "message": f"Terjadi kesalahan saat menyimpan soal: {exc}",
         }), 500
-    return jsonify({"success": True, "inserted": inserted})
+    return jsonify({"success": True, "inserted": inserted_count})
 
 
 @tka_bp.route("/latihan-tka/questions/<int:question_id>", methods=["DELETE"])
@@ -1383,7 +1273,7 @@ def latihan_tka_check_duplicate():
     if not resolved_subject_id and not test_subject_id:
         return jsonify({"success": False, "message": "Pilih mapel pada tes sebelum cek duplikat."}), 400
     try:
-        exists = has_tka_question_with_prompt(resolved_subject_id, prompt, test_subject_id=test_subject_id)
+        exists = has_tka_question_with_prompt(prompt, test_subject_id=test_subject_id)
     except Exception as exc:
         current_app.logger.error("Gagal mengecek duplikat soal: %s", exc)
         return jsonify({"success": False, "message": "Gagal mengecek duplikat."}), 500
@@ -1565,7 +1455,7 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
     if test_subject_payload and not grade_level:
         grade_level = (test_subject_payload.get("grade_level") or test_subject_payload.get("mapel_grade_level") or "").strip().lower()
     grade_level = (grade_level or "").strip().lower()
-    if grade_level not in VALID_GRADE_LEVELS:
+    if grade_level not in VALID_TKA_GRADE_LEVELS:
         grade_level = DEFAULT_TKA_GRADE_LEVEL
     ensured_subject_id = None
     if not subject_id and mapel_id:
@@ -1948,11 +1838,11 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
 @login_required
 @role_required("admin")
 def latihan_tka_results_data():
-    subject_id = request.args.get("subject_id", type=int)
+    mapel_id = request.args.get("subject_id", type=int)  # Frontend still sends subject_id for now
     status = request.args.get("status")
     search = request.args.get("search")
     attempts = fetch_tka_attempts(
-        subject_id=subject_id,
+        mapel_id=mapel_id,
         status=status,
         search=search,
         limit=200,

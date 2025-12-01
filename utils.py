@@ -94,15 +94,23 @@ def strip_markdown(text):
         return str(text)
 
 
-_SIGNATURE_RE = re.compile(r"(?:\s*\n)?[-–—]\s*ASKA\s*$", re.IGNORECASE)
-
-
-def remove_trailing_signature(text: Optional[str]) -> str:
-    """Remove trailing '- ASKA' style signatures from model output."""
+def remove_trailing_signature(text: str) -> str:
+    """
+    Menghapus signature ASKA dari akhir pesan.
+    Contoh: '... \n\nSalam,\nASKA' -> '...'
+    """
     if not isinstance(text, str):
-        text = str(text or "")
-    cleaned = _SIGNATURE_RE.sub("", text)
-    return cleaned.rstrip()
+        return str(text or "")
+    # Regex untuk menangkap variasi signature di akhir string
+    # Menangani:
+    # - Salam, / Salam hangat,
+    # - ASKA / ASKA (AI Assistant)
+    # - Baris baru sebelumnya
+    pattern = r"\n+\s*(?:Salam(?: hangat)?,\s*\n+)?ASKA.*$"
+    return re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL).strip()
+
+
+
 
 
 def now_str():
@@ -372,33 +380,35 @@ async def send_thinking_bubble(target_message: Optional[Message]):
     return message
 
 
-async def send_and_update_thinking_bubble(target_message: Optional[Message], stop_event: asyncio.Event):
+async def send_and_update_thinking_bubble(
+    target_message: Optional[Message], stop_event: asyncio.Event
+):
+    """
+    Kirim bubble 'ASKA sedang berpikir...' yang berubah-ubah pesannya
+    setiap beberapa detik sampai stop_event diset.
+    Mengembalikan message object bubble tersebut agar bisa dihapus caller.
+    """
     if target_message is None:
         return None
-    
-    message = None
-    loop_count = 0
-    try:
-        while not stop_event.is_set() and loop_count < 3: # Limit to 3 updates (15 seconds)
-            thinking_message = get_random_thinking_message()
-            if message is None:
-                message = await target_message.reply_text(thinking_message)
-                print(f"[{now_str()}] {thinking_message}")
-            else:
-                await message.edit_text(thinking_message)
-                print(f"[{now_str()}] {thinking_message}")
-            
-            loop_count += 1
-            
+
+    bubble_msg = await send_thinking_bubble(target_message)
+    if not bubble_msg:
+        return None
+
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=2.5)
+        except asyncio.TimeoutError:
+            # Update pesan bubble
+            new_text = get_random_thinking_message()
             try:
-                # Wait for 5 seconds or until the stop event is set
-                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
-                pass # Continue the loop
-    except Exception as e:
-        print(f"[{now_str()}] Error in thinking bubble: {e}")
-    
-    return message
+                await bubble_msg.edit_text(new_text)
+            except Exception:
+                pass
+    return bubble_msg
+
+
+
 
 
 async def reply_with_markdown(target_message: Optional[Message], text: Optional[str]) -> None:

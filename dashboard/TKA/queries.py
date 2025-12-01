@@ -76,7 +76,7 @@ def _determine_stimulus_type_local(has_text: bool, has_image: bool) -> str:
 
 def _resolve_question_stimulus(
     cur,
-    subject_id: int,
+    subject_id: Optional[int],
     payload: Optional[Dict[str, Any]],
     created_by: Optional[int],
     bundle_cache: Dict[str, int],
@@ -103,12 +103,12 @@ def _resolve_question_stimulus(
     cur.execute(
         f"""
         SELECT id FROM {table_name}
-        WHERE subject_id = %s
+        WHERE subject_id IS NULL
           AND LOWER(TRIM(title)) = LOWER(%s)
           AND LOWER(COALESCE(TRIM(narrative), '')) = LOWER(%s)
         LIMIT 1
         """,
-        (subject_id, title, narrative or ""),
+        (title, narrative or ""),
     )
     row = cur.fetchone()
     if row and row[0]:
@@ -119,7 +119,7 @@ def _resolve_question_stimulus(
     cur.execute(
         f"""
         INSERT INTO {table_name} (
-            subject_id,
+
             title,
             type,
             narrative,
@@ -130,11 +130,11 @@ def _resolve_question_stimulus(
             created_by,
             updated_at
         )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())
         RETURNING id
         """,
         (
-            subject_id,
+
             title or None,
             stimulus_type,
             narrative or None,
@@ -280,159 +280,16 @@ def _aggregate_section_mix_local(sections: List[Dict[str, Any]]) -> Dict[str, in
                 continue
     return totals
 
-def _slugify_subject(cur, name: str) -> str:
-    base = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-") or "mapel"
-    candidate = base
-    suffix = 2
-    while True:
-        cur.execute("SELECT 1 FROM tka_subjects WHERE slug = %s LIMIT 1", (candidate,))
-        if not cur.fetchone():
-            return candidate
-        candidate = f"{base}-{suffix}"
-        suffix += 1
 
 
-def fetch_tka_subjects(include_inactive: bool = True) -> List[Dict[str, Any]]:
-    """Ambil daftar mapel Latihan TKA."""
-    query = """
-        SELECT id, slug, name, description, question_count, time_limit_minutes,
-               difficulty_mix, difficulty_presets, default_preset, grade_level,
-               is_active, created_at, updated_at, metadata
-        FROM tka_subjects
-    """
-    params: List[Any] = []
-    clauses: List[str] = []
-    if not include_inactive:
-        clauses.append("is_active = TRUE")
-    if clauses:
-        query += " WHERE " + " AND ".join(clauses)
-    query += " ORDER BY name ASC"
-    subjects: List[Dict[str, Any]] = []
-    with get_cursor() as cur:
-        cur.execute(query, params)
-        rows = cur.fetchall()
-        for row in rows:
-            subject = dict(row)
-            presets = _prepare_presets_payload(subject.get("difficulty_presets"))
-            subject["difficulty_presets"] = presets
-            subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
-            subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
-            subject["active_mix"] = subject["difficulty_mix"]
-            subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
-            metadata = subject.get("metadata") if isinstance(subject.get("metadata"), dict) else {}
-            subject["metadata"] = metadata or {}
-            section_config = _normalize_section_config_local(metadata)
-            if section_config:
-                section_mix = _aggregate_section_mix_local(section_config.get("sections") or [])
-                subject["advanced_config"] = section_config
-                subject["difficulty_mix"] = section_mix
-                subject["active_mix"] = section_mix
-                subject["difficulty_presets"][subject["default_preset"]] = section_mix
-                subject["question_count"] = sum(section.get("question_count", 0) for section in section_config.get("sections") or [])
-                subject["time_limit_minutes"] = section_config.get("duration_minutes", subject.get("time_limit_minutes") or DEFAULT_TKA_COMPOSITE_DURATION)
-            subjects.append(subject)
-    return subjects
 
 
-def fetch_tka_subject(subject_id: int) -> Optional[Dict[str, Any]]:
-    if not subject_id:
-        return None
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, slug, name, description, question_count, time_limit_minutes,
-                   difficulty_mix, difficulty_presets, default_preset, grade_level,
-                   is_active, metadata
-            FROM tka_subjects
-            WHERE id = %s
-            """,
-            (subject_id,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        subject = dict(row)
-        presets = _prepare_presets_payload(subject.get("difficulty_presets"))
-        subject["difficulty_presets"] = presets
-        subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
-        subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), presets.get(subject["default_preset"]))
-        subject["active_mix"] = subject["difficulty_mix"]
-        subject["grade_level"] = (subject.get("grade_level") or DEFAULT_GRADE_LEVEL).strip().lower()
-        metadata = subject.get("metadata") if isinstance(subject.get("metadata"), dict) else {}
-        subject["metadata"] = metadata or {}
-        section_config = _normalize_section_config_local(metadata)
-        if section_config:
-            section_mix = _aggregate_section_mix_local(section_config.get("sections") or [])
-            subject["advanced_config"] = section_config
-            subject["difficulty_mix"] = section_mix
-            subject["active_mix"] = section_mix
-            subject["difficulty_presets"][subject["default_preset"]] = section_mix
-            subject["question_count"] = sum(section.get("question_count", 0) for section in section_config.get("sections") or [])
-            subject["time_limit_minutes"] = section_config.get("duration_minutes", subject.get("time_limit_minutes") or DEFAULT_TKA_COMPOSITE_DURATION)
-        return subject
 
 
-def update_tka_subject_sections(
-    subject_id: int,
-    *,
-    duration_minutes: int,
-    sections: Optional[List[Dict[str, Any]]],
-) -> Dict[str, Any]:
-    if not subject_id:
-        raise ValueError("subject_id wajib diisi.")
-    try:
-        duration_value = int(duration_minutes)
-    except (TypeError, ValueError):
-        duration_value = DEFAULT_TKA_COMPOSITE_DURATION
-    duration_value = max(30, duration_value)
-    payload_metadata = {
-        TKA_METADATA_SECTION_CONFIG_KEY: {
-            "duration_minutes": duration_value,
-            "sections": sections or [],
-        }
-    }
-    normalized = _normalize_section_config_local(payload_metadata)
-    normalized_sections = normalized.get("sections") or []
-    normalized_duration = normalized.get("duration_minutes", duration_value)
-    aggregated_mix = _aggregate_section_mix_local(normalized_sections)
-    total_questions = sum(section.get("question_count", 0) for section in normalized_sections)
-    metadata_payload: Dict[str, Any]
-    with get_cursor() as cur:
-        cur.execute("SELECT metadata FROM tka_subjects WHERE id = %s", (subject_id,))
-        row = cur.fetchone()
-        if not row:
-            raise ValueError("Mapel belum tersedia.")
-        metadata_value = dict(row[0] or {})
-        metadata_value[TKA_METADATA_SECTION_CONFIG_KEY] = normalized
-        metadata_payload = metadata_value
-    preset_payload = {DEFAULT_TKA_PRESET_KEY: aggregated_mix}
-    with get_cursor(commit=True) as cur:
-        cur.execute(
-            """
-            UPDATE tka_subjects
-            SET metadata = %s,
-                question_count = %s,
-                time_limit_minutes = %s,
-                difficulty_mix = %s,
-                difficulty_presets = %s,
-                default_preset = %s,
-                updated_at = NOW()
-            WHERE id = %s
-            RETURNING id
-            """,
-            (
-                Json(metadata_payload),
-                total_questions,
-                normalized_duration,
-                Json(aggregated_mix),
-                Json(preset_payload),
-                DEFAULT_TKA_PRESET_KEY,
-                subject_id,
-            ),
-        )
-        if not cur.fetchone():
-            raise ValueError("Mapel belum tersedia.")
-    return fetch_tka_subject(subject_id)
+
+
+
+
 
 
 # --- TKA Tests (tes berisi mapel + topik + format) --------------------------
@@ -617,7 +474,7 @@ def fetch_tka_test_subjects(test_id: int) -> List[Dict[str, Any]]:
     for item in subjects:
         item["subject_name"] = item.get("mapel_name")
         item["grade_level"] = item.get("mapel_grade_level") or item.get("grade_level")
-        item["subject_id"] = item.get("subject_id") or item.get("mapel_id")
+
         item["formats"] = fetch_tka_test_subject_formats(item["id"])
         item["topics"] = fetch_tka_test_subject_topics(item["id"])
         item["question_count_actual"] = item.get("question_count_actual") or item.get("total_questions") or 0
@@ -665,7 +522,7 @@ def fetch_tka_test_subject(test_subject_id: int) -> Optional[Dict[str, Any]]:
         if not row:
             return None
         subject = dict(row)
-        subject["subject_id"] = subject.get("subject_id") or subject.get("mapel_id")
+
         subject["subject_name"] = subject.get("mapel_name")
         subject["grade_level"] = subject.get("mapel_grade_level") or subject.get("grade_level")
         subject["formats"] = fetch_tka_test_subject_formats(subject["id"])
@@ -937,38 +794,7 @@ def create_tka_mapel(
     return record
 
 
-def ensure_tka_subject_from_mapel(mapel_id: int) -> Optional[int]:
-    if not mapel_id:
-        return None
-    mapel = fetch_tka_mapel(mapel_id)
-    if not mapel:
-        return None
-    with get_cursor(commit=True) as cur:
-        cur.execute(
-            "SELECT id FROM tka_subjects WHERE metadata->>'mapel_id' = %s LIMIT 1",
-            (str(mapel_id),),
-        )
-        row = cur.fetchone()
-        if row:
-            return row[0]
-        slug = _slugify_subject(cur, mapel["name"])
-        metadata_payload = {"mapel_id": mapel_id}
-        cur.execute(
-            """
-            INSERT INTO tka_subjects (slug, name, description, grade_level, is_active, metadata, created_at, updated_at)
-            VALUES (%s,%s,%s,%s,TRUE,%s,NOW(),NOW())
-            RETURNING id
-            """,
-            (
-                slug,
-                mapel["name"],
-                mapel.get("description"),
-                (mapel.get("grade_level") or DEFAULT_TKA_GRADE_LEVEL).strip().lower(),
-                Json(metadata_payload),
-            ),
-        )
-        new_id = cur.fetchone()[0]
-        return new_id
+
 
 
 def delete_tka_mapel(mapel_id: int) -> bool:
@@ -979,113 +805,10 @@ def delete_tka_mapel(mapel_id: int) -> bool:
         return cur.rowcount > 0
 
 
-def create_tka_subject(
-    name: str,
-    description: Optional[str],
-    *,
-    time_limit_minutes: int = 15,
-    difficulty_mix: Optional[Dict[str, int]] = None,
-    is_active: bool = True,
-    grade_level: Optional[str] = None,
-) -> Dict[str, Any]:
-    if not name:
-        raise ValueError("Nama mapel wajib diisi.")
-    mix = _coerce_mix_local(difficulty_mix, DEFAULT_TKA_PRESETS.get(DEFAULT_TKA_PRESET_KEY))
-    total_questions = max(1, sum(mix.values()))
-    normalized_description = (description or "").strip() or None
-    presets_payload = _default_presets_payload_local()
-    default_preset = DEFAULT_TKA_PRESET_KEY
-    if mix != presets_payload.get(DEFAULT_TKA_PRESET_KEY):
-        presets_payload["custom"] = mix
-        default_preset = "custom"
-    else:
-        presets_payload[DEFAULT_TKA_PRESET_KEY] = mix
-    normalized_grade = (grade_level or DEFAULT_GRADE_LEVEL).strip().lower()
-    if normalized_grade not in VALID_GRADE_LEVELS:
-        normalized_grade = DEFAULT_GRADE_LEVEL
-    with get_cursor(commit=True) as cur:
-        slug = _slugify_subject(cur, name)
-        cur.execute(
-            """
-            INSERT INTO tka_subjects (
-                slug, name, description, question_count,
-                time_limit_minutes, difficulty_mix, difficulty_presets,
-                default_preset, grade_level, is_active
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                slug,
-                name.strip(),
-                normalized_description,
-                total_questions,
-                max(5, time_limit_minutes or 15),
-                Json(mix),
-                Json(presets_payload),
-                default_preset,
-                normalized_grade,
-                bool(is_active),
-            ),
-        )
-        row = cur.fetchone()
-        subject = dict(row) if row else {}
-    if subject:
-        subject["difficulty_presets"] = _prepare_presets_payload(subject.get("difficulty_presets"))
-        subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
-        subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), subject["difficulty_presets"].get(subject["default_preset"]))
-    return subject
 
 
-def update_tka_subject_difficulty(
-    subject_id: int,
-    preset: str,
-    *,
-    custom_mix: Optional[Dict[str, Any]] = None,
-) -> Optional[Dict[str, Any]]:
-    normalized = _normalize_preset_name_local(preset)
-    with get_cursor(commit=True) as cur:
-        cur.execute(
-            "SELECT difficulty_presets, difficulty_mix, default_preset FROM tka_subjects WHERE id = %s",
-            (subject_id,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        presets = _prepare_presets_payload(row["difficulty_presets"])
-        if custom_mix and normalized == "custom":
-            presets["custom"] = _coerce_mix_local(custom_mix)
-        elif normalized not in presets:
-            normalized = DEFAULT_TKA_PRESET_KEY
-        selected_mix = presets.get(normalized) or presets.get(DEFAULT_TKA_PRESET_KEY)
-        if not selected_mix:
-            selected_mix = _coerce_mix_local(None)
-        cur.execute(
-            """
-            UPDATE tka_subjects
-            SET difficulty_mix = %s,
-                difficulty_presets = %s,
-                default_preset = %s,
-                updated_at = NOW()
-            WHERE id = %s
-            RETURNING *
-            """,
-            (
-                Json(selected_mix),
-                Json(presets),
-                normalized,
-                subject_id,
-            ),
-        )
-        updated = cur.fetchone()
-    if not updated:
-        return None
-    subject = dict(updated)
-    subject["difficulty_presets"] = _prepare_presets_payload(subject.get("difficulty_presets"))
-    subject["default_preset"] = _normalize_preset_name_local(subject.get("default_preset"))
-    subject["difficulty_mix"] = _coerce_mix_local(subject.get("difficulty_mix"), subject["difficulty_presets"].get(subject["default_preset"]))
-    subject["active_mix"] = subject["difficulty_mix"]
-    return subject
+
+
 
 
 def _normalize_options_for_insert(options: Iterable[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -1129,8 +852,7 @@ def fetch_tka_questions(
         clauses.append("q.id = %s")
         params.append(question_id)
     if subject_id:
-        clauses.append("q.subject_id = %s")
-        params.append(subject_id)
+        clauses.append("q.subject_id IS NULL")
     if test_subject_id:
         clauses.append("q.test_subject_id = %s")
         params.append(test_subject_id)
@@ -1153,7 +875,7 @@ def fetch_tka_questions(
             f"""
             SELECT
                 q.id,
-                q.subject_id,
+
                 q.mapel_id,
                 q.topic,
                 q.difficulty,
@@ -1227,7 +949,7 @@ def fetch_tka_stimulus_list(mapel_id: Optional[int] = None, test_id: Optional[in
         where_clause = " AND ".join(conditions) if conditions else "TRUE"
         cur.execute(
             f"""
-            SELECT id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            SELECT id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             FROM {table_name}
             WHERE {where_clause}
             ORDER BY updated_at DESC, id DESC
@@ -1254,7 +976,7 @@ def fetch_tka_stimulus(stimulus_id: int) -> Optional[Dict[str, Any]]:
         table_name = _get_stimulus_table_name(cur)
         cur.execute(
             f"""
-            SELECT id, subject_id, title, type, narrative, image_url, image_prompt, metadata
+            SELECT id, title, type, narrative, image_url, image_prompt, metadata
             FROM {table_name}
             WHERE id = %s
             """,
@@ -1273,7 +995,7 @@ def create_tka_stimulus(
     *,
     mapel_id: int,
     test_id: Optional[int] = None,
-    subject_id: Optional[int] = None,
+
     title: str,
     narrative: Optional[str] = None,
     image_data: Optional[str] = None,
@@ -1295,7 +1017,7 @@ def create_tka_stimulus(
         cur.execute(
             f"""
             INSERT INTO {table_name} (
-                subject_id,
+
                 mapel_id,
                 test_id,
                 title,
@@ -1307,10 +1029,10 @@ def create_tka_stimulus(
                 created_by
             )
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            RETURNING id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             """,
             (
-                subject_id,
+
                 mapel_id,
                 test_id,
                 title,
@@ -1381,7 +1103,7 @@ def update_tka_stimulus(
             UPDATE {table_name}
             SET {set_clause}
             WHERE id = %s
-            RETURNING id, subject_id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
+            RETURNING id, mapel_id, test_id, title, type, narrative, image_url, image_prompt, metadata, updated_at
             """,
             tuple(values),
         )
@@ -1415,7 +1137,6 @@ def delete_tka_stimulus(stimulus_id: int) -> bool:
 
 
 def create_tka_questions(
-    subject_id: Optional[int],
     questions: Iterable[Dict[str, Any]],
     *,
     created_by: Optional[int] = None,
@@ -1423,10 +1144,9 @@ def create_tka_questions(
     test_subject_id: Optional[int] = None,
     mapel_id: Optional[int] = None,
 ) -> int:
-    subject_id = subject_id or None
-    key_for_uniqueness = subject_id or mapel_id or test_subject_id
+    key_for_uniqueness = mapel_id or test_subject_id
     if not key_for_uniqueness:
-        raise ValueError("subject_id atau mapel_id atau test_subject_id wajib diisi.")
+        raise ValueError("mapel_id atau test_subject_id wajib diisi.")
 
     question_records: List[Dict[str, Any]] = []
     for question in questions or []:
@@ -1475,15 +1195,10 @@ def create_tka_questions(
         stimulus_cache: Dict[str, int] = {}
         inserted = 0
         for record in question_records:
-            resolved_subject_id = subject_id or None
-            if not resolved_subject_id and record.get("mapel_id"):
-                try:
-                    resolved_subject_id = ensure_tka_subject_from_mapel(record.get("mapel_id"))
-                except Exception:
-                    resolved_subject_id = None
+
             stimulus_id = _resolve_question_stimulus(
                 cur,
-                resolved_subject_id,
+                None,
                 record.get("stimulus"),
                 created_by,
                 stimulus_cache,
@@ -1492,7 +1207,7 @@ def create_tka_questions(
             cur.execute(
                 """
                 INSERT INTO tka_questions (
-                    subject_id,
+
                     mapel_id,
                     test_id,
                     test_subject_id,
@@ -1509,10 +1224,10 @@ def create_tka_questions(
                     ai_prompt,
                     answer_format
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (
-                    None,
+
                     record.get("mapel_id"),
                     record.get("test_id"),
                     record.get("test_subject_id"),
@@ -1531,30 +1246,19 @@ def create_tka_questions(
                 ),
             )
             inserted += cur.rowcount or 0
-        if subject_id:
-            cur.execute(
-                """
-                UPDATE tka_subjects
-                SET question_revision = question_revision + 1,
-                    updated_at = NOW()
-                WHERE id = %s
-                """,
-                (subject_id,),
-            )
+
     return inserted
 
 
-def has_tka_question_with_prompt(subject_id: Optional[int], prompt: str, *, test_subject_id: Optional[int] = None) -> bool:
-    if (not subject_id and not test_subject_id) or not prompt:
+def has_tka_question_with_prompt(prompt: str, *, test_subject_id: Optional[int] = None) -> bool:
+    if not test_subject_id or not prompt:
         return False
     normalized = prompt.strip().lower()
     if not normalized:
         return False
     clauses: List[str] = []
     params: List[Any] = [normalized]
-    if subject_id:
-        clauses.append("subject_id = %s")
-        params.append(subject_id)
+
     if test_subject_id:
         clauses.append("test_subject_id = %s")
         params.append(test_subject_id)
@@ -1662,16 +1366,16 @@ def update_tka_question(question_id: int, payload: Dict[str, Any]) -> bool:
 
 def fetch_tka_attempts(
     *,
-    subject_id: Optional[int] = None,
+    mapel_id: Optional[int] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     clauses: List[str] = []
     params: List[Any] = []
-    if subject_id:
-        clauses.append("a.subject_id = %s")
-        params.append(subject_id)
+    if mapel_id:
+        clauses.append("a.mapel_id = %s")
+        params.append(mapel_id)
     normalized_status = (status or "").strip().lower()
     if normalized_status in {"in_progress", "completed", "expired", "cancelled"}:
         clauses.append("a.status = %s")
@@ -1685,7 +1389,7 @@ def fetch_tka_attempts(
     query = f"""
         SELECT
             a.id,
-            a.subject_id,
+            a.mapel_id,
             s.name AS subject_name,
             s.grade_level,
             a.web_user_id,
@@ -1707,7 +1411,7 @@ def fetch_tka_attempts(
             a.analysis_sent_at,
             a.updated_at
         FROM tka_quiz_attempts a
-        JOIN tka_subjects s ON s.id = a.subject_id
+        LEFT JOIN tka_mata_pelajaran s ON s.id = a.mapel_id
         LEFT JOIN web_users w ON w.id = a.web_user_id
         {where_clause}
         ORDER BY COALESCE(a.completed_at, a.started_at) DESC

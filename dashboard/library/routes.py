@@ -23,7 +23,7 @@ def borrow():
         try:
             student_id_int = int(student_id)
             student = get_student_by_id(student_id_int)
-            student = get_student_by_id(student_id_int)
+
             if student:
                 from .queries import get_borrowings
                 borrowings = get_borrowings(student_id=student_id_int)

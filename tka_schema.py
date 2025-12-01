@@ -20,51 +20,7 @@ def ensure_tka_schema(cursor) -> None:
         );
         """
     )
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS tka_subjects (
-            id SERIAL PRIMARY KEY,
-            slug TEXT UNIQUE,
-            name TEXT NOT NULL,
-            description TEXT,
-            question_count INTEGER NOT NULL DEFAULT 20,
-            time_limit_minutes INTEGER NOT NULL DEFAULT 15,
-            difficulty_mix JSONB NOT NULL DEFAULT """ + TKA_DEFAULT_MIX + """,
-            difficulty_presets JSONB,
-            default_preset TEXT,
-            question_revision INTEGER NOT NULL DEFAULT 1,
-            grade_level TEXT NOT NULL DEFAULT 'sd6',
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            metadata JSONB,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_subjects
-        ADD COLUMN IF NOT EXISTS difficulty_presets JSONB;
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_subjects
-        ADD COLUMN IF NOT EXISTS default_preset TEXT;
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_subjects
-        ADD COLUMN IF NOT EXISTS question_revision INTEGER NOT NULL DEFAULT 1;
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE tka_subjects
-        ADD COLUMN IF NOT EXISTS grade_level TEXT NOT NULL DEFAULT 'sd6';
-        """
-    )
+
     # Tes dan mata pelajaran per tes dibuat lebih awal supaya referensi FK aman
     cursor.execute(
         """
@@ -120,7 +76,7 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_stimulus (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            id SERIAL PRIMARY KEY,
             mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
             test_id INTEGER,
             title TEXT,
@@ -138,15 +94,9 @@ def ensure_tka_schema(cursor) -> None:
     )
     cursor.execute(
         """
-        CREATE INDEX IF NOT EXISTS idx_tka_stimulus_subject
-        ON tka_stimulus (subject_id);
-        """
-    )
-    cursor.execute(
-        """
         CREATE TABLE IF NOT EXISTS tka_questions (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            id SERIAL PRIMARY KEY,
             stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL,
             topic TEXT,
             difficulty TEXT NOT NULL,
@@ -164,24 +114,14 @@ def ensure_tka_schema(cursor) -> None:
         );
         """
     )
-    cursor.execute(
-        """
-        ALTER TABLE tka_questions
-        ALTER COLUMN subject_id DROP NOT NULL;
-        """
-    )
+
     cursor.execute(
         """
         ALTER TABLE tka_questions
         ADD COLUMN IF NOT EXISTS stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL;
         """
     )
-    cursor.execute(
-        """
-        ALTER TABLE tka_stimulus
-        ALTER COLUMN subject_id DROP NOT NULL;
-        """
-    )
+
     cursor.execute(
         """
         ALTER TABLE tka_stimulus
@@ -213,12 +153,7 @@ def ensure_tka_schema(cursor) -> None:
         ADD COLUMN IF NOT EXISTS test_subject_id INTEGER REFERENCES tka_test_subjects(id) ON DELETE SET NULL;
         """
     )
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_tka_questions_subject
-        ON tka_questions (subject_id, difficulty);
-        """
-    )
+
     cursor.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_tka_questions_stimulus
@@ -241,7 +176,7 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_quiz_attempts (
             id SERIAL PRIMARY KEY,
-            subject_id INTEGER REFERENCES tka_subjects(id) ON DELETE CASCADE,
+            mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
             test_id INTEGER,
             web_user_id BIGINT NOT NULL,
             status TEXT NOT NULL DEFAULT 'in_progress',
@@ -292,12 +227,7 @@ def ensure_tka_schema(cursor) -> None:
         ADD COLUMN IF NOT EXISTS difficulty_preset TEXT;
         """
     )
-    cursor.execute(
-        """
-        ALTER TABLE tka_quiz_attempts
-        ALTER COLUMN subject_id DROP NOT NULL;
-        """
-    )
+
     cursor.execute(
         """
         ALTER TABLE tka_quiz_attempts
@@ -351,17 +281,19 @@ def ensure_tka_schema(cursor) -> None:
     )
     cursor.execute(
         """
-        ALTER TABLE tka_attempt_questions
-        ADD COLUMN IF NOT EXISTS mapel_id INTEGER;
+        ALTER TABLE tka_quiz_attempts
+        ADD COLUMN IF NOT EXISTS mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL;
         """
     )
 
     cursor.execute(
         """
-        ALTER TABLE tka_mata_pelajaran
-        DROP COLUMN IF EXISTS subject_id;
+        ALTER TABLE tka_attempt_questions
+        ADD COLUMN IF NOT EXISTS mapel_id INTEGER;
         """
     )
+
+
     cursor.execute(
         """
         ALTER TABLE tka_questions

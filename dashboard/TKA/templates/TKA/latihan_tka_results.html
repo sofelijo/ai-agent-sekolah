@@ -2,8 +2,15 @@
 {% block title %}Latihan TKA · Hasil Nilai{% endblock %}
 {% block head_extra %}
 <style>
-    .card { border: 1px solid var(--border-soft); border-radius: 18px; box-shadow: var(--shadow-soft); }
-    .results-table th { white-space: nowrap; }
+    .card {
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .results-table th {
+        white-space: nowrap;
+    }
 </style>
 {% endblock %}
 
@@ -59,14 +66,16 @@
                         <th>Preset</th>
                         <th>Status</th>
                         <th>Skor</th>
-                        <th>Benar/Soal</th>
+                        <th>Benar / Salah (Total)</th>
                         <th>Kesulitan</th>
                         <th>Waktu</th>
                         <th>Label</th>
                     </tr>
                 </thead>
                 <tbody id="resultsTable">
-                    <tr><td colspan="10" class="text-center text-muted py-4">Belum ada data.</td></tr>
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">Belum ada data.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -82,7 +91,7 @@
     const resultsUpdated = document.getElementById('resultsUpdated');
     let autoTimer = null;
     const PRESET_LABELS = { mudah: 'Mudah', sedang: 'Sedang', susah: 'Susah', custom: 'Kustom' };
-    const GRADE_LABELS = {{ grade_labels|tojson }};
+    const GRADE_LABELS = {{ grade_labels| tojson }};
 
     function formatDifficultySummary(breakdown) {
         if (!breakdown || typeof breakdown !== 'object') {
@@ -126,8 +135,11 @@
         const formatter = new Intl.NumberFormat('id-ID');
         resultsTable.innerHTML = attempts.map(item => {
             const status = (item.status || '').replace('_', ' ');
-            const score = item.score != null ? formatter.format(item.score) : '-';
-            const correctInfo = `${item.correct_count ?? 0}/${item.question_count ?? 0}`;
+            const score = item.score != null ? formatter.format(item.score) : '0';
+            const correct = item.correct_count ?? 0;
+            const total = item.question_count ?? 0;
+            const wrong = total - correct;
+            const correctInfo = `<span class="text-success fw-bold">${correct}</span> / <span class="text-danger fw-bold">${wrong}</span> <span class="text-muted small">(${total})</span>`;
             const diffSummary = formatDifficultySummary(item.difficulty_breakdown);
             const range = formatDateRange(item.started_at, item.completed_at);
             const repeatLabel = item.is_repeat ? `Mengulang (${item.repeat_iteration || 1} kali)` : '-';

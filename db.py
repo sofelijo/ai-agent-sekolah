@@ -75,6 +75,12 @@ DEFAULT_TKA_PRESETS = {
     "sedang": {"easy": 5, "medium": 10, "hard": 5},
     "susah": {"easy": 5, "medium": 5, "hard": 10},
 }
+TKA_PRESET_LABELS = {
+    "mudah": "Mudah",
+    "sedang": "Sedang",
+    "susah": "Susah",
+    "custom": "Kustom",
+}
 DEFAULT_TKA_PRESET_KEY = "mudah"
 VALID_TKA_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_TKA_GRADE_LEVEL = "sd6"
