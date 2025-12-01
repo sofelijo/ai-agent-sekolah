@@ -78,6 +78,11 @@ DEFAULT_TKA_PRESETS = {
 DEFAULT_TKA_PRESET_KEY = "mudah"
 VALID_TKA_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_TKA_GRADE_LEVEL = "sd6"
+GRADE_LABELS = {
+    "sd6": "SD Kelas 6",
+    "smp3": "SMP Kelas 3",
+    "sma": "SMA",
+}
 DEFAULT_TKA_COMPOSITE_DURATION = 120
 TKA_SECTION_TEMPLATES = [
     {

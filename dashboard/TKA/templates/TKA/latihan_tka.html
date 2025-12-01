@@ -40,10 +40,10 @@
                 <span>ASKA Auto Generator</span>
             </div>
             <div class="btn-group btn-group-sm" role="group" aria-label="ASKA Auto Generator Modes">
-                <a class="btn btn-outline-primary" href="{{ url_for('main.latihan_tka_generator_page', mode='lite') }}" target="_blank" rel="noopener">
+                <a class="btn btn-outline-primary" href="{{ url_for('tka.latihan_tka_generator_page', mode='lite') }}" target="_blank" rel="noopener">
                     Mode Lite
                 </a>
-                <a class="btn btn-outline-primary" href="{{ url_for('main.latihan_tka_generator_page', mode='pro') }}" target="_blank" rel="noopener">
+                <a class="btn btn-outline-primary" href="{{ url_for('tka.latihan_tka_generator_page', mode='pro') }}" target="_blank" rel="noopener">
                     Mode Pro
                 </a>
             </div>
@@ -64,7 +64,7 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshTestSummary">
                             <i class="bi bi-arrow-repeat me-1"></i>Refresh
                         </button>
-                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.latihan_tka_tests') }}">
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('tka.latihan_tka_tests') }}">
                             <i class="bi bi-sliders me-1"></i>Kelola Tes
                         </a>
                     </div>
@@ -87,7 +87,7 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshMapelTopics">
                                 <i class="bi bi-arrow-repeat me-1"></i>Refresh
                             </button>
-                            <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.latihan_tka_tests') }}">
+                            <a class="btn btn-link btn-sm px-0" href="{{ url_for('tka.latihan_tka_tests') }}">
                                 <i class="bi bi-sliders me-1"></i>Kelola Tes
                             </a>
                         </div>
@@ -747,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 {% block scripts %}
-    {% include 'partials/latihan_tka_scripts.html' %}
+    {% include 'TKA/partials/latihan_tka_scripts.html' %}
 {% endblock %}
 
 {% endblock %}

@@ -77,10 +77,10 @@
             <p class="text-muted mb-0">Isikan soal pilihan ganda atau benar/salah lengkap dengan stimulus, lalu simpan langsung ke bank soal.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_bank') }}">
+            <a class="btn btn-outline-secondary" href="{{ url_for('tka.latihan_tka_bank') }}">
                 <i class="bi bi-collection me-1"></i>Bank Soal
             </a>
-            <a class="btn btn-outline-secondary" href="{{ url_for('main.latihan_tka_results') }}">
+            <a class="btn btn-outline-secondary" href="{{ url_for('tka.latihan_tka_results') }}">
                 <i class="bi bi-graph-up-arrow me-1"></i>Hasil Nilai
             </a>
         </div>
@@ -189,7 +189,7 @@
                             <div class="row g-3">
                                 <div class="col-md-7">
                                     <label class="form-label">Topik</label>
-                                    <select class="form-select" id="questionTopic" required data-manage-url="{{ url_for('main.latihan_tka_tests') }}">
+                                    <select class="form-select" id="questionTopic" required data-manage-url="{{ url_for('tka.latihan_tka_tests') }}">
                                         <option value="__manage__">+ Tambah topik di halaman Tes</option>
                                         <option value="" selected disabled>Pilih topik</option>
                                     </select>
@@ -330,5 +330,5 @@
     <script>
         window.INIT_TKA_TESTS = {{ tests|default([])|tojson }};
     </script>
-    {% include 'partials/latihan_tka_scripts.html' %}
+    {% include 'TKA/partials/latihan_tka_scripts.html' %}
 {% endblock %}

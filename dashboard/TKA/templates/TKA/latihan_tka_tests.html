@@ -19,7 +19,7 @@
             <p class="text-muted mb-0">Buat Tes → Tambah Mapel → Atur format PG/Benar-Salah serta topik.</p>
         </div>
         <div class="text-end">
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.latihan_tka_bank') }}">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('tka.latihan_tka_bank') }}">
                 <i class="bi bi-collection me-1"></i>Bank Soal
             </a>
         </div>
@@ -46,7 +46,7 @@
                     {% if test_message %}
                     <div class="alert alert-{{ test_message_tone|default('info') }} small">{{ test_message }}</div>
                     {% endif %}
-                    <form id="testForm" class="row g-3 align-items-end" method="post" action="{{ url_for('main.latihan_tka_tests') }}">
+                    <form id="testForm" class="row g-3 align-items-end" method="post" action="{{ url_for('tka.latihan_tka_tests') }}">
                         <div class="col-12">
                             <label class="form-label">Nama Tes</label>
                             <input type="text" class="form-control" id="testName" name="name" placeholder="Contoh: TKA 120 Menit" value="{{ selected.name|default('') }}" required>
@@ -89,8 +89,8 @@
                                         <div class="text-muted small">Durasi {{ test.duration_minutes|default(0) }} menit · Jenjang {{ grade_text }}</div>
                                     </div>
                                     <div class="d-flex gap-1">
-                                        <a href="{{ url_for('main.latihan_tka_tests', test_id=test.id) }}" class="btn btn-outline-secondary btn-sm" data-action="select-test" data-id="{{ test.id }}">Pilih</a>
-                                        <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="m-0" data-test-id="{{ test.id }}">
+                                        <a href="{{ url_for('tka.latihan_tka_tests', test_id=test.id) }}" class="btn btn-outline-secondary btn-sm" data-action="select-test" data-id="{{ test.id }}">Pilih</a>
+                                        <form method="post" action="{{ url_for('tka.latihan_tka_tests') }}" class="m-0" data-test-id="{{ test.id }}">
                                             <input type="hidden" name="delete_test_id" value="{{ test.id }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" data-action="delete-test" data-id="{{ test.id }}" data-name="{{ test.name|e }}"><i class="bi bi-trash"></i></button>
                                         </form>
@@ -107,7 +107,7 @@
             <div class="card mt-4">
                 <div class="card-body">
                     <h6 class="section-title mb-2">Kelola Mapel</h6>
-                    <form id="mapelForm" class="row g-2" method="post" action="{{ url_for('main.latihan_tka_tests') }}">
+                    <form id="mapelForm" class="row g-2" method="post" action="{{ url_for('tka.latihan_tka_tests') }}">
                         <input type="hidden" name="mapel_form" value="1">
                         <div class="col-12">
                             <label class="form-label">Nama Mapel</label>
@@ -154,7 +154,7 @@
                                             <div class="fw-semibold">{{ mapel.name }}</div>
                                             <div class="text-muted small">Jenjang {{ (mapel.grade_level or '')|upper }}{% if not mapel.is_active %} · <span class="text-danger">Nonaktif</span>{% endif %}</div>
                                         </div>
-                                        <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="m-0">
+                                        <form method="post" action="{{ url_for('tka.latihan_tka_tests') }}" class="m-0">
                                             <input type="hidden" name="delete_mapel_id" value="{{ mapel.id }}">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" data-mapel-id="{{ mapel.id }}" data-action="delete-mapel"><i class="bi bi-trash"></i></button>
                                         </form>
@@ -173,7 +173,7 @@
         <div class="col-lg-8">
             <div class="card h-100">
                 <div class="card-body">
-                    <form id="testSubjectForm" method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="mb-3">
+                    <form id="testSubjectForm" method="post" action="{{ url_for('tka.latihan_tka_tests') }}" class="mb-3">
                         <input type="hidden" name="add_subject_form" value="1">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <div>
@@ -266,7 +266,7 @@
                                             </div>
                                         </td>
                                         <td class="text-end">
-                                            <form method="post" action="{{ url_for('main.latihan_tka_tests') }}" class="d-inline deleteSubjectForm">
+                                            <form method="post" action="{{ url_for('tka.latihan_tka_tests') }}" class="d-inline deleteSubjectForm">
                                                 <input type="hidden" name="delete_test_subject_id" value="{{ subject.id }}">
                                                 <input type="hidden" name="delete_test_subject_test_id" value="{{ selected_test_id }}">
                                                 <button type="submit" class="btn btn-sm btn-link text-danger" data-remove="{{ subject.id }}" data-test-id="{{ selected_test_id }}"><i class="bi bi-trash"></i></button>
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const INITIAL_TEST_SUBJECTS = {{ initial_test_subjects|tojson }};
     const INITIAL_SELECTED_TEST_ID = {{ selected_test_id|default('null') }};
     const INITIAL_MAPEL = {{ mapel_list|tojson }};
-    const TESTS_UI_URL = "{{ url_for('main.latihan_tka_tests') }}";
+    const TESTS_UI_URL = "{{ url_for('tka.latihan_tka_tests') }}";
     const statusBox = document.getElementById('tkaStatus');
     const testSelect = document.getElementById('currentTestSelect');
     const mapelSelect = document.getElementById('testMapelSelect');

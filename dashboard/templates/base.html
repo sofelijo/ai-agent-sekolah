@@ -103,21 +103,21 @@
                 </li>
                 {% if is_admin %}
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.endpoint in ['main.latihan_tka_bank', 'main.latihan_tka_results', 'main.latihan_tka_manual', 'main.latihan_tka_tests'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle {% if request.endpoint in ['tka.latihan_tka_bank', 'tka.latihan_tka_results', 'tka.latihan_tka_manual', 'tka.latihan_tka_tests'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-mortarboard nav-icon"></i>Latihan TKA
                     </a>
                     <ul class="dropdown-menu">
                         <li>
-                            <a class="dropdown-item {% if request.endpoint == 'main.latihan_tka_bank' %}active{% endif %}" href="{{ url_for('main.latihan_tka_bank') }}">Bank Soal</a>
+                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_bank' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_bank') }}">Bank Soal</a>
                         </li>
                         <li>
-                            <a class="dropdown-item {% if request.endpoint == 'main.latihan_tka_manual' %}active{% endif %}" href="{{ url_for('main.latihan_tka_manual') }}">Buat Soal</a>
+                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_manual' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_manual') }}">Buat Soal</a>
                         </li>
                         <li>
-                            <a class="dropdown-item {% if request.endpoint == 'main.latihan_tka_tests' %}active{% endif %}" href="{{ url_for('main.latihan_tka_tests') }}">Konfigurasi Tes</a>
+                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_tests' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_tests') }}">Konfigurasi Tes</a>
                         </li>
                         <li>
-                            <a class="dropdown-item {% if request.endpoint == 'main.latihan_tka_results' %}active{% endif %}" href="{{ url_for('main.latihan_tka_results') }}">Hasil Nilai</a>
+                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_results' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_results') }}">Hasil Nilai</a>
                         </li>
                     </ul>
                 </li>
