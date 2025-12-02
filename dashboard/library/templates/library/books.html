@@ -87,12 +87,14 @@
                         </small>
                         <select class="form-select form-select-sm" style="width: auto;"
                             onchange="window.location.href=this.value">
-                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=10) }}" {% if
-                                per_page==10 %}selected{% endif %}>10 / hal</option>
-                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=20) }}" {% if
-                                per_page==20 %}selected{% endif %}>20 / hal</option>
-                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=50) }}" {% if
-                                per_page==50 %}selected{% endif %}>50 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=8) }}" {% if
+                                per_page==8 %}selected{% endif %}>8 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=16) }}" {% if
+                                per_page==16 %}selected{% endif %}>16 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=24) }}" {% if
+                                per_page==24 %}selected{% endif %}>24 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=48) }}" {% if
+                                per_page==48 %}selected{% endif %}>48 / hal</option>
                         </select>
                     </div>
                     <ul class="pagination mb-0">

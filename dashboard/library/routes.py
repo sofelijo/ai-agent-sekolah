@@ -77,9 +77,9 @@ def books():
     
     search_query = request.args.get("q", "")
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 10, type=int)
-    if per_page not in [10, 20, 50]:
-        per_page = 10
+    per_page = request.args.get("per_page", 8, type=int)
+    if per_page not in [8, 16, 24, 48]:
+        per_page = 8
         
     all_books, total_items = get_all_books(search_query, page, per_page)
     total_pages = (total_items + per_page - 1) // per_page
@@ -135,9 +135,9 @@ def delete_book_route(book_id):
 @login_required
 def book_items(book_id):
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 10, type=int)
-    if per_page not in [10, 20, 50]:
-        per_page = 10
+    per_page = request.args.get("per_page", 8, type=int)
+    if per_page not in [8, 16, 24, 48]:
+        per_page = 8
     
     items, total_items = get_book_items(book_id, page, per_page)
     total_pages = (total_items + per_page - 1) // per_page
@@ -213,9 +213,9 @@ def cancel_return_item(borrow_id):
 def all_items():
     search_query = request.args.get("q", "")
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 10, type=int)
-    if per_page not in [10, 20, 50]:
-        per_page = 10
+    per_page = request.args.get("per_page", 8, type=int)
+    if per_page not in [8, 16, 24, 48]:
+        per_page = 8
     
     from .queries import get_all_items
     items, total_items = get_all_items(search_query, page, per_page)
