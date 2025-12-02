@@ -11,9 +11,6 @@
                 value="{{ search_query }}">
             <button class="btn btn-outline-primary" type="submit">Cari</button>
         </form>
-        <button class="btn btn-success" onclick="printAllQRCodes()">
-            <i class="bi bi-printer me-2"></i>Print Semua QR
-        </button>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookModal">
             <i class="bi bi-plus-lg me-2"></i>Tambah Buku
         </button>
@@ -46,21 +43,20 @@
                         <td onclick='editBook({{ book | tojson }})'>{{ book.publisher }}</td>
                         <td onclick='editBook({{ book | tojson }})'>{{ book.year }}</td>
                         <td onclick='editBook({{ book | tojson }})'>
-                            {% set total_stock = book.stock + book.borrowed_count %}
                             {% if book.stock > 0 %}
-                            <span class="badge bg-success-subtle text-success">{{ book.stock }} / {{ total_stock
+                            <span class="badge bg-success-subtle text-success">{{ book.stock }} / {{ book.total_items
                                 }}</span>
                             {% else %}
-                            <span class="badge bg-danger-subtle text-danger">Habis (0 / {{ total_stock }})</span>
+                            <span class="badge bg-danger-subtle text-danger">Habis (0 / {{ book.total_items }})</span>
                             {% endif %}
                         </td>
                         <td onclick='editBook({{ book | tojson }})'>{{ book.location }}</td>
                         <td>
                             <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-outline-dark"
-                                    onclick="showBarcodePreview('{{ book.code }}', '{{ book.title }}')">
-                                    <i class="bi bi-qr-code"></i>
-                                </button>
+                                <a href="{{ url_for('library.book_items', book_id=book.id) }}"
+                                    class="btn btn-sm btn-outline-primary" title="Kelola Item">
+                                    <i class="bi bi-collection"></i>
+                                </a>
                                 <form action="{{ url_for('library.delete_book_route', book_id=book.id) }}" method="POST"
                                     onsubmit="return confirm('Yakin ingin menghapus buku ini?');" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -80,6 +76,51 @@
                     {% endfor %}
                 </tbody>
             </table>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">
+                            Halaman {{ page }} dari {{ total_pages }} (Total {{ total_items }} buku)
+                        </small>
+                        <select class="form-select form-select-sm" style="width: auto;"
+                            onchange="window.location.href=this.value">
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=10) }}" {% if
+                                per_page==10 %}selected{% endif %}>10 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=20) }}" {% if
+                                per_page==20 %}selected{% endif %}>20 / hal</option>
+                            <option value="{{ url_for('library.books', page=1, q=search_query, per_page=50) }}" {% if
+                                per_page==50 %}selected{% endif %}>50 / hal</option>
+                        </select>
+                    </div>
+                    <ul class="pagination mb-0">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ url_for('library.books', page=page-1, q=search_query, per_page=per_page) }}">Sebelumnya</a>
+                        </li>
+
+                        {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% elif p <= 3 or p> total_pages - 3 or (p >= page - 1 and p <= page + 1) %} <li
+                                class="page-item"><a class="page-link"
+                                    href="{{ url_for('library.books', page=p, q=search_query, per_page=per_page) }}">{{
+                                    p }}</a></li>
+                                {% elif p == 4 or p == total_pages - 3 %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                                {% endfor %}
+
+                                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                    <a class="page-link"
+                                        href="{{ url_for('library.books', page=page+1, q=search_query, per_page=per_page) }}">Selanjutnya</a>
+                                </li>
+                    </ul>
+                </div>
+            </nav>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -97,8 +138,7 @@
                     <div class="mb-3">
                         <label class="form-label">Kode Buku (Auto-Generated)</label>
                         <input type="text" class="form-control bg-light" name="code" value="{{ next_code }}" readonly>
-                        <div class="form-text">Kode ini dibuat otomatis oleh sistem. Tempelkan label dengan nomor ini
-                            pada buku.</div>
+                        <div class="form-text">Kode ini digunakan sebagai prefix untuk item buku.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Judul Buku</label>
@@ -120,8 +160,9 @@
                             <input type="number" class="form-control" name="year" placeholder="YYYY">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Stok</label>
+                            <label class="form-label">Stok Awal</label>
                             <input type="number" class="form-control" name="stock" value="1" min="1" required>
+                            <div class="form-text">Jumlah item yang akan dibuat otomatis.</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -172,8 +213,10 @@
                             <input type="number" class="form-control" name="year" id="edit_year" placeholder="YYYY">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Stok</label>
+                            <label class="form-label">Total Stok</label>
                             <input type="number" class="form-control" name="stock" id="edit_stock" min="0" required>
+                            <div class="form-text">Menambah stok akan membuat item baru. Mengurangi stok tidak akan
+                                menghapus item (lakukan manual di Kelola Item).</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -190,97 +233,17 @@
     </div>
 </div>
 
-<!-- Modal Preview QR Code -->
-<div class="modal fade" id="barcodeModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Preview QR Code</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <h5 id="barcodeTitle" class="mb-3"></h5>
-                <div class="border p-3 d-inline-block bg-white">
-                    <canvas id="barcodePreview"></canvas>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                <button type="button" class="btn btn-success" onclick="downloadBarcode()">
-                    <i class="bi bi-download me-1"></i>Download
-                </button>
-                <button type="button" class="btn btn-primary" onclick="printBarcodeFromModal()">
-                    <i class="bi bi-printer me-1"></i>Print
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script>
-    let currentCode = '';
-    let currentTitle = '';
-
-    function showBarcodePreview(code, title) {
-        currentCode = code;
-        currentTitle = title;
-
-        document.getElementById('barcodeTitle').textContent = title;
-        const canvas = document.getElementById('barcodePreview');
-
-        QRCode.toCanvas(canvas, code, {
-            width: 200,
-            margin: 2
-        }, function (error) {
-            if (error) console.error(error);
-        });
-
-        const modal = new bootstrap.Modal(document.getElementById('barcodeModal'));
-        modal.show();
-    }
-
-    function downloadBarcode() {
-        const sourceCanvas = document.getElementById('barcodePreview');
-
-        // Create a new canvas to add title
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Add padding and space for title
-        canvas.width = sourceCanvas.width + 40;
-        canvas.height = sourceCanvas.height + 60;
-
-        // White background
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw title
-        ctx.font = "bold 16px Arial";
-        ctx.fillStyle = "black";
-        ctx.textAlign = "center";
-        ctx.fillText(currentTitle, canvas.width / 2, 30);
-
-        // Draw QR code
-        ctx.drawImage(sourceCanvas, 20, 40);
-
-        // Trigger download
-        const link = document.createElement('a');
-        link.download = `qrcode-${currentCode}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-    }
-
     function editBook(book) {
         document.getElementById('edit_code').value = book.code;
         document.getElementById('edit_title').value = book.title;
         document.getElementById('edit_author').value = book.author || '';
         document.getElementById('edit_publisher').value = book.publisher || '';
         document.getElementById('edit_year').value = book.year || '';
-        document.getElementById('edit_stock').value = book.stock;
+        document.getElementById('edit_stock').value = book.total_items; // Use total_items for edit
         document.getElementById('edit_location').value = book.location || '';
 
         // Update form action
@@ -289,104 +252,6 @@
 
         const modal = new bootstrap.Modal(document.getElementById('editBookModal'));
         modal.show();
-    }
-
-    function printAllQRCodes() {
-        const rows = document.querySelectorAll('#booksTable tbody tr[data-code]');
-        if (rows.length === 0) {
-            alert('Tidak ada buku untuk dicetak.');
-            return;
-        }
-
-        const printWindow = window.open('', '', 'height=600,width=800');
-        printWindow.document.write('<html><head><title>Print Semua QR Code</title>');
-        printWindow.document.write('<style>');
-        printWindow.document.write('body { font-family: sans-serif; padding: 20px; }');
-        printWindow.document.write('.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }');
-        printWindow.document.write('.qr-item { border: 1px dashed #ccc; padding: 10px; text-align: center; page-break-inside: avoid; }');
-        printWindow.document.write('.qr-item h5 { margin: 5px 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }');
-        printWindow.document.write('.qr-item img { width: 100px; height: 100px; }');
-        printWindow.document.write('</style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<h2 style="text-align: center; margin-bottom: 20px;">Daftar QR Code Buku</h2>');
-        printWindow.document.write('<div class="qr-grid" id="qrGrid"></div>');
-
-        // Prepare data
-        const books = [];
-        rows.forEach(row => {
-            books.push({
-                code: row.getAttribute('data-code'),
-                title: row.getAttribute('data-title')
-            });
-        });
-
-        printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"><\/script>');
-        printWindow.document.write('<script>');
-        printWindow.document.write('const books = ' + JSON.stringify(books) + ';');
-        printWindow.document.write(`
-            window.onload = async function() {
-                const grid = document.getElementById('qrGrid');
-                
-                for (const book of books) {
-                    const item = document.createElement('div');
-                    item.className = 'qr-item';
-                    
-                    const title = document.createElement('h5');
-                    title.textContent = book.title;
-                    item.appendChild(title);
-                    
-                    const canvas = document.createElement('canvas');
-                    try {
-                        await new Promise((resolve, reject) => {
-                            QRCode.toCanvas(canvas, book.code, { width: 100, margin: 1 }, function (error) {
-                                if (error) reject(error);
-                                else resolve();
-                            });
-                        });
-                        
-                        const img = document.createElement('img');
-                        img.src = canvas.toDataURL();
-                        item.appendChild(img);
-                        
-                        const code = document.createElement('div');
-                        code.style.fontSize = '10px';
-                        code.textContent = book.code;
-                        item.appendChild(code);
-                        
-                        grid.appendChild(item);
-                    } catch (e) {
-                        console.error(e);
-                    }
-                }
-                
-                setTimeout(() => {
-                    window.print();
-                    // window.close(); // Optional: close after print
-                }, 1000);
-            };
-        `);
-        printWindow.document.write('<\/script>');
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-    }
-
-    function printBarcodeFromModal() {
-        const printWindow = window.open('', '', 'height=400,width=600');
-        const sourceCanvas = document.getElementById('barcodePreview');
-        const dataUrl = sourceCanvas.toDataURL();
-
-        printWindow.document.write('<html><head><title>Print QR Code</title>');
-        printWindow.document.write('<style>body { font-family: sans-serif; text-align: center; padding: 20px; } .barcode-container { border: 1px dashed #ccc; padding: 10px; display: inline-block; }</style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<div class="barcode-container">');
-        printWindow.document.write('<h5>' + currentTitle + '</h5>');
-        printWindow.document.write('<img src="' + dataUrl + '" width="200">');
-        printWindow.document.write('</div>');
-        printWindow.document.write('<script>');
-        printWindow.document.write('window.onload = function() { window.print(); window.close(); };');
-        printWindow.document.write('<\/script>');
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
     }
 </script>
 {% endblock %}

@@ -16,7 +16,7 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def load_kecerdasan(*, ensure_output_file: bool = True) -> str:
+def load_kecerdasan(*, ensure_output_file: bool = False) -> str:
     """
     Gabungkan potongan pengetahuan menjadi satu string markdown.
 
@@ -41,11 +41,10 @@ def load_kecerdasan(*, ensure_output_file: bool = True) -> str:
 
 def build_kecerdasan_file() -> Path:
     """Utility agar mudah dipanggil via CLI/script."""
-    load_kecerdasan(ensure_output_file=True)
+    load_kecerdasan(ensure_output_file=False)
     return OUTPUT_FILE
 
 
 if __name__ == "__main__":
-    path = build_kecerdasan_file()
-    rel = path.relative_to(BASE_DIR)
-    print(f"Sukses menyusun {rel}")
+    build_kecerdasan_file()
+    print("Sukses memuat pengetahuan dari folder kecerdasan/")

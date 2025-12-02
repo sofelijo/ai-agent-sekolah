@@ -24,15 +24,20 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="book_code" class="form-label">Kode Buku (Scan QR)</label>
+                        <label for="item_qr_code" class="form-label">QR Code Item</label>
                         <div class="input-group mb-2">
-                            <input type="text" class="form-control" id="book_code" name="book_code"
-                                placeholder="Scan atau ketik kode buku" autofocus required>
+                            <input type="text" class="form-control" id="item_qr_code" name="item_qr_code"
+                                placeholder="Scan QR Code Item" autofocus required>
                             <button class="btn btn-outline-secondary" type="button" id="btnScanQR">
                                 <i class="bi bi-camera"></i>
                             </button>
                         </div>
                         <div id="reader" style="width: 100%; display: none;" class="mb-2 border rounded"></div>
+                        <div id="item_details" class="alert alert-info py-2" style="display: none;">
+                            <small class="d-block fw-bold" id="item_title"></small>
+                            <small class="d-block" id="item_code"></small>
+                            <small class="d-block" id="item_status"></small>
+                        </div>
                         <div class="form-text">Pastikan kursor aktif di sini saat scan (jika pakai scanner fisik).</div>
                     </div>
 
@@ -60,7 +65,7 @@
                             <tr>
                                 <th>Siswa</th>
                                 <th>Judul Buku</th>
-                                <th>Kode</th>
+                                <th>QR Item</th>
                                 <th>Tgl Pinjam</th>
                                 <th>Status</th>
                                 <th>Petugas</th>
@@ -74,7 +79,8 @@
                                     <div class="fw-bold">{{ item.student_name }} ({{ item.class_name }})</div>
                                 </td>
                                 <td>{{ item.title }}</td>
-                                <td><span class="badge bg-light text-dark">{{ item.code }}</span></td>
+                                <td><span class="badge bg-light text-dark font-monospace">{{ item.item_qr_code }}</span>
+                                </td>
                                 <td>{{ item.borrow_date }}</td>
                                 <td>
                                     {% if item.status == 'borrowed' %}
@@ -126,14 +132,19 @@
     const studentIdInput = document.getElementById('student_id');
     const displayDiv = document.getElementById('selected_student_display');
     const submitBtn = document.getElementById('btnSubmit');
-    const bookCodeInput = document.getElementById('book_code');
+    const itemQrInput = document.getElementById('item_qr_code');
     const btnScanQR = document.getElementById('btnScanQR');
     const readerDiv = document.getElementById('reader');
     const borrowSearchInput = document.getElementById('borrow_search');
+    const itemDetailsDiv = document.getElementById('item_details');
+    const itemTitle = document.getElementById('item_title');
+    const itemCode = document.getElementById('item_code');
+    const itemStatus = document.getElementById('item_status');
 
     let html5QrcodeScanner = null;
     let debounceTimer;
     let borrowSearchTimer;
+    let itemCheckTimer;
 
     // Load initial data (global list)
     fetchBorrowings();
@@ -160,10 +171,11 @@
                 qrbox: { width: 250, height: 250 }
             },
             (decodedText, decodedResult) => {
-                bookCodeInput.value = decodedText;
+                itemQrInput.value = decodedText;
                 stopScanner();
+                checkItem(decodedText);
                 if (!submitBtn.disabled) {
-                    bookCodeInput.focus();
+                    itemQrInput.focus();
                 }
             },
             (errorMessage) => {
@@ -231,13 +243,54 @@
         }, 300);
     });
 
+    itemQrInput.addEventListener('input', function () {
+        clearTimeout(itemCheckTimer);
+        const code = this.value;
+        if (code.length > 3) {
+            itemCheckTimer = setTimeout(() => {
+                checkItem(code);
+            }, 500);
+        } else {
+            itemDetailsDiv.style.display = 'none';
+        }
+    });
+
+    function checkItem(qrCode) {
+        fetch(`{{ url_for('library.api_check_item') }}?qr_code=${encodeURIComponent(qrCode)}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Item not found');
+                return response.json();
+            })
+            .then(data => {
+                itemTitle.textContent = data.title;
+                itemCode.textContent = `QR: ${data.qr_code}`;
+
+                if (data.status === 'available') {
+                    itemStatus.innerHTML = '<span class="text-success">Tersedia</span>';
+                    itemDetailsDiv.className = 'alert alert-success py-2';
+                } else {
+                    itemStatus.innerHTML = `<span class="text-danger">Status: ${data.status}</span>`;
+                    itemDetailsDiv.className = 'alert alert-danger py-2';
+                }
+
+                itemDetailsDiv.style.display = 'block';
+            })
+            .catch(err => {
+                itemTitle.textContent = 'Item tidak ditemukan';
+                itemCode.textContent = '';
+                itemStatus.textContent = '';
+                itemDetailsDiv.className = 'alert alert-warning py-2';
+                itemDetailsDiv.style.display = 'block';
+            });
+    }
+
     function selectStudent(student) {
         searchInput.value = student.full_name;
         studentIdInput.value = student.id;
         displayDiv.textContent = `Siswa Terpilih: ${student.full_name} (${student.class_name})`;
         resultsDiv.style.display = 'none';
         submitBtn.disabled = false;
-        bookCodeInput.focus();
+        itemQrInput.focus();
 
         // Fetch borrowings for this student
         fetchBorrowings(student.id);
@@ -266,7 +319,7 @@
                                     <div class="fw-bold">${item.student_name} (${item.class_name})</div>
                                 </td>
                                 <td>${item.title}</td>
-                                <td><span class="badge bg-light text-dark">${item.code}</span></td>
+                                <td><span class="badge bg-light text-dark font-monospace">${item.item_qr_code || '-'}</span></td>
                                 <td>${formatDate(item.borrow_date)}</td>
                                 <td>
                                     ${item.status === 'borrowed' ?
@@ -315,7 +368,7 @@
     searchInput.value = "{{ student.full_name }}";
     displayDiv.textContent = "Siswa Terpilih: {{ student.full_name }} ({{ student.class_name }})";
     submitBtn.disabled = false;
-    bookCodeInput.focus();
+    itemQrInput.focus();
     {% endif %}
 </script>
 {% endblock %}

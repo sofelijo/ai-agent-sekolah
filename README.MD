@@ -209,7 +209,7 @@ TWITTER_SPAM_KEYWORDS=promo,follback
 1. Isi `kecerdasan/profil_sekolah.md` dengan data unik sekolah (profil, guru piket, jadwal kegiatan).
 2. Lengkapi `kecerdasan/umum.md` untuk panduan generik (layanan, kebijakan nasional, FAQ).
 3. Sisipkan `<!-- {{ASKA_PROFIL_DAN_JADWAL}} -->` di `umum.md` bila ingin menempel profil secara otomatis.
-4. Jalankan `python knowledge_loader.py` agar `kecerdasan.md` diperbarui dan tersimpan di cache FAISS.
+4. Jalankan `python knowledge_loader.py` agar pengetahuan dimuat ulang dan tersimpan di cache FAISS.
 5. Jika ingin mereset vektor, hapus folder `.aska_vectorstore/` kemudian jalankan ulang bot.
 
 ---

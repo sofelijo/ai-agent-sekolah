@@ -117,6 +117,12 @@
                                     Data Buku
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item {% if 'all_items' in request.endpoint %}active{% endif %}"
+                                    href="{{ url_for('library.all_items') }}">
+                                    Item Buku
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     {% set master_active = attendance_active_tab in ['master_siswa', 'master_staff'] %}

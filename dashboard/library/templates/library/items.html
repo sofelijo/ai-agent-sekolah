@@ -1,0 +1,563 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Item Buku: {{ book.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-collection me-2"></i>Item Buku</h4>
+        <p class="text-muted mb-0">{{ book.title }} ({{ book.code }})</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('library.books') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Kembali
+        </a>
+        <button class="btn btn-primary me-2" onclick="printSelectedQRCodes()" id="btn-print-selected" disabled>
+            <i class="bi bi-printer me-2"></i>Print Terpilih
+        </button>
+        <button class="btn btn-success" onclick="printAllQRCodes()">
+            <i class="bi bi-printer me-2"></i>Print Semua QR
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="itemsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" class="form-check-input" id="selectAll"></th>
+                        <th>QR Code</th>
+                        <th>Status</th>
+                        <th>Tertempel</th>
+                        <th>Dibuat Pada</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr data-code="{{ item.qr_code }}" data-title="{{ book.title }} - {{ item.qr_code }}">
+                        <td><input type="checkbox" class="form-check-input item-checkbox" value="{{ item.qr_code }}">
+                        </td>
+                        <td><span class="badge bg-light text-dark border font-monospace">{{ item.qr_code }}</span></td>
+                        <td>
+                            {% if item.status == 'available' %}
+                            <span class="badge bg-success-subtle text-success">Tersedia</span>
+                            {% elif item.status == 'borrowed' %}
+                            <span class="badge bg-warning-subtle text-warning">Dipinjam</span>
+                            {% elif item.status == 'lost' %}
+                            <span class="badge bg-danger-subtle text-danger">Hilang</span>
+                            {% elif item.status == 'damaged' %}
+                            <span class="badge bg-danger-subtle text-danger">Rusak</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ item.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input label-checkbox" type="checkbox" role="switch"
+                                    data-item-id="{{ item.id }}" {% if item.is_labeled %}checked{% endif %}>
+                            </div>
+                        </td>
+                        <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="showBarcodePreview('{{ item.qr_code }}', '{{ book.title }} - {{ item.qr_code }}')"
+                                    title="Lihat QR Code">
+                                    <i class="bi bi-qr-code"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick='editItem({{ item | tojson }})'
+                                    title="Edit Item">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form action="{{ url_for('library.delete_item_route', item_id=item.id) }}" method="POST"
+                                    onsubmit="return confirm('Yakin ingin menghapus item ini?');" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus Item">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            Belum ada item untuk buku ini.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">
+                            Halaman {{ page }} dari {{ total_pages }} (Total {{ total_items }} item)
+                        </small>
+                        <select class="form-select form-select-sm" style="width: auto;"
+                            onchange="window.location.href=this.value">
+                            <option value="{{ url_for('library.book_items', book_id=book.id, page=1, per_page=10) }}" {%
+                                if per_page==10 %}selected{% endif %}>10 / hal</option>
+                            <option value="{{ url_for('library.book_items', book_id=book.id, page=1, per_page=20) }}" {%
+                                if per_page==20 %}selected{% endif %}>20 / hal</option>
+                            <option value="{{ url_for('library.book_items', book_id=book.id, page=1, per_page=50) }}" {%
+                                if per_page==50 %}selected{% endif %}>50 / hal</option>
+                        </select>
+                    </div>
+                    <ul class="pagination mb-0">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ url_for('library.book_items', book_id=book.id, page=page-1, per_page=per_page) }}">Sebelumnya</a>
+                        </li>
+
+                        {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                        <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% elif p <= 3 or p> total_pages - 3 or (p >= page - 1 and p <= page + 1) %} <li
+                                class="page-item"><a class="page-link"
+                                    href="{{ url_for('library.book_items', book_id=book.id, page=p, per_page=per_page) }}">{{
+                                    p }}</a></li>
+                                {% elif p == 4 or p == total_pages - 3 %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                                {% endfor %}
+
+                                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                    <a class="page-link"
+                                        href="{{ url_for('library.book_items', book_id=book.id, page=page+1, per_page=per_page) }}">Selanjutnya</a>
+                                </li>
+                    </ul>
+                </div>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Preview QR Code -->
+<div class="modal fade" id="barcodeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Preview QR Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <h5 id="barcodeTitle" class="mb-3"></h5>
+                <div class="border p-3 d-inline-block bg-white">
+                    <canvas id="barcodePreview"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-success" onclick="downloadBarcode()">
+                    <i class="bi bi-download me-1"></i>Download
+                </button>
+                <button type="button" class="btn btn-primary" onclick="printBarcodeFromModal()">
+                    <i class="bi bi-printer me-1"></i>Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Konfirmasi Print & Label -->
+<div class="modal fade" id="printConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Print Selesai?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah hasil print sudah keluar? Klik tombol di bawah jika Anda ingin menandai item yang terpilih
+                    sebagai <strong>Tertempel</strong>.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary" onclick="markAsLabeled()">Ya, Tandai Tertempel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Item -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Item Buku</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editItemForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">QR Code</label>
+                        <input type="text" class="form-control" name="qr_code" id="edit_qr_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" id="edit_status">
+                            <option value="available">Tersedia</option>
+                            <option value="borrowed">Dipinjam</option>
+                            <option value="lost">Hilang</option>
+                            <option value="damaged">Rusak</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script>
+    let currentCode = '';
+    let currentTitle = '';
+
+    function editItem(item) {
+        document.getElementById('edit_qr_code').value = item.qr_code;
+        document.getElementById('edit_status').value = item.status;
+
+        const form = document.getElementById('editItemForm');
+        form.action = `{{ url_for('library.update_item_route', item_id=0) }}`.replace('0', item.id);
+
+        const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        modal.show();
+    }
+
+    function showBarcodePreview(code, title) {
+        currentCode = code;
+        currentTitle = title;
+
+        document.getElementById('barcodeTitle').textContent = title;
+        const canvas = document.getElementById('barcodePreview');
+
+        QRCode.toCanvas(canvas, code, {
+            width: 200,
+            margin: 2
+        }, function (error) {
+            if (error) console.error(error);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('barcodeModal'));
+        modal.show();
+    }
+
+    function downloadBarcode() {
+        const sourceCanvas = document.getElementById('barcodePreview');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = sourceCanvas.width + 40;
+        canvas.height = sourceCanvas.height + 60;
+
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.font = "bold 14px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+
+        if (currentTitle.length > 30) {
+            ctx.fillText(currentTitle.substring(0, 30) + '...', canvas.width / 2, 30);
+        } else {
+            ctx.fillText(currentTitle, canvas.width / 2, 30);
+        }
+
+        ctx.drawImage(sourceCanvas, 20, 40);
+
+        const link = document.createElement('a');
+        link.download = `qrcode-${currentCode}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    }
+
+    function printBarcodeFromModal() {
+        const printWindow = window.open('', '', 'height=400,width=600');
+        const sourceCanvas = document.getElementById('barcodePreview');
+        const dataUrl = sourceCanvas.toDataURL();
+
+        printWindow.document.write('<html><head><title>Print QR Code</title>');
+        printWindow.document.write('<style>body { font-family: sans-serif; text-align: center; padding: 20px; } .barcode-container { border: 1px dashed #ccc; padding: 10px; display: inline-block; }</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<div class="barcode-container">');
+        // printWindow.document.write('<h5>' + currentTitle + '</h5>');
+        printWindow.document.write('<img src="' + dataUrl + '" width="200">');
+        printWindow.document.write('</div>');
+        printWindow.document.write('<script>');
+        printWindow.document.write('window.onload = function() { window.print(); window.close(); };');
+        printWindow.document.write('<\/script>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+    }
+
+    // Selection Logic
+    const selectAll = document.getElementById('selectAll');
+    const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+    const btnPrintSelected = document.getElementById('btn-print-selected');
+
+    function updatePrintButton() {
+        const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+        btnPrintSelected.disabled = checkedCount === 0;
+        btnPrintSelected.textContent = checkedCount > 0 ? `Print Terpilih (${checkedCount})` : 'Print Terpilih';
+    }
+
+    selectAll.addEventListener('change', function () {
+        itemCheckboxes.forEach(cb => cb.checked = this.checked);
+        updatePrintButton();
+    });
+
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updatePrintButton);
+    });
+
+    function printSelectedQRCodes() {
+        const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+        if (selectedCheckboxes.length === 0) return;
+
+        const items = [];
+        selectedCheckboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            items.push({
+                code: row.getAttribute('data-code'),
+                title: row.getAttribute('data-title')
+            });
+        });
+
+        // 1. Execute Print immediately
+        executePrint(items);
+
+        // 2. Show confirmation modal after a short delay
+        setTimeout(() => {
+            const modal = new bootstrap.Modal(document.getElementById('printConfirmModal'));
+            modal.show();
+        }, 1000);
+    }
+
+    function markAsLabeled() {
+        // Hide modal
+        const modalEl = document.getElementById('printConfirmModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        modal.hide();
+
+        const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+        const itemIds = [];
+
+        selectedCheckboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            // Get ID from the label checkbox in the same row
+            const labelCb = row.querySelector('.label-checkbox');
+            if (labelCb) {
+                itemIds.push(labelCb.getAttribute('data-item-id'));
+            }
+        });
+
+        if (itemIds.length > 0) {
+            // Call API to mark as labeled
+            fetch('/library/api/items/bulk_label', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_ids: itemIds, is_labeled: true })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update UI checkboxes
+                        selectedCheckboxes.forEach(cb => {
+                            const row = cb.closest('tr');
+                            const labelCb = row.querySelector('.label-checkbox');
+                            if (labelCb) labelCb.checked = true;
+                        });
+                    } else {
+                        console.error('Failed to mark items:', data.error);
+                        alert('Gagal menandai item: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error marking items:', err);
+                    alert('Terjadi kesalahan koneksi');
+                });
+        }
+    }
+
+    function executePrint(items) {
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Print QR Code Terpilih</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: sans-serif; padding: 20px; }');
+        printWindow.document.write('.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }');
+        printWindow.document.write('.qr-item { border: 1px dashed #ccc; padding: 10px; text-align: center; page-break-inside: avoid; }');
+        printWindow.document.write('.qr-item h5 { margin: 5px 0; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }');
+        printWindow.document.write('.qr-item img { width: 100px; height: 100px; }');
+        printWindow.document.write('</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<div class="qr-grid" id="qrGrid"></div>');
+
+        printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"><\/script>');
+        printWindow.document.write('<script>');
+        printWindow.document.write('const items = ' + JSON.stringify(items) + ';');
+        printWindow.document.write(`
+            window.onload = async function() {
+                const grid = document.getElementById('qrGrid');
+                
+                for (const item of items) {
+                    const div = document.createElement('div');
+                    div.className = 'qr-item';
+                    
+                    const canvas = document.createElement('canvas');
+                    try {
+                        await new Promise((resolve, reject) => {
+                            QRCode.toCanvas(canvas, item.code, { width: 100, margin: 1 }, function (error) {
+                                if (error) reject(error);
+                                else resolve();
+                            });
+                        });
+                        
+                        const img = document.createElement('img');
+                        img.src = canvas.toDataURL();
+                        div.appendChild(img);
+                        
+                        const code = document.createElement('div');
+                        code.style.fontSize = '10px';
+                        code.textContent = item.code;
+                        div.appendChild(code);
+                        
+                        grid.appendChild(div);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+                
+                setTimeout(() => {
+                    window.print();
+                }, 1000);
+            };
+        `);
+        printWindow.document.write('<\/script>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+    }
+
+    function printAllQRCodes() {
+        const rows = document.querySelectorAll('#itemsTable tbody tr[data-code]');
+        if (rows.length === 0) {
+            alert('Tidak ada item untuk dicetak.');
+            return;
+        }
+
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Print Semua QR Code</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: sans-serif; padding: 20px; }');
+        printWindow.document.write('.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }');
+        printWindow.document.write('.qr-item { border: 1px dashed #ccc; padding: 10px; text-align: center; page-break-inside: avoid; }');
+        printWindow.document.write('.qr-item h5 { margin: 5px 0; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }');
+        printWindow.document.write('.qr-item img { width: 100px; height: 100px; }');
+        printWindow.document.write('</style>');
+        printWindow.document.write('</head><body>');
+        // printWindow.document.write('<h2 style="text-align: center; margin-bottom: 20px;">Daftar QR Code Item Buku</h2>');
+        printWindow.document.write('<div class="qr-grid" id="qrGrid"></div>');
+
+        const items = [];
+        rows.forEach(row => {
+            items.push({
+                code: row.getAttribute('data-code'),
+                title: row.getAttribute('data-title')
+            });
+        });
+
+        printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"><\/script>');
+        printWindow.document.write('<script>');
+        printWindow.document.write('const items = ' + JSON.stringify(items) + ';');
+        printWindow.document.write(`
+            window.onload = async function() {
+                const grid = document.getElementById('qrGrid');
+                
+                for (const item of items) {
+                    const div = document.createElement('div');
+                    div.className = 'qr-item';
+                    
+                    // const title = document.createElement('h5');
+                    // title.textContent = item.title;
+                    // div.appendChild(title);
+                    
+                    const canvas = document.createElement('canvas');
+                    try {
+                        await new Promise((resolve, reject) => {
+                            QRCode.toCanvas(canvas, item.code, { width: 100, margin: 1 }, function (error) {
+                                if (error) reject(error);
+                                else resolve();
+                            });
+                        });
+                        
+                        const img = document.createElement('img');
+                        img.src = canvas.toDataURL();
+                        div.appendChild(img);
+                        
+                        const code = document.createElement('div');
+                        code.style.fontSize = '10px';
+                        code.textContent = item.code;
+                        div.appendChild(code);
+                        
+                        grid.appendChild(div);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+                
+                setTimeout(() => {
+                    window.print();
+                }, 1000);
+            };
+        `);
+        printWindow.document.write('<\/script>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+    }
+
+
+    // Label Toggle Logic
+    document.querySelectorAll('.label-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            const itemId = this.getAttribute('data-item-id');
+            const isLabeled = this.checked;
+
+            fetch(`/library/api/items/toggle_label/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ is_labeled: isLabeled })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Optional: Show toast
+                    } else {
+                        alert('Gagal mengupdate status: ' + (data.error || 'Unknown error'));
+                        this.checked = !isLabeled; // Revert
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Terjadi kesalahan koneksi');
+                    this.checked = !isLabeled; // Revert
+                });
+        });
+    });
+</script>
+{% endblock %}
