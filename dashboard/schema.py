@@ -382,7 +382,6 @@ def ensure_dashboard_schema() -> None:
         _BORROWING_RECORDS_SQL,
         _BORROWING_RECORDS_STUDENT_INDEX_SQL,
         _BORROWING_RECORDS_STATUS_INDEX_SQL,
-        _BORROWING_RECORDS_ITEM_INDEX_SQL,
         _CHAT_FEEDBACK_SQL,
         _CHAT_FEEDBACK_CHAT_LOG_INDEX_SQL,
         _CHAT_FEEDBACK_USER_INDEX_SQL,
@@ -420,6 +419,7 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS nik TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
+        _BORROWING_RECORDS_ITEM_INDEX_SQL,
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:
