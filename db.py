@@ -254,6 +254,223 @@ def _ensure_psych_schema() -> None:
     conn.commit()
 
 
+def _ensure_feedback_schema() -> None:
+    """Pastikan tabel chat_feedback tersedia untuk menyimpan feedback like/dislike."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_feedback (
+                id SERIAL PRIMARY KEY,
+                chat_log_id INTEGER NOT NULL REFERENCES chat_logs(id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL,
+                username TEXT,
+                feedback_type TEXT NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (chat_log_id, user_id)
+            );
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_chat_feedback_chat_log 
+            ON chat_feedback (chat_log_id);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_chat_feedback_user 
+            ON chat_feedback (user_id);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_chat_feedback_type 
+            ON chat_feedback (feedback_type);
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_chat_feedback_created 
+            ON chat_feedback (created_at DESC);
+            """
+        )
+    conn.commit()
+
+
+def save_feedback(
+    chat_log_id: int,
+    user_id: int,
+    username: Optional[str],
+    feedback_type: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Simpan atau update feedback untuk chat message.
+    
+    Args:
+        chat_log_id: ID dari chat_logs yang diberi feedback
+        user_id: ID user yang memberikan feedback
+        username: Username untuk display purposes
+        feedback_type: 'like' atau 'dislike'
+    
+    Returns:
+        Dict dengan feedback data jika berhasil, None jika gagal
+    
+    Raises:
+        ValueError: Jika feedback_type tidak valid
+        psycopg2.IntegrityError: Jika chat_log_id tidak ada (foreign key violation)
+    """
+    _ensure_feedback_schema()
+    
+    # Validasi feedback_type
+    if feedback_type not in ('like', 'dislike'):
+        raise ValueError(f"Invalid feedback_type: {feedback_type}. Must be 'like' or 'dislike'")
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Insert atau update jika sudah ada (ON CONFLICT)
+            cur.execute(
+                """
+                INSERT INTO chat_feedback (
+                    chat_log_id,
+                    user_id,
+                    username,
+                    feedback_type,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (chat_log_id, user_id)
+                DO UPDATE SET
+                    feedback_type = EXCLUDED.feedback_type,
+                    updated_at = NOW()
+                RETURNING
+                    id,
+                    chat_log_id,
+                    user_id,
+                    username,
+                    feedback_type,
+                    created_at,
+                    updated_at
+                """,
+                (chat_log_id, user_id, username, feedback_type),
+            )
+            result = cur.fetchone()
+        conn.commit()
+        return dict(result) if result else None
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
+        # Check if it's a foreign key violation
+        if 'chat_logs' in str(e):
+            raise ValueError(f"chat_log_id {chat_log_id} does not exist")
+        raise
+
+
+def delete_feedback(chat_log_id: int, user_id: int) -> bool:
+    """
+    Hapus feedback untuk chat message tertentu dari user tertentu.
+    
+    Args:
+        chat_log_id: ID dari chat_logs
+        user_id: ID user yang memberikan feedback
+    
+    Returns:
+        True jika feedback dihapus, False jika tidak ditemukan
+    """
+    _ensure_feedback_schema()
+    
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM chat_feedback
+            WHERE chat_log_id = %s AND user_id = %s
+            """,
+            (chat_log_id, user_id),
+        )
+        deleted_count = cur.rowcount
+    conn.commit()
+    return deleted_count > 0
+
+
+def get_feedback_status(chat_log_ids: List[int], user_id: int) -> Dict[int, Optional[Dict[str, Any]]]:
+    """
+    Ambil status feedback untuk multiple chat messages dari user tertentu.
+    
+    Args:
+        chat_log_ids: List of chat_log_id yang ingin dicek
+        user_id: ID user yang memberikan feedback
+    
+    Returns:
+        Dict mapping chat_log_id ke feedback data (atau None jika tidak ada feedback)
+    """
+    if not chat_log_ids:
+        return {}
+    
+    _ensure_feedback_schema()
+    
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                chat_log_id,
+                feedback_type,
+                created_at,
+                updated_at
+            FROM chat_feedback
+            WHERE chat_log_id = ANY(%s) AND user_id = %s
+            """,
+            (chat_log_ids, user_id),
+        )
+        rows = cur.fetchall()
+    
+    # Buat dict dengan semua chat_log_ids, default None
+    result = {cid: None for cid in chat_log_ids}
+    
+    # Update dengan feedback yang ada
+    for row in rows:
+        result[row['chat_log_id']] = {
+            'feedback_type': row['feedback_type'],
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at'],
+        }
+    
+    return result
+
+
+def get_feedback_by_chat_log(chat_log_id: int) -> List[Dict[str, Any]]:
+    """
+    Ambil semua feedback untuk chat message tertentu (dari semua user).
+    
+    Args:
+        chat_log_id: ID dari chat_logs
+    
+    Returns:
+        List of feedback records
+    """
+    _ensure_feedback_schema()
+    
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                chat_log_id,
+                user_id,
+                username,
+                feedback_type,
+                created_at,
+                updated_at
+            FROM chat_feedback
+            WHERE chat_log_id = %s
+            ORDER BY created_at DESC
+            """,
+            (chat_log_id,),
+        )
+        rows = cur.fetchall()
+    
+    return [dict(row) for row in rows]
+
+
 def _ensure_tka_schema(force_refresh: bool = False) -> None:
     """Pastikan tabel pendukung Latihan TKA tersedia."""
     global _TKA_SCHEMA_READY
@@ -747,7 +964,7 @@ def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
             """
-            SELECT role, text, created_at FROM chat_logs
+            SELECT id, role, text, created_at FROM chat_logs
             WHERE user_id = %s
             ORDER BY created_at DESC
             LIMIT %s OFFSET %s

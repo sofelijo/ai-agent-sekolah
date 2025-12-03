@@ -269,11 +269,32 @@ _BOOKS_CODE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_books_code ON books (code);
 """
 
+_BOOK_ITEMS_SQL = """
+CREATE TABLE IF NOT EXISTS book_items (
+    id SERIAL PRIMARY KEY,
+    book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    qr_code TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'available',
+    is_labeled BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_BOOK_ITEMS_QR_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_book_items_qr_code ON book_items (qr_code);
+"""
+
+_BOOK_ITEMS_BOOK_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_book_items_book_id ON book_items (book_id);
+"""
+
 _BORROWING_RECORDS_SQL = """
 CREATE TABLE IF NOT EXISTS borrowing_records (
     id SERIAL PRIMARY KEY,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL,
     borrow_date DATE NOT NULL DEFAULT CURRENT_DATE,
     due_date DATE,
     return_date DATE,
@@ -291,6 +312,39 @@ CREATE INDEX IF NOT EXISTS idx_borrowing_records_student ON borrowing_records (s
 
 _BORROWING_RECORDS_STATUS_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_borrowing_records_status ON borrowing_records (status);
+"""
+
+_BORROWING_RECORDS_ITEM_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_borrowing_records_book_item ON borrowing_records (book_item_id);
+"""
+
+_CHAT_FEEDBACK_SQL = """
+CREATE TABLE IF NOT EXISTS chat_feedback (
+    id SERIAL PRIMARY KEY,
+    chat_log_id INTEGER NOT NULL REFERENCES chat_logs(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL,
+    username TEXT,
+    feedback_type TEXT NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (chat_log_id, user_id)
+);
+"""
+
+_CHAT_FEEDBACK_CHAT_LOG_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_chat_log ON chat_feedback (chat_log_id);
+"""
+
+_CHAT_FEEDBACK_USER_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_user ON chat_feedback (user_id);
+"""
+
+_CHAT_FEEDBACK_TYPE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_type ON chat_feedback (feedback_type);
+"""
+
+_CHAT_FEEDBACK_CREATED_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_created ON chat_feedback (created_at DESC);
 """
 
 
@@ -322,9 +376,18 @@ def ensure_dashboard_schema() -> None:
         _TELEGRAM_USERS_INDEX_STATUS,
         _BOOKS_SQL,
         _BOOKS_CODE_INDEX_SQL,
+        _BOOK_ITEMS_SQL,
+        _BOOK_ITEMS_QR_INDEX_SQL,
+        _BOOK_ITEMS_BOOK_INDEX_SQL,
         _BORROWING_RECORDS_SQL,
         _BORROWING_RECORDS_STUDENT_INDEX_SQL,
         _BORROWING_RECORDS_STATUS_INDEX_SQL,
+        _BORROWING_RECORDS_ITEM_INDEX_SQL,
+        _CHAT_FEEDBACK_SQL,
+        _CHAT_FEEDBACK_CHAT_LOG_INDEX_SQL,
+        _CHAT_FEEDBACK_USER_INDEX_SQL,
+        _CHAT_FEEDBACK_TYPE_INDEX_SQL,
+        _CHAT_FEEDBACK_CREATED_INDEX_SQL,
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS no_tester_enabled BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nrk TEXT",
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS nip TEXT",
@@ -356,6 +419,7 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_name TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS nik TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
+        "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:

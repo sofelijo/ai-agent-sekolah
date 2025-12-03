@@ -567,10 +567,11 @@ def create_app() -> Flask:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        response = loop.run_until_complete(process_web_request(user_id, message, username=full_name))
+        response, chat_log_id = loop.run_until_complete(process_web_request(user_id, message, username=full_name))
         server_now = datetime.now(timezone.utc).isoformat()
         return jsonify({
             "response": response,
+            "chat_log_id": chat_log_id,
             "blocked": False,
             "exempt": is_exempt,
             "blockType": None,
@@ -1044,5 +1045,9 @@ def create_app() -> Flask:
         except Exception as exc:
             app.logger.error("Gagal memicu analisa manual TKA %s: %s", attempt_id, exc)
             return jsonify({"error": "Gagal memicu analisa. Coba lagi ya."}), 500
+
+    # Register feedback blueprint
+    from .feedback_routes import feedback_bp
+    app.register_blueprint(feedback_bp)
 
     return app

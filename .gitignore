@@ -17,3 +17,9 @@ __pycache__/
 
 # Log
 *.log
+
+# Ignore all hidden directories
+.*/
+
+# Ignore test files
+test*

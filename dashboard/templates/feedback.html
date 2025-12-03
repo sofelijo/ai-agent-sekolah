@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% block title %}Feedback Chat - ASKA Insights{% endblock %}
+
+{% block head_extra %}
+<style>
+    .stat-card {
+        border-radius: 1rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .stat-label {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+    }
+    .icon-badge {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .feedback-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    .feedback-like {
+        background-color: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+    }
+    .feedback-dislike {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+    }
+    .message-preview {
+        max-width: 400px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .filter-card {
+        border-radius: 1rem;
+        background: var(--bg-surface);
+    }
+    .table-responsive {
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+    .table thead {
+        background: var(--bg-muted);
+    }
+    .pagination {
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">
+                <span class="icon-badge text-primary me-2">
+                    <i class="bi bi-hand-thumbs-up"></i>
+                </span>
+                Feedback Chat
+            </h1>
+            <p class="text-muted mb-0">Monitor dan analisis feedback pengguna terhadap respons ASKA</p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i>
+                Update: {{ generated_at|jakarta('%d %b %Y %H:%M') if generated_at else '—' }}
+            </small>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-hand-thumbs-up-fill"></i>
+                        </span>
+                        <span class="stat-label">Total Likes</span>
+                    </div>
+                    <h2 class="stat-value text-success mb-0">{{ summary.total_likes or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-hand-thumbs-down-fill"></i>
+                        </span>
+                        <span class="stat-label">Total Dislikes</span>
+                    </div>
+                    <h2 class="stat-value text-danger mb-0">{{ summary.total_dislikes or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-chat-dots"></i>
+                        </span>
+                        <span class="stat-label">Total Feedback</span>
+                    </div>
+                    <h2 class="stat-value text-primary mb-0">{{ summary.total_feedback or 0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-percent"></i>
+                        </span>
+                        <span class="stat-label">Positive Rate</span>
+                    </div>
+                    <h2 class="stat-value text-info mb-0">{{ summary.positive_rate|round(1) or 0 }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title fw-bold mb-3">
+                <i class="bi bi-graph-up text-primary me-2"></i>
+                Tren Feedback (30 Hari Terakhir)
+            </h5>
+            <div class="chart-container">
+                <canvas id="feedbackTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="card filter-card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('main.feedback') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="feedback_type" class="form-label fw-semibold">Jenis Feedback</label>
+                    <select name="feedback_type" id="feedback_type" class="form-select">
+                        <option value="">Semua</option>
+                        <option value="like" {% if filter_type == 'like' %}selected{% endif %}>Like</option>
+                        <option value="dislike" {% if filter_type == 'dislike' %}selected{% endif %}>Dislike</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label fw-semibold">Tanggal Mulai</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" 
+                           value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label fw-semibold">Tanggal Akhir</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" 
+                           value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                    <a href="{{ url_for('main.feedback') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title fw-bold mb-0">
+                    <i class="bi bi-list-ul text-primary me-2"></i>
+                    Daftar Feedback
+                </h5>
+                <span class="badge bg-light text-dark">{{ total }} feedback</span>
+            </div>
+
+            {% if records %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Username</th>
+                            <th>Pesan ASKA</th>
+                            <th>Feedback</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>
+                                <small class="text-muted">
+                                    {{ record.created_at.strftime('%d %b %Y') if record.created_at else '—' }}<br>
+                                    {{ record.created_at.strftime('%H:%M') if record.created_at else '' }}
+                                </small>
+                            </td>
+                            <td>
+                                <strong>{{ record.username or 'Unknown' }}</strong><br>
+                                <small class="text-muted">ID: {{ record.user_id }}</small>
+                            </td>
+                            <td>
+                                <div class="message-preview" title="{{ record.message_text or '' }}">
+                                    {{ record.message_text or '—' }}
+                                </div>
+                                <small class="text-muted">
+                                    {{ record.message_created_at.strftime('%d %b %H:%M') if record.message_created_at else '' }}
+                                </small>
+                            </td>
+                            <td>
+                                {% if record.feedback_type == 'like' %}
+                                <span class="feedback-badge feedback-like">
+                                    <i class="bi bi-hand-thumbs-up-fill"></i> Like
+                                </span>
+                                {% elif record.feedback_type == 'dislike' %}
+                                <span class="feedback-badge feedback-dislike">
+                                    <i class="bi bi-hand-thumbs-down-fill"></i> Dislike
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.chat_thread', user_id=record.user_id) }}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="Lihat percakapan lengkap">
+                                    <i class="bi bi-chat-left-text"></i> Detail
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.feedback', page=page-1, feedback_type=filter_type, start_date=start_date.strftime('%Y-%m-%d') if start_date else '', end_date=end_date.strftime('%Y-%m-%d') if end_date else '') }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('main.feedback', page=p, feedback_type=filter_type, start_date=start_date.strftime('%Y-%m-%d') if start_date else '', end_date=end_date.strftime('%Y-%m-%d') if end_date else '') }}">
+                                {{ p }}
+                            </a>
+                        </li>
+                        {% elif p == page - 3 or p == page + 3 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.feedback', page=page+1, feedback_type=filter_type, start_date=start_date.strftime('%Y-%m-%d') if start_date else '', end_date=end_date.strftime('%Y-%m-%d') if end_date else '') }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <p class="text-muted mt-3">Tidak ada feedback yang ditemukan</p>
+                {% if filter_type or start_date or end_date %}
+                <a href="{{ url_for('main.feedback') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-clockwise"></i> Reset Filter
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Feedback Trend Chart
+    const ctx = document.getElementById('feedbackTrendChart');
+    if (ctx) {
+        const chartDays = {{ chart_days | tojson }};
+        const chartLikes = {{ chart_likes | tojson }};
+        const chartDislikes = {{ chart_dislikes | tojson }};
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartDays.map(day => {
+                    const date = new Date(day);
+                    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                }),
+                datasets: [
+                    {
+                        label: 'Likes',
+                        data: chartLikes,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Dislikes',
+                        data: chartDislikes,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

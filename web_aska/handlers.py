@@ -92,8 +92,12 @@ PSYCH_TIMEOUT_MESSAGE = (
 
 # Psych severity rank handled inside shared flows (responses/psychologist)
 
-async def process_web_request(user_id: int, user_input: str, username: str = "WebUser") -> str:
-    """Main function to handle a chat request from the web API."""
+async def process_web_request(user_id: int, user_input: str, username: str = "WebUser") -> tuple[str, Optional[int]]:
+    """Main function to handle a chat request from the web API.
+    
+    Returns:
+        tuple: (response_text, chat_log_id) where chat_log_id is the ID of the bot's response
+    """
     
     session_data = web_sessions.setdefault(user_id, {})
 
@@ -132,7 +136,8 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             # Let the user know the duplicate message was treated as spammy noise.
             return (
                 "Uh-oh, chat kamu kembar sama yang barusan nih jadi aku skip dulu biar "
-                "nggak kebaca spam 😅 Cobain kirim versi beda atau tunggu bentar ya ✨"
+                "nggak kebaca spam 😅 Cobain kirim versi beda atau tunggu bentar ya ✨",
+                None
             )
         recent_messages[normalized_input] = now_ts
 
@@ -160,7 +165,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: bullying")
-            return reply_target._last_reply or ""
+            return reply_target._last_reply or "", None
 
         # 2) Corruption Reporting Flow (reuse shared flow)
         reply_target = MockMessage(user, "")
@@ -180,7 +185,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: corruption")
-            return reply_target._last_reply or ""
+            return reply_target._last_reply or "", None
 
         # 3) Psych / counseling (reuse shared flow)
         reply_target = MockMessage(user, "")
@@ -204,7 +209,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: psych")
-            return reply_target._last_reply or ""
+            return reply_target._last_reply or "", None
 
         # Teacher flow is handled via shared flow handler below
 
@@ -226,7 +231,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: teacher")
-            return reply_target._last_reply or ""
+            return reply_target._last_reply or "", None
 
         # 5) Smalltalk / canned (reuse shared flow)
         reply_target = MockMessage(user, "")
@@ -243,7 +248,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: smalltalk")
-            return reply_target._last_reply or ""
+            return reply_target._last_reply or "", None
 
         normalized_input = rewrite_schedule_query(normalized_input)
 
@@ -268,7 +273,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
 
         duration_ms = (time.perf_counter() - start_time) * 1000
         print(f"[{now_str()}] ASKA : {response} ?? {duration_ms:.2f} ms")
-        save_chat(
+        bot_chat_log_id = save_chat(
             user_id,
             "ASKA",
             response,
@@ -277,8 +282,8 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             response_time_ms=int(duration_ms),
         )
 
-        return response
+        return response, bot_chat_log_id
 
     except Exception as e:
         print(f"[{now_str()}] [ERROR] {e}")
-        return ASKA_TECHNICAL_ISSUE_RESPONSE
+        return ASKA_TECHNICAL_ISSUE_RESPONSE, None

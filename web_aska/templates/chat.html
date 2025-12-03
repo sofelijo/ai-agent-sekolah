@@ -456,6 +456,41 @@
             opacity: 1;
             transform: translateY(-1px);
         }
+        /* Feedback buttons */
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+        }
+        .btn-feedback {
+            border: none;
+            background: transparent;
+            color: inherit;
+            opacity: 0.5;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 999px;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .btn-feedback:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+        }
+        .btn-feedback.active {
+            opacity: 1;
+        }
+        .btn-like.active {
+            color: #4a90e2;
+        }
+        .btn-dislike.active {
+            color: #e74c3c;
+        }
         body.dark-mode .btn-copy {
             background: rgba(255,255,255,0.08);
         }
@@ -646,7 +681,7 @@
 
             {% if initial_chats %}
                 {% for chat in initial_chats|reverse %}
-                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}" data-sender="{{ chat.role }}" aria-label="{{ 'Kamu' if chat.role == 'user' else 'ASKA' }} mengatakan">
+                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}" data-sender="{{ chat.role }}" {% if chat.id %}data-chat-log-id="{{ chat.id }}"{% endif %} aria-label="{{ 'Kamu' if chat.role == 'user' else 'ASKA' }} mengatakan">
                         {{ chat.text | trim }}
                         {% if chat.role != 'user' %}
                         <button class="btn-copy" type="button" title="Salin"><span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span></button>
@@ -1019,34 +1054,160 @@
             return html;
         }
 
-        function createMessageElement(message, sender) {
+        // Feedback functions
+        async function submitFeedback(chatLogId, feedbackType) {
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_log_id: chatLogId,
+                        feedback_type: feedbackType
+                    })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                return { success: false, error: 'Network error' };
+            }
+        }
+
+        async function removeFeedback(chatLogId) {
+            try {
+                const response = await fetch(`/api/feedback/${chatLogId}`, {
+                    method: 'DELETE'
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error removing feedback:', error);
+                return { success: false, error: 'Network error' };
+            }
+        }
+
+        async function loadFeedbackStatus(chatLogIds) {
+            if (!chatLogIds || chatLogIds.length === 0) return {};
+            try {
+                const ids = chatLogIds.join(',');
+                const response = await fetch(`/api/feedback/status?chat_log_ids=${ids}`);
+                const data = await response.json();
+                return data.success ? data.feedbacks : {};
+            } catch (error) {
+                console.error('Error loading feedback status:', error);
+                return {};
+            }
+        }
+
+        function updateFeedbackUI(messageElement, feedbackType) {
+            const likeBtn = messageElement.querySelector('.btn-like');
+            const dislikeBtn = messageElement.querySelector('.btn-dislike');
+            
+            if (likeBtn) {
+                likeBtn.classList.toggle('active', feedbackType === 'like');
+            }
+            if (dislikeBtn) {
+                dislikeBtn.classList.toggle('active', feedbackType === 'dislike');
+            }
+        }
+
+        async function handleFeedbackClick(messageElement, feedbackType) {
+            const chatLogId = messageElement.getAttribute('data-chat-log-id');
+            if (!chatLogId) {
+                console.warn('No chat_log_id found for message');
+                return;
+            }
+
+            const likeBtn = messageElement.querySelector('.btn-like');
+            const dislikeBtn = messageElement.querySelector('.btn-dislike');
+            const currentFeedback = likeBtn?.classList.contains('active') ? 'like' 
+                : dislikeBtn?.classList.contains('active') ? 'dislike' 
+                : null;
+
+            // If clicking the same button, remove feedback
+            if (currentFeedback === feedbackType) {
+                const result = await removeFeedback(chatLogId);
+                if (result.success) {
+                    updateFeedbackUI(messageElement, null);
+                } else {
+                    console.error('Failed to remove feedback:', result.error);
+                    alert('Gagal menghapus feedback. Coba lagi.');
+                }
+            } else {
+                // Submit new feedback (or change existing)
+                const result = await submitFeedback(chatLogId, feedbackType);
+                if (result.success) {
+                    updateFeedbackUI(messageElement, feedbackType);
+                } else {
+                    console.error('Failed to submit feedback:', result.error);
+                    if (result.error && result.error.includes('not authenticated')) {
+                        alert('Anda harus login untuk memberikan feedback.');
+                    } else if (result.error && result.error.includes('own message')) {
+                        alert('Tidak bisa memberikan feedback pada pesan sendiri.');
+                    } else {
+                        alert('Gagal menyimpan feedback. Coba lagi.');
+                    }
+                }
+            }
+        }
+
+        function createMessageElement(message, sender, chatLogId = null) {
             const messageElement = document.createElement('div');
             const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
             messageElement.classList.add('chat-message', messageClass);
             messageElement.setAttribute('data-sender', sender);
             messageElement.setAttribute('aria-label', sender === 'user' ? 'Kamu mengatakan' : 'ASKA mengatakan');
+            
+            if (chatLogId) {
+                messageElement.setAttribute('data-chat-log-id', chatLogId);
+            }
 
             if (sender !== 'user') { // Treat 'aska' and other non-user roles as bot
                 const html = renderBotHtml(message);
                 messageElement.innerHTML = html;
+                
+                // Create message actions container
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // Add feedback buttons
+                const likeBtn = document.createElement('button');
+                likeBtn.type = 'button';
+                likeBtn.className = 'btn-feedback btn-like';
+                likeBtn.setAttribute('data-feedback', 'like');
+                likeBtn.title = 'Suka';
+                likeBtn.innerHTML = '<span class="feedback-icon">👍</span>';
+                likeBtn.addEventListener('click', () => handleFeedbackClick(messageElement, 'like'));
+                
+                const dislikeBtn = document.createElement('button');
+                dislikeBtn.type = 'button';
+                dislikeBtn.className = 'btn-feedback btn-dislike';
+                dislikeBtn.setAttribute('data-feedback', 'dislike');
+                dislikeBtn.title = 'Tidak Suka';
+                dislikeBtn.innerHTML = '<span class="feedback-icon">👎</span>';
+                dislikeBtn.addEventListener('click', () => handleFeedbackClick(messageElement, 'dislike'));
+                
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
                 copyBtn.className = 'btn-copy';
-                copyBtn.textContent = 'Salin';
+                copyBtn.innerHTML = '<span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span>';
                 copyBtn.title = 'Salin';
                 copyBtn.addEventListener('click', () => copyMessage(messageElement));
-                messageElement.appendChild(copyBtn);
+                
+                actionsDiv.appendChild(likeBtn);
+                actionsDiv.appendChild(dislikeBtn);
+                actionsDiv.appendChild(copyBtn);
+                messageElement.appendChild(actionsDiv);
             } else {
                 messageElement.textContent = normalizeUserText(message);
             }
             return messageElement;
         }
 
-        function appendMessage(message, sender) {
-            const messageElement = createMessageElement(message, sender);
+        function appendMessage(message, sender, chatLogId = null) {
+            const messageElement = createMessageElement(message, sender, chatLogId);
             messageElement.classList.add('new-message');
             chatBox.appendChild(messageElement);
             chatBox.scrollTop = chatBox.scrollHeight;
+            return messageElement;
         }
 
         function appendTelegramCTA() {
@@ -1068,9 +1229,10 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function prependMessage(message, sender) {
-            const messageElement = createMessageElement(message, sender);
+        function prependMessage(message, sender, chatLogId = null) {
+            const messageElement = createMessageElement(message, sender, chatLogId);
             chatBox.insertBefore(messageElement, historyLoader.nextSibling);
+            return messageElement;
         }
 
         async function loadHistory() {
@@ -1090,12 +1252,31 @@
                 } else {
                     const oldScrollHeight = chatBox.scrollHeight;
                     // API returns newest first, so we don't need to reverse for prepending
+                    const prependedMessages = [];
                     history.forEach(chat => {
-                        prependMessage(chat.text, chat.role);
+                        const msgEl = prependMessage(chat.text, chat.role, chat.id);
+                        if (chat.role !== 'user' && chat.id) {
+                            prependedMessages.push(msgEl);
+                        }
                     });
                     chatBox.scrollTop = chatBox.scrollHeight - oldScrollHeight;
                     chatOffset += 10;
                     historyLoader.style.display = 'none';
+                    
+                    // Load feedback status for prepended messages
+                    const chatLogIds = prependedMessages
+                        .map(el => el.getAttribute('data-chat-log-id'))
+                        .filter(id => id);
+                    if (chatLogIds.length > 0) {
+                        loadFeedbackStatus(chatLogIds).then(feedbacks => {
+                            prependedMessages.forEach(msgEl => {
+                                const chatLogId = msgEl.getAttribute('data-chat-log-id');
+                                if (chatLogId && feedbacks[chatLogId]) {
+                                    updateFeedbackUI(msgEl, feedbacks[chatLogId].feedback_type);
+                                }
+                            });
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Failed to load chat history:", error);
@@ -1203,7 +1384,7 @@
                     applyStatusBlock(data.statusBlock);
                     statusBlockAcknowledged = Boolean(data.statusBlock);
                 }
-                appendMessage(data.response, 'bot');
+                appendMessage(data.response, 'bot', data.chat_log_id);
                 if (data.blocked && data.blockType !== 'status') {
                     appendTelegramCTA();
                 }
@@ -1275,26 +1456,69 @@
         }
 
         function enhanceExistingMessages() {
+            const messagesToEnhance = [];
             document.querySelectorAll('.chat-message.bot-message').forEach((el) => {
-                // Remove existing copy buttons BEFORE reading text, to avoid \"Salin\" leaking
-                el.querySelectorAll('.btn-copy').forEach(b => b.remove());
+                // Remove existing buttons BEFORE reading text
+                el.querySelectorAll('.btn-copy, .btn-feedback, .message-actions').forEach(b => b.remove());
                 const hasStructuredContent = el.children.length > 0; // keep <ul>, <br>, etc.
                 if (!hasStructuredContent) {
                     let raw = el.textContent || '';
                     raw = raw.replace(/\r\n/g, '\n');
                     el.innerHTML = renderBotHtml(raw.trim());
                 }
-                // Skip copy button for the very first intro bubble
+                // Skip buttons for the very first intro bubble
                 if (!el.dataset.initial) {
+                    // Create message actions container
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'message-actions';
+                    
+                    // Add feedback buttons
+                    const likeBtn = document.createElement('button');
+                    likeBtn.type = 'button';
+                    likeBtn.className = 'btn-feedback btn-like';
+                    likeBtn.setAttribute('data-feedback', 'like');
+                    likeBtn.title = 'Suka';
+                    likeBtn.innerHTML = '<span class="feedback-icon">👍</span>';
+                    likeBtn.addEventListener('click', () => handleFeedbackClick(el, 'like'));
+                    
+                    const dislikeBtn = document.createElement('button');
+                    dislikeBtn.type = 'button';
+                    dislikeBtn.className = 'btn-feedback btn-dislike';
+                    dislikeBtn.setAttribute('data-feedback', 'dislike');
+                    dislikeBtn.title = 'Tidak Suka';
+                    dislikeBtn.innerHTML = '<span class="feedback-icon">👎</span>';
+                    dislikeBtn.addEventListener('click', () => handleFeedbackClick(el, 'dislike'));
+                    
                     const copyBtn = document.createElement('button');
                     copyBtn.type = 'button';
                     copyBtn.className = 'btn-copy';
                     copyBtn.innerHTML = '<span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span>';
                     copyBtn.title = 'Salin';
                     copyBtn.addEventListener('click', () => copyMessage(el));
-                    el.appendChild(copyBtn);
+                    
+                    actionsDiv.appendChild(likeBtn);
+                    actionsDiv.appendChild(dislikeBtn);
+                    actionsDiv.appendChild(copyBtn);
+                    el.appendChild(actionsDiv);
+                    
+                    messagesToEnhance.push(el);
                 }
             });
+            
+            // Load feedback status for all existing messages
+            const chatLogIds = messagesToEnhance
+                .map(el => el.getAttribute('data-chat-log-id'))
+                .filter(id => id);
+            if (chatLogIds.length > 0) {
+                loadFeedbackStatus(chatLogIds).then(feedbacks => {
+                    messagesToEnhance.forEach(msgEl => {
+                        const chatLogId = msgEl.getAttribute('data-chat-log-id');
+                        if (chatLogId && feedbacks[chatLogId]) {
+                            updateFeedbackUI(msgEl, feedbacks[chatLogId].feedback_type);
+                        }
+                    });
+                });
+            }
         }
 
         // Double-click to copy bot messages (including pre-rendered)
