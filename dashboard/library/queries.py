@@ -17,7 +17,8 @@ def get_all_books(search_query: str = "", page: int = 1, per_page: int = 10) -> 
         # Get total count
         count_query = f"SELECT COUNT(*) {base_query} {where_clause}"
         cur.execute(count_query, tuple(params))
-        total_items = cur.fetchone()[0]
+        result = cur.fetchone()
+        total_items = result[0] if result else 0
 
         # Get paginated books
         # Stock is now calculated from available items
@@ -226,26 +227,34 @@ def borrow_book(student_id: int, item_qr_code: str, user_id: int) -> str:
         
         return 'success'
 
-def get_borrowings(student_id: Optional[int] = None, search_query: str = "") -> List[Dict[str, Any]]:
+def get_borrowings(student_id: Optional[int] = None, search_query: str = "", status: Optional[str] = None) -> List[Dict[str, Any]]:
     with get_cursor() as cur:
         query = """
-            SELECT br.id, b.title, b.code as book_code, bi.qr_code as item_qr_code,
+            SELECT br.id, br.student_id, b.title, b.code as book_code, bi.qr_code as item_qr_code,
                    TO_CHAR(br.borrow_date, 'YYYY-MM-DD') as borrow_date, 
                    TO_CHAR(br.due_date, 'YYYY-MM-DD') as due_date, 
                    br.status,
                    s.full_name as student_name,
                    c.name as class_name,
-                   u.full_name as recorded_by_name
+                   u.full_name as recorded_by_name,
+                   ur.full_name as returned_by_name
             FROM borrowing_records br
             LEFT JOIN books b ON br.book_id = b.id
             LEFT JOIN book_items bi ON br.book_item_id = bi.id
             LEFT JOIN students s ON br.student_id = s.id
             LEFT JOIN school_classes c ON s.class_id = c.id
             LEFT JOIN dashboard_users u ON br.recorded_by = u.id
-            WHERE br.status IN ('borrowed', 'returned')
+            LEFT JOIN dashboard_users ur ON br.returned_by = ur.id
+            WHERE 1=1
         """
         params = []
         
+        if status:
+             query += " AND br.status = %s"
+             params.append(status)
+        else:
+             query += " AND br.status IN ('borrowed', 'returned')"
+
         if student_id:
             query += " AND br.student_id = %s"
             params.append(student_id)
@@ -262,7 +271,22 @@ def get_borrowings(student_id: Optional[int] = None, search_query: str = "") -> 
         results = [dict(zip(columns, row)) for row in cur.fetchall()]
         return results
 
-def return_book(borrow_id: int) -> None:
+def delete_borrowing(borrow_id: int) -> None:
+    with get_cursor(commit=True) as cur:
+        # Get item id to reset status if needed
+        cur.execute("SELECT book_item_id, status FROM borrowing_records WHERE id = %s", (borrow_id,))
+        row = cur.fetchone()
+        if row:
+            book_item_id, status = row
+            # If currently borrowed, we should probably set item back to available?
+            # Or assume deleting record means it never happened?
+            # Let's set item to available if it was borrowed.
+            if status == 'borrowed' and book_item_id:
+                cur.execute("UPDATE book_items SET status = 'available' WHERE id = %s", (book_item_id,))
+        
+        cur.execute("DELETE FROM borrowing_records WHERE id = %s", (borrow_id,))
+
+def return_book(borrow_id: int, user_id: Optional[int] = None) -> None:
     with get_cursor(commit=True) as cur:
         # Get book_item_id and current status
         cur.execute("SELECT book_item_id, status FROM borrowing_records WHERE id = %s", (borrow_id,))
@@ -277,9 +301,9 @@ def return_book(borrow_id: int) -> None:
         # Update record
         cur.execute("""
             UPDATE borrowing_records 
-            SET status = 'returned', return_date = CURRENT_DATE, updated_at = NOW()
+            SET status = 'returned', return_date = CURRENT_DATE, updated_at = NOW(), returned_by = %s
             WHERE id = %s
-        """, (borrow_id,))
+        """, (user_id, borrow_id))
 
         # Update item status
         if book_item_id:

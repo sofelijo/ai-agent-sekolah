@@ -67,7 +67,9 @@
                                 <th>Judul Buku</th>
                                 <th>QR Item</th>
                                 <th>Tgl Pinjam</th>
-                                <th>Status</th>
+                                <th style="cursor: pointer;" onclick="toggleStatusFilter()">
+                                    Status <i class="bi bi-filter"></i>
+                                </th>
                                 <th>Petugas</th>
                                 <th>Aksi</th>
                             </tr>
@@ -76,7 +78,10 @@
                             {% for item in borrowings %}
                             <tr>
                                 <td>
-                                    <div class="fw-bold">{{ item.student_name }} ({{ item.class_name }})</div>
+                                    <div class="fw-bold text-primary" style="cursor: pointer;"
+                                        onclick="showStudentHistory({{ item.student_id }}, '{{ item.student_name }}')">
+                                        {{ item.student_name }} ({{ item.class_name }})
+                                    </div>
                                 </td>
                                 <td>{{ item.title }}</td>
                                 <td><span class="badge bg-light text-dark font-monospace">{{ item.item_qr_code }}</span>
@@ -89,24 +94,42 @@
                                     <span class="badge bg-success">Dikembalikan</span>
                                     {% endif %}
                                 </td>
-                                <td><small>{{ item.recorded_by_name or '-' }}</small></td>
                                 <td>
-                                    {% if item.status == 'borrowed' %}
-                                    <form action="{{ url_for('library.return_item', borrow_id=item.id) }}" method="POST"
-                                        onsubmit="return confirm('Kembalikan buku ini?');">
-                                        <button type="submit" class="btn btn-sm btn-success">
-                                            <i class="bi bi-check-circle me-1"></i> Kembali
-                                        </button>
-                                    </form>
-                                    {% else %}
-                                    <form action="{{ url_for('library.cancel_return_item', borrow_id=item.id) }}"
-                                        method="POST"
-                                        onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
-                                        <button type="submit" class="btn btn-sm btn-outline-warning">
-                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                                    <small style="cursor: pointer;" class="text-decoration-underline"
+                                        onclick="showStaffLog('{{ item.recorded_by_name or '-' }}', '{{ item.returned_by_name or '-' }}')">
+                                        {{ item.recorded_by_name or '-' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        {% if item.status == 'borrowed' %}
+                                        <form action="{{ url_for('library.return_item', borrow_id=item.id) }}"
+                                            method="POST" onsubmit="return confirm('Kembalikan buku ini?');">
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-check-circle me-1"></i> Kembali
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <form action="{{ url_for('library.cancel_return_item', borrow_id=item.id) }}"
+                                            method="POST"
+                                            onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
+                                            </button>
+                                        </form>
+                                        {% endif %}
+
+                                        {% if current_user.role == 'admin' %}
+                                        <form
+                                            action="{{ url_for('library.delete_borrowing_route', borrow_id=item.id) }}"
+                                            method="POST"
+                                            onsubmit="return confirm('Hapus riwayat ini? Data tidak bisa dikembalikan.');">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -145,9 +168,12 @@
     let debounceTimer;
     let borrowSearchTimer;
     let itemCheckTimer;
+    let currentStatusFilter = '';
 
     // Load initial data (global list)
-    fetchBorrowings();
+    // We need to wait for DOM to be ready or just call it.
+    // If student_id is present (from server render), use it.
+    fetchBorrowings(studentIdInput.value, borrowSearchInput.value);
 
     btnScanQR.addEventListener('click', function () {
         if (readerDiv.style.display === 'none') {
@@ -238,8 +264,9 @@
     borrowSearchInput.addEventListener('input', function () {
         clearTimeout(borrowSearchTimer);
         const query = this.value;
+        const studentId = studentIdInput.value;
         borrowSearchTimer = setTimeout(() => {
-            fetchBorrowings(null, query);
+            fetchBorrowings(studentId, query);
         }, 300);
     });
 
@@ -293,7 +320,20 @@
         itemQrInput.focus();
 
         // Fetch borrowings for this student
-        fetchBorrowings(student.id);
+        fetchBorrowings(student.id, borrowSearchInput.value);
+    }
+
+
+
+    function toggleStatusFilter() {
+        if (currentStatusFilter === '') {
+            currentStatusFilter = 'borrowed';
+        } else if (currentStatusFilter === 'borrowed') {
+            currentStatusFilter = 'returned';
+        } else {
+            currentStatusFilter = '';
+        }
+        fetchBorrowings(studentIdInput.value, borrowSearchInput.value);
     }
 
     function fetchBorrowings(studentId = null, query = '') {
@@ -305,7 +345,8 @@
 
         let url = `{{ url_for('library.api_borrowings') }}?`;
         if (studentId) url += `student_id=${studentId}&`;
-        if (query) url += `q=${encodeURIComponent(query)}`;
+        if (query) url += `q=${encodeURIComponent(query)}&`;
+        if (currentStatusFilter) url += `status=${currentStatusFilter}`;
 
         fetch(url)
             .then(response => response.json())
@@ -313,34 +354,61 @@
                 tbody.innerHTML = '';
                 if (data.length > 0) {
                     data.forEach(item => {
+                        let statusBadge = '';
+                        let actionButton = '';
+
+                        if (item.status === 'borrowed') {
+                            statusBadge = '<span class="badge bg-warning text-dark">Dipinjam</span>';
+                            actionButton = `
+                                <form action="/library/return/${item.id}" method="POST" onsubmit="return confirm('Kembalikan buku ini?');">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-circle me-1"></i> Kembali
+                                    </button>
+                                </form>
+                            `;
+                        } else {
+                            statusBadge = '<span class="badge bg-success">Dikembalikan</span>';
+                            actionButton = `
+                                <form action="/library/cancel_return/${item.id}" method="POST" onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
+                                    </button>
+                                </form>
+                            `;
+                        }
+
+                        let deleteButton = '';
+                        {% if current_user.role == 'admin' %}
+                        deleteButton = `
+                            <form action="/library/borrow/delete/${item.id}" method="POST" onsubmit="return confirm('Hapus riwayat ini? Data tidak bisa dikembalikan.');">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        `;
+                        {% endif %}
+
                         const row = `
                             <tr>
                                 <td>
-                                    <div class="fw-bold">${item.student_name} (${item.class_name})</div>
+                                    <div class="fw-bold text-primary" style="cursor: pointer;" onclick="showStudentHistory(${item.student_id || 0}, '${item.student_name}')">
+                                        ${item.student_name} (${item.class_name})
+                                    </div>
                                 </td>
                                 <td>${item.title}</td>
                                 <td><span class="badge bg-light text-dark font-monospace">${item.item_qr_code || '-'}</span></td>
                                 <td>${formatDate(item.borrow_date)}</td>
+                                <td>${statusBadge}</td>
                                 <td>
-                                    ${item.status === 'borrowed' ?
-                                '<span class="badge bg-warning text-dark">Dipinjam</span>' :
-                                '<span class="badge bg-success">Dikembalikan</span>'}
+                                     <small style="cursor: pointer;" class="text-decoration-underline" onclick="showStaffLog('${item.recorded_by_name || '-'}', '${item.returned_by_name || '-'}')">
+                                        ${item.recorded_by_name || '-'}
+                                    </small>
                                 </td>
-                                <td><small>${item.recorded_by_name || '-'}</small></td>
                                 <td>
-                                    ${item.status === 'borrowed' ? `
-                                    <form action="/library/return/${item.id}" method="POST" onsubmit="return confirm('Kembalikan buku ini?');">
-                                        <button type="submit" class="btn btn-sm btn-success">
-                                            <i class="bi bi-check-circle me-1"></i> Kembali
-                                        </button>
-                                    </form>
-                                    ` : `
-                                    <form action="/library/cancel_return/${item.id}" method="POST" onsubmit="return confirm('Batalkan pengembalian buku ini? Status akan kembali menjadi Dipinjam.');">
-                                        <button type="submit" class="btn btn-sm btn-outline-warning">
-                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
-                                        </button>
-                                    </form>
-                                    `}
+                                    <div class="d-flex gap-1">
+                                        ${actionButton}
+                                        ${deleteButton}
+                                    </div>
                                 </td>
                             </tr >
                         `;
@@ -370,5 +438,93 @@
     submitBtn.disabled = false;
     itemQrInput.focus();
     {% endif %}
+</script>
+<!-- Student History Modal -->
+<div class="modal fade" id="studentHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Riwayat Peminjaman: <span id="historyStudentName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Buku</th>
+                                <th>Tgl Pinjam</th>
+                                <th>Status</th>
+                                <th>Petugas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentHistoryBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Log Modal -->
+<div class="modal fade" id="staffLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detail Petugas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Dipinjamkan oleh:</strong> <span id="logBorrowedBy"></span></p>
+                <p><strong>Dikembalikan oleh:</strong> <span id="logReturnedBy"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showStudentHistory(studentId, studentName) {
+        if (!studentId) return;
+        document.getElementById('historyStudentName').textContent = studentName;
+        const tbody = document.getElementById('studentHistoryBody');
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Loading...</td></tr>';
+
+        const modal = new bootstrap.Modal(document.getElementById('studentHistoryModal'));
+        modal.show();
+
+        fetch(`/library/api/student/${studentId}/history`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Belum ada riwayat.</td></tr>';
+                    return;
+                }
+                data.forEach(item => {
+                    const statusBadge = item.status === 'borrowed'
+                        ? '<span class="badge bg-warning text-dark">Dipinjam</span>'
+                        : '<span class="badge bg-success">Dikembalikan</span>';
+
+                    const row = `
+                        <tr>
+                            <td>${item.title}</td>
+                            <td>${item.borrow_date}</td>
+                            <td>${statusBadge}</td>
+                            <td>${item.recorded_by_name || '-'}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            });
+    }
+
+    function showStaffLog(borrowedBy, returnedBy) {
+        document.getElementById('logBorrowedBy').textContent = borrowedBy;
+        document.getElementById('logReturnedBy').textContent = returnedBy;
+        const modal = new bootstrap.Modal(document.getElementById('staffLogModal'));
+        modal.show();
+    }
 </script>
 {% endblock %}

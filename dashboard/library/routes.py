@@ -1,5 +1,5 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify
-from ..auth import login_required, current_user
+from ..auth import login_required, current_user, role_required
 from . import library_bp
 from .queries import (
     get_all_books, add_book, get_book_by_code, search_students, 
@@ -173,12 +173,32 @@ def api_search_students():
 def api_borrowings():
     student_id = request.args.get("student_id")
     search_query = request.args.get("q", "")
+    status = request.args.get("status")
     
     student_id_int = int(student_id) if student_id and student_id.isdigit() else None
     
     from .queries import get_borrowings
-    borrowings = get_borrowings(student_id=student_id_int, search_query=search_query)
+    borrowings = get_borrowings(student_id=student_id_int, search_query=search_query, status=status)
     return jsonify(borrowings)
+
+@library_bp.route("/api/student/<int:student_id>/history")
+@login_required
+def api_student_history(student_id):
+    from .queries import get_borrowings
+    # Fetch all history for student (borrowed and returned)
+    borrowings = get_borrowings(student_id=student_id)
+    return jsonify(borrowings)
+
+@library_bp.route("/borrow/delete/<int:borrow_id>", methods=["POST"])
+@role_required("admin")
+def delete_borrowing_route(borrow_id):
+    try:
+        from .queries import delete_borrowing
+        delete_borrowing(borrow_id)
+        flash("Riwayat peminjaman berhasil dihapus", "success")
+    except Exception as e:
+        flash(f"Gagal menghapus riwayat: {e}", "error")
+    return redirect(request.referrer or url_for("library.borrow"))
 
 @library_bp.route("/api/items/check")
 @login_required
@@ -196,7 +216,10 @@ def api_check_item():
 @library_bp.route("/return/<int:borrow_id>", methods=["POST"])
 @login_required
 def return_item(borrow_id):
-    return_book(borrow_id)
+    from .queries import return_book
+    user = current_user()
+    user_id = user["id"] if user else None
+    return_book(borrow_id, user_id=user_id)
     flash("Buku berhasil dikembalikan", "success")
     return redirect(request.referrer or url_for("library.borrow"))
 

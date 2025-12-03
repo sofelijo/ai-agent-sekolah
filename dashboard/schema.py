@@ -301,6 +301,7 @@ CREATE TABLE IF NOT EXISTS borrowing_records (
     status TEXT NOT NULL DEFAULT 'borrowed' CHECK (status IN ('borrowed', 'returned', 'lost')),
     note TEXT,
     recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -419,6 +420,7 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS nik TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
+        "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
     )
     with get_cursor(commit=True) as cur:
