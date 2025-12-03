@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id" data-theme="light" data-bs-theme="light">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +8,8 @@
     <link rel="shortcut icon" href="https://www.svgrepo.com/show/331368/bot.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     <script>
         (function () {
@@ -26,296 +28,349 @@
     </script>
     {% block head_extra %}{% endblock %}
 </head>
+
 <body style="font-family: 'Plus Jakarta Sans', sans-serif;">
-<nav class="navbar navbar-expand-lg shadow-sm sticky-top">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('attendance.dashboard') if current_user and current_user.role == 'staff' else url_for('main.dashboard') }}">
-            <span class="icon-badge brand-icon text-primary">
-                <i class="bi bi-stars"></i>
-            </span>
-            <span>ASKA Insights</span>
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navMenu">
-            {% set current_role = current_user.role if current_user else None %}
-            {% set is_teacher = current_role == 'staff' %}
-            {% set is_admin = current_role == 'admin' %}
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                {% if is_teacher %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}" href="{{ url_for('attendance.dashboard') }}">
-                        <i class="bi bi-clipboard-check nav-icon"></i>Absensi
-                    </a>
-                </li>
-                {% else %}
-                {% if is_admin %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}" href="{{ url_for('attendance.dashboard') }}">
-                        <i class="bi bi-clipboard-check nav-icon"></i>Absensi
-                    </a>
-                </li>
-                {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint in ['main.chats', 'main.chat_thread'] %}active{% endif %}" href="{{ url_for('main.chats') }}"><i class="bi bi-chat-square-text nav-icon"></i>Chat Logs</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.feedback' %}active{% endif %}" href="{{ url_for('main.feedback') }}"><i class="bi bi-hand-thumbs-up nav-icon"></i>Feedback</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.twitter_logs' %}active{% endif %}" href="{{ url_for('main.twitter_logs') }}">
-                        <i class="bi bi-twitter nav-icon"></i>Twitter Ops
-                    </a>
-                </li>
-                {% set report_endpoints = ['main.psych_reports', 'main.bullying_reports', 'main.corruption_reports'] %}
-                {% set total_report_notifications = (pending_psych_count|default(0)) + (pending_bullying_count|default(0)) + (pending_corruption_count|default(0)) %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.endpoint in report_endpoints %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-flag nav-icon"></i>Laporan
-                        {% if total_report_notifications %}
-                        <span class="badge rounded-pill text-bg-danger ms-2">{{ total_report_notifications }}</span>
-                        {% endif %}
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.psych_reports' %}active{% endif %}" href="{{ url_for('main.psych_reports') }}">
-                                <span><i class="bi bi-journal-medical me-2 text-primary"></i>Konseling</span>
-                                {% if pending_psych_count %}
-                                <span class="badge text-bg-danger">{{ pending_psych_count }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.bullying_reports' %}active{% endif %}" href="{{ url_for('main.bullying_reports') }}">
-                                <span><i class="bi bi-shield-check me-2 text-primary"></i>Bullying</span>
-                                {% if pending_bullying_count %}
-                                <span class="badge text-bg-danger">{{ pending_bullying_count }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.corruption_reports' %}active{% endif %}" href="{{ url_for('main.corruption_reports') }}">
-                                <span><i class="bi bi-cash-stack me-2 text-primary"></i>Korupsi</span>
-                                {% if pending_corruption_count %}
-                                <span class="badge text-bg-danger">{{ pending_corruption_count }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                {% if is_admin %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.endpoint in ['tka.latihan_tka_bank', 'tka.latihan_tka_results', 'tka.latihan_tka_manual', 'tka.latihan_tka_tests'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-mortarboard nav-icon"></i>Latihan TKA
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_bank' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_bank') }}">Bank Soal</a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_manual' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_manual') }}">Buat Soal</a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_tests' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_tests') }}">Konfigurasi Tes</a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_results' %}active{% endif %}" href="{{ url_for('tka.latihan_tka_results') }}">Hasil Nilai</a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle {% if request.endpoint in ['auth.manage_users', 'auth.manage_aska_users'] %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-gear nav-icon"></i>Manajemen
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'auth.manage_users' %}active{% endif %}" href="{{ url_for('auth.manage_users') }}">
-                                Admin Dashboard
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item {% if request.endpoint == 'auth.manage_aska_users' %}active{% endif %}" href="{{ url_for('auth.manage_aska_users') }}">
-                                User ASKA
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                {% endif %}
-                {% endif %}
-            </ul>
-            <div class="d-flex align-items-center gap-3 flex-wrap flex-lg-nowrap ms-lg-auto">
-                <div class="form-check form-switch text-nowrap mb-0">
-                    <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
-                    <label class="form-check-label theme-toggle-label" for="themeToggle" data-label-light="Mode Gelap" data-label-dark="Mode Terang" title="Mode Gelap">
-                        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="4"></circle>
-                            <line x1="12" y1="3" x2="12" y2="6"></line>
-                            <line x1="12" y1="18" x2="12" y2="21"></line>
-                            <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"></line>
-                            <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"></line>
-                            <line x1="3" y1="12" x2="6" y2="12"></line>
-                            <line x1="18" y1="12" x2="21" y2="12"></line>
-                            <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"></line>
-                            <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"></line>
-                        </svg>
-                        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 12.79A9 9 0 0 1 11.21 3a7 7 0 1 0 9.79 9.79z"></path>
-                        </svg>
-                        <span class="visually-hidden theme-toggle-text">Mode Gelap</span>
-                    </label>
-                </div>
-                {% if current_user %}
-                {% set user_display = (current_user.full_name or current_user.email or 'User') %}
-                {% set user_initial = user_display[:1].upper() %}
-                {% set first_name = user_display.split(' ')[0] %}
-                <div class="dropdown user-menu" id="userMenuDropdown">
-                    <button class="user-menu-toggle" type="button" id="userMenuToggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                        <span class="user-menu-arrow" aria-hidden="true">
-                            <i class="bi bi-chevron-down user-caret"></i>
-                        </span>
-                        <span class="user-name">{{ first_name }}</span>
-                        <span class="user-avatar">{{ user_initial }}</span>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end user-dropdown" aria-labelledby="userMenuToggle">
-                        <div class="user-dropdown-header">
-                            <span class="user-dropdown-icon text-primary">
-                                <i class="bi bi-person-vcard"></i>
+    <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold text-primary"
+                href="{{ url_for('attendance.dashboard') if current_user and current_user.role == 'staff' else url_for('main.dashboard') }}">
+                <span class="icon-badge brand-icon text-primary">
+                    <i class="bi bi-stars"></i>
+                </span>
+                <span>ASKA Insights</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu"
+                aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                {% set current_role = current_user.role if current_user else None %}
+                {% set is_teacher = current_role == 'staff' %}
+                {% set is_admin = current_role == 'admin' %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if is_teacher %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}"
+                            href="{{ url_for('attendance.dashboard') }}">
+                            <i class="bi bi-clipboard-check nav-icon"></i>Absensi
+                        </a>
+                    </li>
+                    {% else %}
+                    {% if is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}"
+                            href="{{ url_for('attendance.dashboard') }}">
+                            <i class="bi bi-clipboard-check nav-icon"></i>Absensi
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['main.chats', 'main.chat_thread', 'main.feedback', 'main.twitter_logs'] %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-activity nav-icon"></i>Aktivitas
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint in ['main.chats', 'main.chat_thread'] %}active{% endif %}"
+                                    href="{{ url_for('main.chats') }}">
+                                    <i class="bi bi-chat-square-text me-2 text-primary"></i>Chat Logs
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'main.feedback' %}active{% endif %}"
+                                    href="{{ url_for('main.feedback') }}">
+                                    <i class="bi bi-hand-thumbs-up me-2 text-primary"></i>Feedback
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'main.twitter_logs' %}active{% endif %}"
+                                    href="{{ url_for('main.twitter_logs') }}">
+                                    <i class="bi bi-twitter me-2 text-primary"></i>Twitter Ops
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% set report_endpoints = ['main.psych_reports', 'main.bullying_reports', 'main.corruption_reports']
+                    %}
+                    {% set total_report_notifications = (pending_psych_count|default(0)) +
+                    (pending_bullying_count|default(0)) + (pending_corruption_count|default(0)) %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in report_endpoints %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-flag nav-icon"></i>Laporan
+                            {% if total_report_notifications %}
+                            <span class="badge rounded-pill text-bg-danger ms-2">{{ total_report_notifications }}</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.psych_reports' %}active{% endif %}"
+                                    href="{{ url_for('main.psych_reports') }}">
+                                    <span><i class="bi bi-journal-medical me-2 text-primary"></i>Konseling</span>
+                                    {% if pending_psych_count %}
+                                    <span class="badge text-bg-danger">{{ pending_psych_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.bullying_reports' %}active{% endif %}"
+                                    href="{{ url_for('main.bullying_reports') }}">
+                                    <span><i class="bi bi-shield-check me-2 text-primary"></i>Bullying</span>
+                                    {% if pending_bullying_count %}
+                                    <span class="badge text-bg-danger">{{ pending_bullying_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center justify-content-between {% if request.endpoint == 'main.corruption_reports' %}active{% endif %}"
+                                    href="{{ url_for('main.corruption_reports') }}">
+                                    <span><i class="bi bi-cash-stack me-2 text-primary"></i>Korupsi</span>
+                                    {% if pending_corruption_count %}
+                                    <span class="badge text-bg-danger">{{ pending_corruption_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% if is_admin %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['tka.latihan_tka_bank', 'tka.latihan_tka_results', 'tka.latihan_tka_manual', 'tka.latihan_tka_tests'] %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-mortarboard nav-icon"></i>Latihan TKA
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_bank' %}active{% endif %}"
+                                    href="{{ url_for('tka.latihan_tka_bank') }}">
+                                    <i class="bi bi-collection me-2 text-primary"></i>Bank Soal
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_manual' %}active{% endif %}"
+                                    href="{{ url_for('tka.latihan_tka_manual') }}">
+                                    <i class="bi bi-pencil-square me-2 text-primary"></i>Buat Soal
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_tests' %}active{% endif %}"
+                                    href="{{ url_for('tka.latihan_tka_tests') }}">
+                                    <i class="bi bi-sliders me-2 text-primary"></i>Konfigurasi Tes
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'tka.latihan_tka_results' %}active{% endif %}"
+                                    href="{{ url_for('tka.latihan_tka_results') }}">
+                                    <i class="bi bi-clipboard-data me-2 text-primary"></i>Hasil Nilai
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['auth.manage_users', 'auth.manage_aska_users'] %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear nav-icon"></i>Manajemen
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'auth.manage_users' %}active{% endif %}"
+                                    href="{{ url_for('auth.manage_users') }}">
+                                    <i class="bi bi-shield-lock me-2 text-primary"></i>Admin Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'auth.manage_aska_users' %}active{% endif %}"
+                                    href="{{ url_for('auth.manage_aska_users') }}">
+                                    <i class="bi bi-people me-2 text-primary"></i>User ASKA
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                </ul>
+                <div class="d-flex align-items-center gap-3 flex-wrap flex-lg-nowrap ms-lg-auto">
+                    <div class="form-check form-switch text-nowrap mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
+                        <label class="form-check-label theme-toggle-label" for="themeToggle"
+                            data-label-light="Mode Gelap" data-label-dark="Mode Terang" title="Mode Gelap">
+                            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4"></circle>
+                                <line x1="12" y1="3" x2="12" y2="6"></line>
+                                <line x1="12" y1="18" x2="12" y2="21"></line>
+                                <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"></line>
+                                <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"></line>
+                                <line x1="3" y1="12" x2="6" y2="12"></line>
+                                <line x1="18" y1="12" x2="21" y2="12"></line>
+                                <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"></line>
+                                <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"></line>
+                            </svg>
+                            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                                aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 0 1 11.21 3a7 7 0 1 0 9.79 9.79z"></path>
+                            </svg>
+                            <span class="visually-hidden theme-toggle-text">Mode Gelap</span>
+                        </label>
+                    </div>
+                    {% if current_user %}
+                    {% set user_display = (current_user.full_name or current_user.email or 'User') %}
+                    {% set user_initial = user_display[:1].upper() %}
+                    {% set first_name = user_display.split(' ')[0] %}
+                    <div class="dropdown user-menu" id="userMenuDropdown">
+                        <button class="user-menu-toggle" type="button" id="userMenuToggle" data-bs-toggle="dropdown"
+                            data-bs-auto-close="outside" aria-expanded="false">
+                            <span class="user-menu-arrow" aria-hidden="true">
+                                <i class="bi bi-chevron-down user-caret"></i>
                             </span>
-                            <div class="user-dropdown-meta">
-                                <div class="user-dropdown-title">{{ user_display }}</div>
-                                <div class="user-dropdown-subtitle"><i class="bi bi-envelope me-1"></i>{{ current_user.email }}</div>
-                            </div>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="user-dropdown-option" data-option="no-tester" role="button" tabindex="0">
-                            <div class="option-leading">
-                                <span class="option-icon text-primary"><i class="bi bi-incognito"></i></span>
-                                <div>
-                                    <div class="option-label">No Tester</div>
-                                    <div class="option-description text-muted">Sembunyikan data user tester di dashboard</div>
+                            <span class="user-name">{{ first_name }}</span>
+                            <span class="user-avatar">{{ user_initial }}</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end user-dropdown" aria-labelledby="userMenuToggle">
+                            <div class="user-dropdown-header">
+                                <span class="user-dropdown-icon text-primary">
+                                    <i class="bi bi-person-vcard"></i>
+                                </span>
+                                <div class="user-dropdown-meta">
+                                    <div class="user-dropdown-title">{{ user_display }}</div>
+                                    <div class="user-dropdown-subtitle"><i class="bi bi-envelope me-1"></i>{{
+                                        current_user.email }}</div>
                                 </div>
                             </div>
-                            <div class="form-check form-switch m-0">
-                                <input class="form-check-input" type="checkbox" role="switch" id="noTesterToggle" {% if current_user.no_tester_enabled %}checked{% endif %}>
+                            <div class="dropdown-divider"></div>
+                            <div class="user-dropdown-option" data-option="no-tester" role="button" tabindex="0">
+                                <div class="option-leading">
+                                    <span class="option-icon text-primary"><i class="bi bi-incognito"></i></span>
+                                    <div>
+                                        <div class="option-label">No Tester</div>
+                                        <div class="option-description text-muted">Sembunyikan data user tester di
+                                            dashboard</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="noTesterToggle" {%
+                                        if current_user.no_tester_enabled %}checked{% endif %}>
+                                </div>
                             </div>
+                            <div class="user-dropdown-status small text-muted mt-2" id="noTesterStatus"></div>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item user-dropdown-logout d-flex align-items-center gap-2 text-danger"
+                                href="{{ url_for('auth.logout') }}">
+                                <span class="text-danger"><i class="bi bi-box-arrow-right"></i></span>
+                                <span>Logout</span>
+                            </a>
                         </div>
-                        <div class="user-dropdown-status small text-muted mt-2" id="noTesterStatus"></div>
-                        <div class="dropdown-divider"></div>
-                        <a class="dropdown-item user-dropdown-logout d-flex align-items-center gap-2 text-danger" href="{{ url_for('auth.logout') }}">
-                            <span class="text-danger"><i class="bi bi-box-arrow-right"></i></span>
-                            <span>Logout</span>
-                        </a>
                     </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
-    </div>
-</nav>
+    </nav>
 
-<main class="container my-4">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
+    <main class="container my-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
         <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1200;">
             {% for category, message in messages %}
-            <div class="toast align-items-center text-bg-{{ 'primary' if category == 'message' else category }} border-0 show" role="alert">
+            <div class="toast align-items-center text-bg-{{ 'primary' if category == 'message' else category }} border-0 show"
+                role="alert">
                 <div class="d-flex">
                     <div class="toast-body">{{ message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                        aria-label="Close"></button>
                 </div>
             </div>
             {% endfor %}
         </div>
-    {% endif %}
-    {% endwith %}
+        {% endif %}
+        {% endwith %}
 
-    {% block content %}{% endblock %}
-</main>
+        {% block content %}{% endblock %}
+    </main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script>
-    (function () {
-        var storageKey = 'theme';
-        var root = document.documentElement;
-        var toggle = document.getElementById('themeToggle');
-        var label = toggle ? document.querySelector('label[for="themeToggle"]') : null;
-        var labelText = label ? label.querySelector('.theme-toggle-text') : null;
-        var hasStoredPreference = false;
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            var storageKey = 'theme';
+            var root = document.documentElement;
+            var toggle = document.getElementById('themeToggle');
+            var label = toggle ? document.querySelector('label[for="themeToggle"]') : null;
+            var labelText = label ? label.querySelector('.theme-toggle-text') : null;
+            var hasStoredPreference = false;
 
-        function updateLabel(theme) {
-            if (!label) {
-                return;
-            }
-            var lightText = label.getAttribute('data-label-light') || 'Mode Gelap';
-            var darkText = label.getAttribute('data-label-dark') || 'Mode Terang';
-            var text = theme === 'dark' ? darkText : lightText;
-            label.setAttribute('title', text);
-            label.setAttribute('aria-label', text);
-            if (labelText) {
-                labelText.textContent = text;
-            }
-        }
-
-        function applyTheme(theme, persist) {
-            var nextTheme = theme === 'dark' ? 'dark' : 'light';
-
-            if (label) {
-                label.classList.add('rotating');
+            function updateLabel(theme) {
+                if (!label) {
+                    return;
+                }
+                var lightText = label.getAttribute('data-label-light') || 'Mode Gelap';
+                var darkText = label.getAttribute('data-label-dark') || 'Mode Terang';
+                var text = theme === 'dark' ? darkText : lightText;
+                label.setAttribute('title', text);
+                label.setAttribute('aria-label', text);
+                if (labelText) {
+                    labelText.textContent = text;
+                }
             }
 
-            root.setAttribute('data-theme', nextTheme);
-            root.setAttribute('data-bs-theme', nextTheme);
+            function applyTheme(theme, persist) {
+                var nextTheme = theme === 'dark' ? 'dark' : 'light';
+
+                if (label) {
+                    label.classList.add('rotating');
+                }
+
+                root.setAttribute('data-theme', nextTheme);
+                root.setAttribute('data-bs-theme', nextTheme);
+                if (toggle) {
+                    toggle.checked = nextTheme === 'dark';
+                }
+                updateLabel(nextTheme);
+
+                if (persist) {
+                    try {
+                        localStorage.setItem(storageKey, nextTheme);
+                        hasStoredPreference = true;
+                    } catch (error) {
+                        /* no-op */
+                    }
+                }
+
+                if (label) {
+                    setTimeout(function () {
+                        label.classList.remove('rotating');
+                    }, 400);
+                }
+            }
+
+            var initialTheme = root.getAttribute('data-theme') || 'light';
+            try {
+                hasStoredPreference = localStorage.getItem(storageKey) !== null;
+            } catch (error) {
+                hasStoredPreference = false;
+            }
+            applyTheme(initialTheme, false);
+
             if (toggle) {
-                toggle.checked = nextTheme === 'dark';
+                toggle.addEventListener('change', function () {
+                    applyTheme(toggle.checked ? 'dark' : 'light', true);
+                });
             }
-            updateLabel(nextTheme);
 
-            if (persist) {
-                try {
-                    localStorage.setItem(storageKey, nextTheme);
-                    hasStoredPreference = true;
-                } catch (error) {
-                    /* no-op */
+            if (window.matchMedia) {
+                var mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                var mediaChangeHandler = function (event) {
+                    if (!hasStoredPreference) {
+                        applyTheme(event.matches ? 'dark' : 'light', false);
+                    }
+                };
+                if (mediaQuery.addEventListener) {
+                    mediaQuery.addEventListener('change', mediaChangeHandler);
+                } else if (mediaQuery.addListener) {
+                    mediaQuery.addListener(mediaChangeHandler);
                 }
             }
-
-            if (label) {
-                setTimeout(function() {
-                    label.classList.remove('rotating');
-                }, 400);
-            }
-        }
-
-        var initialTheme = root.getAttribute('data-theme') || 'light';
-        try {
-            hasStoredPreference = localStorage.getItem(storageKey) !== null;
-        } catch (error) {
-            hasStoredPreference = false;
-        }
-        applyTheme(initialTheme, false);
-
-        if (toggle) {
-            toggle.addEventListener('change', function () {
-                applyTheme(toggle.checked ? 'dark' : 'light', true);
-            });
-        }
-
-        if (window.matchMedia) {
-            var mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            var mediaChangeHandler = function (event) {
-                if (!hasStoredPreference) {
-                    applyTheme(event.matches ? 'dark' : 'light', false);
-                }
-            };
-            if (mediaQuery.addEventListener) {
-                mediaQuery.addEventListener('change', mediaChangeHandler);
-            } else if (mediaQuery.addListener) {
-                mediaQuery.addListener(mediaChangeHandler);
-            }
-        }
-    })();
+        })();
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -420,6 +475,7 @@
             }
         });
     </script>
-{% block scripts %}{% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
+
 </html>
