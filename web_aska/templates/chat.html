@@ -1,29 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASKA Web Chat</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <meta name="description" content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
-    <meta name="keywords" content="AI Sekolah, SDN Semper Barat 01, ASKA, Asisten AI, Chatbot Sekolah, Informasi Sekolah, Pendaftaran Siswa, Tanya KJP">
+    <meta name="description"
+        content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
+    <meta name="keywords"
+        content="AI Sekolah, SDN Semper Barat 01, ASKA, Asisten AI, Chatbot Sekolah, Informasi Sekolah, Pendaftaran Siswa, Tanya KJP">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:title" content="ASKA Web Chat">
-    <meta property="og:description" content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
+    <meta property="og:description"
+        content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
     <meta property="og:image" content="{{ url_for('static', filename='aska_og_image.png') }}">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="{{ request.url }}">
     <meta property="twitter:title" content="ASKA Web Chat">
-    <meta property="twitter:description" content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
+    <meta property="twitter:description"
+        content="ASKA (Agen AI Sekolah Kita) adalah asisten AI untuk SDN Semper Barat 01. Dapatkan informasi tentang sekolah, pendaftaran, KJP, dan lainnya.">
     <meta property="twitter:image" content="{{ url_for('static', filename='aska_og_image.png') }}">
-    
+
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Lordicon -->
     <script src="https://cdn.lordicon.com/lordicon.js"></script>
     <style>
@@ -53,19 +59,20 @@
             --loader-color: #ccc;
         }
 
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-color); 
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
             color: var(--text-color-dark);
-            margin: 0; 
-            padding: 0; 
-            display: flex; 
+            margin: 0;
+            padding: 0;
+            display: flex;
             flex-direction: column;
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             transition: background-color 0.3s, color 0.3s;
         }
+
         .flash-messages {
             width: 100%;
             text-align: center;
@@ -75,7 +82,9 @@
             top: 20px;
             z-index: 1000;
         }
-        .flash-info, .flash-error {
+
+        .flash-info,
+        .flash-error {
             color: #0c5460;
             padding: 10px;
             margin-bottom: 15px;
@@ -83,18 +92,33 @@
             border-radius: 5px;
             display: inline-block;
         }
-        .flash-info { background-color: #d1ecf1; }
-        .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-        .flash-warning { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+
+        .flash-info {
+            background-color: #d1ecf1;
+        }
+
+        .flash-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+
+        .flash-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeeba;
+        }
 
         .quota-status-wrapper {
             display: none;
             align-items: center;
             margin-right: 12px;
         }
+
         .quota-status-wrapper[data-access="limited"] {
             display: inline-flex;
         }
+
         .quota-toggle-btn {
             display: inline-flex;
             align-items: center;
@@ -110,36 +134,44 @@
             cursor: pointer;
             transition: background 0.2s ease, transform 0.2s ease;
         }
+
         .quota-toggle-btn:hover {
             background: rgba(255, 255, 255, 0.28);
             transform: translateY(-1px);
         }
+
         .quota-toggle-btn:active {
             transform: translateY(0);
         }
+
         .quota-toggle-btn:focus-visible {
             outline: 2px solid rgba(255, 255, 255, 0.6);
             outline-offset: 2px;
         }
+
         .quota-toggle-btn:disabled {
             cursor: not-allowed;
             opacity: 0.6;
             transform: none;
         }
+
         .quota-toggle-btn[data-state="cooldown"] {
             background: rgba(234, 67, 53, 0.25);
             border-color: rgba(234, 67, 53, 0.4);
             color: #ffe8e6;
         }
+
         .quota-toggle-btn[data-state="cooldown"]:hover {
             background: rgba(234, 67, 53, 0.35);
         }
+
         .quota-indicator {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             background: #4cd964;
         }
+
         .quota-toggle-btn[data-state="cooldown"] .quota-indicator {
             background: #fbbc04;
         }
@@ -156,27 +188,33 @@
             line-height: 1.5;
             display: none;
         }
+
         .quota-panel.show {
             display: block;
         }
+
         .quota-panel a {
             color: #245a9c;
             font-weight: 600;
             text-decoration: none;
         }
+
         .quota-panel a:hover {
             text-decoration: underline;
         }
+
         .quota-panel-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 6px;
         }
+
         .quota-panel-title {
             font-weight: 700;
             font-size: 0.95rem;
         }
+
         .quota-panel .btn-close {
             filter: invert(40%);
         }
@@ -189,30 +227,32 @@
             background: rgba(234, 67, 53, 0.08);
             color: #8a1c13;
         }
+
         .status-banner-title {
             font-weight: 700;
             margin-bottom: 4px;
         }
+
         .status-banner-message {
             margin: 0;
             font-size: 0.95rem;
             line-height: 1.5;
         }
 
-        .chat-container { 
-            width: 100%; 
-            max-width: 600px; 
-            height: 80vh; 
-            background-color: var(--chat-container-bg); 
-            box-shadow: 0 0 20px rgba(0,0,0,0.1); 
-            border-radius: 10px; 
-            display: flex; 
-            flex-direction: column; 
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
+            background-color: var(--chat-container-bg);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
             animation: fadeInUp 1s ease-in-out;
             margin-top: 50px;
             position: relative;
         }
-        
+
         /* New Header Styles */
         .chat-header {
             background-color: var(--header-bg);
@@ -220,12 +260,16 @@
             border-top-left-radius: 10px;
             border-top-right-radius: 10px;
         }
+
         .navbar-brand {
             font-weight: bold;
         }
+
         .user-dropdown .dropdown-toggle::after {
-            display: none; /* Hide default caret */
+            display: none;
+            /* Hide default caret */
         }
+
         .user-dropdown .profile-pic {
             width: 40px;
             height: 40px;
@@ -233,33 +277,38 @@
             object-fit: cover;
             border: 2px solid #fff;
         }
+
         .user-dropdown .dropdown-menu {
             min-width: 250px;
             border-radius: .5rem;
-            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
         }
+
         .user-dropdown .dropdown-item-text {
             white-space: normal;
         }
+
         .logout-item .logout-icon {
             width: 24px;
             height: 24px;
         }
 
-        .chat-box { 
-            flex-grow: 1; 
-            padding: 20px; 
-            overflow-y: auto; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 15px; 
+        .chat-box {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
+
         .history-loader {
             text-align: center;
             padding: 10px;
             color: var(--loader-color);
             font-style: italic;
         }
+
         .chat-message {
             padding: 10px 15px;
             border-radius: 18px;
@@ -267,98 +316,120 @@
             line-height: 1.5;
             word-wrap: break-word;
             overflow-wrap: anywhere;
-            white-space: pre-wrap; /* preserve newlines */
+            white-space: pre-wrap;
+            /* preserve newlines */
             position: relative;
         }
+
         .onboarding-message {
             white-space: normal;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
         }
+
         .onboarding-message p {
             margin-bottom: 0;
         }
+
         .onboarding-section {
             display: flex;
             align-items: flex-start;
             gap: 0.65rem;
         }
+
         .onboarding-section .emoji {
             font-size: 1.25rem;
             line-height: 1.4;
         }
+
         .onboarding-section .content {
             display: flex;
             flex-direction: column;
             gap: 0.35rem;
         }
+
         .onboarding-message ul {
             margin: 0;
             padding-left: 1.1rem;
         }
-        .user-message { 
-            background-color: var(--user-msg-bg); 
-            color: var(--text-color-light); 
-            align-self: flex-end; 
+
+        .user-message {
+            background-color: var(--user-msg-bg);
+            color: var(--text-color-light);
+            align-self: flex-end;
             border-bottom-right-radius: 6px;
         }
-        .bot-message { 
-            background-color: var(--bot-msg-bg); 
-            color: var(--text-color-dark); 
-            align-self: flex-start; 
+
+        .bot-message {
+            background-color: var(--bot-msg-bg);
+            color: var(--text-color-dark);
+            align-self: flex-start;
             border-bottom-left-radius: 6px;
         }
+
         .bot-message ul {
             padding-left: 20px;
         }
-        .chat-input { 
-            display: flex; 
+
+        .chat-input {
+            display: flex;
             align-items: flex-end;
             gap: 10px;
-            padding: 12px 15px; 
-            border-top: 1px solid var(--input-border-color); 
+            padding: 12px 15px;
+            border-top: 1px solid var(--input-border-color);
             padding-bottom: max(12px, env(safe-area-inset-bottom));
         }
-        .chat-input textarea { 
-            flex-grow: 1; 
-            border: 1px solid var(--input-border-color); 
+
+        .chat-input textarea {
+            flex-grow: 1;
+            border: 1px solid var(--input-border-color);
             background-color: var(--input-bg-color);
             color: var(--text-color-dark);
-            border-radius: 14px; 
-            padding: 10px 12px; 
-            font-size: 16px; 
+            border-radius: 14px;
+            padding: 10px 12px;
+            font-size: 16px;
             max-height: 160px;
             resize: none;
             outline: none;
         }
-        .chat-input button { 
-            background-color: var(--header-bg); 
+
+        .chat-input button {
+            background-color: var(--header-bg);
             color: var(--text-color-light);
-            border: none; 
-            border-radius: 20px; 
+            border: none;
+            border-radius: 20px;
             padding: 10px 14px;
-            cursor: pointer; 
-            font-size: 16px; 
+            cursor: pointer;
+            font-size: 16px;
             transition: background-color 0.2s, transform 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
         }
+
         .chat-input button:hover {
             transform: scale(1.05);
             background-color: #3a7bc8;
         }
+
         .chat-input button:active {
             transform: scale(0.98);
         }
-        .chat-input button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .typing-indicator { 
-            align-self: flex-start; 
-            color: #999; 
-            font-style: italic; 
-            margin-left: 20px; 
+
+        .chat-input button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
         }
+
+        .typing-indicator {
+            align-self: flex-start;
+            color: #999;
+            font-style: italic;
+            margin-left: 20px;
+        }
+
         #theme-toggle {
             background: none;
             border: none;
@@ -369,6 +440,7 @@
             font-size: 24px;
             transition: transform 0.3s ease-in-out;
         }
+
         #theme-toggle.rotating {
             transform: rotate(360deg);
         }
@@ -385,12 +457,20 @@
         }
 
         .modern-link:hover {
-            background-color: #3a7bc8; /* A slightly darker shade for hover */
+            background-color: #3a7bc8;
+            /* A slightly darker shade for hover */
         }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .new-message {
@@ -398,12 +478,23 @@
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         @media (max-width: 768px) {
-            body { align-items: flex-start; height: 100%; }
+            body {
+                align-items: flex-start;
+                height: 100%;
+            }
+
             .chat-container {
                 height: 100vh;
                 border-radius: 0;
@@ -411,9 +502,16 @@
                 margin-top: 0;
                 padding-top: calc(env(safe-area-inset-top, 0) + 8px);
             }
-            .chat-header { border-radius: 0; }
-            .chat-message { max-width: 85%; }
+
+            .chat-header {
+                border-radius: 0;
+            }
+
+            .chat-message {
+                max-width: 85%;
+            }
         }
+
         .loader {
             width: 15px;
             height: 15px;
@@ -427,44 +525,69 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
+
         /* Suggestion chips */
-        .suggestions { padding: 8px 16px 0; display: flex; gap: 8px; flex-wrap: wrap; }
-        .suggestion-chip { border: 1px solid var(--input-border-color); background-color: var(--input-bg-color); color: var(--text-color-dark); border-radius: 999px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
-        .suggestion-chip:hover { filter: brightness(0.98); }
+        .suggestions {
+            padding: 8px 16px 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-chip {
+            border: 1px solid var(--input-border-color);
+            background-color: var(--input-bg-color);
+            color: var(--text-color-dark);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .suggestion-chip:hover {
+            filter: brightness(0.98);
+        }
+
         /* Copy button */
         .btn-copy {
-            position: absolute;
-            right: 8px;
-            bottom: 8px;
             border: none;
             background: var(--bg-muted);
             color: inherit;
             opacity: 0.75;
             cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 999px;
+            padding: 4px 8px;
+            border-radius: 12px;
             font-size: 12px;
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            transition: opacity 0.2s ease, transform 0.2s ease;
+            transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s;
         }
+
         .btn-copy:hover {
             opacity: 1;
             transform: translateY(-1px);
         }
+
         /* Feedback buttons */
         .message-actions {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             align-items: center;
-            position: absolute;
-            right: 8px;
-            bottom: 8px;
+            justify-content: flex-end;
+            margin-top: 8px;
+            padding-top: 4px;
+            width: 100%;
         }
+
         .btn-feedback {
             border: none;
             background: transparent;
@@ -478,62 +601,84 @@
             align-items: center;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
+
         .btn-feedback:hover {
             opacity: 0.8;
             transform: translateY(-1px);
         }
+
         .btn-feedback.active {
             opacity: 1;
         }
+
         .btn-like.active {
             color: #4a90e2;
         }
+
         .btn-dislike.active {
             color: #e74c3c;
         }
+
         body.dark-mode .btn-copy {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
         }
+
         body.dark-mode .quota-toggle-btn {
             background: rgba(255, 255, 255, 0.12);
             border-color: rgba(255, 255, 255, 0.25);
             color: #fff;
         }
+
         body.dark-mode .quota-toggle-btn[data-state="cooldown"] {
             background: rgba(234, 67, 53, 0.3);
             border-color: rgba(234, 67, 53, 0.45);
             color: #ffe8e6;
         }
+
         body.dark-mode .quota-panel {
             border-color: rgba(255, 193, 7, 0.35);
             background: rgba(255, 193, 7, 0.12);
             color: #ffecb3;
         }
+
         body.dark-mode .quota-panel a {
             color: #8ab4f8;
         }
+
         body.dark-mode .quota-panel .btn-close {
             filter: invert(85%);
         }
+
         body.dark-mode .status-banner {
             border-color: rgba(255, 193, 7, 0.35);
             background: rgba(255, 193, 7, 0.12);
             color: #ffecb3;
         }
+
         /* Jump button */
-        .jump-bottom { position: absolute; right: 18px; bottom: 82px; z-index: 10; display: none; }
-        .jump-bottom.show { display: inline-flex; }
+        .jump-bottom {
+            position: absolute;
+            right: 18px;
+            bottom: 82px;
+            z-index: 10;
+            display: none;
+        }
+
+        .jump-bottom.show {
+            display: inline-flex;
+        }
     </style>
 </head>
+
 <body>
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul class=flash-messages>
+    {% if messages %}
+    <ul class=flash-messages>
         {% for category, message in messages %}
-          <li class="flash-{{ category }}">{{ message }}</li>
+        <li class="flash-{{ category }}">{{ message }}</li>
         {% endfor %}
-        </ul>
-      {% endif %}
+    </ul>
+    {% endif %}
     {% endwith %}
 
     {% set raw_limit = quota.quotaLimit if quota and quota.quotaLimit is not none else 3 %}
@@ -548,37 +693,34 @@
                         <span style="font-size: 2rem; margin-right: 8px;">🤖</span>
                         <div>
                             <a class="navbar-brand text-white" href="#">ASKA</a>
-                            <div class="text-white" style="font-size: 0.7rem; margin-top: -8px;">Agen AI Sekolah Kita</div>
+                            <div class="text-white" style="font-size: 0.7rem; margin-top: -8px;">Agen AI Sekolah Kita
+                            </div>
                         </div>
                     </div>
                     <div class="d-flex align-items-center">
                         <div class="quota-status-wrapper me-3" id="quotaStatusWrapper"
-                             data-access="{{ quota.accessTier }}">
-                            <button id="quotaToggleBtn"
-                                    class="quota-toggle-btn"
-                                    type="button"
-                                    aria-expanded="{% if quota.accessTier == 'limited' %}true{% else %}false{% endif %}"
-                                    data-state="{% if quota.accessTier == 'limited' and quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}cooldown{% else %}ok{% endif %}">
+                            data-access="{{ quota.accessTier }}">
+                            <button id="quotaToggleBtn" class="quota-toggle-btn" type="button"
+                                aria-expanded="{% if quota.accessTier == 'limited' %}true{% else %}false{% endif %}"
+                                data-state="{% if quota.accessTier == 'limited' and quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}cooldown{% else %}ok{% endif %}">
                                 <span class="quota-indicator" aria-hidden="true"></span>
                                 <span id="quotaButtonLabel">
                                     {% if quota.accessTier == 'limited' %}
-                                        {% if quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}
-                                            Hitung mundur …
-                                        {% else %}
-                                            Sisa {{ 0 if raw_remaining < 0 else raw_remaining }}/{{ raw_limit }} chat
-                                        {% endif %}
-                                    {% else %}
-                                        Akses penuh
-                                    {% endif %}
-                                </span>
+                                    {% if quota.quotaResetAt and (quota.quotaRemaining is not none and
+                                    quota.quotaRemaining <= 0) %} Hitung mundur … {% else %} Sisa {{ 0 if raw_remaining
+                                        < 0 else raw_remaining }}/{{ raw_limit }} chat {% endif %} {% else %} Akses
+                                        penuh {% endif %} </span>
                             </button>
                         </div>
                         <button id="theme-toggle" class="me-3">🌙</button>
                         {% if user %}
                         <div class="dropdown user-dropdown">
-                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a href="#"
+                                class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
+                                id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
                                 <span class="me-2 d-none d-sm-inline">{{ user.full_name.split()[0] }}</span>
-                                <img src="{{ user.picture or 'https://via.placeholder.com/40' }}" alt="mdo" class="profile-pic">
+                                <img src="{{ user.picture or 'https://via.placeholder.com/40' }}" alt="mdo"
+                                    class="profile-pic">
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end text-small" aria-labelledby="dropdownUser">
                                 <li>
@@ -588,20 +730,20 @@
                                     </div>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item d-flex align-items-center" href="{{ url_for('latihan_tka_home') }}">
+                                    <a class="dropdown-item d-flex align-items-center"
+                                        href="{{ url_for('latihan_tka_home') }}">
                                         <span class="me-2">📝</span>
                                         Latihan TKA
                                     </a>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item d-flex align-items-center logout-item" href="{{ url_for('logout') }}">
-                                        <lord-icon
-                                            src="https://cdn.lordicon.com/gwvmctbb.json"
-                                            trigger="hover"
-                                            target=".logout-item"
-                                            colors="primary:#e83a30"
-                                            class="logout-icon me-2">
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center logout-item"
+                                        href="{{ url_for('logout') }}">
+                                        <lord-icon src="https://cdn.lordicon.com/gwvmctbb.json" trigger="hover"
+                                            target=".logout-item" colors="primary:#e83a30" class="logout-icon me-2">
                                         </lord-icon>
                                         Sign out
                                     </a>
@@ -619,43 +761,40 @@
             </div>
             <p class="status-banner-message" id="status-block-message">
                 {% if status_notice %}
-                    {{ status_notice.message|e|replace('\n', '<br>')|safe }}
+                {{ status_notice.message|e|replace('\n', '<br>')|safe }}
                 {% endif %}
             </p>
         </div>
-        <div class="quota-panel{% if quota.accessTier == 'limited' %} show{% endif %}"
-             id="quotaNotice"
-             {% if quota.accessTier != 'limited' %}hidden{% endif %}>
+        <div class="quota-panel{% if quota.accessTier == 'limited' %} show{% endif %}" id="quotaNotice" {% if
+            quota.accessTier !='limited' %}hidden{% endif %}>
             <div class="quota-panel-header">
-            <div class="quota-panel-title">Mode Gmail</div>
+                <div class="quota-panel-title">Mode Gmail</div>
                 <button type="button" class="btn-close" id="quotaNoticeClose" aria-label="Tutup panel"></button>
             </div>
             <p id="quotaNoticeText" class="mb-2">
                 {% if quota.accessTier == 'limited' %}
-                    {% if quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %}
-                        Kuota Gmail sudah habis untuk sekarang. Tunggu hitung mundurnya selesai atau coba opsi lain ya.
-                    {% else %}
-                        Kamu masih punya {{ 0 if raw_remaining < 0 else raw_remaining }} dari {{ raw_limit }} chat tersisa.
-                    {% endif %}
-                {% else %}
-                    Akses penuh aktif. Selamat ngobrol bareng ASKA! 🎉
-                {% endif %}
-            </p>
-            <p class="mb-0" id="quotaNoticeReason">
-                {{ quota.limitedReason or "Login Gmail ASKA dibatasi 3 chat per 24 jam supaya kapasitas tetap optimal. Pakai akun belajar.id atau Telegram buat ngobrol tanpa batas ya!" }}
-            </p>
+                {% if quota.quotaResetAt and (quota.quotaRemaining is not none and quota.quotaRemaining <= 0) %} Kuota
+                    Gmail sudah habis untuk sekarang. Tunggu hitung mundurnya selesai atau coba opsi lain ya. {% else %}
+                    Kamu masih punya {{ 0 if raw_remaining < 0 else raw_remaining }} dari {{ raw_limit }} chat tersisa.
+                    {% endif %} {% else %} Akses penuh aktif. Selamat ngobrol bareng ASKA! 🎉 {% endif %} </p>
+                    <p class="mb-0" id="quotaNoticeReason">
+                        {{ quota.limitedReason or "Login Gmail ASKA dibatasi 3 chat per 24 jam supaya kapasitas tetap
+                        optimal. Pakai akun belajar.id atau Telegram buat ngobrol tanpa batas ya!" }}
+                    </p>
         </div>
         <div class="chat-box" id="chat-box" role="log" aria-live="polite" aria-relevant="additions">
             <div id="history-loader" class="history-loader" style="display: none;">Memuat riwayat...</div>
-            
+
             {% set first_name = (user.full_name.split()[0] if user and user.full_name else 'bestie') %}
             <div class="chat-message bot-message onboarding-message" data-initial="1">
-                <p><strong>Yo, {{ first_name }}!</strong> ✨ Welcome to ASKA. Mau cari info, belajar, atau ngobrolin sekolah? Spill aja—ASKA standby 24/7 🤖💬</p>
+                <p><strong>Yo, {{ first_name }}!</strong> ✨ Welcome to ASKA. Mau cari info, belajar, atau ngobrolin
+                    sekolah? Spill aja—ASKA standby 24/7 🤖💬</p>
                 <div class="onboarding-section">
                     <span class="emoji">📝</span>
                     <div class="content">
                         <span>Punya ide kece buat upgrade ASKA? Drop di sini:</span>
-                        <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form Feedback</a>
+                        <a href="https://forms.gle/iddvLkc4dZxxCTNx8" target="_blank" class="modern-link">Form
+                            Feedback</a>
                     </div>
                 </div>
                 <div class="onboarding-section">
@@ -680,33 +819,34 @@
             </div>
 
             {% if initial_chats %}
-                {% for chat in initial_chats|reverse %}
-                    <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}" data-sender="{{ chat.role }}" {% if chat.id %}data-chat-log-id="{{ chat.id }}"{% endif %} aria-label="{{ 'Kamu' if chat.role == 'user' else 'ASKA' }} mengatakan">
-                        {{ chat.text | trim }}
-                        {% if chat.role != 'user' %}
-                        <button class="btn-copy" type="button" title="Salin"><span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span></button>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-{% else %}
-                <div class="suggestions" aria-label="Contoh pertanyaan cepat">
-                    <button class="suggestion-chip">Kapan liburan semester?</button>
-                    <button class="suggestion-chip">Cara daftar siswa baru?</button>
-                    <button class="suggestion-chip">Syarat KJP terbaru?</button>
-                    <button class="suggestion-chip">Lapor bullying gimana?</button>
-                </div>
+            {% for chat in initial_chats|reverse %}
+            <div class="chat-message {{ 'user-message' if chat.role == 'user' else 'bot-message' }}"
+                data-sender="{{ chat.role }}" {% if chat.id %}data-chat-log-id="{{ chat.id }}" {% endif %}
+                aria-label="{{ 'Kamu' if chat.role == 'user' else 'ASKA' }} mengatakan">
+                {{ chat.text | trim }}
+                {% if chat.role != 'user' %}
+                <button class="btn-copy" type="button" title="Salin"><span class="copy-icon"
+                        aria-hidden="true">📋</span><span class="copy-label">Salin</span></button>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="suggestions" aria-label="Contoh pertanyaan cepat">
+                <button class="suggestion-chip">Kapan liburan semester?</button>
+                <button class="suggestion-chip">Cara daftar siswa baru?</button>
+                <button class="suggestion-chip">Syarat KJP terbaru?</button>
+                <button class="suggestion-chip">Lapor bullying gimana?</button>
+            </div>
             {% endif %}
         </div>
         <button id="jumpBottom" class="btn btn-primary btn-sm jump-bottom" type="button">Ke pesan terbaru</button>
         <form class="chat-input" id="chat-form">
-            <textarea id="message-input" placeholder="Ketik pesan... (Shift+Enter untuk baris baru)" rows="1" autocomplete="off" aria-label="Ketik pesan" {% if status_notice %}disabled{% endif %}></textarea>
-            <button type="submit" id="send-button" class="send-button" aria-label="Kirim" {% if status_notice %}disabled{% endif %}>
-                <lord-icon
-                    src="https://cdn.lordicon.com/gqjpawbc.json"
-                    trigger="hover"
-                    target=".send-button"
-                    colors="primary:#ffffff"
-                    style="width:24px;height:24px;margin-right:8px;">
+            <textarea id="message-input" placeholder="Ketik pesan... (Shift+Enter untuk baris baru)" rows="1"
+                autocomplete="off" aria-label="Ketik pesan" {% if status_notice %}disabled{% endif %}></textarea>
+            <button type="submit" id="send-button" class="send-button" aria-label="Kirim" {% if status_notice
+                %}disabled{% endif %}>
+                <lord-icon src="https://cdn.lordicon.com/gqjpawbc.json" trigger="hover" target=".send-button"
+                    colors="primary:#ffffff" style="width:24px;height:24px;margin-right:8px;">
                 </lord-icon>
                 Kirim
             </button>
@@ -714,7 +854,9 @@
     </div>
 
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
     <script>
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
@@ -734,7 +876,7 @@
         const statusBlockTitle = document.getElementById('status-block-title');
         const statusBlockMessage = document.getElementById('status-block-message');
 
-        let quotaState = {{ (quota or {})|tojson }};
+        let quotaState = {{ (quota or { })| tojson }};
         let serverOffsetMs = 0;
         const initialServerTime = '{{ server_time }}';
         if (initialServerTime) {
@@ -754,7 +896,7 @@
         let typingInterval;
         let isSending = false;
         let telegramCtaShown = false;
-        let activeStatusBlock = {{ status_notice|tojson }};
+        let activeStatusBlock = {{ status_notice| tojson }};
         let statusBlockAcknowledged = Boolean(activeStatusBlock);
 
         function updateServerOffset(serverTimeIso) {
@@ -879,10 +1021,10 @@
 
         function enforceQuotaLock() {
             if (!sendButton) return;
-             if (activeStatusBlock) {
-                 sendButton.disabled = true;
-                 return;
-             }
+            if (activeStatusBlock) {
+                sendButton.disabled = true;
+                return;
+            }
             const shouldDisable = isSending || !(messageInput && messageInput.value.trim());
             sendButton.disabled = shouldDisable;
         }
@@ -1047,7 +1189,7 @@
             html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1<\/strong>');
             html = html.replace(/\*([^\*]+)\*/g, '<em>$1<\/em>');
             html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 10px; margin-top: 10px;">');
-            html = html.replace(/(https?:\/\/[^\s]+)|(www\.[^\s]+)/g, function(m){
+            html = html.replace(/(https?:\/\/[^\s]+)|(www\.[^\s]+)/g, function (m) {
                 const url = m.startsWith('http') ? m : `http://${m}`;
                 return `<a href="${url}" target="_blank" rel="noopener">${m}<\/a>`;
             });
@@ -1059,7 +1201,7 @@
             try {
                 const response = await fetch('/api/feedback', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         chat_log_id: chatLogId,
                         feedback_type: feedbackType
@@ -1100,7 +1242,7 @@
         function updateFeedbackUI(messageElement, feedbackType) {
             const likeBtn = messageElement.querySelector('.btn-like');
             const dislikeBtn = messageElement.querySelector('.btn-dislike');
-            
+
             if (likeBtn) {
                 likeBtn.classList.toggle('active', feedbackType === 'like');
             }
@@ -1118,9 +1260,9 @@
 
             const likeBtn = messageElement.querySelector('.btn-like');
             const dislikeBtn = messageElement.querySelector('.btn-dislike');
-            const currentFeedback = likeBtn?.classList.contains('active') ? 'like' 
-                : dislikeBtn?.classList.contains('active') ? 'dislike' 
-                : null;
+            const currentFeedback = likeBtn?.classList.contains('active') ? 'like'
+                : dislikeBtn?.classList.contains('active') ? 'dislike'
+                    : null;
 
             // If clicking the same button, remove feedback
             if (currentFeedback === feedbackType) {
@@ -1155,7 +1297,7 @@
             messageElement.classList.add('chat-message', messageClass);
             messageElement.setAttribute('data-sender', sender);
             messageElement.setAttribute('aria-label', sender === 'user' ? 'Kamu mengatakan' : 'ASKA mengatakan');
-            
+
             if (chatLogId) {
                 messageElement.setAttribute('data-chat-log-id', chatLogId);
             }
@@ -1163,11 +1305,11 @@
             if (sender !== 'user') { // Treat 'aska' and other non-user roles as bot
                 const html = renderBotHtml(message);
                 messageElement.innerHTML = html;
-                
+
                 // Create message actions container
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
-                
+
                 // Add feedback buttons
                 const likeBtn = document.createElement('button');
                 likeBtn.type = 'button';
@@ -1176,7 +1318,7 @@
                 likeBtn.title = 'Suka';
                 likeBtn.innerHTML = '<span class="feedback-icon">👍</span>';
                 likeBtn.addEventListener('click', () => handleFeedbackClick(messageElement, 'like'));
-                
+
                 const dislikeBtn = document.createElement('button');
                 dislikeBtn.type = 'button';
                 dislikeBtn.className = 'btn-feedback btn-dislike';
@@ -1184,14 +1326,14 @@
                 dislikeBtn.title = 'Tidak Suka';
                 dislikeBtn.innerHTML = '<span class="feedback-icon">👎</span>';
                 dislikeBtn.addEventListener('click', () => handleFeedbackClick(messageElement, 'dislike'));
-                
+
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
                 copyBtn.className = 'btn-copy';
                 copyBtn.innerHTML = '<span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span>';
                 copyBtn.title = 'Salin';
                 copyBtn.addEventListener('click', () => copyMessage(messageElement));
-                
+
                 actionsDiv.appendChild(likeBtn);
                 actionsDiv.appendChild(dislikeBtn);
                 actionsDiv.appendChild(copyBtn);
@@ -1262,7 +1404,7 @@
                     chatBox.scrollTop = chatBox.scrollHeight - oldScrollHeight;
                     chatOffset += 10;
                     historyLoader.style.display = 'none';
-                    
+
                     // Load feedback status for prepended messages
                     const chatLogIds = prependedMessages
                         .map(el => el.getAttribute('data-chat-log-id'))
@@ -1413,7 +1555,7 @@
             const typingElement = document.createElement('div');
             typingElement.id = 'typing-indicator';
             typingElement.classList.add('chat-message', 'bot-message', 'typing-indicator');
-            
+
             typingElement.innerHTML = '<span class="loader"></span>ASKA lagi mikir 🤔<span id="dots">.</span>';
             chatBox.appendChild(typingElement);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -1471,7 +1613,7 @@
                     // Create message actions container
                     const actionsDiv = document.createElement('div');
                     actionsDiv.className = 'message-actions';
-                    
+
                     // Add feedback buttons
                     const likeBtn = document.createElement('button');
                     likeBtn.type = 'button';
@@ -1480,7 +1622,7 @@
                     likeBtn.title = 'Suka';
                     likeBtn.innerHTML = '<span class="feedback-icon">👍</span>';
                     likeBtn.addEventListener('click', () => handleFeedbackClick(el, 'like'));
-                    
+
                     const dislikeBtn = document.createElement('button');
                     dislikeBtn.type = 'button';
                     dislikeBtn.className = 'btn-feedback btn-dislike';
@@ -1488,23 +1630,23 @@
                     dislikeBtn.title = 'Tidak Suka';
                     dislikeBtn.innerHTML = '<span class="feedback-icon">👎</span>';
                     dislikeBtn.addEventListener('click', () => handleFeedbackClick(el, 'dislike'));
-                    
+
                     const copyBtn = document.createElement('button');
                     copyBtn.type = 'button';
                     copyBtn.className = 'btn-copy';
                     copyBtn.innerHTML = '<span class="copy-icon" aria-hidden="true">📋</span><span class="copy-label">Salin</span>';
                     copyBtn.title = 'Salin';
                     copyBtn.addEventListener('click', () => copyMessage(el));
-                    
+
                     actionsDiv.appendChild(likeBtn);
                     actionsDiv.appendChild(dislikeBtn);
                     actionsDiv.appendChild(copyBtn);
                     el.appendChild(actionsDiv);
-                    
+
                     messagesToEnhance.push(el);
                 }
             });
-            
+
             // Load feedback status for all existing messages
             const chatLogIds = messagesToEnhance
                 .map(el => el.getAttribute('data-chat-log-id'))
@@ -1538,4 +1680,5 @@
 
     </script>
 </body>
+
 </html>
