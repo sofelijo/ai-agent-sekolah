@@ -73,12 +73,6 @@ def add_book(title: str, author: str, publisher: str, year: int, code: str, stoc
 
 def update_book(book_id: int, title: str, author: str, publisher: str, year: int, stock: int, location: str) -> None:
     # Note: 'stock' argument here is treated as "target total stock". 
-    # If we want to add more items, we calculate the difference.
-    # Reducing stock is trickier (which items to remove?), so for now we might just update metadata 
-    # and let the user manage items separately if they want to reduce.
-    # BUT, for simplicity, let's assume this updates metadata only. 
-    # If the user wants to add stock, they should probably add items.
-    # However, existing UI sends 'stock'. Let's handle addition.
     
     with get_cursor(commit=True) as cur:
         cur.execute("""
@@ -124,6 +118,26 @@ def update_book(book_id: int, title: str, author: str, publisher: str, year: int
                     INSERT INTO book_items (book_id, qr_code, status)
                     VALUES (%s, %s, 'available')
                 """, (book_id, qr_code))
+        
+        elif stock < current_total:
+            # Reduce items (only available ones)
+            to_remove = current_total - stock
+            
+            # Get available items, ordered by sequence number descending (try to remove newest first)
+            # We rely on ID or QR code to guess "newest". ID is safer.
+            cur.execute("""
+                SELECT id FROM book_items 
+                WHERE book_id = %s AND status = 'available'
+                ORDER BY id DESC
+                LIMIT %s
+            """, (book_id, to_remove))
+            
+            items_to_delete = [row[0] for row in cur.fetchall()]
+            
+            if items_to_delete:
+                cur.execute("""
+                    DELETE FROM book_items WHERE id = ANY(%s)
+                """, (items_to_delete,))
 
 def delete_book(book_id: int) -> None:
     with get_cursor(commit=True) as cur:
