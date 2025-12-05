@@ -53,7 +53,7 @@ def _load_cached_vectorstore(
             allow_dangerous_deserialization=True,
         )
     except Exception as exc:  # pragma: no cover - cache corruption/environment issues
-        print(f"[RAG] Gagal memuat cache FAISS: {exc}")
+        print(f"[RAG] Cache FAISS tidak dapat dimuat ({exc}). Memulai ulang pembuatan index...")
         return None
 
 
