@@ -76,7 +76,6 @@ def ensure_tka_schema(cursor) -> None:
         """
         CREATE TABLE IF NOT EXISTS tka_stimulus (
             id SERIAL PRIMARY KEY,
-            id SERIAL PRIMARY KEY,
             mapel_id INTEGER REFERENCES tka_mata_pelajaran(id) ON DELETE SET NULL,
             test_id INTEGER,
             title TEXT,
@@ -95,7 +94,6 @@ def ensure_tka_schema(cursor) -> None:
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS tka_questions (
-            id SERIAL PRIMARY KEY,
             id SERIAL PRIMARY KEY,
             stimulus_id INTEGER REFERENCES tka_stimulus(id) ON DELETE SET NULL,
             topic TEXT,
