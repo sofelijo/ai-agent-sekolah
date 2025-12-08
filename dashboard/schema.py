@@ -91,6 +91,11 @@ CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date
 ON attendance_records (class_id, attendance_date);
 """
 
+_ATTENDANCE_UNIQUE_INDEX_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS attendance_records_attendance_date_student_id_key
+ON attendance_records (attendance_date, student_id);
+"""
+
 _TEACHER_ATTENDANCE_SQL = """
 CREATE TABLE IF NOT EXISTS teacher_attendance_records (
     id SERIAL PRIMARY KEY,
@@ -421,7 +426,9 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
+        "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
+        _ATTENDANCE_UNIQUE_INDEX_SQL,
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:
