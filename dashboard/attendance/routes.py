@@ -1125,6 +1125,7 @@ def simpan_absen() -> str:
         return redirect(url_for("attendance.kelas"))
     except Exception as exc:
         # Unexpected system error (e.g., DB constraints)
+        # Added explicit error handling to prevent 500 crashes
         current_app.logger.exception("Error saving attendance")
         flash(f"Terjadi kesalahan sistem saat menyimpan absensi: {exc}", "danger")
         return redirect(url_for("attendance.kelas"))

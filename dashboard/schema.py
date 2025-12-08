@@ -92,6 +92,7 @@ ON attendance_records (class_id, attendance_date);
 """
 
 _ATTENDANCE_UNIQUE_INDEX_SQL = """
+-- Ensure each student has only one attendance record per date
 CREATE UNIQUE INDEX IF NOT EXISTS attendance_records_attendance_date_student_id_key
 ON attendance_records (attendance_date, student_id);
 """
