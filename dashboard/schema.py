@@ -427,7 +427,6 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
-        "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
         _ATTENDANCE_UNIQUE_INDEX_SQL,
     )
@@ -435,6 +434,55 @@ def ensure_dashboard_schema() -> None:
         for statement in statements:
             cur.execute(statement)
         ensure_tka_schema_tables(cur)
+        ensure_sequences_integrity(cur)
 
+
+def ensure_sequences_integrity(cur) -> None:
+    """
+    Ensure all table sequences are synchronized with their MAX(id).
+    This fixes duplicate key errors after manual data imports.
+    """
+    tables = [
+        "dashboard_users",
+        "school_classes",
+        "students",
+        "attendance_records",
+        "teacher_attendance_records",
+        "attendance_late_students",
+        "bullying_reports",
+        "bullying_report_events",
+        "notifications",
+        "twitter_worker_logs",
+        "telegram_users",
+        "books",
+        "book_items",
+        "borrowing_records",
+        "chat_feedback",
+        "chat_logs",
+    ]
+    for table in tables:
+        try:
+            # Check if table exists
+            cur.execute(f"SELECT to_regclass('{table}')")
+            if not cur.fetchone()[0]:
+                continue
+
+            # Get sequence name for 'id' column
+            cur.execute(f"SELECT pg_get_serial_sequence('{table}', 'id')")
+            row = cur.fetchone()
+            if not row or not row[0]:
+                continue
+            
+            seq_name = row[0]
+            
+            # Reset sequence to MAX(id) + 1
+            cur.execute(f"SELECT COALESCE(MAX(id), 0) FROM {table}")
+            max_id = cur.fetchone()[0]
+            new_next = max_id + 1
+            
+            cur.execute(f"SELECT setval('{seq_name}', %s, false)", (new_next,))
+        except Exception:
+            # Ignore errors for individual tables to ensure partial success
+            pass
 
 __all__ = ["ensure_dashboard_schema"]
