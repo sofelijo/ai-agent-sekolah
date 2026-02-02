@@ -183,6 +183,12 @@
                                     <i class="bi bi-people me-2 text-primary"></i>User ASKA
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'main.landingpage_settings' %}active{% endif %}"
+                                    href="{{ url_for('main.landingpage_settings') }}">
+                                    <i class="bi bi-window me-2 text-primary"></i>Landing Page
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     {% endif %}

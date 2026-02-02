@@ -20,8 +20,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .queries import (
     create_dashboard_user,
+    delete_dashboard_user,
     get_user_by_email,
     list_dashboard_users,
+    update_dashboard_user,
     update_last_login,
     fetch_aska_users,
     summarize_aska_users,
@@ -39,6 +41,12 @@ oauth = OAuth()
 
 GMAIL_ALLOWED_DOMAINS = {"gmail.com", "googlemail.com"}
 _OAUTH_REGISTERED = False
+_ROLE_CHOICES = {"viewer", "editor", "staff", "admin"}
+
+
+def _normalize_role(value: Optional[str]) -> str:
+    normalized = (value or "").strip().lower()
+    return normalized if normalized in _ROLE_CHOICES else "viewer"
 
 
 def init_oauth(app) -> None:
@@ -245,10 +253,12 @@ def manage_users() -> Response:
         email = (request.form.get("email") or "").strip().lower()
         full_name = (request.form.get("full_name") or "").strip()
         password = request.form.get("password") or ""
-        role = (request.form.get("role") or "viewer").strip()
+        role = _normalize_role(request.form.get("role"))
 
         if not all([email, full_name, password]):
             flash("Semua field wajib diisi.", "warning")
+        elif len(password) < 8:
+            flash("Password minimal 8 karakter.", "warning")
         else:
             password_hash = generate_password_hash(password, method="pbkdf2:sha256", salt_length=12)
             try:
@@ -259,6 +269,82 @@ def manage_users() -> Response:
 
     users = list_dashboard_users()
     return render_template("manage_users.html", users=users)
+
+
+@auth_bp.route("/settings/users/<int:user_id>/update", methods=["POST"])
+@role_required("admin")
+def update_user(user_id: int) -> Response:
+    email = (request.form.get("email") or "").strip().lower()
+    full_name = (request.form.get("full_name") or "").strip()
+    role = _normalize_role(request.form.get("role"))
+    password = request.form.get("password") or ""
+    nrk = (request.form.get("nrk") or "").strip() or None
+    nip = (request.form.get("nip") or "").strip() or None
+    jabatan = (request.form.get("jabatan") or "").strip() or None
+    degree_prefix = (request.form.get("degree_prefix") or "").strip() or None
+    degree_suffix = (request.form.get("degree_suffix") or "").strip() or None
+
+    if not all([email, full_name]):
+        flash("Email dan nama lengkap wajib diisi.", "warning")
+        return redirect(url_for("auth.manage_users"))
+
+    if password and len(password) < 8:
+        flash("Password minimal 8 karakter jika diisi.", "warning")
+        return redirect(url_for("auth.manage_users"))
+
+    password_hash = (
+        generate_password_hash(password, method="pbkdf2:sha256", salt_length=12) if password else None
+    )
+
+    try:
+        updated = update_dashboard_user(
+            user_id,
+            email=email,
+            full_name=full_name,
+            role=role,
+            nrk=nrk,
+            nip=nip,
+            jabatan=jabatan,
+            degree_prefix=degree_prefix,
+            degree_suffix=degree_suffix,
+            password_hash=password_hash,
+        )
+        if updated:
+            active = current_user()
+            if active and active.get("id") == user_id:
+                session["user"] = {
+                    **active,
+                    "email": email,
+                    "full_name": full_name,
+                    "role": role,
+                }
+            flash(f"User {full_name} berhasil diperbarui.", "success")
+        else:
+            flash("User tidak ditemukan.", "warning")
+    except Exception as exc:  # pragma: no cover - surfaces to UI
+        flash(f"Gagal memperbarui user: {exc}", "danger")
+
+    return redirect(url_for("auth.manage_users"))
+
+
+@auth_bp.route("/settings/users/<int:user_id>/delete", methods=["POST"])
+@role_required("admin")
+def delete_user(user_id: int) -> Response:
+    active = current_user()
+    if active and active.get("id") == user_id:
+        flash("Tidak bisa menghapus akun yang sedang digunakan.", "warning")
+        return redirect(url_for("auth.manage_users"))
+
+    try:
+        deleted = delete_dashboard_user(user_id)
+        if deleted:
+            flash("User berhasil dihapus.", "success")
+        else:
+            flash("User tidak ditemukan.", "warning")
+    except Exception as exc:  # pragma: no cover - surfaces to UI
+        flash(f"Gagal menghapus user: {exc}", "danger")
+
+    return redirect(url_for("auth.manage_users"))
 
 
 @auth_bp.route("/settings/aska-users")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import re
@@ -23,6 +24,7 @@ from flask import (
     current_app,
 )
 from werkzeug.datastructures import MultiDict
+from PIL import Image
 
 from .auth import current_user, login_required, role_required
 from utils import current_jakarta_time, to_jakarta
@@ -64,6 +66,17 @@ from .queries import (
     fetch_feedback_summary,
     fetch_feedback_list,
     fetch_feedback_trend,
+    fetch_landingpage_content,
+    upsert_landingpage_content,
+    fetch_landingpage_teachers,
+    create_landingpage_teacher,
+    update_landingpage_teacher,
+    delete_landingpage_teacher,
+    seed_landingpage_teachers_if_empty,
+    update_landingpage_teacher_photo,
+    update_landingpage_teacher_order,
+    log_landingpage_activity,
+    fetch_landingpage_audit_logs,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -199,6 +212,85 @@ def _load_twitter_runtime() -> dict:
     return runtime
 
 
+LANDINGPAGE_ICON_CHOICES = [
+    "telegram",
+    "whatsapp",
+    "tiktok",
+    "instagram",
+    "youtube",
+    "map",
+    "link",
+]
+
+
+def _parse_collection(form: MultiDict, prefix: str, fields: List[str]) -> List[Dict[str, str]]:
+    items: Dict[int, Dict[str, str]] = {}
+    for key in form.keys():
+        if not key.startswith(f"{prefix}-"):
+            continue
+        rest = key[len(prefix) + 1 :]
+        if "-" not in rest:
+            continue
+        raw_index, field = rest.split("-", 1)
+        if not raw_index.isdigit() or field not in fields:
+            continue
+        idx = int(raw_index)
+        items.setdefault(idx, {})[field] = (form.get(key) or "").strip()
+    results: List[Dict[str, str]] = []
+    for idx in sorted(items.keys()):
+        payload = {field: (items[idx].get(field) or "").strip() for field in fields}
+        if any(value for value in payload.values()):
+            results.append(payload)
+    return results
+
+
+def _decode_photo_payload(photo_data: str | None, photo_file) -> Optional[bytes]:
+    if photo_data:
+        raw = photo_data.strip()
+        if "," in raw:
+            raw = raw.split(",", 1)[1]
+        try:
+            return base64.b64decode(raw)
+        except Exception:
+            return None
+    if photo_file:
+        try:
+            return photo_file.read()
+        except Exception:
+            return None
+    return None
+
+
+def _save_teacher_photo(site_key: str, teacher_id: int, photo_data: str | None, photo_file) -> Optional[str]:
+    payload = _decode_photo_payload(photo_data, photo_file)
+    if not payload:
+        return None
+    try:
+        image = Image.open(io.BytesIO(payload))
+    except Exception:
+        return None
+    image = image.convert("RGB")
+    width, height = image.size
+    side = min(width, height)
+    left = max(0, (width - side) // 2)
+    top = max(0, (height - side) // 2)
+    image = image.crop((left, top, left + side, top + side))
+    target_size = 512
+    if image.size != (target_size, target_size):
+        image = image.resize((target_size, target_size), Image.LANCZOS)
+
+    safe_site = re.sub(r"[^a-z0-9_-]", "-", site_key.lower()) or "default"
+    filename = f"teacher_{teacher_id}_{secrets.token_hex(6)}.jpg"
+    relative = f"landingpage/uploads/teachers/{safe_site}/{filename}"
+    output_path = PROJECT_ROOT / "landingpage" / "static" / relative
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        image.save(output_path, format="JPEG", quality=85, optimize=True)
+    except Exception:
+        return None
+    return relative
+
+
 
 @main_bp.before_request
 def restrict_teacher_access():
@@ -318,6 +410,257 @@ def dashboard() -> Response:
         messages_counts=messages_counts,
         aska_links=aska_links,
     )
+
+
+@main_bp.route("/settings/landingpage", methods=["GET", "POST"])
+@role_required("admin")
+def landingpage_settings() -> Response:
+    user = current_user()
+    site_key = (request.args.get("site_key") or os.getenv("LANDINGPAGE_SITE_KEY") or "default").strip().lower()
+    content = fetch_landingpage_content(site_key=site_key)
+    try:
+        seed_landingpage_teachers_if_empty(site_key=site_key)
+        teachers = fetch_landingpage_teachers(site_key=site_key, active_only=False)
+    except Exception:
+        teachers = []
+        flash("Data guru belum siap. Jalankan init_db.py untuk membuat tabel.", "warning")
+
+    if request.method == "POST":
+        form = request.form
+        site_name = (form.get("site_name") or "").strip()
+        city = (form.get("city") or "").strip()
+        hero_title = (form.get("hero_title") or "").strip()
+        hero_subtitle = (form.get("hero_subtitle") or "").strip()
+        hero_description = (form.get("hero_description") or "").strip()
+        hero_background = (form.get("hero_background") or "").strip()
+        hero_cta_label = (form.get("hero_cta_label") or "").strip()
+        hero_cta_url = (form.get("hero_cta_url") or "").strip()
+        documentation_title = (form.get("documentation_title") or "").strip()
+        profile_title = (form.get("profile_title") or "").strip()
+        vision_title = (form.get("vision_title") or "").strip()
+        vision_text = (form.get("vision_text") or "").strip()
+        activities_title = (form.get("activities_title") or "").strip()
+        extracurricular_title = (form.get("extracurricular_title") or "").strip()
+        footer_text = (form.get("footer_text") or "").strip()
+        seo_meta_title = (form.get("seo_meta_title") or "").strip()
+        seo_meta_description = (form.get("seo_meta_description") or "").strip()
+        seo_meta_keywords = (form.get("seo_meta_keywords") or "").strip()
+        seo_og_title = (form.get("seo_og_title") or "").strip()
+        seo_og_description = (form.get("seo_og_description") or "").strip()
+        seo_og_image = (form.get("seo_og_image") or "").strip()
+        seo_twitter_card = (form.get("seo_twitter_card") or "").strip()
+        seo_favicon = (form.get("seo_favicon") or "").strip()
+
+        social_links = _parse_collection(form, "social_links", ["label", "url", "icon"])
+        for link in social_links:
+            icon = (link.get("icon") or "link").strip().lower()
+            link["icon"] = icon if icon in LANDINGPAGE_ICON_CHOICES else "link"
+
+        leaders = _parse_collection(form, "leaders", ["role", "name", "education", "image"])
+        documentation_videos = _parse_collection(form, "documentation", ["title", "embed_url"])
+        activities_items = _parse_collection(form, "activities", ["title", "description", "image"])
+        extracurricular_items = _parse_collection(form, "extracurricular", ["title", "description", "image"])
+        mission_items = _parse_collection(form, "missions", ["text"])
+        missions = [item.get("text", "").strip() for item in mission_items if item.get("text")]
+
+        payload = {
+            "site_name": site_name,
+            "city": city,
+            "hero": {
+                "title": hero_title,
+                "subtitle": hero_subtitle,
+                "description": hero_description,
+                "background_image": hero_background,
+                "primary_cta": {"label": hero_cta_label, "url": hero_cta_url},
+                "social_links": social_links,
+            },
+            "documentation": {
+                "title": documentation_title,
+                "videos": documentation_videos,
+            },
+            "profile": {
+                "title": profile_title,
+                "leaders": leaders,
+                "vision_title": vision_title,
+                "vision": vision_text,
+                "missions": missions,
+            },
+            "activities": {
+                "title": activities_title,
+                "items": activities_items,
+            },
+            "extracurricular": {
+                "title": extracurricular_title,
+                "items": extracurricular_items,
+            },
+            "footer": {
+                "text": footer_text,
+            },
+            "seo": {
+                "meta_title": seo_meta_title,
+                "meta_description": seo_meta_description,
+                "meta_keywords": seo_meta_keywords,
+                "og_title": seo_og_title,
+                "og_description": seo_og_description,
+                "og_image": seo_og_image,
+                "twitter_card": seo_twitter_card,
+                "favicon": seo_favicon,
+            },
+        }
+
+        updated = upsert_landingpage_content(site_key, payload, updated_by=(user or {}).get("id"))
+        if updated:
+            log_landingpage_activity(
+                site_key,
+                (user or {}).get("id"),
+                action="content_update",
+                entity_type="landingpage",
+                metadata={"sections": ["hero", "profile", "activities", "extracurricular", "documentation", "seo"]},
+            )
+            flash("Konten landing page berhasil disimpan.", "success")
+        else:
+            flash("Gagal menyimpan konten landing page.", "danger")
+        return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+    logs = fetch_landingpage_audit_logs(site_key=site_key, limit=30)
+
+    return render_template(
+        "landingpage_settings.html",
+        content=content,
+        site_key=site_key,
+        icon_choices=LANDINGPAGE_ICON_CHOICES,
+        teachers=teachers,
+        logs=logs,
+    )
+
+
+@main_bp.route("/settings/landingpage/teachers", methods=["POST"])
+@role_required("admin")
+def landingpage_teacher_create() -> Response:
+    site_key = (request.form.get("site_key") or "default").strip().lower()
+    photo_data = request.form.get("photo_data")
+    photo_file = request.files.get("photo_file")
+    payload = {
+        "nama": request.form.get("nama") or "",
+        "gelar": request.form.get("gelar") or "",
+        "jabatan": request.form.get("jabatan") or "",
+        "jenis_kelamin": request.form.get("jenis_kelamin") or "",
+        "tempat_lahir": request.form.get("tempat_lahir") or "",
+        "tanggal_lahir": request.form.get("tanggal_lahir") or None,
+        "email": request.form.get("email") or "",
+        "nip": request.form.get("nip") or "",
+        "nuptk": request.form.get("nuptk") or "",
+        "foto": request.form.get("foto") or "",
+        "is_active": request.form.get("is_active") == "on",
+    }
+    if not payload["nama"].strip():
+        flash("Nama guru/pegawai wajib diisi.", "warning")
+        return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+    created_id = create_landingpage_teacher(site_key, payload)
+    if created_id:
+        photo_url = _save_teacher_photo(site_key, created_id, photo_data, photo_file)
+        if photo_url:
+            update_landingpage_teacher_photo(created_id, site_key, photo_url)
+            payload["foto"] = photo_url
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="teacher_create",
+            entity_type="teacher",
+            entity_id=created_id,
+            metadata={"nama": payload.get("nama")},
+        )
+        flash("Data guru berhasil ditambahkan.", "success")
+    else:
+        flash("Gagal menambahkan data guru.", "danger")
+    return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+
+@main_bp.route("/settings/landingpage/teachers/<int:teacher_id>/update", methods=["POST"])
+@role_required("admin")
+def landingpage_teacher_update(teacher_id: int) -> Response:
+    site_key = (request.form.get("site_key") or "default").strip().lower()
+    photo_data = request.form.get("photo_data")
+    photo_file = request.files.get("photo_file")
+    payload = {
+        "nama": request.form.get("nama") or "",
+        "gelar": request.form.get("gelar") or "",
+        "jabatan": request.form.get("jabatan") or "",
+        "jenis_kelamin": request.form.get("jenis_kelamin") or "",
+        "tempat_lahir": request.form.get("tempat_lahir") or "",
+        "tanggal_lahir": request.form.get("tanggal_lahir") or None,
+        "email": request.form.get("email") or "",
+        "nip": request.form.get("nip") or "",
+        "nuptk": request.form.get("nuptk") or "",
+        "foto": request.form.get("foto") or "",
+        "is_active": request.form.get("is_active") == "on",
+    }
+    if not payload["nama"].strip():
+        flash("Nama guru/pegawai wajib diisi.", "warning")
+        return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+    updated = update_landingpage_teacher(teacher_id, site_key, payload)
+    if updated:
+        photo_url = _save_teacher_photo(site_key, teacher_id, photo_data, photo_file)
+        if photo_url:
+            update_landingpage_teacher_photo(teacher_id, site_key, photo_url)
+            payload["foto"] = photo_url
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="teacher_update",
+            entity_type="teacher",
+            entity_id=teacher_id,
+            metadata={"nama": payload.get("nama")},
+        )
+        flash("Data guru berhasil diperbarui.", "success")
+    else:
+        flash("Data guru tidak ditemukan atau gagal diperbarui.", "warning")
+    return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+
+@main_bp.route("/settings/landingpage/teachers/<int:teacher_id>/delete", methods=["POST"])
+@role_required("admin")
+def landingpage_teacher_delete(teacher_id: int) -> Response:
+    site_key = (request.form.get("site_key") or "default").strip().lower()
+    deleted = delete_landingpage_teacher(teacher_id, site_key)
+    if deleted:
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="teacher_delete",
+            entity_type="teacher",
+            entity_id=teacher_id,
+        )
+        flash("Data guru berhasil dihapus.", "success")
+    else:
+        flash("Data guru tidak ditemukan.", "warning")
+    return redirect(url_for("main.landingpage_settings", site_key=site_key))
+
+
+@main_bp.route("/settings/landingpage/teachers/reorder", methods=["POST"])
+@role_required("admin")
+def landingpage_teacher_reorder() -> Response:
+    payload = request.get_json(silent=True) or {}
+    site_key = (payload.get("site_key") or "default").strip().lower()
+    order = payload.get("order") or []
+    if not isinstance(order, list):
+        return jsonify({"success": False, "message": "Format order tidak valid"}), 400
+    try:
+        ordered_ids = [int(item) for item in order]
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "ID tidak valid"}), 400
+    updated = update_landingpage_teacher_order(site_key, ordered_ids)
+    if updated:
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="teacher_reorder",
+            entity_type="teacher",
+            metadata={"count": len(ordered_ids)},
+        )
+    return jsonify({"success": True, "updated": updated})
 
 
 @main_bp.route("/twitter/logs")

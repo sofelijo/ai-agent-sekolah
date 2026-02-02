@@ -4,7 +4,7 @@ from datetime import date, datetime
 import calendar
 from typing import Any, Dict, List, Optional, Tuple
 
-from flask import current_app, flash, redirect, render_template, request, session, url_for
+from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash
 
 from utils import (
@@ -46,6 +46,7 @@ from .queries import (
     list_attendance_months,
     list_school_classes,
     update_student_record,
+    update_student_sequences,
     update_teacher_assigned_class,
     update_teacher_user,
     upsert_attendance_entries,
@@ -1222,6 +1223,48 @@ def master_data() -> str:
         students_by_class=students_by_class,
         class_lookup=class_lookup,
     )
+
+
+@attendance_bp.route("/absen/master/students/order", methods=["POST"])
+@login_required
+@role_required("admin")
+def update_student_order() -> Any:
+    payload = request.get_json(silent=True) or {}
+    raw_class_id = payload.get("classId")
+    ordered_ids = payload.get("orderedIds")
+
+    if raw_class_id is None:
+        return jsonify({"success": False, "message": "ID kelas wajib diisi."}), 400
+    try:
+        class_id = int(raw_class_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "ID kelas tidak valid."}), 400
+
+    if not isinstance(ordered_ids, list) or not ordered_ids:
+        return jsonify({"success": False, "message": "Urutan siswa wajib diisi."}), 400
+
+    ordered: List[int] = []
+    for raw_id in ordered_ids:
+        try:
+            ordered.append(int(raw_id))
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "ID siswa tidak valid."}), 400
+
+    if len(set(ordered)) != len(ordered):
+        return jsonify({"success": False, "message": "Urutan siswa mengandung duplikasi."}), 400
+
+    try:
+        updated = update_student_sequences(class_id, ordered)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:  # pragma: no cover - surfaces to UI
+        current_app.logger.exception("Gagal memperbarui urutan siswa.")
+        return jsonify({"success": False, "message": f"Gagal memperbarui urutan siswa: {exc}"}), 500
+
+    if updated != len(ordered):
+        return jsonify({"success": False, "message": "Sebagian siswa tidak ditemukan."}), 400
+
+    return jsonify({"success": True, "updated": updated})
 
 
 @attendance_bp.route("/absen/master/staff", methods=["GET", "POST"])

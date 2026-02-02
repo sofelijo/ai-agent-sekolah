@@ -1,0 +1,207 @@
+{% macro asset_url(value) -%}
+    {%- if value -%}
+        {%- if value.startswith('http') or value.startswith('/static/') -%}
+            {{ value }}
+        {%- elif value.startswith('static/') -%}
+            /{{ value }}
+        {%- else -%}
+            {{ url_for('static', filename=value.lstrip('/')) }}
+        {%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro icon(name) -%}
+    {%- if name == 'telegram' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0a12 12 0 1 0 12 12A12 12 0 0 0 12 0zm5.44 7.22c.02.09.03.29.02.47-.18 1.9-.96 6.5-1.36 8.63-.17.9-.5 1.2-.82 1.23-.7.07-1.22-.46-1.9-.9-1.06-.69-1.65-1.13-2.68-1.8-1.18-.78-.42-1.21.26-1.91.18-.18 3.25-2.98 3.31-3.23.01-.03.01-.15-.06-.21-.07-.06-.17-.04-.25-.02-.11.02-1.79 1.14-5.06 3.35-.48.33-.91.49-1.3.48-.43-.01-1.25-.24-1.87-.44-.75-.25-1.35-.37-1.3-.79.03-.22.33-.44.89-.66 3.5-1.52 5.83-2.53 7-3.01 3.33-1.39 4.02-1.63 4.48-1.64.14 0 .32.02.46.14z"/></svg>
+    {%- elif name == 'whatsapp' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.25-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.14-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.22 3.08.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35z"/><path d="M12.05 0A12 12 0 0 0 0 12a12 12 0 0 0 1.59 5.95L0 24l6.3-1.65A12 12 0 1 0 12.05 0zm0 21.79a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88a9.8 9.8 0 0 1 6.99 2.9 9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.43 9.88-9.89 9.88z"/></svg>
+    {%- elif name == 'tiktok' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.52 0c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+    {%- elif name == 'instagram' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.03.08c-1.28.06-2.15.26-2.91.56-.79.31-1.46.72-2.12 1.39-.67.67-1.08 1.34-1.38 2.13-.3.76-.5 1.64-.55 2.91-.06 1.28-.07 1.69-.06 4.95.01 3.26.02 3.67.08 4.95.06 1.28.26 2.15.56 2.91.31.79.72 1.46 1.39 2.12.67.67 1.34 1.08 2.13 1.38.76.3 1.64.5 2.91.55 1.28.06 1.69.07 4.95.06 3.26-.01 3.67-.02 4.95-.08 1.28-.06 2.15-.26 2.91-.56.79-.31 1.46-.72 2.12-1.39.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.64.55-2.91.06-1.28.07-1.69.06-4.95-.01-3.26-.02-3.67-.08-4.95-.06-1.28-.26-2.15-.56-2.91-.31-.79-.72-1.46-1.39-2.12-.67-.67-1.34-1.08-2.13-1.38-.76-.3-1.64-.5-2.91-.55-1.28-.06-1.69-.07-4.95-.06-3.26.01-3.67.02-4.95.08zm.14 21.69c-1.17-.05-1.81-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.42-2.23-.06-1.26-.07-1.64-.08-4.85-.01-3.2.01-3.58.06-4.85.05-1.17.25-1.81.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.17 1.06-.36 2.23-.42 1.27-.06 1.64-.07 4.85-.08 3.2-.01 3.58.01 4.85.06 1.17.05 1.81.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.42.36 1.06.42 2.23.06 1.27.07 1.64.08 4.85.01 3.2-.01 3.58-.06 4.85-.05 1.17-.25 1.81-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.17-1.06.36-2.23.42-1.27.06-1.64.07-4.85.08-3.2.01-3.58-.01-4.85-.06z"/><path d="M12 5.84a6.16 6.16 0 1 0 6.16 6.16A6.16 6.16 0 0 0 12 5.84zm0 10.17a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/><circle cx="18.4" cy="5.6" r="1.44"/></svg>
+    {%- elif name == 'youtube' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12l-6.27 3.57z"/></svg>
+    {%- elif name == 'map' -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.55 8 12 8 12s8-6.45 8-12a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 3-3 3 3 0 0 1-3 3z"/></svg>
+    {%- else -%}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 13.41a1 1 0 0 1 0-1.41l2.59-2.59a3 3 0 0 1 4.24 4.24l-2 2a3 3 0 0 1-4.24 0 1 1 0 1 1 1.41-1.41 1 1 0 0 1 1.41 0 1 1 0 0 0 1.41 0l2-2a1 1 0 0 0-1.41-1.41l-2.59 2.59a1 1 0 0 1-1.41 0z"/><path d="M13.41 10.59a1 1 0 0 1 0 1.41l-2.59 2.59a3 3 0 0 1-4.24-4.24l2-2a3 3 0 0 1 4.24 0 1 1 0 0 1-1.41 1.41 1 1 0 0 1-1.41 0 1 1 0 0 0-1.41 0l-2 2a1 1 0 0 0 1.41 1.41l2.59-2.59a1 1 0 0 1 1.41 0z"/></svg>
+    {%- endif -%}
+{%- endmacro %}
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% set seo = content.get('seo', {}) %}
+    {% set meta_title = seo.get('meta_title') or content.get('site_name', 'Landing Page') %}
+    {% set meta_description = seo.get('meta_description') or (content.get('site_name', '') ~ ' ' ~ content.get('city', '')) %}
+    <title>{{ meta_title }}</title>
+    <meta name="description" content="{{ meta_description }}">
+    {% if seo.get('meta_keywords') %}
+    <meta name="keywords" content="{{ seo.get('meta_keywords') }}">
+    {% endif %}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ seo.get('og_title') or meta_title }}">
+    <meta property="og:description" content="{{ seo.get('og_description') or meta_description }}">
+    <meta property="og:image" content="{{ asset_url(seo.get('og_image') or content.get('hero', {}).get('background_image')) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <link rel="canonical" href="{{ request.url }}">
+    <meta name="twitter:card" content="{{ seo.get('twitter_card') or 'summary_large_image' }}">
+    <meta name="twitter:title" content="{{ seo.get('og_title') or meta_title }}">
+    <meta name="twitter:description" content="{{ seo.get('og_description') or meta_description }}">
+    <meta name="twitter:image" content="{{ asset_url(seo.get('og_image') or content.get('hero', {}).get('background_image')) }}">
+    {% if seo.get('favicon') %}
+    <link rel="icon" href="{{ asset_url(seo.get('favicon')) }}" type="image/x-icon">
+    {% endif %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+</head>
+<body>
+{% set hero_bg = content.get('hero', {}).get('background_image', '') %}
+{% set hero_title = content.get('hero', {}).get('title') or content.get('site_name', '') %}
+{% set hero_subtitle = content.get('hero', {}).get('subtitle') or content.get('city', '') %}
+<main>
+    <section class="hero" style="--hero-image: url('{{ asset_url(hero_bg) }}');">
+        <div class="hero-overlay"></div>
+        <div class="hero-icons" aria-hidden="true">
+            <span class="hero-icon hero-icon-cap">
+                <svg viewBox="0 0 24 24"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+            </span>
+            <span class="hero-icon hero-icon-book">
+                <svg viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+            </span>
+            <span class="hero-icon hero-icon-clipboard">
+                <svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+            </span>
+            <span class="hero-icon hero-icon-school">
+                <svg viewBox="0 0 24 24"><path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m18 10 3.45 1.72a1 1 0 0 1 .55.89V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7.38a1 1 0 0 1 .55-.89L6 10"/><path d="M18 5v17"/><path d="m4 6 7.11-3.55a2 2 0 0 1 1.78 0L20 6"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg>
+            </span>
+            <span class="hero-icon hero-icon-presentation">
+                <svg viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>
+            </span>
+        </div>
+        <div class="container hero-center">
+            <h1 class="hero-title" data-reveal="zoom" data-parallax="0.06">{{ hero_title }}<span>{{ hero_subtitle }}</span></h1>
+            {% if content.get('hero', {}).get('description') %}
+            <p class="hero-subtitle" data-reveal="up" data-reveal-delay="120" data-parallax="0.04">{{ content.get('hero', {}).get('description') }}</p>
+            {% endif %}
+            <div class="hero-panel" data-reveal="up" data-reveal-delay="200" data-parallax="0.08">
+                {% set cta = content.get('hero', {}).get('primary_cta', {}) %}
+                {% if cta.get('label') and cta.get('url') %}
+                {% set cta_label = cta.get('label') %}
+                <a class="hero-cta" href="{{ cta.get('url') }}" target="_blank" rel="noopener noreferrer">
+                    {% if 'ASKA' in cta_label %}
+                        {% set parts = cta_label.split('ASKA', 1) %}
+                        {{ parts[0] }}<span class="hero-cta-highlight">ASKA{{ parts[1] }}</span>
+                    {% else %}
+                        {{ cta_label }}
+                    {% endif %}
+                </a>
+                {% endif %}
+                <div class="hero-social">
+                    {% for link in content.get('hero', {}).get('social_links', []) %}
+                    <a class="hero-social-btn" href="{{ link.get('url') }}" target="_blank" rel="noopener noreferrer" aria-label="{{ link.get('label') }}">
+                        {{ icon(link.get('icon', 'link')) }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="scroll-cue" aria-hidden="true"><span></span></div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title" data-reveal="up" data-parallax="0.04">{{ content.get('documentation', {}).get('title', 'Dokumentasi') }}</h2>
+            <div class="video-grid">
+                {% for video in content.get('documentation', {}).get('videos', []) %}
+                <article class="video-card" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.1">
+                    <iframe class="video-frame" src="{{ video.get('embed_url') }}" title="{{ video.get('title') }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <div class="video-meta">{{ video.get('title') }}</div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="background: rgba(255,255,255,0.7);">
+        <div class="container">
+            <h2 class="section-title" data-reveal="up" data-parallax="0.04">{{ content.get('profile', {}).get('title', 'Profil Sekolah') }}</h2>
+            <div class="profile-grid">
+                <div>
+                    {% for leader in content.get('profile', {}).get('leaders', []) %}
+                    <article class="leader-card" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.08">
+                        <img class="leader-photo" src="{{ asset_url(leader.get('image')) }}" alt="{{ leader.get('name') }}">
+                        <div>
+                            <div class="leader-role">{{ leader.get('role') }}</div>
+                            <div class="leader-name">{{ leader.get('name') }}</div>
+                            <p class="leader-edu">{{ leader.get('education') }}</p>
+                        </div>
+                    </article>
+                    {% endfor %}
+                    <div class="teacher-link" data-reveal="up" data-reveal-delay="180" data-parallax="0.05">
+                        <a class="teacher-btn" href="/guru">
+                            <span class="teacher-dot"><span></span></span>
+                            <span class="teacher-dot"><span></span></span>
+                            <span class="label">Lihat semua guru</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="vision-card" data-reveal="right" data-parallax="0.1">
+                    <h3>{{ content.get('profile', {}).get('vision_title', 'Visi & Misi') }}</h3>
+                    <p class="vision-text">{{ content.get('profile', {}).get('vision') }}</p>
+                    <ul class="mission-list">
+                        {% for mission in content.get('profile', {}).get('missions', []) %}
+                        <li>{{ mission }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title" data-reveal="up" data-parallax="0.04">{{ content.get('activities', {}).get('title', 'Kegiatan Siswa') }}</h2>
+            <div class="card-grid">
+                {% for item in content.get('activities', {}).get('items', []) %}
+                <article class="media-card" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.1">
+                    <img class="media-image" src="{{ asset_url(item.get('image')) }}" alt="{{ item.get('title') }}">
+                    <div class="media-body">
+                        <h3>{{ item.get('title') }}</h3>
+                        <p>{{ item.get('description') }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="background: rgba(255,255,255,0.75);">
+        <div class="container">
+            <h2 class="section-title" data-reveal="up" data-parallax="0.04">{{ content.get('extracurricular', {}).get('title', 'Ekstrakurikuler') }}</h2>
+            <div class="card-grid">
+                {% for item in content.get('extracurricular', {}).get('items', []) %}
+                <article class="media-card" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.1">
+                    <img class="media-image" src="{{ asset_url(item.get('image')) }}" alt="{{ item.get('title') }}">
+                    <div class="media-body">
+                        <h3>{{ item.get('title') }}</h3>
+                        <p>{{ item.get('description') }}</p>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer data-reveal="up">
+    {{ content.get('footer', {}).get('text', '(c) 2025') }}
+</footer>
+
+<script src="{{ url_for('static', filename='landingpage/js/landing.js') }}"></script>
+</body>
+</html>

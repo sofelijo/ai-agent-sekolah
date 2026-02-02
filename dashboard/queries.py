@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -71,6 +72,520 @@ STOPWORDS = {
     "bot",
     "aska",
 }
+
+
+def _default_landingpage_content() -> Dict[str, Any]:
+    vision_text = "Terwujudnya Peserta Didik yang Beriman, Bertaqwa, Cerdas, Terampil, Mandiri dan Berwawasan Global"
+    missions = [
+        "Menciptakan Lingkungan yang Religius",
+        "Melaksanakan Kegiatan Keagamaan",
+        "Menumbuhkan perilaku peserta didik yang taat beribadah",
+        "Mengembangkan Kompetensi Pendidik dan Tenaga Kependidikan",
+        "Menciptakan Suasana pembelajaran yang aktif dan menyenangkan",
+        "Menanamkan sikap kompetitif dalam diri peserta didik",
+        "Menumbuhkan kreativitas, bakat, dan minat siswa",
+        "Wujudkan prestasi melalui kegiatan akademik & non-akademik",
+        "Menanamkan rasa hormat dan kasih sayang antar sesama",
+        "Membimbing dengan kasih dalam lima karakter utama",
+        "Memenuhi hak pendidikan semua peserta didik tanpa terkecuali",
+    ]
+    return {
+        "site_name": "SDN Semper Barat 01",
+        "city": "Jakarta Utara",
+        "hero": {
+            "title": "SDN Semper Barat 01",
+            "subtitle": "Jakarta Utara",
+            "description": "",
+            "background_image": "landingpage/images/hero.jpg",
+            "primary_cta": {
+                "label": "Tanya sekolah? Tanyakan ASKA!!",
+                "url": "https://aska.sdnsembar01.sch.id/",
+            },
+            "social_links": [
+                {"label": "Telegram", "url": "https://t.me/tanyaaska_bot", "icon": "telegram"},
+                {
+                    "label": "WhatsApp Channel",
+                    "url": "https://www.whatsapp.com/channel/0029Vb64drS65yD5VaB8gP1n",
+                    "icon": "whatsapp",
+                },
+                {
+                    "label": "TikTok",
+                    "url": "https://www.tiktok.com/@sembar01official?_t=ZS-8wwLhUNsort&_r=1",
+                    "icon": "tiktok",
+                },
+                {"label": "Instagram", "url": "https://www.instagram.com/sdnsembar01/", "icon": "instagram"},
+                {"label": "YouTube", "url": "https://youtube.com/@sdnsembar01", "icon": "youtube"},
+                {"label": "Google Maps", "url": "https://maps.app.goo.gl/YjdiWyKDCRPaXqDJA", "icon": "map"},
+            ],
+        },
+        "documentation": {
+            "title": "Dokumentasi",
+            "videos": [
+                {"title": "Video 1", "embed_url": "https://www.youtube.com/embed/jQRbzGvlcQA"},
+                {"title": "Video 2", "embed_url": "https://www.youtube.com/embed/ocWuNkj_Eqk"},
+            ],
+        },
+        "profile": {
+            "title": "Profil Sekolah",
+            "leaders": [
+                {
+                    "role": "Kepala Sekolah",
+                    "name": "Kartika",
+                    "education": "Universitas Negeri Padang, Pendidikan Ekonomi",
+                    "image": "landingpage/images/guru-01.jpg",
+                },
+                {
+                    "role": "Wakil Kepala Sekolah",
+                    "name": "Ilan Lesdoka",
+                    "education": "Universitas Negeri Jakarta, Pendidikan Olahraga",
+                    "image": "landingpage/images/guru-02.jpg",
+                },
+            ],
+            "vision_title": "Visi & Misi",
+            "vision": vision_text,
+            "missions": missions,
+        },
+        "activities": {
+            "title": "Kegiatan Siswa",
+            "items": [
+                {
+                    "title": "Istigosah",
+                    "description": "Meningkatkan keimanan dan ketakwaan siswa melalui doa dan dzikir bersama.",
+                    "image": "landingpage/images/kegiatan-1.jpg",
+                },
+                {
+                    "title": "Gebyar P5",
+                    "description": (
+                        "Pameran hasil karya dan aktivitas siswa dalam kegiatan Projek Penguatan Profil Pelajar Pancasila."
+                    ),
+                    "image": "landingpage/images/kegiatan-2.jpg",
+                },
+                {
+                    "title": "PSKA",
+                    "description": "Pembinaan Siswa Kelas Akhir untuk menghadapi ujian akhir dengan persiapan matang.",
+                    "image": "landingpage/images/kegiatan-3.jpg",
+                },
+            ],
+        },
+        "extracurricular": {
+            "title": "Ekstrakurikuler",
+            "items": [
+                {
+                    "title": "Pramuka",
+                    "description": "Melatih kedisiplinan, kepemimpinan, dan kerjasama tim melalui kegiatan kepramukaan rutin.",
+                    "image": "landingpage/images/ekstra-pramuka.jpg",
+                },
+                {
+                    "title": "Pencak Silat",
+                    "description": "Mengembangkan keterampilan bela diri tradisional, sportivitas, dan kepercayaan diri.",
+                    "image": "landingpage/images/ekstra-silat.jpg",
+                },
+                {
+                    "title": "Tari Tradisional",
+                    "description": "Melestarikan budaya bangsa melalui seni tari daerah dan pertunjukan rutin.",
+                    "image": "landingpage/images/ekstra-tari.jpg",
+                },
+                {
+                    "title": "Futsal",
+                    "description": "Meningkatkan kebugaran dan kekompakan siswa melalui latihan dan pertandingan futsal.",
+                    "image": "landingpage/images/ekstra-futsal.jpg",
+                },
+                {
+                    "title": "Marawiss",
+                    "description": "Menumbuhkan kecintaan terhadap seni musik Islami melalui grup marawis sekolah.",
+                    "image": "landingpage/images/ekstra-marawis.jpg",
+                },
+                {
+                    "title": "PMR",
+                    "description": "Membangun dan mengembangkan karakter kepalangmerahan pada diri remaja.",
+                    "image": "landingpage/images/ekstra-pmr.jpg",
+                },
+            ],
+        },
+        "footer": {
+            "text": "(c) 2025 SDN Semper Barat 01. All rights reserved.",
+        },
+        "seo": {
+            "meta_title": "SDN Semper Barat 01",
+            "meta_description": "SDN SEMBAR 01 Jakarta Utara",
+            "meta_keywords": "SDN Semper Barat 01, sekolah dasar, Jakarta Utara",
+            "og_title": "SDN Semper Barat 01",
+            "og_description": "SDN SEMBAR 01 Jakarta Utara",
+            "og_image": "landingpage/images/hero.jpg",
+            "twitter_card": "summary_large_image",
+            "favicon": "landingpage/images/favicon.ico",
+        },
+    }
+
+
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(override, dict):
+        return base
+    merged: Dict[str, Any] = dict(base)
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def fetch_landingpage_content(site_key: str = "default") -> Dict[str, Any]:
+    """Fetch landing page configuration by site key, falling back to defaults."""
+    base = _default_landingpage_content()
+    site_key = (site_key or "default").strip().lower()
+    payload = None
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT data FROM landingpage_settings WHERE site_key = %s LIMIT 1",
+            (site_key,),
+        )
+        row = cur.fetchone()
+        if row and row.get("data"):
+            payload = dict(row["data"]) if isinstance(row["data"], dict) else row["data"]
+        if payload is None and site_key != "default":
+            cur.execute(
+                "SELECT data FROM landingpage_settings WHERE site_key = %s LIMIT 1",
+                ("default",),
+            )
+            row = cur.fetchone()
+            if row and row.get("data"):
+                payload = dict(row["data"]) if isinstance(row["data"], dict) else row["data"]
+    if isinstance(payload, dict):
+        return _deep_merge(base, payload)
+    return base
+
+
+def upsert_landingpage_content(
+    site_key: str,
+    payload: Dict[str, Any],
+    updated_by: Optional[int] = None,
+) -> bool:
+    """Insert or update landing page content for a site."""
+    site_key = (site_key or "default").strip().lower()
+    payload = payload or {}
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO landingpage_settings (site_key, data, updated_by, updated_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (site_key)
+            DO UPDATE SET data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+            RETURNING id
+            """,
+            (site_key, Json(payload), updated_by),
+        )
+        row = cur.fetchone()
+    return bool(row)
+
+
+def _normalize_gender(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    raw = str(value).strip().upper()
+    if raw in {"L", "P"}:
+        return raw
+    if raw in {"LAKI-LAKI", "PRIA", "MALE"}:
+        return "L"
+    if raw in {"PEREMPUAN", "WANITA", "FEMALE"}:
+        return "P"
+    return None
+
+
+def fetch_landingpage_teachers(site_key: str = "default", active_only: bool = True) -> List[Dict[str, Any]]:
+    site_key = (site_key or "default").strip().lower()
+    clause = "AND is_active = TRUE" if active_only else ""
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT id, name, degree, role, gender, birth_place, birth_date, email, nip, nuptk, photo_url, is_active
+            FROM landingpage_teachers
+            WHERE site_key = %s
+            {clause}
+            ORDER BY sort_order ASC NULLS LAST, id ASC
+            """,
+            (site_key,),
+        )
+        rows = cur.fetchall()
+    results = []
+    for row in rows:
+        results.append(
+            {
+                "id": row["id"],
+                "nama": row["name"],
+                "gelar": row["degree"],
+                "jabatan": row["role"],
+                "jenis_kelamin": row["gender"],
+                "tempat_lahir": row["birth_place"],
+                "tanggal_lahir": row["birth_date"],
+                "email": row["email"],
+                "nip": row["nip"],
+                "nuptk": row["nuptk"],
+                "foto": row["photo_url"],
+                "is_active": row["is_active"],
+            }
+        )
+    return results
+
+
+def create_landingpage_teacher(site_key: str, payload: Dict[str, Any]) -> Optional[int]:
+    site_key = (site_key or "default").strip().lower()
+    payload = payload or {}
+    gender = _normalize_gender(payload.get("jenis_kelamin"))
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT COALESCE(MAX(sort_order), 0) FROM landingpage_teachers WHERE site_key = %s",
+            (site_key,),
+        )
+        next_order = int(cur.fetchone()[0] or 0) + 1
+        cur.execute(
+            """
+            INSERT INTO landingpage_teachers (
+                site_key,
+                sort_order,
+                name,
+                degree,
+                role,
+                gender,
+                birth_place,
+                birth_date,
+                email,
+                nip,
+                nuptk,
+                photo_url,
+                is_active,
+                updated_at
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+            RETURNING id
+            """,
+            (
+                site_key,
+                next_order,
+                (payload.get("nama") or "").strip(),
+                (payload.get("gelar") or "").strip() or None,
+                (payload.get("jabatan") or "").strip() or None,
+                gender,
+                (payload.get("tempat_lahir") or "").strip() or None,
+                payload.get("tanggal_lahir") or None,
+                (payload.get("email") or "").strip() or None,
+                (payload.get("nip") or "").strip() or None,
+                (payload.get("nuptk") or "").strip() or None,
+                (payload.get("foto") or "").strip() or None,
+                bool(payload.get("is_active", True)),
+            ),
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def update_landingpage_teacher(teacher_id: int, site_key: str, payload: Dict[str, Any]) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    payload = payload or {}
+    gender = _normalize_gender(payload.get("jenis_kelamin"))
+    photo_value = (payload.get("foto") or "").strip() or None
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE landingpage_teachers
+            SET name = %s,
+                degree = %s,
+                role = %s,
+                gender = %s,
+                birth_place = %s,
+                birth_date = %s,
+                email = %s,
+                nip = %s,
+                nuptk = %s,
+                photo_url = COALESCE(%s, photo_url),
+                is_active = %s,
+                updated_at = NOW()
+            WHERE id = %s AND site_key = %s
+            """,
+            (
+                (payload.get("nama") or "").strip(),
+                (payload.get("gelar") or "").strip() or None,
+                (payload.get("jabatan") or "").strip() or None,
+                gender,
+                (payload.get("tempat_lahir") or "").strip() or None,
+                payload.get("tanggal_lahir") or None,
+                (payload.get("email") or "").strip() or None,
+                (payload.get("nip") or "").strip() or None,
+                (payload.get("nuptk") or "").strip() or None,
+                photo_value,
+                bool(payload.get("is_active", True)),
+                teacher_id,
+                site_key,
+            ),
+        )
+        return cur.rowcount > 0
+
+
+def delete_landingpage_teacher(teacher_id: int, site_key: str) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "DELETE FROM landingpage_teachers WHERE id = %s AND site_key = %s",
+            (teacher_id, site_key),
+        )
+        return cur.rowcount > 0
+
+
+def update_landingpage_teacher_photo(teacher_id: int, site_key: str, photo_url: Optional[str]) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE landingpage_teachers
+            SET photo_url = %s, updated_at = NOW()
+            WHERE id = %s AND site_key = %s
+            """,
+            (photo_url, teacher_id, site_key),
+        )
+        return cur.rowcount > 0
+
+
+def update_landingpage_teacher_order(site_key: str, ordered_ids: List[int]) -> int:
+    site_key = (site_key or "default").strip().lower()
+    if not ordered_ids:
+        return 0
+    updated = 0
+    with get_cursor(commit=True) as cur:
+        for idx, teacher_id in enumerate(ordered_ids, start=1):
+            cur.execute(
+                """
+                UPDATE landingpage_teachers
+                SET sort_order = %s, updated_at = NOW()
+                WHERE id = %s AND site_key = %s
+                """,
+                (idx, teacher_id, site_key),
+            )
+            updated += cur.rowcount
+    return updated
+
+
+def log_landingpage_activity(
+    site_key: str,
+    actor_id: Optional[int],
+    action: str,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[int] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO landingpage_audit_logs (
+                site_key, actor_id, action, entity_type, entity_id, metadata
+            )
+            VALUES (%s,%s,%s,%s,%s,%s)
+            """,
+            (
+                site_key,
+                actor_id,
+                action,
+                entity_type,
+                entity_id,
+                Json(metadata) if metadata else None,
+            ),
+        )
+
+
+def fetch_landingpage_audit_logs(site_key: str, limit: int = 30) -> List[Dict[str, Any]]:
+    site_key = (site_key or "default").strip().lower()
+    limit = max(1, min(int(limit or 30), 200))
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT l.id,
+                   l.action,
+                   l.entity_type,
+                   l.entity_id,
+                   l.metadata,
+                   l.created_at,
+                   u.full_name as actor_name,
+                   u.email as actor_email
+            FROM landingpage_audit_logs l
+            LEFT JOIN dashboard_users u ON u.id = l.actor_id
+            WHERE l.site_key = %s
+            ORDER BY l.created_at DESC
+            LIMIT %s
+            """,
+            (site_key, limit),
+        )
+        rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+def seed_landingpage_teachers_if_empty(site_key: str = "default") -> int:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) FROM landingpage_teachers WHERE site_key = %s",
+            (site_key,),
+        )
+        count = cur.fetchone()[0]
+    if count:
+        return 0
+    seed_path = Path(__file__).resolve().parent.parent / "landingpage" / "static" / "landingpage" / "data" / "guru_full.json"
+    if not seed_path.exists():
+        return 0
+    try:
+        payload = json.loads(seed_path.read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+    if not isinstance(payload, list):
+        return 0
+    inserted = 0
+    with get_cursor(commit=True) as cur:
+        for idx, item in enumerate(payload, start=1):
+            if not isinstance(item, dict):
+                continue
+            foto = (item.get("foto") or "").strip()
+            if foto.startswith("/guru/"):
+                foto = f"landingpage/images{foto}"
+            elif foto and foto.startswith("/"):
+                foto = f"landingpage/images{foto}"
+            gender = _normalize_gender(item.get("jenis_kelamin"))
+            cur.execute(
+                """
+                INSERT INTO landingpage_teachers (
+                    site_key,
+                    sort_order,
+                    name,
+                    degree,
+                    role,
+                    gender,
+                    birth_place,
+                    birth_date,
+                    email,
+                    nip,
+                    nuptk,
+                    photo_url,
+                    is_active,
+                    updated_at
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                """,
+                (
+                    site_key,
+                    idx,
+                    (item.get("nama") or "").strip(),
+                    (item.get("gelar") or "").strip() or None,
+                    (item.get("jabatan") or "").strip() or None,
+                    gender,
+                    (item.get("tempat_lahir") or "").strip() or None,
+                    item.get("tanggal_lahir") or None,
+                    (item.get("email") or "").strip() or None,
+                    (item.get("nip") or "").strip() or None,
+                    (item.get("nuptk") or "").strip() or None,
+                    foto or None,
+                    True,
+                ),
+            )
+            inserted += 1
+    return inserted
 
 VALID_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_GRADE_LEVEL = "sd6"
@@ -2056,6 +2571,59 @@ def upsert_dashboard_user(
         )
         row = cur.fetchone()
     return int(row[0])
+
+def update_dashboard_user(
+    user_id: int,
+    email: str,
+    full_name: str,
+    role: str,
+    *,
+    nrk: Optional[str] = None,
+    nip: Optional[str] = None,
+    jabatan: Optional[str] = None,
+    degree_prefix: Optional[str] = None,
+    degree_suffix: Optional[str] = None,
+    password_hash: Optional[str] = None,
+) -> bool:
+    fields = [
+        "email = %s",
+        "full_name = %s",
+        "role = %s",
+        "nrk = %s",
+        "nip = %s",
+        "jabatan = %s",
+        "degree_prefix = %s",
+        "degree_suffix = %s",
+    ]
+    values: List[Any] = [
+        email,
+        full_name,
+        role,
+        nrk,
+        nip,
+        jabatan,
+        degree_prefix,
+        degree_suffix,
+    ]
+    if password_hash:
+        fields.append("password_hash = %s")
+        values.append(password_hash)
+
+    values.append(user_id)
+    query = f"""
+        UPDATE dashboard_users
+        SET {", ".join(fields)}
+        WHERE id = %s
+        """
+    with get_cursor(commit=True) as cur:
+        cur.execute(query, values)
+        return cur.rowcount > 0
+
+
+def delete_dashboard_user(user_id: int) -> bool:
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM dashboard_users WHERE id = %s", (user_id,))
+        return cur.rowcount > 0
 
 def update_last_login(user_id: int) -> None:
     with get_cursor(commit=True) as cur:

@@ -654,6 +654,44 @@ def update_student_record(
         return cur.rowcount > 0
 
 
+def update_student_sequences(class_id: int, ordered_ids: List[int]) -> int:
+    if not ordered_ids:
+        raise ValueError("Daftar siswa kosong.")
+
+    seen: set[int] = set()
+    ordered: List[int] = []
+    for raw_id in ordered_ids:
+        if raw_id in seen:
+            raise ValueError("Daftar siswa mengandung duplikasi.")
+        seen.add(raw_id)
+        ordered.append(raw_id)
+
+    case_clauses: List[str] = []
+    values: List[Any] = []
+    for index, student_id in enumerate(ordered, start=1):
+        case_clauses.append("WHEN %s THEN %s")
+        values.extend([student_id, index])
+
+    ids_placeholders = ", ".join(["%s"] * len(ordered))
+    values.append(class_id)
+    values.extend(ordered)
+
+    query = f"""
+        UPDATE students
+        SET
+            sequence = CASE id
+                {' '.join(case_clauses)}
+                ELSE sequence
+            END,
+            updated_at = NOW()
+        WHERE class_id = %s
+          AND id IN ({ids_placeholders})
+        """
+    with get_cursor(commit=True) as cur:
+        cur.execute(query, values)
+        return cur.rowcount
+
+
 def deactivate_student(student_id: int) -> bool:
     with get_cursor(commit=True) as cur:
         cur.execute(

@@ -1,6 +1,23 @@
 {% extends "attendance/base.html" %}
 {% block title %}Data Master Absensi{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<style>
+    .drag-handle {
+        cursor: grab;
+        display: inline-flex;
+        align-items: center;
+    }
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+    .student-order-row.dragging {
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-3 mb-4">
     <div>
@@ -178,9 +195,14 @@
                 <h2 class="h5 mb-1">Daftar Kelas &amp; Siswa</h2>
                 <p class="text-muted small mb-0">Daftar ini menampilkan struktur kelas beserta siswa terdaftar.</p>
                 <p class="text-muted small mb-0">Klik baris siswa untuk menyalin data ke formulir di atas.</p>
+                {% if current_user and current_user.role == 'admin' %}
+                <p class="text-muted small mb-0">Admin dapat mengubah urutan nomor absen dengan drag di kolom No.</p>
+                {% endif %}
             </div>
         </div>
-        <div class="accordion" id="classAccordion">
+        <div class="accordion" id="classAccordion"
+            data-can-reorder="{{ 'true' if current_user and current_user.role == 'admin' else 'false' }}"
+            data-reorder-url="{{ url_for('attendance.update_student_order') }}">
             {% for class_item in classes %}
             {% set class_id = class_item.id|int %}
             {% set students = students_by_class.get(class_id, []) %}
@@ -200,7 +222,12 @@
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>No</th>
+                                        <th>
+                                            No
+                                            {% if current_user and current_user.role == 'admin' %}
+                                            <i class="bi bi-grip-vertical text-muted ms-1"></i>
+                                            {% endif %}
+                                        </th>
                                         <th>Nama Siswa</th>
                                         <th>NIS / NISN</th>
                                         <th>JK</th>
@@ -210,7 +237,7 @@
                                         <th>NIK / KK</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody data-class-id="{{ class_id }}">
                                     {% for student in students %}
                                     {% set student_payload = {
                                         "id": student.id,
@@ -232,8 +259,19 @@
                                         "student_nik": student.nik or '',
                                         "student_kk": student.kk_number or ''
                                     } %}
-                                    <tr class="student-row" role="button" data-student='{{ student_payload | tojson | safe }}' style="cursor: pointer;">
-                                        <td>{{ student.sequence or loop.index }}</td>
+                                    <tr class="student-row{% if current_user and current_user.role == 'admin' %} student-order-row{% endif %}"
+                                        role="button" data-student='{{ student_payload | tojson | safe }}'
+                                        data-student-id="{{ student.id }}"
+                                        {% if current_user and current_user.role == 'admin' %}draggable="true"{% endif %}
+                                        style="cursor: pointer;">
+                                        <td>
+                                            {% if current_user and current_user.role == 'admin' %}
+                                            <span class="drag-handle text-muted me-2" title="Drag untuk ubah urutan">
+                                                <i class="bi bi-grip-vertical"></i>
+                                            </span>
+                                            {% endif %}
+                                            <span class="sequence-number">{{ student.sequence or loop.index }}</span>
+                                        </td>
                                         <td>{{ student.full_name }}</td>
                                         <td>
                                             <div>{{ student.student_number or '—' }}</div>
@@ -291,6 +329,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!studentForm) {
         return;
     }
+    var dragInProgress = false;
     var actionInput = document.getElementById("studentFormAction");
     var studentIdInput = document.getElementById("studentIdInput");
     var modeBadge = document.getElementById("studentFormMode");
@@ -346,6 +385,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function handleRowClick(event) {
+        if (dragInProgress) {
+            return;
+        }
+        if (event.target && event.target.closest(".drag-handle")) {
+            return;
+        }
         var row = event.currentTarget;
         var raw = row.getAttribute("data-student");
         if (!raw) {
@@ -407,6 +452,183 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     setMode(false);
+
+    var accordion = document.getElementById("classAccordion");
+    var canReorder = accordion && accordion.dataset.canReorder === "true";
+    if (!canReorder) {
+        return;
+    }
+    var reorderUrl = accordion.dataset.reorderUrl;
+    if (!reorderUrl) {
+        return;
+    }
+
+    function parseStudentId(value) {
+        var parsed = parseInt(value, 10);
+        return isNaN(parsed) ? null : parsed;
+    }
+
+    function getOrder(tbody) {
+        var ids = [];
+        var rows = tbody.querySelectorAll("tr[data-student-id]");
+        rows.forEach(function (row) {
+            var studentId = parseStudentId(row.dataset.studentId);
+            if (studentId !== null) {
+                ids.push(studentId);
+            }
+        });
+        return ids;
+    }
+
+    function updateSequenceLabels(tbody) {
+        var rows = tbody.querySelectorAll("tr[data-student-id]");
+        rows.forEach(function (row, index) {
+            var seqEl = row.querySelector(".sequence-number");
+            if (seqEl) {
+                seqEl.textContent = String(index + 1);
+            }
+        });
+    }
+
+    function applyOrder(tbody, orderedIds) {
+        var rowMap = {};
+        tbody.querySelectorAll("tr[data-student-id]").forEach(function (row) {
+            rowMap[row.dataset.studentId] = row;
+        });
+        orderedIds.forEach(function (studentId) {
+            var row = rowMap[String(studentId)];
+            if (row) {
+                tbody.appendChild(row);
+            }
+        });
+    }
+
+    function persistOrder(tbody) {
+        var previousOrder = (tbody.dataset.order || "")
+            .split(",")
+            .map(function (value) {
+                return parseStudentId(value);
+            })
+            .filter(function (value) {
+                return value !== null;
+            });
+        var nextOrder = getOrder(tbody);
+        if (!nextOrder.length) {
+            return;
+        }
+        if (nextOrder.join(",") === previousOrder.join(",")) {
+            return;
+        }
+
+        fetch(reorderUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                classId: tbody.dataset.classId,
+                orderedIds: nextOrder,
+            }),
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Gagal menyimpan urutan.");
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data || !data.success) {
+                    throw new Error((data && data.message) || "Gagal menyimpan urutan.");
+                }
+                tbody.dataset.order = nextOrder.join(",");
+            })
+            .catch(function (error) {
+                if (previousOrder.length) {
+                    applyOrder(tbody, previousOrder);
+                    updateSequenceLabels(tbody);
+                }
+                window.alert("Gagal menyimpan urutan siswa: " + error.message);
+            });
+    }
+
+    var draggingRow = null;
+
+    function handleDragStart(event) {
+        var handle = event.target && event.target.closest(".drag-handle");
+        if (!handle) {
+            event.preventDefault();
+            return;
+        }
+        draggingRow = event.currentTarget;
+        dragInProgress = true;
+        draggingRow.classList.add("dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggingRow.dataset.studentId || "");
+    }
+
+    function handleDragOver(event) {
+        if (!draggingRow) {
+            return;
+        }
+        event.preventDefault();
+        var targetRow = event.currentTarget;
+        if (targetRow === draggingRow) {
+            return;
+        }
+        var tbody = targetRow.parentNode;
+        var rect = targetRow.getBoundingClientRect();
+        var offset = event.clientY - rect.top;
+        var after = offset > rect.height / 2;
+        if (after) {
+            tbody.insertBefore(draggingRow, targetRow.nextSibling);
+        } else {
+            tbody.insertBefore(draggingRow, targetRow);
+        }
+    }
+
+    function handleDragEnd() {
+        if (!draggingRow) {
+            dragInProgress = false;
+            return;
+        }
+        var tbody = draggingRow.parentNode;
+        draggingRow.classList.remove("dragging");
+        draggingRow = null;
+        updateSequenceLabels(tbody);
+        persistOrder(tbody);
+        setTimeout(function () {
+            dragInProgress = false;
+        }, 0);
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+    }
+
+    var reorderBodies = document.querySelectorAll("tbody[data-class-id]");
+    reorderBodies.forEach(function (tbody) {
+        var rows = tbody.querySelectorAll("tr[data-student-id]");
+        if (!rows.length) {
+            return;
+        }
+        tbody.dataset.order = getOrder(tbody).join(",");
+        rows.forEach(function (row) {
+            row.addEventListener("dragstart", handleDragStart);
+            row.addEventListener("dragover", handleDragOver);
+            row.addEventListener("dragend", handleDragEnd);
+            row.addEventListener("drop", handleDrop);
+        });
+    });
+
+    var dragHandles = document.querySelectorAll(".drag-handle");
+    dragHandles.forEach(function (handle) {
+        handle.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+        handle.addEventListener("mousedown", function (event) {
+            event.stopPropagation();
+        });
+    });
 });
 </script>
 {% endblock %}

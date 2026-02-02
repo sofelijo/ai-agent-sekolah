@@ -213,6 +213,71 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at
 ON notifications (created_at DESC);
 """
 
+_LANDINGPAGE_SETTINGS_SQL = """
+CREATE TABLE IF NOT EXISTS landingpage_settings (
+    id SERIAL PRIMARY KEY,
+    site_key TEXT UNIQUE NOT NULL,
+    data JSONB NOT NULL,
+    updated_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_LANDINGPAGE_SETTINGS_SITE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_settings_site_key
+ON landingpage_settings (site_key);
+"""
+
+_LANDINGPAGE_TEACHERS_SQL = """
+CREATE TABLE IF NOT EXISTS landingpage_teachers (
+    id SERIAL PRIMARY KEY,
+    site_key TEXT NOT NULL,
+    sort_order INTEGER,
+    name TEXT NOT NULL,
+    degree TEXT,
+    role TEXT,
+    gender TEXT,
+    birth_place TEXT,
+    birth_date DATE,
+    email TEXT,
+    nip TEXT,
+    nuptk TEXT,
+    photo_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_LANDINGPAGE_TEACHERS_SITE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_teachers_site_key
+ON landingpage_teachers (site_key);
+"""
+
+_LANDINGPAGE_TEACHERS_ORDER_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_teachers_order
+ON landingpage_teachers (site_key, sort_order);
+"""
+
+_LANDINGPAGE_AUDIT_LOGS_SQL = """
+CREATE TABLE IF NOT EXISTS landingpage_audit_logs (
+    id SERIAL PRIMARY KEY,
+    site_key TEXT NOT NULL,
+    actor_id INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id INTEGER,
+    metadata JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_LANDINGPAGE_AUDIT_LOGS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_audit_logs_site
+ON landingpage_audit_logs (site_key, created_at DESC);
+"""
+
 _TWITTER_LOGS_SQL = """
 CREATE TABLE IF NOT EXISTS twitter_worker_logs (
     id SERIAL PRIMARY KEY,
@@ -376,6 +441,13 @@ def ensure_dashboard_schema() -> None:
         _NOTIFICATIONS_SQL,
         _NOTIFICATIONS_INDEX_STATUS,
         _NOTIFICATIONS_INDEX_CREATED,
+        _LANDINGPAGE_SETTINGS_SQL,
+        _LANDINGPAGE_SETTINGS_SITE_INDEX_SQL,
+        _LANDINGPAGE_TEACHERS_SQL,
+        _LANDINGPAGE_TEACHERS_SITE_INDEX_SQL,
+        _LANDINGPAGE_TEACHERS_ORDER_INDEX_SQL,
+        _LANDINGPAGE_AUDIT_LOGS_SQL,
+        _LANDINGPAGE_AUDIT_LOGS_INDEX_SQL,
         _TWITTER_LOGS_SQL,
         _TWITTER_LOGS_INDEX_CREATED,
         _TWITTER_LOGS_INDEX_LEVEL,
@@ -429,6 +501,7 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
         _ATTENDANCE_UNIQUE_INDEX_SQL,
+        "ALTER TABLE landingpage_teachers ADD COLUMN IF NOT EXISTS sort_order INTEGER",
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:
@@ -459,6 +532,9 @@ def ensure_sequences_integrity(cur) -> None:
         "borrowing_records",
         "chat_feedback",
         "chat_logs",
+        "landingpage_settings",
+        "landingpage_teachers",
+        "landingpage_audit_logs",
     ]
     for table in tables:
         try:

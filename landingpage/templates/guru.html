@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Data Guru & Pegawai</title>
+    <meta name="description" content="Data Guru & Pegawai SDN Semper Barat 01">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+</head>
+<body class="guru-body">
+{% macro asset_url(value) -%}
+    {%- if value -%}
+        {%- if value.startswith('http') or value.startswith('/static/') -%}
+            {{ value }}
+        {%- elif value.startswith('static/') -%}
+            /{{ value }}
+        {%- else -%}
+            {{ url_for('static', filename=value.lstrip('/')) }}
+        {%- endif -%}
+    {%- endif -%}
+{%- endmacro %}
+
+<main class="guru-page">
+    <section class="guru-hero">
+        <div class="container">
+            <div class="guru-topbar">
+                <a class="guru-back" href="/">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19l-7-7 7-7"/></svg>
+                    Kembali
+                </a>
+                <div class="guru-filter">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v2H4z"/><path d="M7 11h10v2H7z"/><path d="M10 18h4v2h-4z"/></svg>
+                    <select id="guruFilter">
+                        {% for category in categories %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="guru-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg>
+                <input id="guruSearch" type="text" placeholder="Cari nama" autocomplete="off">
+            </div>
+        </div>
+    </section>
+
+    <section class="container guru-section">
+        <h2 class="guru-title">Data Guru & Pegawai</h2>
+        <p id="guruEmpty" class="guru-empty" {% if not guru_list %}style="display:block"{% endif %}>Data tidak ditemukan.</p>
+        <div id="guruGrid" class="guru-grid">
+            {% for guru in guru_list %}
+            {% set nama = guru.get('nama') or '' %}
+            {% set gelar = guru.get('gelar') or '' %}
+            {% set jabatan = guru.get('jabatan') or '' %}
+            {% set email = guru.get('email') or '' %}
+            {% set foto = guru.get('foto') or '' %}
+            {% set kelamin = guru.get('jenis_kelamin') or '' %}
+            {% set nip = guru.get('nip') or '' %}
+            {% set nuptk = guru.get('nuptk') or '' %}
+            {% set tempat_lahir = guru.get('tempat_lahir') or '' %}
+            {% set photo_src = asset_url(foto) or url_for('static', filename='landingpage/images/guru-placeholder.svg') %}
+            <article class="guru-card" data-jabatan="{{ jabatan|lower }}" data-nama="{{ nama|lower }}" data-email="{{ email|lower }}">
+                <div class="guru-photo">
+                    <img src="{{ photo_src }}" alt="Foto {{ nama }}" loading="lazy" onerror="this.onerror=null;this.src='{{ url_for('static', filename='landingpage/images/guru-placeholder.svg') }}';">
+                    <div class="guru-badge guru-badge-name">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v6a8 8 0 1 1-16 0V6"/><path d="M16 6a4 4 0 0 0-8 0"/></svg>
+                        {{ nama }}{% if gelar %}, {{ gelar }}{% endif %}
+                    </div>
+                    <div class="guru-badge guru-badge-gender">{{ 'Laki-laki' if kelamin == 'L' else 'Perempuan' }}</div>
+                    {% if nip %}
+                    <div class="guru-badge guru-badge-nip">NIP: {{ nip }}</div>
+                    {% endif %}
+                </div>
+                <div class="guru-info">
+                    <div class="guru-row">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                        {{ jabatan }}
+                    </div>
+                    <div class="guru-row">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a8 8 0 0 0-8 8c0 5.55 8 12 8 12s8-6.45 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Tempat Lahir : {{ tempat_lahir }}
+                    </div>
+                    {% if nuptk %}
+                    <div class="guru-row">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v4H4z"/><path d="M4 10h16v10H4z"/><path d="M8 14h8"/></svg>
+                        NUPTK: {{ nuptk }}
+                    </div>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='landingpage/js/guru.js') }}"></script>
+</body>
+</html>

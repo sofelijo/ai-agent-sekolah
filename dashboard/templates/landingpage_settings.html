@@ -1,0 +1,883 @@
+{% extends 'base.html' %}
+{% block title %}Pengaturan Landing Page - ASKA Insights{% endblock %}
+
+{% block head_extra %}
+<style>
+    .collection-card {
+        border: 1px dashed rgba(13, 110, 253, 0.25);
+        background: rgba(13, 110, 253, 0.03);
+    }
+    .collection-item {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 14px;
+        padding: 1rem;
+        background: #fff;
+    }
+    .collection-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .small-preview {
+        max-width: 120px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
+{% endblock %}
+
+{% block content %}
+{% set hero = content.get('hero', {}) %}
+{% set documentation = content.get('documentation', {}) %}
+{% set profile = content.get('profile', {}) %}
+{% set activities = content.get('activities', {}) %}
+{% set extracurricular = content.get('extracurricular', {}) %}
+{% set footer = content.get('footer', {}) %}
+
+<section class="page-header">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-window"></i>
+        </span>
+        <div>
+            <h1 class="h4 fw-bold page-title mb-0">Pengaturan Landing Page</h1>
+            <p class="page-subtitle">Kelola konten untuk domain landingpage sekolah (site key: {{ site_key }}).</p>
+        </div>
+    </div>
+</section>
+
+<form method="post" id="landingpageForm">
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-primary">
+                            <i class="bi bi-stars"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Identitas & Hero</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label class="form-label">Nama Sekolah</label>
+                            <input type="text" class="form-control" name="site_name" value="{{ content.get('site_name', '') }}">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Kota</label>
+                            <input type="text" class="form-control" name="city" value="{{ content.get('city', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Judul Hero</label>
+                            <input type="text" class="form-control" name="hero_title" value="{{ hero.get('title', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Subjudul Hero</label>
+                            <input type="text" class="form-control" name="hero_subtitle" value="{{ hero.get('subtitle', '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Deskripsi Hero (opsional)</label>
+                            <textarea class="form-control" name="hero_description" rows="2">{{ hero.get('description', '') }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Background Hero (URL / path static)</label>
+                            <input type="text" class="form-control" name="hero_background" value="{{ hero.get('background_image', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Label CTA</label>
+                            <input type="text" class="form-control" name="hero_cta_label" value="{{ hero.get('primary_cta', {}).get('label', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">URL CTA</label>
+                            <input type="text" class="form-control" name="hero_cta_url" value="{{ hero.get('primary_cta', {}).get('url', '') }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-secondary">
+                            <i class="bi bi-person-badge"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Profil Sekolah</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Judul Profil</label>
+                            <input type="text" class="form-control" name="profile_title" value="{{ profile.get('title', '') }}">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 collection-card p-3 rounded" data-collection="leaders">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Daftar Pimpinan</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set leaders = profile.get('leaders', []) %}
+                            {% if leaders|length == 0 %}
+                                {% set leaders = [{}] %}
+                            {% endif %}
+                            {% for leader in leaders %}
+                            <div class="collection-item mb-3" data-index="{{ loop.index0 }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Jabatan</label>
+                                        <input type="text" class="form-control" name="leaders-{{ loop.index0 }}-role" value="{{ leader.get('role', '') }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nama</label>
+                                        <input type="text" class="form-control" name="leaders-{{ loop.index0 }}-name" value="{{ leader.get('name', '') }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Pendidikan</label>
+                                        <input type="text" class="form-control" name="leaders-{{ loop.index0 }}-education" value="{{ leader.get('education', '') }}">
+                                    </div>
+                                    <div class="col-md-10">
+                                        <label class="form-label">URL Foto</label>
+                                        <input type="text" class="form-control" name="leaders-{{ loop.index0 }}-image" value="{{ leader.get('image', '') }}">
+                                    </div>
+                                    <div class="col-md-2 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-3" data-index="__index__">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Jabatan</label>
+                                        <input type="text" class="form-control" data-field="role">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nama</label>
+                                        <input type="text" class="form-control" data-field="name">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Pendidikan</label>
+                                        <input type="text" class="form-control" data-field="education">
+                                    </div>
+                                    <div class="col-md-10">
+                                        <label class="form-label">URL Foto</label>
+                                        <input type="text" class="form-control" data-field="image">
+                                    </div>
+                                    <div class="col-md-2 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-success">
+                            <i class="bi bi-flag"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Visi & Misi</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Judul Visi & Misi</label>
+                            <input type="text" class="form-control" name="vision_title" value="{{ profile.get('vision_title', '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Visi</label>
+                            <textarea class="form-control" name="vision_text" rows="3">{{ profile.get('vision', '') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 collection-card p-3 rounded" data-collection="missions">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Daftar Misi</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set missions = profile.get('missions', []) %}
+                            {% if missions|length == 0 %}
+                                {% set missions = [''] %}
+                            {% endif %}
+                            {% for mission in missions %}
+                            <div class="collection-item mb-2" data-index="{{ loop.index0 }}">
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="text" class="form-control" name="missions-{{ loop.index0 }}-text" value="{{ mission }}">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-2" data-index="__index__">
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="text" class="form-control" data-field="text">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-warning">
+                            <i class="bi bi-share"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Social Links</h2>
+                    </div>
+                    <div class="collection-card p-3 rounded" data-collection="social_links">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Link Sosial</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set social_links = hero.get('social_links', []) %}
+                            {% if social_links|length == 0 %}
+                                {% set social_links = [{}] %}
+                            {% endif %}
+                            {% for link in social_links %}
+                            <div class="collection-item mb-3" data-index="{{ loop.index0 }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Label</label>
+                                        <input type="text" class="form-control" name="social_links-{{ loop.index0 }}-label" value="{{ link.get('label', '') }}">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">URL</label>
+                                        <input type="text" class="form-control" name="social_links-{{ loop.index0 }}-url" value="{{ link.get('url', '') }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Icon</label>
+                                        <select class="form-select" name="social_links-{{ loop.index0 }}-icon">
+                                            {% for icon in icon_choices %}
+                                            <option value="{{ icon }}" {% if link.get('icon') == icon %}selected{% endif %}>{{ icon }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-3" data-index="__index__">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Label</label>
+                                        <input type="text" class="form-control" data-field="label">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">URL</label>
+                                        <input type="text" class="form-control" data-field="url">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Icon</label>
+                                        <select class="form-select" data-field="icon">
+                                            {% for icon in icon_choices %}
+                                            <option value="{{ icon }}">{{ icon }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-info">
+                            <i class="bi bi-camera-reels"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Dokumentasi</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Judul Dokumentasi</label>
+                            <input type="text" class="form-control" name="documentation_title" value="{{ documentation.get('title', '') }}">
+                        </div>
+                    </div>
+                    <div class="mt-3 collection-card p-3 rounded" data-collection="documentation">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Video Dokumentasi</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set videos = documentation.get('videos', []) %}
+                            {% if videos|length == 0 %}
+                                {% set videos = [{}] %}
+                            {% endif %}
+                            {% for video in videos %}
+                            <div class="collection-item mb-3" data-index="{{ loop.index0 }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" name="documentation-{{ loop.index0 }}-title" value="{{ video.get('title', '') }}">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label">Embed URL</label>
+                                        <input type="text" class="form-control" name="documentation-{{ loop.index0 }}-embed_url" value="{{ video.get('embed_url', '') }}">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-3" data-index="__index__">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-5">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" data-field="title">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label">Embed URL</label>
+                                        <input type="text" class="form-control" data-field="embed_url">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-primary">
+                            <i class="bi bi-calendar-event"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Kegiatan Siswa</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Judul Kegiatan</label>
+                            <input type="text" class="form-control" name="activities_title" value="{{ activities.get('title', '') }}">
+                        </div>
+                    </div>
+                    <div class="mt-3 collection-card p-3 rounded" data-collection="activities">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Item Kegiatan</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set items = activities.get('items', []) %}
+                            {% if items|length == 0 %}
+                                {% set items = [{}] %}
+                            {% endif %}
+                            {% for item in items %}
+                            <div class="collection-item mb-3" data-index="{{ loop.index0 }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" name="activities-{{ loop.index0 }}-title" value="{{ item.get('title', '') }}">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Deskripsi</label>
+                                        <input type="text" class="form-control" name="activities-{{ loop.index0 }}-description" value="{{ item.get('description', '') }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">URL Gambar</label>
+                                        <input type="text" class="form-control" name="activities-{{ loop.index0 }}-image" value="{{ item.get('image', '') }}">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-3" data-index="__index__">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" data-field="title">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Deskripsi</label>
+                                        <input type="text" class="form-control" data-field="description">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">URL Gambar</label>
+                                        <input type="text" class="form-control" data-field="image">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-danger">
+                            <i class="bi bi-award"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Ekstrakurikuler</h2>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Judul Ekstrakurikuler</label>
+                            <input type="text" class="form-control" name="extracurricular_title" value="{{ extracurricular.get('title', '') }}">
+                        </div>
+                    </div>
+                    <div class="mt-3 collection-card p-3 rounded" data-collection="extracurricular">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <strong>Item Ekstrakurikuler</strong>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-action="add">Tambah</button>
+                        </div>
+                        <div class="collection-list">
+                            {% set items = extracurricular.get('items', []) %}
+                            {% if items|length == 0 %}
+                                {% set items = [{}] %}
+                            {% endif %}
+                            {% for item in items %}
+                            <div class="collection-item mb-3" data-index="{{ loop.index0 }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" name="extracurricular-{{ loop.index0 }}-title" value="{{ item.get('title', '') }}">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Deskripsi</label>
+                                        <input type="text" class="form-control" name="extracurricular-{{ loop.index0 }}-description" value="{{ item.get('description', '') }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">URL Gambar</label>
+                                        <input type="text" class="form-control" name="extracurricular-{{ loop.index0 }}-image" value="{{ item.get('image', '') }}">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <template>
+                            <div class="collection-item mb-3" data-index="__index__">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Judul</label>
+                                        <input type="text" class="form-control" data-field="title">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Deskripsi</label>
+                                        <input type="text" class="form-control" data-field="description">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">URL Gambar</label>
+                                        <input type="text" class="form-control" data-field="image">
+                                    </div>
+                                    <div class="col-12 collection-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-info">
+                            <i class="bi bi-graph-up"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">SEO & Open Graph</h2>
+                    </div>
+                    {% set seo = content.get('seo', {}) %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Meta Title</label>
+                            <input type="text" class="form-control" name="seo_meta_title" value="{{ seo.get('meta_title', '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Meta Description</label>
+                            <textarea class="form-control" name="seo_meta_description" rows="2">{{ seo.get('meta_description', '') }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Meta Keywords</label>
+                            <input type="text" class="form-control" name="seo_meta_keywords" value="{{ seo.get('meta_keywords', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">OG Title</label>
+                            <input type="text" class="form-control" name="seo_og_title" value="{{ seo.get('og_title', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">OG Image (URL / path static)</label>
+                            <input type="text" class="form-control" name="seo_og_image" value="{{ seo.get('og_image', '') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">OG Description</label>
+                            <textarea class="form-control" name="seo_og_description" rows="2">{{ seo.get('og_description', '') }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Twitter Card</label>
+                            <select class="form-select" name="seo_twitter_card">
+                                {% set twitter_card = seo.get('twitter_card', 'summary_large_image') %}
+                                <option value="summary" {% if twitter_card == 'summary' %}selected{% endif %}>summary</option>
+                                <option value="summary_large_image" {% if twitter_card == 'summary_large_image' %}selected{% endif %}>summary_large_image</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Favicon (URL / path static)</label>
+                            <input type="text" class="form-control" name="seo_favicon" value="{{ seo.get('favicon', '') }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="icon-badge section-icon text-muted">
+                            <i class="bi bi-brightness-alt-high"></i>
+                        </span>
+                        <h2 class="h5 fw-bold mb-0">Footer</h2>
+                    </div>
+                    <label class="form-label">Teks Footer</label>
+                    <input type="text" class="form-control" name="footer_text" value="{{ footer.get('text', '') }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save me-2"></i>Simpan Perubahan
+        </button>
+    </div>
+</form>
+
+<div class="row g-4 mt-5">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="page-title-group">
+                <span class="icon-badge feature-icon text-primary">
+                    <i class="bi bi-person-badge"></i>
+                </span>
+                <div>
+                    <h2 class="h5 fw-bold page-title mb-0">Data Guru & Pegawai</h2>
+                    <p class="page-subtitle">Kelola daftar guru/pegawai untuk halaman landing page.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-primary">
+                        <i class="bi bi-person-plus"></i>
+                    </span>
+                    <h3 class="h6 fw-bold mb-0">Tambah Guru/Pegawai</h3>
+                </div>
+                <form method="post" action="{{ url_for('main.landingpage_teacher_create') }}" enctype="multipart/form-data" data-photo-form>
+                    <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <input type="hidden" name="photo_data">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Lengkap</label>
+                        <input type="text" class="form-control" name="nama" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gelar</label>
+                        <input type="text" class="form-control" name="gelar" placeholder="S.Pd">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Jabatan</label>
+                        <input type="text" class="form-control" name="jabatan" placeholder="Guru, Wakasek, dll">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Jenis Kelamin</label>
+                        <select class="form-select" name="jenis_kelamin">
+                            <option value="">-</option>
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tempat Lahir</label>
+                        <input type="text" class="form-control" name="tempat_lahir">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal Lahir</label>
+                        <input type="date" class="form-control" name="tanggal_lahir">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">NIP</label>
+                        <input type="text" class="form-control" name="nip">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">NUPTK</label>
+                        <input type="text" class="form-control" name="nuptk">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Foto (URL / path static)</label>
+                        <input type="text" class="form-control" name="foto" placeholder="landingpage/images/guru/01.jpg">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Upload Foto + Crop</label>
+                        <input type="file" class="form-control teacher-photo-input" name="photo_file" accept="image/*">
+                        <small class="text-muted">Unggah foto jika ingin crop otomatis (512x512).</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="teacherActiveNew" checked>
+                        <label class="form-check-label" for="teacherActiveNew">Aktif di landing page</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save me-2"></i>Simpan
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-secondary">
+                        <i class="bi bi-collection"></i>
+                    </span>
+                    <h3 class="h6 fw-bold mb-0">Daftar Guru & Pegawai</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th></th>
+                                <th>Nama</th>
+                                <th>Jabatan</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacherTableBody" data-site-key="{{ site_key }}">
+                            {% for teacher in teachers %}
+                            <tr data-teacher-id="{{ teacher.id }}">
+                                <td class="text-muted">
+                                    <i class="bi bi-grip-vertical drag-handle"></i>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ teacher.nama }}</div>
+                                    <div class="small text-muted">{{ teacher.gelar or '-' }}</div>
+                                </td>
+                                <td>{{ teacher.jabatan or '-' }}</td>
+                                <td>{{ teacher.email or '-' }}</td>
+                                <td>
+                                    {% if teacher.is_active %}
+                                    <span class="badge text-bg-success">Aktif</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#editTeacherModal{{ teacher.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post" action="{{ url_for('main.landingpage_teacher_delete', teacher_id=teacher.id) }}"
+                                            onsubmit="return confirm('Hapus data guru ini?');">
+                                            <input type="hidden" name="site_key" value="{{ site_key }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Belum ada data guru.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for teacher in teachers %}
+<div class="modal fade" id="editTeacherModal{{ teacher.id }}" tabindex="-1"
+    aria-labelledby="editTeacherModalLabel{{ teacher.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('main.landingpage_teacher_update', teacher_id=teacher.id) }}" enctype="multipart/form-data" data-photo-form>
+                <input type="hidden" name="site_key" value="{{ site_key }}">
+                <input type="hidden" name="photo_data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTeacherModalLabel{{ teacher.id }}">Edit Guru/Pegawai</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Lengkap</label>
+                            <input type="text" class="form-control" name="nama" value="{{ teacher.nama }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gelar</label>
+                            <input type="text" class="form-control" name="gelar" value="{{ teacher.gelar or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Jabatan</label>
+                            <input type="text" class="form-control" name="jabatan" value="{{ teacher.jabatan or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Jenis Kelamin</label>
+                            <select class="form-select" name="jenis_kelamin">
+                                <option value="" {% if not teacher.jenis_kelamin %}selected{% endif %}>-</option>
+                                <option value="L" {% if teacher.jenis_kelamin == 'L' %}selected{% endif %}>Laki-laki</option>
+                                <option value="P" {% if teacher.jenis_kelamin == 'P' %}selected{% endif %}>Perempuan</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tempat Lahir</label>
+                            <input type="text" class="form-control" name="tempat_lahir" value="{{ teacher.tempat_lahir or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tanggal Lahir</label>
+                            <input type="date" class="form-control" name="tanggal_lahir" value="{{ teacher.tanggal_lahir }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="{{ teacher.email or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">NIP</label>
+                            <input type="text" class="form-control" name="nip" value="{{ teacher.nip or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">NUPTK</label>
+                            <input type="text" class="form-control" name="nuptk" value="{{ teacher.nuptk or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Foto (URL / path static)</label>
+                            <input type="text" class="form-control" name="foto" value="{{ teacher.foto or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Upload Foto + Crop</label>
+                            <input type="file" class="form-control teacher-photo-input" name="photo_file" accept="image/*">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="teacherActive{{ teacher.id }}" {% if teacher.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="teacherActive{{ teacher.id }}">Aktif di landing page</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="icon-badge section-icon text-secondary">
+                <i class="bi bi-activity"></i>
+            </span>
+            <h3 class="h6 fw-bold mb-0">Activity Log</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Aksi</th>
+                        <th>Pelaku</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at|jakarta('%d %b %Y %H:%M') }}</td>
+                        <td><span class="badge text-bg-primary">{{ log.action }}</span></td>
+                        <td>{{ log.actor_name or log.actor_email or 'System' }}</td>
+                        <td class="small text-muted">
+                            {% if log.entity_type %}{{ log.entity_type }}{% endif %}
+                            {% if log.entity_id %}#{{ log.entity_id }}{% endif %}
+                            {% if log.metadata %}
+                            <div class="text-muted small">{{ log.metadata|tojson }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">Belum ada aktivitas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="teacherCropModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crop Foto Guru</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ratio ratio-1x1 bg-light">
+                    <img id="teacherCropImage" alt="Preview crop" style="width:100%; height:100%; object-fit:contain;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="teacherCropSave">Gunakan Foto</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='js/landingpage_settings.js') }}"></script>
+{% endblock %}

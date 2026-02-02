@@ -75,6 +75,7 @@
                                 <th><i class="bi bi-hash"></i>NRK</th>
                                 <th><i class="bi bi-calendar-event"></i>Dibuat</th>
                                 <th><i class="bi bi-clock-history"></i>Login Terakhir</th>
+                                <th class="text-end"><i class="bi bi-gear"></i>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -88,10 +89,24 @@
                                 <td>{{ user.nrk or '-' }}</td>
                                 <td>{{ user.created_at|jakarta('%d %b %Y %H:%M') if user.created_at }}</td>
                                 <td>{{ user.last_login_at|jakarta('%d %b %Y %H:%M') if user.last_login_at else '-' }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post" action="{{ url_for('auth.delete_user', user_id=user.id) }}"
+                                            onsubmit="return confirm('Hapus user ini?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="8" class="text-center text-muted">Belum ada user.</td>
+                                <td colspan="9" class="text-center text-muted">Belum ada user.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -101,4 +116,76 @@
         </div>
     </div>
 </div>
+
+{% for user in users %}
+<div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1"
+    aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('auth.update_user', user_id=user.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editUserModalLabel{{ user.id }}">Edit User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Lengkap</label>
+                            <input type="text" class="form-control" name="full_name" value="{{ user.full_name }}"
+                                required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role" required>
+                                <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                                <option value="editor" {% if user.role == 'editor' %}selected{% endif %}>Editor</option>
+                                <option value="staff" {% if user.role == 'staff' %}selected{% endif %}>Staff</option>
+                                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password Baru</label>
+                            <input type="password" class="form-control" name="password" minlength="8"
+                                placeholder="Kosongkan jika tidak diubah">
+                            <small class="text-muted">Minimal 8 karakter jika diisi.</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Jabatan</label>
+                            <input type="text" class="form-control" name="jabatan" value="{{ user.jabatan or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">NIP</label>
+                            <input type="text" class="form-control" name="nip" value="{{ user.nip or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">NRK</label>
+                            <input type="text" class="form-control" name="nrk" value="{{ user.nrk or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gelar Depan</label>
+                            <input type="text" class="form-control" name="degree_prefix"
+                                value="{{ user.degree_prefix or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gelar Belakang</label>
+                            <input type="text" class="form-control" name="degree_suffix"
+                                value="{{ user.degree_suffix or '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
