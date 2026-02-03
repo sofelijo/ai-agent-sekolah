@@ -1411,7 +1411,7 @@ def create_extracurricular(
                 location,
                 capacity,
                 description,
-                metadata_payload,
+                metadata,
                 created_by,
                 updated_by
             )
@@ -1428,7 +1428,7 @@ def create_extracurricular(
                 location,
                 capacity,
                 description,
-                metadata,
+                metadata_payload,
                 created_by,
                 created_by,
             ),
