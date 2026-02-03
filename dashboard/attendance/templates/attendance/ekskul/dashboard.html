@@ -1,0 +1,463 @@
+{% extends "attendance/base.html" %}
+{% block title %}Dashboard Ekskul{% endblock %}
+
+{% block content %}
+<div class="ekskul-page ekskul-dashboard">
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Dashboard Ekskul</h1>
+        <p class="text-muted mb-0">Ringkasan performa kehadiran dan aktivitas ekstrakurikuler.</p>
+    </div>
+    <div class="text-lg-end">
+        <span class="badge text-bg-primary-subtle text-primary d-inline-flex align-items-center gap-2 px-3 py-2">
+            <i class="bi bi-calendar-event"></i>
+            {{ today_label }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Ekskul Aktif</div>
+                        <div class="fs-3 fw-semibold">{{ total_activities }}</div>
+                    </div>
+                    <span class="icon-badge text-primary"><i class="bi bi-trophy"></i></span>
+                </div>
+                <div class="small text-muted mt-2">Total kegiatan terdaftar.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Anggota Aktif</div>
+                        <div class="fs-3 fw-semibold">{{ active_members }}</div>
+                    </div>
+                    <span class="icon-badge text-success"><i class="bi bi-people"></i></span>
+                </div>
+                <div class="small text-muted mt-2">Siswa yang masih aktif di ekskul.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Total Anggota</div>
+                        <div class="fs-3 fw-semibold">{{ total_members }}</div>
+                    </div>
+                    <span class="icon-badge text-info"><i class="bi bi-person-check"></i></span>
+                </div>
+                <div class="small text-muted mt-2">Termasuk anggota nonaktif.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Kehadiran Hari Ini</div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <span class="badge text-bg-success-subtle text-success">Masuk: {{ totals_today.masuk }}</span>
+                    <span class="badge text-bg-danger-subtle text-danger">Alpa: {{ totals_today.alpa }}</span>
+                    <span class="badge text-bg-warning-subtle text-warning">Izin: {{ totals_today.izin }}</span>
+                    <span class="badge text-bg-info-subtle text-info">Sakit: {{ totals_today.sakit }}</span>
+                </div>
+                <div class="small text-muted mt-2">Update terbaru per tanggal {{ today_label }}.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Tren Kehadiran 7 Hari Terakhir</h2>
+                        <div class="text-muted small">Pantau konsistensi kehadiran ekskul mingguan.</div>
+                    </div>
+                    <span class="badge text-bg-light">{{ generated_at|jakarta('%d %b %Y %H:%M') if generated_at }}</span>
+                </div>
+                <canvas id="ekskulTrendChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h2 class="h5 mb-0">Aktivitas Terbaru</h2>
+                    <div class="text-muted small">Klik detail untuk lihat daftar siswa.</div>
+                </div>
+                <div class="recent-list">
+                    {% for record in recent_records %}
+                    <div class="recent-item">
+                        <div class="recent-main">
+                            <div class="recent-title">{{ record.extracurricular_name }}</div>
+                            <div class="recent-date">{{ record.attendance_date|jakarta('%d %b %Y') if record.attendance_date }}</div>
+                        </div>
+                        <div class="recent-stats">
+                            <span class="recent-stat text-success">M {{ record.masuk }}</span>
+                            <span class="recent-stat text-danger">A {{ record.alpa }}</span>
+                            <span class="recent-stat text-warning">I {{ record.izin }}</span>
+                            <span class="recent-stat text-info">S {{ record.sakit }}</span>
+                        </div>
+                        <div class="recent-actions">
+                            <button type="button"
+                                class="btn btn-outline-primary btn-xs"
+                                data-bs-toggle="modal"
+                                data-bs-target="#recentDetailModal"
+                                data-activity-id="{{ record.extracurricular_id }}"
+                                data-extracurricular="{{ record.extracurricular_name }}"
+                                data-date="{{ record.attendance_date|jakarta('%d %b %Y') if record.attendance_date }}"
+                                data-date-iso="{{ record.attendance_date.isoformat() if record.attendance_date }}"
+                                data-masuk="{{ record.masuk }}"
+                                data-alpa="{{ record.alpa }}"
+                                data-izin="{{ record.izin }}"
+                                data-sakit="{{ record.sakit }}"
+                                data-updated="{{ record.last_updated|jakarta('%d %b %Y %H:%M') if record.last_updated }}">
+                                Detail
+                            </button>
+                            <a class="btn btn-outline-secondary btn-xs"
+                                href="{{ landingpage_base_url }}/ekskul/{{ record.extracurricular_id }}"
+                                target="_blank" rel="noopener" title="Lihat di web">
+                                <i class="bi bi-browser-chrome"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted small">Belum ada aktivitas absensi terbaru.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="recentDetailModal" tabindex="-1" aria-labelledby="recentDetailLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recentDetailLabel">Detail Aktivitas Ekskul</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Ekskul</div>
+                    <div class="fw-semibold" id="recentDetailName">-</div>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Tanggal</div>
+                    <div class="fw-semibold" id="recentDetailDate">-</div>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Update Terakhir</div>
+                    <div class="fw-semibold" id="recentDetailUpdated">-</div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <span class="badge text-bg-success-subtle text-success" id="recentDetailMasuk">Masuk: 0</span>
+                    <span class="badge text-bg-danger-subtle text-danger" id="recentDetailAlpa">Alpa: 0</span>
+                    <span class="badge text-bg-warning-subtle text-warning" id="recentDetailIzin">Izin: 0</span>
+                    <span class="badge text-bg-info-subtle text-info" id="recentDetailSakit">Sakit: 0</span>
+                </div>
+                <div class="recent-student-groups mt-3">
+                    <div class="recent-student-group">
+                        <div class="recent-student-title text-success">Masuk</div>
+                        <div class="recent-student-list" id="recentDetailMasukList">-</div>
+                    </div>
+                    <div class="recent-student-group">
+                        <div class="recent-student-title text-danger">Alpa</div>
+                        <div class="recent-student-list" id="recentDetailAlpaList">-</div>
+                    </div>
+                    <div class="recent-student-group">
+                        <div class="recent-student-title text-warning">Izin</div>
+                        <div class="recent-student-list" id="recentDetailIzinList">-</div>
+                    </div>
+                    <div class="recent-student-group">
+                        <div class="recent-student-title text-info">Sakit</div>
+                        <div class="recent-student-list" id="recentDetailSakitList">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h2 class="h5 mb-1">Bukti Foto Terbaru</h2>
+                <div class="text-muted small">Foto bukti dengan timestamp & GPS yang tersimpan.</div>
+            </div>
+        </div>
+        <div class="row g-3">
+            {% for session in evidence_sessions %}
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="ratio ratio-4x3 bg-body-secondary rounded-top overflow-hidden">
+                        {% if session.photo_path %}
+                        <img src="{{ url_for('static', filename=session.photo_path) }}" alt="Bukti ekskul {{ session.extracurricular_name }}" class="w-100 h-100" style="object-fit: cover;">
+                        {% else %}
+                        <div class="d-flex align-items-center justify-content-center text-muted">Tidak ada foto</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="fw-semibold">{{ session.extracurricular_name }}</div>
+                        <div class="small text-muted">{{ session.attendance_date|jakarta('%d %b %Y') if session.attendance_date }}</div>
+                        <div class="small text-muted">
+                            {% if session.captured_at %}
+                            Waktu: {{ session.captured_at|jakarta('%d %b %Y %H:%M') }}
+                            {% endif %}
+                        </div>
+                        {% if session.address %}
+                        <div class="small text-muted mt-1">{{ session.address }}</div>
+                        {% endif %}
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            <span class="badge text-bg-success-subtle text-success">Masuk: {{ session.masuk }}</span>
+                            <span class="badge text-bg-danger-subtle text-danger">Alpa: {{ session.alpa }}</span>
+                            <span class="badge text-bg-warning-subtle text-warning">Izin: {{ session.izin }}</span>
+                            <span class="badge text-bg-info-subtle text-info">Sakit: {{ session.sakit }}</span>
+                        </div>
+                    </div>
+                    {% if session.photo_path %}
+                    <div class="card-footer bg-transparent border-0 pt-0">
+                        <a class="btn btn-outline-primary btn-sm w-100" target="_blank" rel="noopener"
+                            href="{{ url_for('static', filename=session.photo_path) }}">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Lihat Foto
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="text-muted small">Belum ada foto bukti tersimpan.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h2 class="h5 mb-1">Daftar Ekskul</h2>
+                <div class="text-muted small">Ringkasan anggota dan jadwal setiap kegiatan.</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('attendance.ekskul_config') }}">
+                    <i class="bi bi-sliders me-1"></i>Konfigurasi Jadwal
+                </a>
+                {% if current_user and current_user.role == 'admin' %}
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('attendance.ekskul_master') }}">
+                    <i class="bi bi-gear me-1"></i>Kelola Ekskul
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ekskul</th>
+                        <th class="d-none d-lg-table-cell">Pembina</th>
+                        <th>Jadwal</th>
+                        <th class="d-none d-md-table-cell">Lokasi</th>
+                        <th class="text-center">Anggota Aktif</th>
+                        <th class="text-center d-none d-lg-table-cell">Total</th>
+                        <th class="d-none d-md-table-cell">Absensi Terakhir</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in overview %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ item.name }}</div>
+                            {% if item.description %}
+                            <div class="small text-muted">{{ item.description }}</div>
+                            {% endif %}
+                            {% if item.coach_display or item.coach_name %}
+                            <div class="small text-muted d-lg-none">Pembina: {{ item.coach_display or item.coach_name }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-lg-table-cell">{{ item.coach_display or item.coach_name or '-' }}</td>
+                        <td>
+                            {% if item.schedule_day or item.start_time %}
+                            {{ item.schedule_day or '-' }}
+                            {% if item.start_time %}• {{ item.start_time }}{% endif %}
+                            {% if item.end_time %} - {{ item.end_time }}{% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ item.location or '-' }}</td>
+                        <td class="text-center">{{ item.active_members }}</td>
+                        <td class="text-center d-none d-lg-table-cell">{{ item.total_members }}</td>
+                        <td class="d-none d-md-table-cell">{{ item.last_attendance_date|jakarta('%d %b %Y') if item.last_attendance_date else '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Belum ada data ekskul.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var trendCanvas = document.getElementById("ekskulTrendChart");
+    if (!trendCanvas) {
+        return;
+    }
+    var trendWeekly = {{ trend_weekly_payload|tojson }};
+    var STATUS_CONFIG = [
+        { key: "masuk", label: "Masuk", color: "#198754" },
+        { key: "alpa", label: "Alpa", color: "#dc3545" },
+        { key: "izin", label: "Izin", color: "#ffc107" },
+        { key: "sakit", label: "Sakit", color: "#0dcaf0" }
+    ];
+    var recentDetailEndpoint = "{{ url_for('attendance.ekskul_recent_detail') }}";
+
+    var recentModalEl = document.getElementById("recentDetailModal");
+    if (recentModalEl) {
+        recentModalEl.addEventListener("show.bs.modal", function (event) {
+            var button = event.relatedTarget;
+            if (!button) {
+                return;
+            }
+            var name = button.getAttribute("data-extracurricular") || "-";
+            var date = button.getAttribute("data-date") || "-";
+            var updated = button.getAttribute("data-updated") || "-";
+            var masuk = button.getAttribute("data-masuk") || "0";
+            var alpa = button.getAttribute("data-alpa") || "0";
+            var izin = button.getAttribute("data-izin") || "0";
+            var sakit = button.getAttribute("data-sakit") || "0";
+            var activityId = button.getAttribute("data-activity-id") || "";
+            var dateIso = button.getAttribute("data-date-iso") || "";
+
+            var nameEl = document.getElementById("recentDetailName");
+            var dateEl = document.getElementById("recentDetailDate");
+            var updatedEl = document.getElementById("recentDetailUpdated");
+            var masukEl = document.getElementById("recentDetailMasuk");
+            var alpaEl = document.getElementById("recentDetailAlpa");
+            var izinEl = document.getElementById("recentDetailIzin");
+            var sakitEl = document.getElementById("recentDetailSakit");
+            var masukList = document.getElementById("recentDetailMasukList");
+            var alpaList = document.getElementById("recentDetailAlpaList");
+            var izinList = document.getElementById("recentDetailIzinList");
+            var sakitList = document.getElementById("recentDetailSakitList");
+
+            if (nameEl) nameEl.textContent = name;
+            if (dateEl) dateEl.textContent = date;
+            if (updatedEl) updatedEl.textContent = updated;
+            if (masukEl) masukEl.textContent = "Masuk: " + masuk;
+            if (alpaEl) alpaEl.textContent = "Alpa: " + alpa;
+            if (izinEl) izinEl.textContent = "Izin: " + izin;
+            if (sakitEl) sakitEl.textContent = "Sakit: " + sakit;
+
+            var setLoading = function (target) {
+                if (!target) return;
+                target.textContent = "Memuat...";
+            };
+            [masukList, alpaList, izinList, sakitList].forEach(setLoading);
+
+            if (!activityId || !dateIso) {
+                return;
+            }
+            var params = new URLSearchParams({ activity_id: activityId, date: dateIso });
+            fetch(recentDetailEndpoint + "?" + params.toString(), { credentials: "same-origin" })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("Gagal memuat detail");
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    if (!payload || !payload.success) {
+                        throw new Error(payload && payload.message ? payload.message : "Gagal memuat detail");
+                    }
+                    var groups = payload.groups || {};
+                    var renderList = function (items, target) {
+                        if (!target) return;
+                        target.innerHTML = "";
+                        if (!items || !items.length) {
+                            target.textContent = "-";
+                            return;
+                        }
+                        items.forEach(function (item) {
+                            var chip = document.createElement("span");
+                            chip.className = "recent-student-chip";
+                            var label = item.name || "";
+                            if (item.class_name) {
+                                label += " (" + item.class_name + ")";
+                            }
+                            chip.textContent = label.trim();
+                            target.appendChild(chip);
+                        });
+                    };
+                    renderList(groups.masuk || [], masukList);
+                    renderList(groups.alpa || [], alpaList);
+                    renderList(groups.izin || [], izinList);
+                    renderList(groups.sakit || [], sakitList);
+                })
+                .catch(function () {
+                    [masukList, alpaList, izinList, sakitList].forEach(function (target) {
+                        if (!target) return;
+                        target.textContent = "-";
+                    });
+                });
+        });
+    }
+    var datasets = STATUS_CONFIG.map(function (config) {
+        var values = (trendWeekly.series && trendWeekly.series[config.key]) || [];
+        return {
+            label: config.label,
+            data: values.slice(),
+            fill: false,
+            borderColor: config.color,
+            backgroundColor: config.color,
+            tension: 0.3,
+            borderWidth: 2
+        };
+    });
+    new Chart(trendCanvas, {
+        type: "line",
+        data: {
+            labels: (trendWeekly.labels || []).slice(),
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    ticks: { precision: 0 },
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: "bottom"
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

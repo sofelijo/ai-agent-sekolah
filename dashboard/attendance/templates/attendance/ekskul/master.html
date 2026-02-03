@@ -1,0 +1,204 @@
+{% extends "attendance/base.html" %}
+{% block title %}Master Ekskul{% endblock %}
+
+{% block content %}
+<section class="page-header mb-4">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-trophy"></i>
+        </span>
+        <div>
+            <h1 class="h4 fw-bold page-title mb-0">Master Ekskul</h1>
+            <p class="page-subtitle">Kelola daftar ekstrakurikuler dan penetapan pembina.</p>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-primary">
+                        <i class="bi bi-plus-circle"></i>
+                    </span>
+                    <h2 class="h5 fw-bold mb-0">Tambah Ekskul</h2>
+                </div>
+                <form method="post">
+                    <input type="hidden" name="action" value="create">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Ekskul</label>
+                        <select class="form-select mb-2 ekskul-name-select" data-target="nameInputNew">
+                            <option value="">-- Pilih dari daftar (opsional) --</option>
+                            {% for name in name_choices %}
+                            <option value="{{ name }}">{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="text" class="form-control" id="nameInputNew" name="name" placeholder="Tulis nama baru jika belum ada" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pembina</label>
+                        <select class="form-select" name="coach_user_id" required>
+                            <option value="">-- Pilih pembina --</option>
+                            {% for coach in coaches %}
+                            <option value="{{ coach.id }}">{{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="alert alert-info small">
+                        Jadwal, jam, kapasitas, lokasi, dan deskripsi diatur oleh pembina pada menu Konfigurasi Ekskul.
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save me-2"></i>Simpan
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="icon-badge section-icon text-secondary">
+                        <i class="bi bi-card-list"></i>
+                    </span>
+                    <h2 class="h5 fw-bold mb-0">Daftar Ekskul</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ekskul</th>
+                                <th>Pembina</th>
+                                <th>Jadwal</th>
+                                <th>Anggota Aktif</th>
+                                <th>Status</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in activities %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ activity.name }}</div>
+                                    {% if activity.location %}
+                                    <div class="small text-muted">{{ activity.location }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ activity.coach_display or '-' }}</td>
+                                <td>
+                                    {% if activity.schedule_day or activity.start_time %}
+                                    {{ activity.schedule_day or '-' }}{% if activity.start_time %} • {{ activity.start_time }}{% endif %}{% if activity.end_time %} - {{ activity.end_time }}{% endif %}
+                                    {% else %}
+                                    <span class="text-muted small">Belum dikonfigurasi</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ activity.active_members }}</td>
+                                <td>
+                                    {% if activity.active %}
+                                    <span class="badge text-bg-success">Aktif</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editEkskulModal{{ activity.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post" class="d-inline">
+                                            <input type="hidden" name="action" value="toggle">
+                                            <input type="hidden" name="activity_id" value="{{ activity.id }}">
+                                            <input type="hidden" name="active" value="{{ 0 if activity.active else 1 }}">
+                                            <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if activity.active else 'btn-outline-success' }}">
+                                                {% if activity.active %}
+                                                <i class="bi bi-slash-circle"></i>
+                                                {% else %}
+                                                <i class="bi bi-check-circle"></i>
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Belum ada data ekskul.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for activity in activities %}
+<div class="modal fade" id="editEkskulModal{{ activity.id }}" tabindex="-1" aria-labelledby="editEkskulModalLabel{{ activity.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="activity_id" value="{{ activity.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editEkskulModalLabel{{ activity.id }}">Edit Ekskul</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Ekskul</label>
+                            <select class="form-select mb-2 ekskul-name-select" data-target="nameInput{{ activity.id }}">
+                                <option value="">-- Pilih dari daftar (opsional) --</option>
+                                {% for name in name_choices %}
+                                <option value="{{ name }}" {% if name == activity.name %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="text" class="form-control" id="nameInput{{ activity.id }}" name="name" value="{{ activity.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Pembina</label>
+                            <select class="form-select" name="coach_user_id" required>
+                                <option value="">-- Pilih pembina --</option>
+                                {% for coach in coaches %}
+                                <option value="{{ coach.id }}" {% if activity.coach_user_id == coach.id %}selected{% endif %}>
+                                    {{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="alert alert-info small mb-0">
+                                Jadwal, jam, kapasitas, lokasi, dan deskripsi dikonfigurasi oleh pembina pada menu Konfigurasi Ekskul.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+(() => {
+    document.querySelectorAll('.ekskul-name-select').forEach((select) => {
+        select.addEventListener('change', () => {
+            const targetId = select.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            if (select.value) {
+                input.value = select.value;
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

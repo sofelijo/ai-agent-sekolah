@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Pilih Aplikasi{% endblock %}
+
+{% block content %}
+<div class="container py-4 app-hub">
+    {% set role = current_user.role if current_user else '' %}
+    {% set can_aska = role == 'admin' %}
+    {% set can_absen_siswa = role in ['admin', 'staff'] %}
+    {% set can_absen_ekskul = role in ['admin', 'ekskul'] %}
+    {% set can_tka = role == 'admin' %}
+
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
+        <div>
+            <h1 class="h4 mb-1">Pilih Aplikasi</h1>
+            <p class="text-muted mb-0">Akses cepat ke modul utama OSS.</p>
+        </div>
+        <span class="badge text-bg-primary-subtle text-primary d-inline-flex align-items-center gap-2 px-3 py-2">
+            <i class="bi bi-grid-3x3-gap"></i>
+            Beranda
+        </span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_aska %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('main.aska_dashboard') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-primary"><i class="bi bi-stars"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">ASKA</h2>
+                    <p class="text-muted small mb-0">Dashboard ASKA Insights.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-primary"><i class="bi bi-stars"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">ASKA</h2>
+                    <p class="text-muted small mb-2">Dashboard ASKA Insights.</p>
+                    <span class="badge text-bg-light">Khusus admin</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_absen_siswa %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('attendance.dashboard') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-success"><i class="bi bi-clipboard-check"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Absen Siswa</h2>
+                    <p class="text-muted small mb-0">Kelola absensi harian kelas.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-success"><i class="bi bi-clipboard-check"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Absen Siswa</h2>
+                    <p class="text-muted small mb-2">Kelola absensi harian kelas.</p>
+                    <span class="badge text-bg-light">Admin & staf</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('library.index') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-warning"><i class="bi bi-book"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Perpustakaan</h2>
+                    <p class="text-muted small mb-0">Peminjaman & inventaris buku.</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_absen_ekskul %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('attendance.ekskul_dashboard') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-info"><i class="bi bi-trophy"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Absen Ekskul</h2>
+                    <p class="text-muted small mb-0">Absensi pembina ekskul.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-info"><i class="bi bi-trophy"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Absen Ekskul</h2>
+                    <p class="text-muted small mb-2">Absensi pembina ekskul.</p>
+                    <span class="badge text-bg-light">Admin & ekskul</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_tka %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('tka.latihan_tka_bank') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-mortarboard"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">TKA</h2>
+                    <p class="text-muted small mb-0">Manajemen bank soal & ujian.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-mortarboard"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">TKA</h2>
+                    <p class="text-muted small mb-2">Manajemen bank soal & ujian.</p>
+                    <span class="badge text-bg-light">Khusus admin</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,252 @@
+{% macro asset_url(value) -%}
+    {%- if value -%}
+        {%- if value.startswith('http') or value.startswith('/static/') -%}
+            {{ value }}
+        {%- elif value.startswith('uploads/') -%}
+            {{ url_for('landing_assets', filename=value.lstrip('/')) }}
+        {%- elif value.startswith('static/') -%}
+            /{{ value }}
+        {%- else -%}
+            {{ url_for('static', filename=value.lstrip('/')) }}
+        {%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ activity.name }} - Ekstrakurikuler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+</head>
+<body class="ekskul-detail-body">
+<main class="ekskul-detail">
+    <section class="ekskul-hero" style="--ekskul-hero-image: url('{{ asset_url(main_photo) }}')">
+        <div class="container">
+            <a class="ekskul-back" href="/">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19l-7-7 7-7"/></svg>
+                Kembali ke Beranda
+            </a>
+            <div class="ekskul-hero-grid">
+                <div class="ekskul-hero-copy">
+                    <h1>{{ activity.name }}</h1>
+                    <p>{{ description or 'Informasi ekstrakurikuler belum tersedia.' }}</p>
+                    <div class="ekskul-meta">
+                        {% if activity.schedule_day %}
+                        <span><strong>Jadwal:</strong> {{ activity.schedule_day }}</span>
+                        {% endif %}
+                        {% if activity.start_time %}
+                        <span><strong>Jam:</strong> {{ activity.start_time }}{% if activity.end_time %} - {{ activity.end_time }}{% endif %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="ekskul-hero-media">
+                    <img id="ekskulMainPhoto" src="{{ asset_url(main_photo) }}" alt="Foto utama {{ activity.name }}">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container ekskul-gallery">
+        <h2>Galeri Kegiatan</h2>
+        {% if gallery_photos %}
+        <div class="ekskul-gallery-track" tabindex="0" aria-label="Geser galeri foto">
+            {% for photo in gallery_photos %}
+            <button type="button" class="ekskul-gallery-thumb{% if loop.first %} is-active{% endif %}"
+                data-photo="{{ asset_url(photo) }}"
+                data-alt="Foto ekskul {{ activity.name }}"
+                aria-pressed="{{ 'true' if loop.first else 'false' }}">
+                <img src="{{ asset_url(photo) }}" alt="Foto ekskul {{ activity.name }}">
+            </button>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="ekskul-gallery-empty">Belum ada foto tambahan.</div>
+        {% endif %}
+    </section>
+
+    <section class="container ekskul-history">
+        <h2>Timeline Absensi</h2>
+        <p class="ekskul-history-subtitle">Riwayat absensi ekskul tanpa data pribadi siswa.</p>
+        <div class="timeline" id="historyTimeline">
+            {% for item in history_items %}
+            <article class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-card">
+                    <div class="timeline-date">{{ item.date_label }}</div>
+                    <div class="timeline-media">
+                        <img src="{{ asset_url(item.photo_path) }}" alt="Foto absensi {{ activity.name }}">
+                        <div class="timeline-count">{{ item.total_students }} siswa</div>
+                    </div>
+                </div>
+            </article>
+            {% else %}
+            <div class="timeline-empty">Belum ada data absensi tersimpan.</div>
+            {% endfor %}
+        </div>
+        {% if history_has_more %}
+        <button class="timeline-more" id="historyLoadMore" data-offset="{{ history_offset }}" data-activity="{{ activity.id }}">
+            Lihat lebih banyak
+        </button>
+        {% endif %}
+    </section>
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var galleryTrack = document.querySelector(".ekskul-gallery-track");
+    var mainImage = document.getElementById("ekskulMainPhoto");
+    var heroSection = document.querySelector(".ekskul-hero");
+    if (galleryTrack && mainImage) {
+        var thumbs = Array.prototype.slice.call(galleryTrack.querySelectorAll(".ekskul-gallery-thumb"));
+        var activeIndex = thumbs.findIndex(function (btn) {
+            return btn.classList.contains("is-active");
+        });
+        if (activeIndex < 0) {
+            activeIndex = 0;
+        }
+
+        var setActive = function (index, focusThumb) {
+            if (!thumbs.length) return;
+            if (index < 0) index = thumbs.length - 1;
+            if (index >= thumbs.length) index = 0;
+            thumbs.forEach(function (btn, idx) {
+                btn.classList.toggle("is-active", idx === index);
+                btn.setAttribute("aria-pressed", idx === index ? "true" : "false");
+            });
+            var active = thumbs[index];
+            var src = active.getAttribute("data-photo") || "";
+            var alt = active.getAttribute("data-alt") || "";
+            if (src) {
+                mainImage.src = src;
+                mainImage.alt = alt;
+                if (heroSection) {
+                    heroSection.style.setProperty("--ekskul-hero-image", "url('" + src + "')");
+                }
+            }
+            active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            if (focusThumb) {
+                active.focus({ preventScroll: true });
+            }
+            activeIndex = index;
+        };
+
+        thumbs.forEach(function (btn, idx) {
+            btn.addEventListener("click", function () {
+                setActive(idx, true);
+            });
+        });
+
+        galleryTrack.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setActive(activeIndex + 1, true);
+            }
+            if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setActive(activeIndex - 1, true);
+            }
+        });
+
+        var isDown = false;
+        var startX = 0;
+        var scrollLeft = 0;
+        galleryTrack.addEventListener("mousedown", function (event) {
+            isDown = true;
+            galleryTrack.classList.add("is-dragging");
+            startX = event.pageX - galleryTrack.offsetLeft;
+            scrollLeft = galleryTrack.scrollLeft;
+        });
+        galleryTrack.addEventListener("mouseleave", function () {
+            isDown = false;
+            galleryTrack.classList.remove("is-dragging");
+        });
+        galleryTrack.addEventListener("mouseup", function () {
+            isDown = false;
+            galleryTrack.classList.remove("is-dragging");
+        });
+        galleryTrack.addEventListener("mousemove", function (event) {
+            if (!isDown) return;
+            event.preventDefault();
+            var x = event.pageX - galleryTrack.offsetLeft;
+            var walk = (x - startX) * 1.2;
+            galleryTrack.scrollLeft = scrollLeft - walk;
+        });
+    }
+
+    var loadMoreButton = document.getElementById("historyLoadMore");
+    var timeline = document.getElementById("historyTimeline");
+    if (!loadMoreButton || !timeline) {
+        return;
+    }
+
+    function appendTimelineItem(item) {
+        var article = document.createElement("article");
+        article.className = "timeline-item";
+
+        var dot = document.createElement("div");
+        dot.className = "timeline-dot";
+
+        var card = document.createElement("div");
+        card.className = "timeline-card";
+
+        var dateEl = document.createElement("div");
+        dateEl.className = "timeline-date";
+        dateEl.textContent = item.date_label || "-";
+
+        var media = document.createElement("div");
+        media.className = "timeline-media";
+
+        var img = document.createElement("img");
+        img.src = item.photo_url || "";
+        img.alt = "Foto absensi {{ activity.name }}";
+
+        var count = document.createElement("div");
+        count.className = "timeline-count";
+        count.textContent = (item.total_students || 0) + " siswa";
+
+        media.appendChild(img);
+        media.appendChild(count);
+        card.appendChild(dateEl);
+        card.appendChild(media);
+        article.appendChild(dot);
+        article.appendChild(card);
+        timeline.appendChild(article);
+    }
+
+    loadMoreButton.addEventListener("click", function () {
+        var offset = parseInt(loadMoreButton.dataset.offset || "0", 10);
+        var activityId = loadMoreButton.dataset.activity;
+        loadMoreButton.disabled = true;
+        loadMoreButton.textContent = "Memuat...";
+        fetch("/ekskul/" + activityId + "/history?offset=" + offset + "&limit=10")
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Gagal memuat data");
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                var items = payload.items || [];
+                items.forEach(appendTimelineItem);
+                loadMoreButton.dataset.offset = payload.next_offset || (offset + items.length);
+                if (!payload.has_more || items.length === 0) {
+                    loadMoreButton.remove();
+                } else {
+                    loadMoreButton.disabled = false;
+                    loadMoreButton.textContent = "Lihat lebih banyak";
+                }
+            })
+            .catch(function () {
+                loadMoreButton.disabled = false;
+                loadMoreButton.textContent = "Coba lagi";
+            });
+    });
+});
+</script>
+</body>
+</html>

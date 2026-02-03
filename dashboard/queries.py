@@ -172,33 +172,33 @@ def _default_landingpage_content() -> Dict[str, Any]:
             "items": [
                 {
                     "title": "Pramuka",
-                    "description": "Melatih kedisiplinan, kepemimpinan, dan kerjasama tim melalui kegiatan kepramukaan rutin.",
-                    "image": "landingpage/images/ekstra-pramuka.jpg",
+                    "description": "Melatih disiplin, kepemimpinan, dan cinta alam melalui kegiatan kepramukaan.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/pramuka.jpg",
                 },
                 {
                     "title": "Pencak Silat",
-                    "description": "Mengembangkan keterampilan bela diri tradisional, sportivitas, dan kepercayaan diri.",
-                    "image": "landingpage/images/ekstra-silat.jpg",
+                    "description": "Menumbuhkan sportivitas, ketahanan, dan keterampilan bela diri tradisional.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/silat.jpg",
                 },
                 {
                     "title": "Tari Tradisional",
-                    "description": "Melestarikan budaya bangsa melalui seni tari daerah dan pertunjukan rutin.",
-                    "image": "landingpage/images/ekstra-tari.jpg",
+                    "description": "Mengembangkan kreativitas dan melestarikan budaya bangsa melalui seni tari.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/tari.jpg",
                 },
                 {
                     "title": "Futsal",
-                    "description": "Meningkatkan kebugaran dan kekompakan siswa melalui latihan dan pertandingan futsal.",
-                    "image": "landingpage/images/ekstra-futsal.jpg",
+                    "description": "Meningkatkan kebugaran, kekompakan, dan semangat sportif dalam olahraga.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/futsal.jpg",
                 },
                 {
-                    "title": "Marawiss",
-                    "description": "Menumbuhkan kecintaan terhadap seni musik Islami melalui grup marawis sekolah.",
-                    "image": "landingpage/images/ekstra-marawis.jpg",
+                    "title": "Marawis",
+                    "description": "Mengasah kemampuan seni musik Islami dan kekompakan tim.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/marawis.jpg",
                 },
                 {
                     "title": "PMR",
-                    "description": "Membangun dan mengembangkan karakter kepalangmerahan pada diri remaja.",
-                    "image": "landingpage/images/ekstra-pmr.jpg",
+                    "description": "Melatih kepedulian sosial dan kesiapsiagaan melalui kegiatan Palang Merah Remaja.",
+                    "image": "https://www.sdnsembar01.sch.id/ekstra/pmr.jpg",
                 },
             ],
         },
@@ -252,7 +252,14 @@ def fetch_landingpage_content(site_key: str = "default") -> Dict[str, Any]:
             if row and row.get("data"):
                 payload = dict(row["data"]) if isinstance(row["data"], dict) else row["data"]
     if isinstance(payload, dict):
-        return _deep_merge(base, payload)
+        merged = _deep_merge(base, payload)
+        extracurricular = merged.get("extracurricular", {})
+        if isinstance(extracurricular, dict) and not extracurricular.get("items"):
+            merged["extracurricular"] = {
+                **extracurricular,
+                "items": base.get("extracurricular", {}).get("items", []),
+            }
+        return merged
     return base
 
 

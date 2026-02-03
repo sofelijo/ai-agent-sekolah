@@ -142,6 +142,94 @@ CREATE INDEX IF NOT EXISTS idx_attendance_late_class
 ON attendance_late_students (class_id);
 """
 
+_EXTRACURRICULARS_SQL = """
+CREATE TABLE IF NOT EXISTS extracurriculars (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    coach_name TEXT,
+    coach_user_id INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    schedule_day TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    location TEXT,
+    capacity INTEGER,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    metadata JSONB,
+    created_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    updated_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_EXTRACURRICULARS_ACTIVE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurriculars_active
+ON extracurriculars (active);
+"""
+
+_EXTRACURRICULARS_COACH_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurriculars_coach_user
+ON extracurriculars (coach_user_id);
+"""
+
+_EXTRACURRICULAR_MEMBERS_SQL = """
+CREATE TABLE IF NOT EXISTS extracurricular_members (
+    id SERIAL PRIMARY KEY,
+    extracurricular_id INTEGER NOT NULL REFERENCES extracurriculars(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    role TEXT,
+    joined_at DATE,
+    note TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (extracurricular_id, student_id)
+);
+"""
+
+_EXTRACURRICULAR_MEMBERS_ACTIVITY_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurricular_members_activity
+ON extracurricular_members (extracurricular_id);
+"""
+
+_EXTRACURRICULAR_MEMBERS_STUDENT_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurricular_members_student
+ON extracurricular_members (student_id);
+"""
+
+_EXTRACURRICULAR_MEMBERS_ACTIVE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurricular_members_active
+ON extracurricular_members (active);
+"""
+
+_EXTRACURRICULAR_ATTENDANCE_SQL = """
+CREATE TABLE IF NOT EXISTS extracurricular_attendance_records (
+    id SERIAL PRIMARY KEY,
+    attendance_date DATE NOT NULL,
+    extracurricular_id INTEGER NOT NULL REFERENCES extracurriculars(id) ON DELETE CASCADE,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    note TEXT,
+    photo_path TEXT,
+    captured_at TIMESTAMPTZ,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    accuracy_meters DOUBLE PRECISION,
+    address TEXT,
+    recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (attendance_date, extracurricular_id, student_id),
+    CONSTRAINT extracurricular_attendance_records_status_check CHECK (status IN ('masuk', 'alpa', 'izin', 'sakit'))
+);
+"""
+
+_EXTRACURRICULAR_ATTENDANCE_ACTIVITY_DATE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurricular_attendance_activity_date
+ON extracurricular_attendance_records (extracurricular_id, attendance_date);
+"""
+
 _BULLYING_REPORTS_SQL = """
 CREATE TABLE IF NOT EXISTS bullying_reports (
     id SERIAL PRIMARY KEY,
@@ -434,6 +522,14 @@ def ensure_dashboard_schema() -> None:
         _ATTENDANCE_LATE_STUDENTS_SQL,
         _ATTENDANCE_LATE_DATE_INDEX_SQL,
         _ATTENDANCE_LATE_CLASS_INDEX_SQL,
+        _EXTRACURRICULARS_SQL,
+        _EXTRACURRICULARS_ACTIVE_INDEX_SQL,
+        _EXTRACURRICULAR_MEMBERS_SQL,
+        _EXTRACURRICULAR_MEMBERS_ACTIVITY_INDEX_SQL,
+        _EXTRACURRICULAR_MEMBERS_STUDENT_INDEX_SQL,
+        _EXTRACURRICULAR_MEMBERS_ACTIVE_INDEX_SQL,
+        _EXTRACURRICULAR_ATTENDANCE_SQL,
+        _EXTRACURRICULAR_ATTENDANCE_ACTIVITY_DATE_INDEX_SQL,
         _BULLYING_REPORTS_SQL,
         _BULLYING_STATUS_INDEX_SQL,
         _BULLYING_EVENTS_SQL,
@@ -497,6 +593,14 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS mother_name TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS nik TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS kk_number TEXT",
+        "ALTER TABLE extracurriculars ADD COLUMN IF NOT EXISTS coach_user_id INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
+        _EXTRACURRICULARS_COACH_INDEX_SQL,
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS photo_path TEXT",
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS captured_at TIMESTAMPTZ",
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION",
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION",
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS accuracy_meters DOUBLE PRECISION",
+        "ALTER TABLE extracurricular_attendance_records ADD COLUMN IF NOT EXISTS address TEXT",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS book_item_id INTEGER REFERENCES book_items(id) ON DELETE SET NULL",
         "ALTER TABLE borrowing_records ADD COLUMN IF NOT EXISTS returned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL",
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
@@ -522,6 +626,9 @@ def ensure_sequences_integrity(cur) -> None:
         "attendance_records",
         "teacher_attendance_records",
         "attendance_late_students",
+        "extracurriculars",
+        "extracurricular_members",
+        "extracurricular_attendance_records",
         "bullying_reports",
         "bullying_report_events",
         "notifications",

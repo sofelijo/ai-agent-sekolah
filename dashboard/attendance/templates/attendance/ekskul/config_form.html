@@ -1,0 +1,92 @@
+<form method="post" enctype="multipart/form-data" id="configForm{{ activity.id }}">
+    <input type="hidden" name="action" value="update">
+    <input type="hidden" name="activity_id" value="{{ activity.id }}">
+    <div class="row g-2">
+        <div class="col-12 col-md-4">
+            <label class="form-label">Nama (landing page)</label>
+            <input type="text" class="form-control" name="name" value="{{ activity.name }}" required>
+        </div>
+        <div class="col-12 col-md-8">
+            <label class="form-label">Hari</label>
+            <div class="day-pills">
+                {% set selected_days = (activity.schedule_day or '') | lower %}
+                {% for day in day_options %}
+                {% set day_lower = day | lower %}
+                <input class="btn-check" type="checkbox" name="schedule_days" value="{{ day }}"
+                    id="day{{ activity.id }}{{ loop.index }}"
+                    {% if day_lower in selected_days %}checked{% endif %}>
+                <label class="btn btn-outline-secondary btn-sm" for="day{{ activity.id }}{{ loop.index }}">{{ day }}</label>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="schedule_day" value="{{ activity.schedule_day or '' }}">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label">Mulai</label>
+            <input type="time" class="form-control" name="start_time" value="{{ activity.start_time or '' }}" required>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label">Selesai</label>
+            <input type="time" class="form-control" name="end_time" value="{{ activity.end_time or '' }}" required>
+        </div>
+        <div class="col-12 col-md-8">
+            <label class="form-label">Deskripsi (landing page)</label>
+            <textarea class="form-control" name="description" rows="2" required>{{ activity.description or '' }}</textarea>
+        </div>
+        <div class="col-12">
+            <div class="lp-config mt-2">
+                <div class="small text-uppercase text-muted fw-semibold">Tampilan Landing Page</div>
+                <div class="text-muted small">Foto pertama otomatis jadi utama. Geser untuk mengatur urutan (maks 10 foto).</div>
+                <input type="file" class="lp-upload-input lp-upload-input-hidden" name="lp_uploads" accept="image/*" multiple
+                    id="lpUploadInput{{ activity.id }}">
+                <div class="form-text">Foto akan otomatis dikompresi ke maksimal 100KB.</div>
+                {% set max_slots = 10 %}
+                {% set display_photos = activity.photo_options[:max_slots] %}
+                {% set photo_count = display_photos | length %}
+                {% set show_upload = photo_count < max_slots %}
+                {% set remaining = max_slots - photo_count - (1 if show_upload else 0) %}
+                {% set photo_order = display_photos | map(attribute='photo_path') | list %}
+                <input type="hidden" name="lp_photo_order" value='{{ photo_order | tojson }}' data-photo-order>
+                <div class="lp-photo-grid mt-2" data-photo-grid data-max-slots="{{ max_slots }}" data-upload-target="lpUploadInput{{ activity.id }}">
+                    {% if show_upload %}
+                    <div class="lp-photo-card lp-photo-card-empty lp-photo-upload" role="button" tabindex="0"
+                        data-upload-target="lpUploadInput{{ activity.id }}" aria-label="Upload foto ekskul">
+                        <div class="lp-photo-upload-inner">
+                            <i class="bi bi-plus-lg"></i>
+                            <span class="lp-upload-label">Upload</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% for photo in display_photos %}
+                    <div class="lp-photo-card lp-photo-selected" data-photo="1" data-photo-path="{{ photo.photo_path }}">
+                        <div class="lp-photo-media">
+                            {% if loop.index0 == 0 %}
+                            <span class="lp-main-badge">Utama</span>
+                            {% endif %}
+                        <img src="{{ url_for('static', filename=photo.photo_path) }}" alt="Foto ekskul {{ activity.name }}">
+                            <button type="button" class="lp-photo-delete" data-photo-path="{{ photo.photo_path }}" aria-label="Hapus foto">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if remaining > 0 %}
+                    {% for _ in range(remaining) %}
+                    <div class="lp-photo-card lp-photo-card-empty">
+                        <div class="lp-photo-placeholder"></div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="small text-muted mt-2" data-gallery-count>Galeri: 0/10</div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+        <button type="submit" class="btn btn-primary btn-sm" form="configForm{{ activity.id }}">
+            <i class="bi bi-save me-1"></i>Simpan
+        </button>
+        <a class="btn btn-outline-primary btn-sm ms-md-auto" href="{{ landingpage_base_url }}/ekskul/{{ activity.id }}" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Lihat di Web
+        </a>
+    </div>
+</form>

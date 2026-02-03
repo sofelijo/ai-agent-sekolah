@@ -12,6 +12,9 @@ Modul attendance pada folder ini adalah paket lengkap untuk mengelola absensi ke
   Guru/staff mengisi status `masuk/alpa/izin/sakit` per siswa, dengan auto-track waktu entri dan riwayat per kelas.
 - **Absensi Guru & Tenaga Kependidikan** (`/absen/staff`)  
   Admin menandai kehadiran staff, lengkap dengan ringkasan status dan log siapa yang mengisi.
+- **Absensi Ekskul** (`/absen/ekskul`)  
+  Dashboard, input absensi, dan manajemen anggota ekstrakurikuler dengan foto bukti + GPS. Pencarian siswa (min 3 karakter), edit peran/tanggal/catatan, serta bulk aktif/nonaktif/hapus. Dapat diakses role `ekskul` dan `admin`.
+  Pembina ekskul diambil dari user dashboard dengan role `ekskul`, dan pembina hanya bisa mengakses ekskul yang dibinanya.
 - **Laporan Harian & Bulanan** (`/absen/laporan-harian`, `/absen/laporan-bulanan`, `/absen/lembar-bulanan`)  
   Template HTML siap cetak (lihat `templates/attendance/report_*.html`) untuk ditempel di papan pengumuman.
 - **Master Data** (`/absen/master`, `/absen/master/staff`)  
@@ -32,6 +35,7 @@ Modul attendance pada folder ini adalah paket lengkap untuk mengelola absensi ke
 | `templates/attendance/` | Halaman HTML (stats, input kelas, laporan harian/bulanan). |
 | `data_siswa/` | Contoh file Excel (`data_siswa.xlsx`, `DUK SEMBAR 01 (1).xlsx`). |
 | `duk_degrees.py` | Utility membaca file DUK (CSV/Excel) untuk melengkapi gelar. |
+| `templates/attendance/ekskul/` | UI dashboard, absensi, anggota, dan master ekskul. |
 
 Semua dependensi disatukan lewat `dashboard/app.py`. Bila hanya memakai absensi, Anda tetap menjalankan `dashboard.app:create_app` namun bisa menyembunyikan menu lain pada template `dashboard/templates/base.html`.
 
@@ -197,6 +201,7 @@ python -m dashboard.cli create-user guru1@sekolah.sch.id "Guru 1" --role staff
 
 - **Role `staff`** → bisa mengisi menu `/absen/kelas`.
 - **Role `admin`** → akses penuh (dashboard, staff attendance, master data).
+- **Role `ekskul`** → fokus di absensi dan manajemen ekskul (wajib foto bukti + GPS).
 
 ---
 

@@ -1,0 +1,451 @@
+{% extends "attendance/base.html" %}
+{% block title %}Konfigurasi Ekskul{% endblock %}
+{% block head_extra %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="ekskul-page ekskul-config">
+    <section class="page-header mb-3">
+        <div class="page-title-group">
+            <span class="icon-badge feature-icon text-primary">
+                <i class="bi bi-sliders"></i>
+            </span>
+            <div>
+                <h1 class="h5 fw-bold page-title mb-0">Konfigurasi Ekskul</h1>
+                <p class="page-subtitle small mb-0">Isi hari, jam, dan deskripsi.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3">
+    {% for activity in activities %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">{{ activity.name }}</h2>
+                    </div>
+                    {% if activity.active %}
+                    <span class="badge text-bg-success">Aktif</span>
+                    {% else %}
+                    <span class="badge text-bg-secondary">Nonaktif</span>
+                    {% endif %}
+                </div>
+                {% include 'attendance/ekskul/config_form.html' %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-muted">Belum ada ekskul yang bisa dikonfigurasi.</div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+</div>
+
+<div class="modal fade lp-crop-modal" id="lpCropModal" tabindex="-1" aria-labelledby="lpCropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="lpCropLabel">Atur Foto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lp-cropper-stage">
+                    <img id="lpCropImage" alt="Preview crop">
+                </div>
+                <div class="small text-muted mt-2">Geser dan perbesar agar foto rapi. Ukuran dibuat seragam 16:9.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal" id="lpCropCancel">Batal</button>
+                <button type="button" class="btn btn-primary" id="lpCropSave">
+                    <i class="bi bi-check2-circle me-1"></i>Pakai Foto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(() => {
+    const minGallery = 5;
+    const maxGallery = 10;
+
+    const updateGalleryCount = (form) => {
+        const counter = form.querySelector('[data-gallery-count]');
+        if (!counter) return;
+        const photos = form.querySelectorAll('.lp-photo-card[data-photo="1"]');
+        counter.textContent = `Galeri: ${photos.length}/${maxGallery} (min ${minGallery})`;
+    };
+
+    const updatePhotoOrder = (form) => {
+        const orderInput = form.querySelector('[data-photo-order]');
+        if (!orderInput) return;
+        const grid = form.querySelector('[data-photo-grid]');
+        if (!grid) return;
+        const paths = Array.from(grid.querySelectorAll('.lp-photo-card[data-photo="1"]'))
+            .map((card) => card.dataset.photoPath)
+            .filter(Boolean);
+        orderInput.value = JSON.stringify(paths);
+    };
+
+    const updateMainBadge = (grid) => {
+        const cards = Array.from(grid.querySelectorAll('.lp-photo-card[data-photo="1"]'));
+        cards.forEach((card, index) => {
+            const media = card.querySelector('.lp-photo-media');
+            if (!media) return;
+            let badge = media.querySelector('.lp-main-badge');
+            if (index === 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'lp-main-badge';
+                    badge.textContent = 'Utama';
+                    media.appendChild(badge);
+                }
+            } else if (badge) {
+                badge.remove();
+            }
+        });
+    };
+
+    const syncGridSlots = (grid) => {
+        const maxSlots = Number(grid.dataset.maxSlots || 10);
+        const photos = Array.from(grid.querySelectorAll('.lp-photo-card[data-photo="1"]'));
+        const uploadTile = grid.querySelector('.lp-photo-upload');
+        const placeholders = Array.from(grid.querySelectorAll('.lp-photo-placeholder-card'));
+        placeholders.forEach((node) => node.remove());
+
+        if (photos.length >= maxSlots && uploadTile) {
+            uploadTile.remove();
+        }
+        let activeUpload = grid.querySelector('.lp-photo-upload');
+        if (photos.length < maxSlots && !activeUpload) {
+            const upload = document.createElement('div');
+            upload.className = 'lp-photo-card lp-photo-card-empty lp-photo-upload';
+            upload.setAttribute('role', 'button');
+            upload.setAttribute('tabindex', '0');
+            upload.setAttribute('aria-label', 'Upload foto ekskul');
+            const target = grid.getAttribute('data-upload-target');
+            if (target) {
+                upload.setAttribute('data-upload-target', target);
+            }
+            upload.innerHTML = '<div class="lp-photo-upload-inner"><i class="bi bi-plus-lg"></i><span class="lp-upload-label">Upload</span></div>';
+            grid.insertBefore(upload, grid.firstChild);
+            activeUpload = upload;
+        }
+        if (activeUpload && grid.firstElementChild !== activeUpload) {
+            grid.insertBefore(activeUpload, grid.firstChild);
+        }
+
+        const totalTiles = photos.length + (grid.querySelector('.lp-photo-upload') ? 1 : 0);
+        const remaining = Math.max(0, maxSlots - totalTiles);
+        for (let i = 0; i < remaining; i += 1) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'lp-photo-card lp-photo-card-empty lp-photo-placeholder-card';
+            placeholder.innerHTML = '<div class="lp-photo-placeholder"></div>';
+            grid.appendChild(placeholder);
+        }
+    };
+
+    const initPhotoGrid = (form) => {
+        const grid = form.querySelector('[data-photo-grid]');
+        if (!grid || grid.dataset.sortableInit) return;
+        grid.dataset.sortableInit = '1';
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(grid, {
+                animation: 150,
+                draggable: '.lp-photo-card[data-photo="1"]',
+                filter: '.lp-photo-card-empty',
+                onEnd: () => {
+                    updateMainBadge(grid);
+                    syncGridSlots(grid);
+                    updatePhotoOrder(form);
+                }
+            });
+        }
+        updateMainBadge(grid);
+        updatePhotoOrder(form);
+        updateGalleryCount(form);
+        syncGridSlots(grid);
+    };
+
+    document.querySelectorAll('form').forEach((form) => initPhotoGrid(form));
+
+    const triggerUpload = (tile) => {
+        const targetId = tile.getAttribute('data-upload-target');
+        if (!targetId) return;
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        const form = input.form;
+        const grid = tile.closest('[data-photo-grid]');
+        const maxSlots = grid ? Number(grid.dataset.maxSlots || 10) : 10;
+        if (form) {
+            const currentPhotos = form.querySelectorAll('.lp-photo-card[data-photo="1"]').length;
+            if (currentPhotos >= maxSlots) {
+                alert(`Maksimal ${maxSlots} foto.`);
+                return;
+            }
+        }
+        input.click();
+    };
+
+    document.addEventListener('click', (event) => {
+        const tile = event.target.closest('.lp-photo-upload');
+        if (!tile) return;
+        triggerUpload(tile);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const tile = event.target.closest('.lp-photo-upload');
+        if (!tile) return;
+        event.preventDefault();
+        triggerUpload(tile);
+    });
+
+    document.addEventListener('click', (event) => {
+        const deleteBtn = event.target.closest('.lp-photo-delete');
+        if (!deleteBtn) return;
+        const card = deleteBtn.closest('.lp-photo-card[data-photo="1"]');
+        if (!card) return;
+        const form = deleteBtn.closest('form');
+        const grid = deleteBtn.closest('[data-photo-grid]');
+        const path = deleteBtn.dataset.photoPath || card.dataset.photoPath;
+        if (form && path) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'lp_delete_photos';
+            input.value = path;
+            form.appendChild(input);
+        }
+        card.remove();
+        if (grid) {
+            updateMainBadge(grid);
+            syncGridSlots(grid);
+        }
+        if (form) {
+            updatePhotoOrder(form);
+            updateGalleryCount(form);
+        }
+    });
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!form || !form.querySelector) return;
+        const hiddenInput = form.querySelector('input[name="schedule_day"]');
+        if (hiddenInput) {
+            const checked = Array.from(form.querySelectorAll('input[name="schedule_days"]:checked'))
+                .map((el) => el.value.trim())
+                .filter(Boolean);
+            hiddenInput.value = checked.join(', ');
+        }
+        updatePhotoOrder(form);
+    });
+
+    const cropModalEl = document.getElementById('lpCropModal');
+    if (!cropModalEl) {
+        return;
+    }
+    const cropModal = new bootstrap.Modal(cropModalEl);
+    const cropImage = document.getElementById('lpCropImage');
+    const cropSave = document.getElementById('lpCropSave');
+    const cropCancel = document.getElementById('lpCropCancel');
+    let cropper = null;
+    let cropQueue = [];
+    let croppedFiles = [];
+    let currentInput = null;
+    let currentPreview = null;
+    let currentFilename = '';
+
+    const renderPreview = (files, preview) => {
+        if (!preview) return;
+        preview.innerHTML = '';
+        files.forEach((file) => {
+            const url = URL.createObjectURL(file);
+            const img = document.createElement('img');
+            img.src = url;
+            img.onload = () => URL.revokeObjectURL(url);
+            preview.appendChild(img);
+        });
+    };
+
+    const assignFilesToInput = (input, files) => {
+        const dt = new DataTransfer();
+        files.forEach((file) => dt.items.add(file));
+        input.files = dt.files;
+    };
+
+    const submitUpload = () => {
+        if (!currentInput || !currentInput.form) return;
+        const form = currentInput.form;
+        const hiddenInput = form.querySelector('input[name="schedule_day"]');
+        if (hiddenInput) {
+            const checked = Array.from(form.querySelectorAll('input[name="schedule_days"]:checked'))
+                .map((el) => el.value.trim())
+                .filter(Boolean);
+            hiddenInput.value = checked.join(', ');
+        }
+        updatePhotoOrder(form);
+        const formData = new FormData(form);
+        const submitUrl = form.getAttribute('action') || window.location.href;
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
+
+        fetch(submitUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Gagal menyimpan');
+                }
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    return response.json();
+                }
+                return response.text().then((html) => ({ html }));
+            })
+            .then((payload) => {
+                if (!payload) {
+                    return;
+                }
+                if (payload.form_html) {
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = payload.form_html;
+                    const newForm = wrapper.querySelector('form');
+                    if (newForm) {
+                        form.replaceWith(newForm);
+                        initPhotoGrid(newForm);
+                        return;
+                    }
+                }
+                if (payload.html) {
+                    const doc = new DOMParser().parseFromString(payload.html, 'text/html');
+                    const newForm = doc.getElementById(form.id);
+                    if (newForm) {
+                        form.replaceWith(newForm);
+                        initPhotoGrid(newForm);
+                        return;
+                    }
+                }
+                window.location.reload();
+            })
+            .catch(() => {
+                alert('Gagal menyimpan foto. Coba lagi.');
+            })
+            .finally(() => {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
+                currentInput = null;
+                currentPreview = null;
+                cropQueue = [];
+                croppedFiles = [];
+            });
+    };
+
+    const openNextCrop = () => {
+        if (!cropQueue.length) {
+            assignFilesToInput(currentInput, croppedFiles);
+            renderPreview(croppedFiles, currentPreview);
+            submitUpload();
+            return;
+        }
+        const file = cropQueue.shift();
+        currentFilename = file.name || 'lp.jpg';
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            cropImage.src = event.target.result;
+            cropModal.show();
+            if (cropper) {
+                cropper.destroy();
+            }
+            cropper = new Cropper(cropImage, {
+                aspectRatio: 16 / 9,
+                viewMode: 2,
+                autoCropArea: 1,
+                background: false,
+                responsive: true,
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+
+    document.addEventListener('change', (event) => {
+        const input = event.target;
+        if (!input || !input.classList || !input.classList.contains('lp-upload-input')) {
+            return;
+        }
+        if (!input.files || !input.files.length) {
+            return;
+        }
+        const form = input.form;
+        let remainingSlots = 10;
+        if (form) {
+            const grid = form.querySelector('[data-photo-grid]');
+            const maxSlots = grid ? Number(grid.dataset.maxSlots || 10) : 10;
+            const currentPhotos = form.querySelectorAll('.lp-photo-card[data-photo="1"]').length;
+            remainingSlots = maxSlots - currentPhotos;
+        }
+        if (remainingSlots <= 0) {
+            alert('Slot foto sudah penuh.');
+            input.value = '';
+            return;
+        }
+        if (input.files.length > remainingSlots) {
+            alert(`Maksimal pilih ${remainingSlots} foto lagi.`);
+        }
+        cropQueue = Array.from(input.files).slice(0, remainingSlots);
+        croppedFiles = [];
+        currentInput = input;
+        currentPreview = document.getElementById(input.dataset.previewTarget || '');
+        openNextCrop();
+    });
+
+    cropSave.addEventListener('click', () => {
+        if (!cropper) return;
+        const canvas = cropper.getCroppedCanvas({ width: 1280, height: 720 });
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const cropped = new File([blob], currentFilename.replace(/\.[^/.]+$/, '') + '.jpg', {
+                type: 'image/jpeg'
+            });
+            croppedFiles.push(cropped);
+            cropModal.hide();
+            cropper.destroy();
+            cropper = null;
+            openNextCrop();
+        }, 'image/jpeg', 0.9);
+    });
+
+    cropCancel.addEventListener('click', () => {
+        cropQueue = [];
+        croppedFiles = [];
+        if (currentInput) {
+            currentInput.value = '';
+        }
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    });
+})();
+</script>
+{% endblock %}

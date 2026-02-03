@@ -2,6 +2,8 @@
     {%- if value -%}
         {%- if value.startswith('http') or value.startswith('/static/') -%}
             {{ value }}
+        {%- elif value.startswith('uploads/') -%}
+            {{ url_for('landing_assets', filename=value.lstrip('/')) }}
         {%- elif value.startswith('static/') -%}
             /{{ value }}
         {%- else -%}
@@ -172,7 +174,7 @@
                     <img class="media-image" src="{{ asset_url(item.get('image')) }}" alt="{{ item.get('title') }}">
                     <div class="media-body">
                         <h3>{{ item.get('title') }}</h3>
-                        <p>{{ item.get('description') }}</p>
+                        <p>{{ item.get('description') or 'Informasi ekstrakurikuler belum tersedia.' }}</p>
                     </div>
                 </article>
                 {% endfor %}
@@ -184,14 +186,14 @@
         <div class="container">
             <h2 class="section-title" data-reveal="up" data-parallax="0.04">{{ content.get('extracurricular', {}).get('title', 'Ekstrakurikuler') }}</h2>
             <div class="card-grid">
-                {% for item in content.get('extracurricular', {}).get('items', []) %}
-                <article class="media-card" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.1">
-                    <img class="media-image" src="{{ asset_url(item.get('image')) }}" alt="{{ item.get('title') }}">
+                {% for item in extracurriculars %}
+                <a class="media-card" href="{{ url_for('landing_extracurricular_detail', activity_id=item.id) }}" data-reveal="{{ 'left' if loop.index0 % 2 == 0 else 'right' }}" data-reveal-delay="{{ loop.index0 * 80 }}" data-parallax="0.1">
+                    <img class="media-image" src="{{ asset_url(item.get('main_photo')) }}" alt="{{ item.get('name') }}">
                     <div class="media-body">
-                        <h3>{{ item.get('title') }}</h3>
+                        <h3>{{ item.get('name') }}</h3>
                         <p>{{ item.get('description') }}</p>
                     </div>
-                </article>
+                </a>
                 {% endfor %}
             </div>
         </div>

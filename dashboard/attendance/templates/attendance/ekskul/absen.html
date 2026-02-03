@@ -1,0 +1,815 @@
+{% extends "attendance/base.html" %}
+{% block title %}Absensi Ekskul{% endblock %}
+
+{% block content %}
+<div class="ekskul-page ekskul-absen">
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Absensi Ekskul</h1>
+        <p class="text-muted mb-0">Catat kehadiran anggota ekstrakurikuler dengan cepat dan rapi.</p>
+    </div>
+    <div class="text-lg-end">
+        <span class="badge text-bg-primary-subtle text-primary d-inline-flex align-items-center gap-2 px-3 py-2">
+            <i class="bi bi-calendar-event"></i>
+            {{ selected_date_label }}
+        </span>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="fw-semibold">Ekskul</div>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('attendance.ekskul_config') }}">
+                        <i class="bi bi-sliders me-1"></i>Konfigurasi
+                    </a>
+                </div>
+                {% if not activity_options %}
+                <div class="alert alert-warning small mb-0">Belum ada ekskul yang aktif untuk Anda.</div>
+                {% else %}
+                <form method="get" action="{{ url_for('attendance.ekskul_absen') }}" class="d-grid gap-3">
+                    <input type="hidden" name="date" value="{{ selected_date.isoformat() }}">
+                    {% if show_activity_picker %}
+                    <div>
+                        <label for="activitySelect" class="form-label fw-semibold">Ekskul</label>
+                        <select class="form-select" id="activitySelect" name="activity_id" required>
+                            <option value="">-- Pilih ekskul --</option>
+                            {% for activity in activity_options %}
+                            <option value="{{ activity.id }}" {% if activity.id == selected_activity_id %}selected{% endif %}>
+                                {{ activity.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle me-1"></i> Tampilkan
+                    </button>
+                    {% else %}
+                    <div class="fw-semibold fs-5">{{ selected_activity.name if selected_activity else '-' }}</div>
+                    <input type="hidden" name="activity_id" value="{{ selected_activity_id or '' }}">
+                    {% endif %}
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column gap-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                    <div>
+                        <h2 class="h5 mb-2">Tanggal Absensi</h2>
+                        <form class="d-flex align-items-center gap-2" method="get" action="{{ url_for('attendance.ekskul_absen') }}">
+                            <input type="hidden" name="activity_id" value="{{ selected_activity_id or '' }}">
+                            <input type="date" class="form-control" name="date" value="{{ selected_date.isoformat() }}" max="{{ today.date().isoformat() }}">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
+                            </button>
+                        </form>
+                        <div class="text-muted small mt-2">
+                            {% if latest_submission_at %}
+                            Terakhir diperbarui: <strong>{{ latest_submission_at|jakarta("%d %b %Y %H:%M") }}</strong>
+                            {% else %}
+                            Belum ada data absensi untuk tanggal ini.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-muted small">
+                    Pastikan anggota ekskul sudah terdaftar sebelum mengisi absensi. Status default anggota adalah <strong>masuk</strong>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if selected_activity_id %}
+    {% if members %}
+    <form method="post" action="{{ url_for('attendance.ekskul_absen') }}" class="card shadow-sm" id="ekskulAttendanceForm">
+        <input type="hidden" name="edit" value="{{ '1' if edit_mode else '0' }}">
+        <div class="card-header d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2">
+            <div>
+                <h2 class="h5 mb-0">Daftar Kehadiran Ekskul</h2>
+                <div class="text-muted small">Lengkapi status dan catatan jika diperlukan.</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-success" id="markAllPresent" {% if has_existing and not edit_mode %}disabled{% endif %}>
+                    <i class="bi bi-check2-circle me-1"></i> Tandai Semua Masuk
+                </button>
+                <button type="submit" class="btn btn-primary" data-evidence-submit {% if has_existing and not edit_mode %}disabled{% endif %}>
+                    <i class="bi bi-save me-1"></i> Simpan Absensi
+                </button>
+            </div>
+        </div>
+        {% if has_existing and not edit_mode %}
+        <div class="alert alert-warning border-0 rounded-0 mb-0 d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-2">
+            <div>
+                Absensi hari ini sudah selesai. Klik <strong>Edit</strong> jika ingin memperbarui data.
+            </div>
+            <a class="btn btn-outline-warning btn-sm" href="{{ url_for('attendance.ekskul_absen', activity_id=selected_activity_id, date=selected_date.isoformat(), edit='1') }}">
+                <i class="bi bi-pencil-square me-1"></i> Edit Absensi
+            </a>
+        </div>
+        {% endif %}
+        {% if not (has_existing and not edit_mode) %}
+        <div class="card-body border-bottom" id="evidencePanel" data-activity-name="{{ selected_activity.name if selected_activity else '' }}" data-attendance-date="{{ selected_date.isoformat() }}" {% if existing_evidence and existing_evidence.photo_path %}data-existing-photo="{{ url_for('static', filename=existing_evidence.photo_path) }}"{% endif %}>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="small text-uppercase text-muted fw-semibold">Bukti Foto & Lokasi</div>
+                    <div class="text-muted small">Foto harus diambil langsung dari perangkat saat absensi (otomatis berisi timestamp & peta GPS).</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm d-sm-none" id="openEvidenceModal"
+                        data-bs-toggle="modal" data-bs-target="#evidenceModal">
+                        <i class="bi bi-camera me-1"></i>Ambil Foto
+                    </button>
+                    <span class="badge {% if existing_evidence and existing_evidence.photo_path %}text-bg-success-subtle text-success{% else %}text-bg-warning-subtle text-warning{% endif %}" id="evidenceStatus" role="button" tabindex="0" title="Klik untuk lihat preview">
+                        {{ "Foto tersimpan" if existing_evidence and existing_evidence.photo_path else "Belum ada foto" }}
+                    </span>
+                </div>
+            </div>
+            <div id="evidenceInlineHost">
+                <div id="evidenceContent">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="ratio ratio-4x3 bg-dark rounded overflow-hidden">
+                                <video id="evidenceVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary w-100 mt-2" id="captureEvidence" {% if has_existing and not edit_mode %}disabled{% endif %}>
+                                <i class="bi bi-camera me-1"></i> Ambil Foto Bukti
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ratio ratio-4x3 bg-body-secondary rounded overflow-hidden">
+                                <img id="evidencePreview" alt="Preview foto bukti" class="w-100 h-100" style="object-fit: cover;" {% if existing_evidence and existing_evidence.photo_path %}src="{{ url_for('static', filename=existing_evidence.photo_path) }}"{% endif %} />
+                            </div>
+                            <button type="button" class="btn btn-light w-100 mt-2" id="retakeEvidence" disabled {% if has_existing and not edit_mode %}disabled{% endif %}>
+                                <i class="bi bi-arrow-repeat me-1"></i> Ulangi Foto
+                            </button>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2" id="locationStatus">Menunggu izin lokasi & kamera...</div>
+                </div>
+            </div>
+            <input type="hidden" name="photo_data" id="photoDataInput">
+            <input type="hidden" name="photo_captured_at" id="photoCapturedAtInput">
+            <input type="hidden" name="latitude" id="photoLatitudeInput">
+            <input type="hidden" name="longitude" id="photoLongitudeInput">
+            <input type="hidden" name="accuracy_meters" id="photoAccuracyInput">
+            <input type="hidden" name="address" id="photoAddressInput">
+        </div>
+        {% endif %}
+        {% if not (has_existing and not edit_mode) %}
+        <div class="card-body p-0">
+            <input type="hidden" name="attendance_date" value="{{ selected_date.isoformat() }}">
+            <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="d-none d-md-table-cell" style="width: 60px;">No</th>
+                            <th>Nama Siswa</th>
+                            <th class="d-none d-md-table-cell">Kelas</th>
+                            <th style="width: 180px;">Status</th>
+                            <th>Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members %}
+                        <tr>
+                            <td class="text-muted d-none d-md-table-cell">{{ loop.index }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ member.name }}</div>
+                                {% if member.class_name %}
+                                <div class="small text-muted d-md-none">Kelas: {{ member.class_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ member.class_name or '-' }}</td>
+                            <td>
+                                <select class="form-select attendance-status" name="status_{{ member.id }}" {% if has_existing and not edit_mode %}disabled{% endif %}>
+                                    {% for status in attendance_statuses %}
+                                    <option value="{{ status }}" {% if status == member.status %}selected{% endif %}>
+                                        {{ status_labels[status] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control" name="note_{{ member.id }}" value="{{ member.note or '' }}" placeholder="Opsional" {% if has_existing and not edit_mode %}disabled{% endif %}>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary" data-evidence-submit {% if has_existing and not edit_mode %}disabled{% endif %}>
+                <i class="bi bi-clipboard-check me-1"></i> Simpan Absensi
+            </button>
+        </div>
+        {% endif %}
+    </form>
+    {% else %}
+    <div class="card shadow-sm border-0 text-center py-5">
+        <div class="card-body">
+            <i class="bi bi-people fs-1 text-muted mb-3"></i>
+            <h2 class="h5">Belum ada anggota ekskul</h2>
+            <p class="text-muted small mb-0">Tambahkan anggota terlebih dahulu di menu Anggota Ekskul.</p>
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+<div class="card shadow-sm border-0 text-center py-5">
+    <div class="card-body">
+        <i class="bi bi-journal-check fs-1 text-muted mb-3"></i>
+        <h2 class="h5">Pilih ekskul terlebih dahulu</h2>
+        <p class="text-muted small mb-0">Absensi hanya dapat dilakukan setelah ekskul dipilih.</p>
+    </div>
+</div>
+{% endif %}
+</div>
+
+<div class="modal fade" id="evidenceModal" tabindex="-1" aria-labelledby="evidenceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="evidenceModalLabel">Ambil Foto Bukti</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body" id="evidenceModalBody"></div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn btn-primary" id="saveEvidenceButton" data-bs-dismiss="modal" {% if has_existing and not edit_mode %}disabled{% endif %}>
+                    <i class="bi bi-check2-circle me-1"></i> Simpan Foto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="evidencePreviewModal" tabindex="-1" aria-labelledby="evidencePreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="evidencePreviewLabel">Preview Foto Bukti</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body d-flex justify-content-center align-items-center">
+                <img id="evidencePreviewModalImage" alt="Preview foto bukti" class="img-fluid rounded" />
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var markAllButton = document.getElementById("markAllPresent");
+    if (markAllButton) {
+        markAllButton.addEventListener("click", function () {
+            document.querySelectorAll(".attendance-status").forEach(function (select) {
+                select.value = "masuk";
+            });
+        });
+    }
+
+    var evidencePanel = document.getElementById("evidencePanel");
+    if (!evidencePanel) {
+        return;
+    }
+
+    var video = document.getElementById("evidenceVideo");
+    var preview = document.getElementById("evidencePreview");
+    var captureButton = document.getElementById("captureEvidence");
+    var retakeButton = document.getElementById("retakeEvidence");
+    var locationStatus = document.getElementById("locationStatus");
+    var evidenceStatus = document.getElementById("evidenceStatus");
+    var saveEvidenceButton = document.getElementById("saveEvidenceButton");
+    var previewModalImage = document.getElementById("evidencePreviewModalImage");
+    var photoInput = document.getElementById("photoDataInput");
+    var capturedAtInput = document.getElementById("photoCapturedAtInput");
+    var latInput = document.getElementById("photoLatitudeInput");
+    var lonInput = document.getElementById("photoLongitudeInput");
+    var accuracyInput = document.getElementById("photoAccuracyInput");
+    var addressInput = document.getElementById("photoAddressInput");
+    var submitButtons = document.querySelectorAll("[data-evidence-submit]");
+
+    var activityName = evidencePanel.dataset.activityName || "";
+    var attendanceDate = evidencePanel.dataset.attendanceDate || "";
+    var mapEndpoint = "{{ url_for('attendance.ekskul_map') }}";
+    var mapboxToken = "{{ mapbox_token }}";
+
+    var locationState = {
+        lat: null,
+        lon: null,
+        accuracy: null,
+        address: "",
+        timestamp: null
+    };
+    var stream = null;
+
+    function setSubmitEnabled(enabled) {
+        submitButtons.forEach(function (button) {
+            button.disabled = !enabled;
+        });
+    }
+
+    setSubmitEnabled(false);
+    if (evidenceStatus) {
+        evidenceStatus.style.cursor = "default";
+    }
+
+    var existingPhotoUrl = evidencePanel.dataset.existingPhoto || "";
+    if (existingPhotoUrl && preview && !preview.src) {
+        preview.src = existingPhotoUrl;
+    }
+    if (preview && preview.src) {
+        evidenceStatus.textContent = "Foto tersimpan";
+        evidenceStatus.className = "badge text-bg-success-subtle text-success";
+        evidenceStatus.style.cursor = "pointer";
+        setSubmitEnabled(true);
+    }
+
+    function updateLocationStatus() {
+        if (locationState.lat && locationState.lon) {
+            var coordText = locationState.lat.toFixed(6) + ", " + locationState.lon.toFixed(6);
+            var accuracyText = locationState.accuracy ? "±" + Math.round(locationState.accuracy) + " m" : "";
+            var addressText = locationState.address ? " • " + locationState.address : "";
+            locationStatus.textContent = "GPS: " + coordText + " " + accuracyText + addressText;
+        }
+    }
+
+    function initLocation() {
+        if (!navigator.geolocation) {
+            locationStatus.textContent = "Browser tidak mendukung GPS.";
+            return;
+        }
+        locationStatus.textContent = "Mengambil lokasi GPS...";
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                locationState.lat = position.coords.latitude;
+                locationState.lon = position.coords.longitude;
+                locationState.accuracy = position.coords.accuracy;
+                locationState.timestamp = position.timestamp;
+                updateLocationStatus();
+                fetchAddress();
+            },
+            function (error) {
+                locationStatus.textContent = "Gagal mendapatkan lokasi: " + error.message;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            }
+        );
+    }
+
+    function fetchAddress() {
+        if (!locationState.lat || !locationState.lon) {
+            return;
+        }
+        var url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + locationState.lat + "&lon=" + locationState.lon;
+        fetch(url, { headers: { Accept: "application/json" } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data && data.display_name) {
+                    locationState.address = data.display_name;
+                    updateLocationStatus();
+                }
+            })
+            .catch(function () {
+                // Optional: ignore reverse geocode failure
+            });
+    }
+
+    function initCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            locationStatus.textContent = "Browser tidak mendukung kamera.";
+            return;
+        }
+        if (stream) {
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+            .then(function (mediaStream) {
+                stream = mediaStream;
+                video.srcObject = mediaStream;
+            })
+            .catch(function (error) {
+                locationStatus.textContent = "Gagal mengakses kamera: " + error.message;
+            });
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+        }
+        stream = null;
+        if (video) {
+            video.srcObject = null;
+        }
+    }
+
+    function loadImageFromBlob(blob) {
+        return new Promise(function (resolve, reject) {
+            var objectUrl = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function () {
+                URL.revokeObjectURL(objectUrl);
+                resolve(img);
+            };
+            img.onerror = function () {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error("Gagal memuat gambar"));
+            };
+            img.src = objectUrl;
+        });
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                resolve(reader.result);
+            };
+            reader.onerror = function () {
+                reject(new Error("Gagal membaca foto"));
+            };
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function compressEvidence(canvas, maxBytes) {
+        var quality = 0.85;
+        var minQuality = 0.5;
+        var scale = 1;
+        var lastBlob = null;
+
+        while (true) {
+            var workingCanvas = canvas;
+            if (scale < 1) {
+                workingCanvas = document.createElement("canvas");
+                workingCanvas.width = Math.round(canvas.width * scale);
+                workingCanvas.height = Math.round(canvas.height * scale);
+                var workingCtx = workingCanvas.getContext("2d");
+                if (workingCtx) {
+                    workingCtx.drawImage(canvas, 0, 0, workingCanvas.width, workingCanvas.height);
+                }
+            }
+
+            var blob = await new Promise(function (resolve) {
+                workingCanvas.toBlob(
+                    function (result) {
+                        resolve(result);
+                    },
+                    "image/jpeg",
+                    quality
+                );
+            });
+            if (!blob) {
+                break;
+            }
+            lastBlob = blob;
+            if (blob.size <= maxBytes) {
+                return blob;
+            }
+            if (quality > minQuality) {
+                quality = Math.max(minQuality, quality - 0.1);
+            } else if (scale > 0.6) {
+                scale = scale - 0.1;
+                quality = 0.85;
+            } else {
+                break;
+            }
+        }
+
+        return lastBlob;
+    }
+
+    async function fetchMapImage(url) {
+        var response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+            throw new Error("Gagal mengambil peta");
+        }
+        var blob = await response.blob();
+        var img = await loadImageFromBlob(blob);
+        return { img: img, headers: response.headers };
+    }
+
+    async function loadDirectMap(mapSize, zoom) {
+        if (mapboxToken) {
+            var marker = "pin-s+ff0000(" + locationState.lon + "," + locationState.lat + ")";
+            var mapboxUrl = "https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/" +
+                marker + "/" + locationState.lon + "," + locationState.lat + "," + zoom + ",0/" +
+                mapSize + "x" + mapSize + "?access_token=" + mapboxToken + "&_ts=" + Date.now();
+            try {
+                var mapboxImage = await fetchMapImage(mapboxUrl);
+                return mapboxImage.img;
+            } catch (err) {
+                return null;
+            }
+        }
+        var query = "center=" + locationState.lat + "," + locationState.lon +
+            "&zoom=" + zoom +
+            "&size=" + mapSize + "x" + mapSize +
+            "&maptype=mapnik" +
+            "&markers=" + locationState.lat + "," + locationState.lon + ",red-pushpin";
+        var directUrl = "https://staticmap.openstreetmap.de/staticmap.php?" + query + "&_ts=" + Date.now();
+        try {
+            var direct = await fetchMapImage(directUrl);
+            return direct.img;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    async function loadMapImage(mapSize, zoom) {
+        var serverUrl = mapEndpoint + "?lat=" + locationState.lat + "&lon=" + locationState.lon +
+            "&zoom=" + zoom + "&size=" + mapSize + "&_ts=" + Date.now();
+        try {
+            var server = await fetchMapImage(serverUrl);
+            var source = server.headers.get("X-Map-Source");
+            if (source === "offline") {
+                var direct = await loadDirectMap(mapSize, zoom);
+                if (direct) {
+                    return direct;
+                }
+            }
+            return server.img;
+        } catch (err) {
+            var fallback = await loadDirectMap(mapSize, zoom);
+            if (fallback) {
+                return fallback;
+            }
+            throw err;
+        }
+    }
+
+    function moveEvidencePanel() {
+        var inlineHost = document.getElementById("evidenceInlineHost");
+        var modalHost = document.getElementById("evidenceModalBody");
+        var trigger = document.getElementById("openEvidenceModal");
+        var isMobile = window.matchMedia("(max-width: 575.98px)").matches;
+        if (isMobile) {
+            if (trigger) {
+                trigger.classList.remove("d-none");
+            }
+            if (modalHost && evidenceContent && evidenceContent.parentNode !== modalHost) {
+                modalHost.appendChild(evidenceContent);
+            }
+        } else {
+            if (trigger) {
+                trigger.classList.add("d-none");
+            }
+            if (inlineHost && evidenceContent && evidenceContent.parentNode !== inlineHost) {
+                inlineHost.appendChild(evidenceContent);
+            }
+        }
+    }
+
+    function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+        var words = text.split(" ");
+        var line = "";
+        var lines = [];
+        for (var i = 0; i < words.length; i += 1) {
+            var testLine = line + words[i] + " ";
+            var metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && line) {
+                lines.push(line.trim());
+                line = words[i] + " ";
+            } else {
+                line = testLine;
+            }
+        }
+        if (line) {
+            lines.push(line.trim());
+        }
+        lines.slice(0, maxLines).forEach(function (currentLine, index) {
+            ctx.fillText(currentLine, x, y + index * lineHeight);
+        });
+    }
+
+    async function captureEvidence() {
+        if (!stream) {
+            locationStatus.textContent = "Kamera belum aktif.";
+            return;
+        }
+        if (!locationState.lat || !locationState.lon) {
+            locationStatus.textContent = "Lokasi belum tersedia. Coba izinkan GPS.";
+            initLocation();
+            return;
+        }
+        var canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        var ctx = canvas.getContext("2d");
+        if (!ctx) {
+            return;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        var mapSize = Math.round(canvas.width * 0.22);
+        var padding = Math.round(canvas.width * 0.02);
+        var mapX = padding;
+        var mapY = canvas.height - mapSize - padding;
+
+        var mapImage = null;
+        var mapSizes = [mapSize, Math.max(120, Math.round(mapSize * 0.8))];
+        var mapZooms = [16, 15];
+        for (var i = 0; i < mapSizes.length; i += 1) {
+            for (var j = 0; j < mapZooms.length; j += 1) {
+                try {
+                    mapImage = await loadMapImage(mapSizes[i], mapZooms[j]);
+                    break;
+                } catch (err) {
+                    mapImage = null;
+                }
+            }
+            if (mapImage) {
+                break;
+            }
+        }
+        if (!mapImage) {
+            locationStatus.textContent = "Gagal memuat peta GPS. Pastikan koneksi internet aktif lalu coba lagi.";
+            return;
+        }
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(mapX - 4, mapY - 4, mapSize + 8, mapSize + 8);
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(mapImage, mapX, mapY, mapSize, mapSize);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(mapX, mapY, mapSize, mapSize);
+
+        var textBoxW = Math.round(canvas.width * 0.36);
+        var textBoxX = canvas.width - textBoxW - padding;
+        var textBoxY = mapY;
+        var textBoxH = mapSize;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(textBoxX, textBoxY, textBoxW, textBoxH);
+
+        var fontSize = Math.max(14, Math.round(canvas.width * 0.015));
+        var lineHeight = Math.round(fontSize * 1.4);
+        ctx.fillStyle = "#fff";
+        ctx.font = fontSize + "px 'Plus Jakarta Sans', sans-serif";
+        ctx.textBaseline = "top";
+
+        var now = new Date();
+        var timestampLabel = new Intl.DateTimeFormat("id-ID", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone: "Asia/Jakarta"
+        }).format(now);
+        var lines = [
+            activityName ? "Ekskul: " + activityName : null,
+            attendanceDate ? "Absensi: " + attendanceDate : null,
+            "Waktu: " + timestampLabel,
+            "Lat/Lon: " + locationState.lat.toFixed(6) + ", " + locationState.lon.toFixed(6),
+            locationState.accuracy ? "Akurasi: ±" + Math.round(locationState.accuracy) + " m" : null
+        ].filter(Boolean);
+
+        var textY = textBoxY + padding;
+        ctx.textAlign = "right";
+        lines.forEach(function (line) {
+            ctx.fillText(line, textBoxX + textBoxW - padding, textY);
+            textY += lineHeight;
+        });
+        ctx.textAlign = "left";
+
+        if (locationState.address) {
+            drawWrappedText(
+                ctx,
+                "Alamat: " + locationState.address,
+                textBoxX + padding,
+                textY,
+                textBoxW - padding * 2,
+                lineHeight,
+                3
+            );
+        }
+
+        var compressedBlob = await compressEvidence(canvas, 100 * 1024);
+        var dataUrl = compressedBlob ? await blobToDataUrl(compressedBlob) : canvas.toDataURL("image/jpeg", 0.85);
+        preview.src = dataUrl;
+        photoInput.value = dataUrl;
+        capturedAtInput.value = now.toISOString();
+        latInput.value = locationState.lat;
+        lonInput.value = locationState.lon;
+        accuracyInput.value = locationState.accuracy || "";
+        addressInput.value = locationState.address || "";
+
+        evidenceStatus.textContent = "Foto tersimpan";
+        evidenceStatus.className = "badge text-bg-success-subtle text-success";
+        retakeButton.disabled = false;
+        setSubmitEnabled(true);
+    }
+
+    function resetEvidence() {
+        preview.removeAttribute("src");
+        photoInput.value = "";
+        capturedAtInput.value = "";
+        latInput.value = "";
+        lonInput.value = "";
+        accuracyInput.value = "";
+        addressInput.value = "";
+        evidenceStatus.textContent = "Belum ada foto";
+        evidenceStatus.className = "badge text-bg-warning-subtle text-warning";
+        if (evidenceStatus) {
+            evidenceStatus.style.cursor = "default";
+        }
+        retakeButton.disabled = true;
+        setSubmitEnabled(false);
+    }
+
+    function showPreviewModal() {
+        if (!preview || !preview.src) {
+            return;
+        }
+        if (previewModalImage) {
+            previewModalImage.src = preview.src;
+        }
+        var previewModalEl = document.getElementById("evidencePreviewModal");
+        if (previewModalEl) {
+            var previewModal = bootstrap.Modal.getOrCreateInstance(previewModalEl);
+            previewModal.show();
+        }
+    }
+
+    captureButton.addEventListener("click", function () {
+        captureEvidence();
+    });
+
+    retakeButton.addEventListener("click", function () {
+        resetEvidence();
+    });
+
+    if (saveEvidenceButton) {
+        saveEvidenceButton.addEventListener("click", function () {
+            if (!preview || !preview.src) {
+                locationStatus.textContent = "Ambil foto dulu sebelum menyimpan.";
+                return;
+            }
+            evidenceStatus.textContent = "Foto tersimpan";
+            evidenceStatus.className = "badge text-bg-success-subtle text-success";
+            evidenceStatus.style.cursor = "pointer";
+        });
+    }
+
+    if (preview) {
+        preview.addEventListener("click", function () {
+            showPreviewModal();
+        });
+    }
+
+    if (evidenceStatus) {
+        evidenceStatus.addEventListener("click", function () {
+            if (preview && preview.src) {
+                showPreviewModal();
+            }
+        });
+        evidenceStatus.addEventListener("keydown", function (event) {
+            if ((event.key === "Enter" || event.key === " ") && preview && preview.src) {
+                event.preventDefault();
+                showPreviewModal();
+            }
+        });
+    }
+
+    var evidenceContent = document.getElementById("evidenceContent");
+    moveEvidencePanel();
+    window.addEventListener("resize", function () {
+        clearTimeout(window.__evidenceResizeTimer);
+        window.__evidenceResizeTimer = setTimeout(moveEvidencePanel, 150);
+    });
+
+    var modalElement = document.getElementById("evidenceModal");
+    var isMobile = window.matchMedia("(max-width: 575.98px)").matches;
+    if (modalElement) {
+        modalElement.addEventListener("shown.bs.modal", function () {
+            initCamera();
+            initLocation();
+        });
+        modalElement.addEventListener("hidden.bs.modal", function () {
+            if (window.matchMedia("(max-width: 575.98px)").matches) {
+                stopCamera();
+            }
+        });
+    }
+
+    if (!isMobile) {
+        initCamera();
+        initLocation();
+    }
+});
+</script>
+{% endblock %}

@@ -32,11 +32,11 @@
 <body style="font-family: 'Plus Jakarta Sans', sans-serif;">
     <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold text-primary" href="{{ url_for('attendance.dashboard') }}">
+            <a class="navbar-brand fw-bold text-primary" href="{{ url_for('main.dashboard') }}">
                 <span class="icon-badge brand-icon text-primary">
-                    <i class="bi bi-stars"></i>
+                    <i class="bi bi-house-door"></i>
                 </span>
-                <span>ASKA Absensi</span>
+                <span>Home</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#attendanceNav"
                 aria-controls="attendanceNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,11 @@
             <div class="collapse navbar-collapse" id="attendanceNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
+                    {% set can_absen_kelas = current_user and current_user.role in ['staff', 'admin'] %}
+                    {% set can_absen_ekskul = current_user and current_user.role in ['admin', 'ekskul'] %}
+                    {% set show_absensi_menu = can_absen_kelas or (current_user and current_user.role == 'admin') %}
                     {% set absensi_active = attendance_active_tab in ['kelas', 'staff'] %}
+                    {% if show_absensi_menu %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if absensi_active %}active{% endif %}" href="#"
                             id="navAbsensiDropdown" role="button" data-bs-toggle="dropdown"
@@ -53,12 +57,14 @@
                             <i class="bi bi-clipboard-check nav-icon"></i>Absensi
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navAbsensiDropdown">
+                            {% if can_absen_kelas %}
                             <li>
                                 <a class="dropdown-item {% if attendance_active_tab == 'kelas' %}active{% endif %}"
                                     href="{{ url_for('attendance.kelas') }}">
                                     Absensi Kelas
                                 </a>
                             </li>
+                            {% endif %}
                             {% if current_user and current_user.role == 'admin' %}
                             <li>
                                 <a class="dropdown-item {% if attendance_active_tab == 'staff' %}active{% endif %}"
@@ -69,6 +75,8 @@
                             {% endif %}
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if can_absen_kelas %}
                     {% set laporan_active = attendance_active_tab in ['laporan_harian', 'laporan_bulanan',
                     'lembar_bulanan'] %}
                     <li class="nav-item dropdown">
@@ -98,6 +106,52 @@
                             </li>
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if can_absen_ekskul %}
+                    {% set ekskul_active = attendance_active_tab in ['ekskul_dashboard', 'ekskul_absen', 'ekskul_members', 'ekskul_master', 'ekskul_config'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if ekskul_active %}active{% endif %}" href="#"
+                            id="navEkskulDropdown" role="button" data-bs-toggle="dropdown"
+                            aria-expanded="{{ 'true' if ekskul_active else 'false' }}">
+                            <i class="bi bi-trophy nav-icon"></i>Ekskul
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navEkskulDropdown">
+                            <li>
+                                <a class="dropdown-item {% if attendance_active_tab == 'ekskul_dashboard' %}active{% endif %}"
+                                    href="{{ url_for('attendance.ekskul_dashboard') }}">
+                                    Dashboard Ekskul
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if attendance_active_tab == 'ekskul_absen' %}active{% endif %}"
+                                    href="{{ url_for('attendance.ekskul_absen') }}">
+                                    Absensi Ekskul
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if attendance_active_tab == 'ekskul_members' %}active{% endif %}"
+                                    href="{{ url_for('attendance.ekskul_members') }}">
+                                    Anggota Ekskul
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if attendance_active_tab == 'ekskul_config' %}active{% endif %}"
+                                    href="{{ url_for('attendance.ekskul_config') }}">
+                                    Konfigurasi Ekskul
+                                </a>
+                            </li>
+                            {% if current_user and current_user.role == 'admin' %}
+                            <li>
+                                <a class="dropdown-item {% if attendance_active_tab == 'ekskul_master' %}active{% endif %}"
+                                    href="{{ url_for('attendance.ekskul_master') }}">
+                                    Master Ekskul
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% if current_user and current_user.role != 'ekskul' %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if 'library' in request.endpoint %}active{% endif %}"
                             href="#" id="navLibraryDropdown" role="button" data-bs-toggle="dropdown"
@@ -125,6 +179,7 @@
                             </li>
                         </ul>
                     </li>
+                    {% if can_absen_kelas %}
                     {% set master_active = attendance_active_tab in ['master_siswa', 'master_staff'] %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if master_active %}active{% endif %}" href="#"
@@ -149,7 +204,9 @@
                             {% endif %}
                         </ul>
                     </li>
-                    {% if current_user and current_user.role != 'staff' %}
+                    {% endif %}
+                    {% endif %}
+                    {% if current_user and current_user.role not in ['staff', 'ekskul'] %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                             <i class="bi bi-columns-gap nav-icon"></i>Dashboard ASKA

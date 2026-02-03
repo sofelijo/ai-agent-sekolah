@@ -41,7 +41,7 @@ oauth = OAuth()
 
 GMAIL_ALLOWED_DOMAINS = {"gmail.com", "googlemail.com"}
 _OAUTH_REGISTERED = False
-_ROLE_CHOICES = {"viewer", "editor", "staff", "admin"}
+_ROLE_CHOICES = {"viewer", "editor", "staff", "admin", "ekskul"}
 
 
 def _normalize_role(value: Optional[str]) -> str:
@@ -99,6 +99,8 @@ def role_required(*roles: str) -> Callable:
                 flash("Anda tidak memiliki akses ke fitur ini.", "danger")
                 if role == "staff":
                     return redirect(url_for("attendance.dashboard"))
+                if role == "ekskul":
+                    return redirect(url_for("attendance.ekskul_dashboard"))
                 return redirect(url_for("main.dashboard"))
             return view(*args, **kwargs)
 
@@ -135,6 +137,8 @@ def _redirect_after_login(user: dict, fallback: Optional[str] = None) -> str:
     """Determine the appropriate redirect destination after login."""
     if user.get("role") == "staff":
         return url_for("attendance.dashboard")
+    if user.get("role") == "ekskul":
+        return url_for("attendance.ekskul_dashboard")
     return fallback or url_for("main.dashboard")
 
 
@@ -254,6 +258,11 @@ def manage_users() -> Response:
         full_name = (request.form.get("full_name") or "").strip()
         password = request.form.get("password") or ""
         role = _normalize_role(request.form.get("role"))
+        nrk = (request.form.get("nrk") or "").strip() or None
+        nip = (request.form.get("nip") or "").strip() or None
+        jabatan = (request.form.get("jabatan") or "").strip() or None
+        degree_prefix = (request.form.get("degree_prefix") or "").strip() or None
+        degree_suffix = (request.form.get("degree_suffix") or "").strip() or None
 
         if not all([email, full_name, password]):
             flash("Semua field wajib diisi.", "warning")
@@ -262,7 +271,17 @@ def manage_users() -> Response:
         else:
             password_hash = generate_password_hash(password, method="pbkdf2:sha256", salt_length=12)
             try:
-                create_dashboard_user(email=email, full_name=full_name, password_hash=password_hash, role=role)
+                create_dashboard_user(
+                    email=email,
+                    full_name=full_name,
+                    password_hash=password_hash,
+                    role=role,
+                    nrk=nrk,
+                    nip=nip,
+                    jabatan=jabatan,
+                    degree_prefix=degree_prefix,
+                    degree_suffix=degree_suffix,
+                )
                 flash(f"User {full_name} berhasil dibuat.", "success")
             except Exception as exc:  # pragma: no cover - surfaces to UI
                 flash(f"Gagal membuat user baru: {exc}", "danger")

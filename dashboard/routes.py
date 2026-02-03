@@ -297,6 +297,8 @@ def restrict_teacher_access():
     user = current_user()
     if user and user.get("role") == "staff":
         return redirect(url_for("attendance.dashboard"))
+    if user and user.get("role") == "ekskul":
+        return redirect(url_for("attendance.ekskul_dashboard"))
 
 
 @main_bp.route("/profile/no-tester", methods=["POST"])
@@ -328,9 +330,7 @@ def toggle_no_tester() -> Response:
     return jsonify({"success": True, "enabled": enabled})
 
 
-@main_bp.route("/")
-@login_required
-def dashboard() -> Response:
+def _render_aska_dashboard() -> Response:
     metrics = fetch_overview_metrics(window_days=7)
     chart_default_days = 30
     activity_default = fetch_daily_activity(days=chart_default_days)
@@ -410,6 +410,25 @@ def dashboard() -> Response:
         messages_counts=messages_counts,
         aska_links=aska_links,
     )
+
+
+@main_bp.route("/")
+@login_required
+def dashboard() -> Response:
+    return render_template("app_hub.html")
+
+
+@main_bp.route("/apps")
+@login_required
+def app_hub() -> Response:
+    return render_template("app_hub.html")
+
+
+@main_bp.route("/aska")
+@login_required
+@role_required("admin")
+def aska_dashboard() -> Response:
+    return _render_aska_dashboard()
 
 
 @main_bp.route("/settings/landingpage", methods=["GET", "POST"])

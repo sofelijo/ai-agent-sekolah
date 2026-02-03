@@ -33,11 +33,11 @@
     <nav class="navbar navbar-expand-lg shadow-sm sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold text-primary"
-                href="{{ url_for('attendance.dashboard') if current_user and current_user.role == 'staff' else url_for('main.dashboard') }}">
+                href="{{ url_for('main.dashboard') }}">
                 <span class="icon-badge brand-icon text-primary">
-                    <i class="bi bi-stars"></i>
+                    <i class="bi bi-house-door"></i>
                 </span>
-                <span>ASKA Insights</span>
+                <span>Home</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu"
                 aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,25 +45,10 @@
             </button>
             <div class="collapse navbar-collapse" id="navMenu">
                 {% set current_role = current_user.role if current_user else None %}
-                {% set is_teacher = current_role == 'staff' %}
+                {% set attendance_home = 'attendance.ekskul_dashboard' if current_role == 'ekskul' else 'attendance.dashboard' %}
+                {% set is_teacher = current_role in ['staff', 'ekskul'] %}
                 {% set is_admin = current_role == 'admin' %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    {% if is_teacher %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}"
-                            href="{{ url_for('attendance.dashboard') }}">
-                            <i class="bi bi-clipboard-check nav-icon"></i>Absensi
-                        </a>
-                    </li>
-                    {% else %}
-                    {% if is_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}"
-                            href="{{ url_for('attendance.dashboard') }}">
-                            <i class="bi bi-clipboard-check nav-icon"></i>Absensi
-                        </a>
-                    </li>
-                    {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint in ['main.chats', 'main.chat_thread', 'main.feedback', 'main.twitter_logs'] %}active{% endif %}"
                             href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -191,7 +176,6 @@
                             </li>
                         </ul>
                     </li>
-                    {% endif %}
                     {% endif %}
                 </ul>
                 <div class="d-flex align-items-center gap-3 flex-wrap flex-lg-nowrap ms-lg-auto">

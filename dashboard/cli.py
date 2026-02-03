@@ -85,7 +85,7 @@ def main() -> None:
     create.add_argument(
         "--role",
         default="admin",
-        choices=["admin", "editor", "viewer", "staff"],
+        choices=["admin", "editor", "viewer", "staff", "ekskul"],
         help="Role for the user",
     )
     create.add_argument("--password", help="Plain password. If omitted, prompt securely.")

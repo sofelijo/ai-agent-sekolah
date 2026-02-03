@@ -1,0 +1,312 @@
+{% extends "attendance/base.html" %}
+{% block title %}Anggota Ekskul{% endblock %}
+
+{% block content %}
+<div class="ekskul-page ekskul-members">
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Anggota Ekskul</h1>
+        <p class="text-muted mb-0">Kelola anggota, peran, dan status keaktifan peserta ekskul.</p>
+    </div>
+</div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" action="{{ url_for('attendance.ekskul_members') }}" class="row g-3 align-items-end">
+                    <div class="col-lg-5">
+                        <label class="form-label fw-semibold">Ekskul</label>
+                        {% if show_activity_picker %}
+                        <select class="form-select" name="activity_id" required>
+                            <option value="">-- Pilih ekskul --</option>
+                            {% for activity in activities %}
+                            <option value="{{ activity.id }}" {% if activity.id == selected_activity_id %}selected{% endif %}>
+                                {{ activity.name }}{% if not activity.active %} (Nonaktif){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <div class="fw-semibold">{{ selected_activity.name if selected_activity else '-' }}</div>
+                        <input type="hidden" name="activity_id" value="{{ selected_activity_id or '' }}">
+                        {% endif %}
+                    </div>
+                    {% if show_activity_picker %}
+                    <div class="col-lg-3 d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search me-1"></i> Tampilkan
+                        </button>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Tambah Anggota</h2>
+                {% if selected_activity_id %}
+                <div>
+                    <label class="form-label">Tambah cepat (min. 3 karakter)</label>
+                    <input type="text" class="form-control" id="memberSearchInput" placeholder="Nama / NIS / NISN">
+                    <div id="memberSearchResults" class="list-group mt-2"></div>
+                    <div class="small text-muted mt-2">Ketik minimal 3 karakter untuk mencari siswa dari database.</div>
+                    <form id="quickAddForm" method="post" action="{{ url_for('attendance.ekskul_members') }}">
+                        <input type="hidden" name="action" value="quick_add_member">
+                        <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+                        <input type="hidden" name="student_id" id="quickAddStudentId">
+                    </form>
+                </div>
+                {% else %}
+                <div class="text-muted small">Pilih ekskul terlebih dahulu.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Daftar Anggota</h2>
+                {% if selected_activity_id %}
+                <form id="bulkActionForm" method="post" action="{{ url_for('attendance.ekskul_members') }}" class="d-flex flex-wrap gap-2 mb-3">
+                    <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+                    <button type="submit" name="action" value="bulk_activate" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-check-circle me-1"></i> Aktifkan Terpilih
+                    </button>
+                    <button type="submit" name="action" value="bulk_deactivate" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-slash-circle me-1"></i> Nonaktifkan Terpilih
+                    </button>
+                    <button type="submit" name="action" value="bulk_delete" class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('Hapus permanen anggota yang dipilih?');">
+                        <i class="bi bi-trash me-1"></i> Hapus Permanen
+                    </button>
+                    <span class="small text-muted align-self-center">Pilih anggota pada daftar untuk aksi massal.</span>
+                </form>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input class="form-check-input" type="checkbox" id="selectAllMembers">
+                                </th>
+                                <th>Nama</th>
+                                <th>Kelas</th>
+                                <th>Status</th>
+                                <th class="d-none d-lg-table-cell">Peran</th>
+                                <th class="d-none d-lg-table-cell">Bergabung</th>
+                                <th class="d-none d-lg-table-cell">Catatan</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in members %}
+                            <tr>
+                                <td>
+                                    <input class="form-check-input member-checkbox" type="checkbox" name="member_ids"
+                                        value="{{ member.member_id }}" form="bulkActionForm">
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ member.full_name }}</div>
+                                    {% if member.member_role %}
+                                    <div class="small text-muted d-lg-none">Peran: {{ member.member_role }}</div>
+                                    {% endif %}
+                                    {% if member.joined_at %}
+                                    <div class="small text-muted d-lg-none">Bergabung: {{ member.joined_at|jakarta('%d %b %Y') }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ member.class_name }}</td>
+                                <td>
+                                    {% if member.member_active %}
+                                    <span class="badge text-bg-success">Aktif</span>
+                                    {% else %}
+                                    <span class="badge text-bg-secondary">Nonaktif</span>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-lg-table-cell">{{ member.member_role or '-' }}</td>
+                                <td class="d-none d-lg-table-cell">{{ member.joined_at|jakarta('%d %b %Y') if member.joined_at else '-' }}</td>
+                                <td class="d-none d-lg-table-cell">{{ member.member_note or '-' }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                            data-bs-target="#editMemberModal{{ member.member_id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post" action="{{ url_for('attendance.ekskul_members') }}" class="d-inline">
+                                            <input type="hidden" name="action" value="toggle_member">
+                                            <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+                                            <input type="hidden" name="member_id" value="{{ member.member_id }}">
+                                            <input type="hidden" name="member_active" value="{{ 0 if member.member_active else 1 }}">
+                                            <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if member.member_active else 'btn-outline-success' }}">
+                                                {% if member.member_active %}
+                                                Nonaktifkan
+                                                {% else %}
+                                                Aktifkan
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('attendance.ekskul_members') }}" class="d-inline"
+                                            onsubmit="return confirm('Hapus permanen anggota ini?');">
+                                            <input type="hidden" name="action" value="delete_member">
+                                            <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+                                            <input type="hidden" name="member_id" value="{{ member.member_id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">Belum ada anggota terdaftar.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-muted">Pilih ekskul untuk menampilkan anggota.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for member in members %}
+<div class="modal fade" id="editMemberModal{{ member.member_id }}" tabindex="-1" aria-labelledby="editMemberModalLabel{{ member.member_id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('attendance.ekskul_members') }}">
+                <input type="hidden" name="action" value="update_member">
+                <input type="hidden" name="activity_id" value="{{ selected_activity_id }}">
+                <input type="hidden" name="member_id" value="{{ member.member_id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMemberModalLabel{{ member.member_id }}">Edit Anggota</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Siswa</label>
+                            <input type="text" class="form-control" value="{{ member.full_name }}" disabled>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Kelas</label>
+                            <input type="text" class="form-control" value="{{ member.class_name }}" disabled>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Peran</label>
+                            <input type="text" class="form-control" name="member_role" value="{{ member.member_role or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tanggal Bergabung</label>
+                            <input type="date" class="form-control" name="member_joined_at" value="{{ member.joined_at|jakarta('%Y-%m-%d') if member.joined_at }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Catatan</label>
+                            <textarea class="form-control" name="member_note" rows="3">{{ member.member_note or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-2"></i>Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var selectAll = document.getElementById("selectAllMembers");
+    if (selectAll) {
+        selectAll.addEventListener("change", function () {
+            var checked = selectAll.checked;
+            document.querySelectorAll(".member-checkbox").forEach(function (item) {
+                item.checked = checked;
+            });
+        });
+    }
+
+    var searchInput = document.getElementById("memberSearchInput");
+    var resultsContainer = document.getElementById("memberSearchResults");
+    var quickAddForm = document.getElementById("quickAddForm");
+    var quickAddStudentInput = document.getElementById("quickAddStudentId");
+    var activityId = "{{ selected_activity_id or '' }}";
+    var searchEndpoint = "{{ url_for('attendance.ekskul_member_search') }}";
+
+    if (!searchInput || !resultsContainer) {
+        return;
+    }
+
+    var searchTimeout = null;
+
+    function renderResults(items) {
+        resultsContainer.innerHTML = "";
+        if (!items.length) {
+            resultsContainer.innerHTML = '<div class="text-muted small">Tidak ada siswa ditemukan.</div>';
+            return;
+        }
+        items.forEach(function (item) {
+            var isActiveMember = item.member_active === true;
+            var isInactiveMember = item.member_id && item.member_active === false;
+            var buttonLabel = isActiveMember ? "Sudah aktif" : (isInactiveMember ? "Aktifkan" : "Tambah");
+            var buttonClass = isActiveMember ? "btn btn-sm btn-secondary" : "btn btn-sm btn-primary";
+            var disabledAttr = isActiveMember ? "disabled" : "";
+            var nisLabel = item.student_number ? "NIS: " + item.student_number : "";
+            var nisnLabel = item.nisn ? " • NISN: " + item.nisn : "";
+            var listItem = document.createElement("div");
+            listItem.className = "list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2";
+            listItem.innerHTML =
+                '<div><div class="fw-semibold">' + item.full_name + '</div>' +
+                '<div class="small text-muted">' + item.class_name + '</div>' +
+                '<div class="small text-muted">' + nisLabel + nisnLabel + '</div></div>' +
+                '<button type="button" class="' + buttonClass + '" ' + disabledAttr + ' data-student-id="' + item.student_id + '">' + buttonLabel + '</button>';
+            listItem.querySelector("button").addEventListener("click", function () {
+                if (!quickAddForm || !quickAddStudentInput) {
+                    return;
+                }
+                quickAddStudentInput.value = item.student_id;
+                quickAddForm.submit();
+            });
+            resultsContainer.appendChild(listItem);
+        });
+    }
+
+    function handleSearch() {
+        var query = searchInput.value.trim();
+        if (query.length < 3) {
+            resultsContainer.innerHTML = "";
+            return;
+        }
+        if (!activityId) {
+            resultsContainer.innerHTML = '<div class="text-muted small">Pilih ekskul terlebih dahulu.</div>';
+            return;
+        }
+        fetch(searchEndpoint + "?activity_id=" + activityId + "&q=" + encodeURIComponent(query))
+            .then(function (response) { return response.json(); })
+            .then(function (payload) {
+                renderResults(payload.items || []);
+            })
+            .catch(function () {
+                resultsContainer.innerHTML = '<div class="text-muted small">Gagal memuat hasil pencarian.</div>';
+            });
+    }
+
+    searchInput.addEventListener("input", function () {
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        searchTimeout = setTimeout(handleSearch, 300);
+    });
+});
+</script>
+</div>
+{% endblock %}
