@@ -124,6 +124,9 @@
                 <div class="text-muted small">Status default setiap siswa adalah <strong>masuk</strong>.</div>
             </div>
             <div class="d-flex gap-2">
+                <a class="btn btn-outline-success" href="{{ url_for('attendance.generate_semester_2', class_id=selected_class_id) }}">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Generate Absen Semester 2 2025/2026
+                </a>
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save me-1"></i> Simpan Absensi
                 </button>

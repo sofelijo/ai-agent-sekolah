@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from pathlib import Path
 import calendar
 from typing import Any, Dict, List, Optional, Tuple
 
-from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import current_app, flash, jsonify, redirect, render_template, request, session, send_file, url_for
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 
 from utils import (
     INDONESIAN_DAY_NAMES,
@@ -32,6 +34,7 @@ from .queries import (
     fetch_class_submission_status_for_date,
     fetch_daily_attendance,
     fetch_master_data_overview,
+    fetch_most_missing_attendance_classes,
     fetch_monthly_attendance_overview,
     fetch_class_month_attendance_entries,
     fetch_recent_attendance,
@@ -41,6 +44,7 @@ from .queries import (
     fetch_teacher_absence_for_date,
     fetch_teacher_assigned_class,
     fetch_teacher_attendance_for_date,
+    fetch_teacher_profile,
     fetch_teacher_master_data,
     get_school_class,
     list_attendance_months,
@@ -52,6 +56,10 @@ from .queries import (
     upsert_attendance_entries,
     replace_late_students_for_date,
     upsert_teacher_attendance_entries,
+)
+from .semester_exporter import (
+    SEMESTER_2_2025_2026_MONTHS,
+    generate_semester_excel,
 )
 
 STATUS_LABELS: Dict[str, str] = {
@@ -121,6 +129,16 @@ def _resolve_month_reference(raw_value: Optional[str], fallback: date) -> date:
 def _format_month_label(value: date) -> str:
     month_label = INDONESIAN_MONTH_NAMES.get(value.month, value.strftime("%B"))
     return f"{month_label} {value.year}"
+
+
+def _compose_teacher_display_name(profile: Optional[Dict[str, Any]], fallback_name: Optional[str]) -> Optional[str]:
+    if not profile:
+        return fallback_name
+    prefix = (profile.get("degree_prefix") or "").strip()
+    suffix = (profile.get("degree_suffix") or "").strip()
+    full_name = (profile.get("full_name") or fallback_name or "").strip()
+    parts = [part for part in (prefix, full_name, suffix) if part]
+    return " ".join(parts) if parts else None
 
 
 def _build_month_options(available_months: List[date], selected_month: date) -> List[Dict[str, str]]:
@@ -206,6 +224,8 @@ def _extract_student_form_payload(form_data) -> Dict[str, Any]:
 def dashboard() -> str:
     now = current_jakarta_time()
     today = now.date()
+    missing_range_end = today
+    missing_range_start = today - timedelta(days=30)
     overview = fetch_master_data_overview()
     today_totals = fetch_attendance_totals_for_date(today)
     daily_rows = fetch_daily_attendance(days=7)
@@ -374,6 +394,13 @@ def dashboard() -> str:
             "total_students": int(row.get("total_students") or 0),
         }
 
+    most_missing_classes = fetch_most_missing_attendance_classes(
+        missing_range_start,
+        missing_range_end,
+        limit=6,
+        exclude_weekends=True,
+    )
+
     return render_template(
         "attendance/stats.html",
         attendance_active_tab="stats",
@@ -415,6 +442,9 @@ def dashboard() -> str:
         daily_rows=daily_rows,
         recent_records=recent_records,
         class_submission_status=class_submission_status,
+        most_missing_classes=most_missing_classes,
+        missing_range_start=missing_range_start,
+        missing_range_end=missing_range_end,
         generated_at=now,
         today_label=_format_indonesian_date(today),
         status_labels=STATUS_LABELS,
@@ -497,6 +527,148 @@ def absen() -> str:
         latest_submission_at=latest_submission_at,
         today=current_jakarta_time(),
         selected_date_label=selected_date_label,
+    )
+
+
+@attendance_bp.route("/absen/kelas/generate-semester-2", methods=["GET"], endpoint="generate_semester_2")
+@login_required
+@role_required("staff", "admin")
+def generate_semester_2() -> Any:
+    user = current_user()
+    if not user:
+        return redirect(url_for("auth.login"))
+
+    role = user.get("role")
+    selected_class_id: Optional[int] = None
+    teacher_class: Dict[str, Any] = {}
+    if role == "admin":
+        raw_class_id = request.args.get("class_id")
+        if raw_class_id:
+            try:
+                selected_class_id = int(raw_class_id)
+            except (TypeError, ValueError):
+                selected_class_id = None
+
+    if selected_class_id is None:
+        teacher_class = fetch_teacher_assigned_class(user["id"]) or {}
+        selected_class_id = int(teacher_class.get("assigned_class_id") or 0) or None
+    if not selected_class_id:
+        flash("Silakan pilih kelas terlebih dahulu.", "warning")
+        return redirect(url_for("attendance.kelas"))
+
+    class_detail = get_school_class(selected_class_id) or {}
+    if not class_detail:
+        flash("Kelas tidak ditemukan.", "warning")
+        return redirect(url_for("attendance.kelas"))
+    students = fetch_students_for_class(selected_class_id)
+    if not students:
+        flash("Belum ada data siswa untuk kelas ini.", "warning")
+        return redirect(url_for("attendance.kelas"))
+
+    school_identity = fetch_school_identity()
+    academic_year = (
+        class_detail.get("academic_year")
+        or school_identity.get("academic_year")
+        or "2025/2026"
+    )
+    class_label = class_detail.get("name") or teacher_class.get("class_name")
+    school_name = school_identity.get("school_name")
+
+    teacher_profile = fetch_teacher_profile(user["id"]) or {}
+    teacher_name = _compose_teacher_display_name(teacher_profile, user.get("full_name"))
+    teacher_nip = teacher_profile.get("nip")
+    headmaster_name = school_identity.get("headmaster_display_name") or _compose_teacher_display_name(
+        {
+            "degree_prefix": school_identity.get("headmaster_degree_prefix"),
+            "full_name": school_identity.get("headmaster_name"),
+            "degree_suffix": school_identity.get("headmaster_degree_suffix"),
+        },
+        None,
+    )
+    headmaster_nip = school_identity.get("headmaster_nip")
+
+    student_rows: List[Dict[str, Any]] = []
+    for idx, student in enumerate(students, start=1):
+        seq_value = student.get("sequence")
+        try:
+            seq = int(seq_value) if seq_value is not None else idx
+        except (TypeError, ValueError):
+            seq = idx
+        gender_raw = (student.get("gender") or "").strip().upper()
+        if gender_raw.startswith("L"):
+            gender = "L"
+        elif gender_raw.startswith("P"):
+            gender = "P"
+        else:
+            gender = ""
+        student_rows.append(
+            {
+                "no": seq,
+                "id": int(student.get("id")),
+                "name": student.get("full_name"),
+                "gender": gender,
+            }
+        )
+
+    attendance_data: Dict[Tuple[int, int], Dict[Tuple[int, int], str]] = {}
+    for year, month in SEMESTER_2_2025_2026_MONTHS:
+        entries = fetch_class_month_attendance_entries(selected_class_id, year, month)
+        month_map: Dict[Tuple[int, int], str] = {}
+        for row in entries:
+            try:
+                sid = int(row.get("student_id"))
+            except (TypeError, ValueError):
+                continue
+            dt_val = row.get("attendance_date")
+            if isinstance(dt_val, date):
+                day_num = dt_val.day
+            else:
+                try:
+                    day_num = date.fromisoformat(str(dt_val)).day
+                except Exception:
+                    continue
+            status = (row.get("status") or "").strip().lower()
+            if status:
+                month_map[(sid, int(day_num))] = status
+        attendance_data[(year, month)] = month_map
+
+    template_path = Path(__file__).resolve().parent / "contoh" / "contoh format.xlsx"
+    if not template_path.exists():
+        flash("Template Excel belum tersedia. Hubungi admin.", "danger")
+        return redirect(url_for("attendance.kelas"))
+
+    try:
+        stream = generate_semester_excel(
+            template_path,
+            months=SEMESTER_2_2025_2026_MONTHS,
+            students=student_rows,
+            attendance_data=attendance_data,
+            school_name=school_name,
+            academic_year=academic_year,
+            class_label=class_label,
+            teacher_name=teacher_name,
+            teacher_nip=teacher_nip,
+            headmaster_name=headmaster_name,
+            headmaster_nip=headmaster_nip,
+        )
+    except RuntimeError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("attendance.kelas"))
+    except Exception as exc:
+        current_app.logger.exception("Gagal generate absen semester: %s", exc)
+        flash("Gagal membuat file absen semester. Silakan coba lagi.", "danger")
+        return redirect(url_for("attendance.kelas"))
+
+    safe_class = class_label or "kelas"
+    filename = secure_filename(f"absen-semester2-2025-2026-{safe_class}.xlsx")
+    if not filename:
+        filename = "absen-semester2-2025-2026.xlsx"
+
+    return send_file(
+        stream,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

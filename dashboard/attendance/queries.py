@@ -163,6 +163,26 @@ def fetch_teacher_master_data() -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def fetch_teacher_profile(user_id: int) -> Optional[Dict[str, Any]]:
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                nip,
+                degree_prefix,
+                degree_suffix
+            FROM dashboard_users
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+        row: Optional[DictRow] = cur.fetchone()
+    return dict(row) if row else None
+
+
 def create_teacher_user(
     email: str,
     full_name: str,
@@ -853,6 +873,61 @@ def fetch_class_submission_status_for_date(target_date: date) -> Dict[str, List[
         else:
             pending.append(item)
     return {"submitted": submitted, "pending": pending}
+
+
+def fetch_most_missing_attendance_classes(
+    start_date: date,
+    end_date: date,
+    limit: int = 5,
+    exclude_weekends: bool = True,
+) -> List[Dict[str, Any]]:
+    """Ambil kelas dengan hari terbanyak tanpa absen pada rentang tanggal."""
+    weekend_filter = "AND EXTRACT(DOW FROM d) NOT IN (0, 6)" if exclude_weekends else ""
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            WITH date_series AS (
+                SELECT d::date AS attendance_date
+                FROM generate_series(%s::date, %s::date, interval '1 day') AS d
+                WHERE 1=1
+                {weekend_filter}
+            ),
+            class_dates AS (
+                SELECT sc.id, sc.name, ds.attendance_date
+                FROM school_classes sc
+                CROSS JOIN date_series ds
+            ),
+            class_entries AS (
+                SELECT ar.class_id, ar.attendance_date, COUNT(*) AS total_entries
+                FROM attendance_records ar
+                WHERE ar.attendance_date BETWEEN %s AND %s
+                GROUP BY ar.class_id, ar.attendance_date
+            )
+            SELECT
+                cd.id,
+                cd.name,
+                SUM(CASE WHEN COALESCE(ce.total_entries, 0) = 0 THEN 1 ELSE 0 END) AS missing_days,
+                COUNT(*) AS total_days
+            FROM class_dates cd
+            LEFT JOIN class_entries ce
+              ON ce.class_id = cd.id
+             AND ce.attendance_date = cd.attendance_date
+            GROUP BY cd.id, cd.name
+            ORDER BY missing_days DESC, cd.name ASC
+            LIMIT %s
+            """,
+            (start_date, end_date, start_date, end_date, limit),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "id": int(row["id"]),
+            "name": row["name"],
+            "missing_days": int(row["missing_days"] or 0),
+            "total_days": int(row["total_days"] or 0),
+        }
+        for row in rows
+    ]
 
 
 def fetch_class_attendance_breakdown(attendance_date: date) -> List[Dict[str, Any]]:
