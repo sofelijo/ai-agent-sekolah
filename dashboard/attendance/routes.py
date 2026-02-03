@@ -2096,6 +2096,11 @@ def ekskul_absen() -> str:
         address = (request.form.get("address") or "").strip() or None
         photo_path: Optional[str] = None
         if photo_data:
+            old_photo_path: Optional[str] = None
+            if edit_mode:
+                existing_evidence = fetch_extracurricular_evidence_for_date(selected_activity_id, selected_date)
+                if existing_evidence and existing_evidence.get("photo_path"):
+                    old_photo_path = existing_evidence.get("photo_path")
             if latitude is None or longitude is None:
                 flash("Foto bukti dengan lokasi GPS wajib diisi sebelum menyimpan.", "danger")
                 return redirect(
@@ -2112,6 +2117,13 @@ def ekskul_absen() -> str:
                     attendance_date=selected_date,
                     captured_at=captured_at,
                 )
+                if old_photo_path and old_photo_path != photo_path and old_photo_path.startswith("uploads/"):
+                    old_path = Path(current_app.root_path) / "static" / old_photo_path
+                    try:
+                        if old_path.exists():
+                            old_path.unlink()
+                    except Exception:
+                        current_app.logger.warning("Gagal menghapus foto lama ekskul: %s", old_photo_path)
             except ValueError as exc:
                 flash(str(exc), "danger")
                 return redirect(
