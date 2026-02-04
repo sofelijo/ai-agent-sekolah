@@ -23,6 +23,58 @@
         border-radius: 12px;
         border: 1px solid rgba(0, 0, 0, 0.08);
     }
+    .lp-admin-nav {
+        position: sticky;
+        top: 5.25rem;
+        z-index: 12;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-soft);
+        border-radius: 1rem;
+        padding: 1rem 1.25rem;
+        box-shadow: var(--shadow-soft);
+        margin-bottom: 1.5rem;
+    }
+    .lp-nav-header {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+    }
+    .lp-nav-title {
+        font-weight: 700;
+        margin-bottom: 0.1rem;
+    }
+    .lp-nav-subtitle {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin: 0;
+    }
+    .lp-nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .lp-nav-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 999px;
+        background: var(--bg-subtle);
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.15s ease;
+    }
+    .lp-nav-link:hover,
+    .lp-nav-link:focus {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+    }
+    .lp-section {
+        scroll-margin-top: 7rem;
+    }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
 {% endblock %}
@@ -47,10 +99,34 @@
     </div>
 </section>
 
+<nav class="lp-admin-nav">
+    <div class="lp-nav-header">
+        <span class="icon-badge section-icon text-primary">
+            <i class="bi bi-compass"></i>
+        </span>
+        <div>
+            <div class="lp-nav-title">Navigasi Cepat</div>
+            <p class="lp-nav-subtitle">Loncat ke bagian yang ingin kamu ubah.</p>
+        </div>
+    </div>
+    <div class="lp-nav-links">
+        <a class="lp-nav-link" href="#lp-identity"><i class="bi bi-stars"></i>Identitas</a>
+        <a class="lp-nav-link" href="#lp-profile"><i class="bi bi-person-badge"></i>Profil</a>
+        <a class="lp-nav-link" href="#lp-vision"><i class="bi bi-flag"></i>Visi &amp; Misi</a>
+        <a class="lp-nav-link" href="#lp-documentation"><i class="bi bi-camera-reels"></i>Dokumentasi</a>
+        <a class="lp-nav-link" href="#lp-activities"><i class="bi bi-calendar-event"></i>Kegiatan</a>
+        <a class="lp-nav-link" href="#lp-extracurricular"><i class="bi bi-award"></i>Ekstrakurikuler</a>
+        <a class="lp-nav-link" href="#lp-seo"><i class="bi bi-graph-up"></i>SEO</a>
+        <a class="lp-nav-link" href="#lp-footer"><i class="bi bi-brightness-alt-high"></i>Footer</a>
+        <a class="lp-nav-link" href="#lp-teachers"><i class="bi bi-people"></i>Guru</a>
+        <a class="lp-nav-link" href="#lp-logs"><i class="bi bi-activity"></i>Log</a>
+    </div>
+</nav>
+
 <form method="post" id="landingpageForm">
     <div class="row g-4">
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-identity">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-primary">
@@ -95,7 +171,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-profile">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-secondary">
@@ -175,7 +251,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm lp-section" id="lp-vision">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-success">
@@ -227,7 +303,7 @@
         </div>
 
         <div class="col-lg-6">
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-documentation">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-warning">
@@ -300,7 +376,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-activities">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-info">
@@ -363,7 +439,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-extracurricular">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-primary">
@@ -434,7 +510,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-seo">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-danger">
@@ -555,7 +631,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm lp-section" id="lp-footer">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-3 mb-3">
                         <span class="icon-badge section-icon text-muted">
@@ -577,7 +653,7 @@
     </div>
 </form>
 
-<div class="row g-4 mt-5">
+<div class="row g-4 mt-5 lp-section" id="lp-teachers">
     <div class="col-12">
         <div class="page-header">
             <div class="page-title-group">
@@ -814,7 +890,7 @@
 </div>
 {% endfor %}
 
-<div class="card border-0 shadow-sm mt-4">
+<div class="card border-0 shadow-sm mt-4 lp-section" id="lp-logs">
     <div class="card-body">
         <div class="d-flex align-items-center gap-3 mb-3">
             <span class="icon-badge section-icon text-secondary">

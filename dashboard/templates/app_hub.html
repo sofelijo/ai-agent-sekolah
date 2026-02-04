@@ -9,6 +9,7 @@
     {% set can_absen_siswa = role in ['admin', 'staff'] %}
     {% set can_absen_ekskul = role in ['admin', 'ekskul'] %}
     {% set can_tka = role == 'admin' %}
+    {% set can_landingpage = role == 'admin' %}
 
     <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
         <div>
@@ -37,6 +38,26 @@
                     <span class="icon-badge text-primary"><i class="bi bi-stars"></i></span>
                     <h2 class="h5 mt-3 mb-1 text-body">ASKA</h2>
                     <p class="text-muted small mb-2">Dashboard ASKA Insights.</p>
+                    <span class="badge text-bg-light">Khusus admin</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_landingpage %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('main.landingpage_settings') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-primary"><i class="bi bi-window"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Landing Page</h2>
+                    <p class="text-muted small mb-0">Kelola konten & tampilan web sekolah.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-primary"><i class="bi bi-window"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Landing Page</h2>
+                    <p class="text-muted small mb-2">Kelola konten & tampilan web sekolah.</p>
                     <span class="badge text-bg-light">Khusus admin</span>
                 </div>
             </div>
