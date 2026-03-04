@@ -78,6 +78,7 @@
                 <div class="timeline-dot"></div>
                 <div class="timeline-card">
                     <div class="timeline-date">{{ item.date_label }}</div>
+                    <div class="timeline-material">Materi: {{ item.material or '-' }}</div>
                     <div class="timeline-media">
                         <img src="{{ asset_url(item.photo_path) }}" alt="Foto absensi {{ activity.name }}">
                         <div class="timeline-count">{{ item.total_students }} siswa</div>
@@ -209,9 +210,14 @@ document.addEventListener("DOMContentLoaded", function () {
         count.className = "timeline-count";
         count.textContent = (item.total_students || 0) + " siswa";
 
+        var material = document.createElement("div");
+        material.className = "timeline-material";
+        material.textContent = "Materi: " + ((item.material || "").trim() || "-");
+
         media.appendChild(img);
         media.appendChild(count);
         card.appendChild(dateEl);
+        card.appendChild(material);
         card.appendChild(media);
         article.appendChild(dot);
         article.appendChild(card);

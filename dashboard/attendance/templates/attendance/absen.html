@@ -79,12 +79,43 @@
                 <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div>
                         <h2 class="h5 mb-2">Tanggal Absensi</h2>
-                        <form class="d-flex align-items-center gap-2" method="get" action="{{ url_for('attendance.kelas') }}">
-                            <input type="date" class="form-control" name="date" value="{{ selected_date.isoformat() }}" max="{{ today.date().isoformat() }}">
-                            <button type="submit" class="btn btn-outline-primary">
-                                <i class="bi bi-arrow-repeat me-1"></i> Tampilkan
+                        <form
+                            class="d-flex align-items-center gap-2"
+                            method="get"
+                            action="{{ url_for('attendance.kelas') }}"
+                            id="attendanceDateForm"
+                            data-active-date="{{ selected_date.isoformat() }}"
+                        >
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="attendanceDateInput"
+                                name="date"
+                                value="{{ selected_date.isoformat() }}"
+                                max="{{ today.date().isoformat() }}"
+                            >
+                            <button type="submit" class="btn btn-outline-primary" id="attendanceDateSubmit">
+                                <span class="spinner-border spinner-border-sm me-1 d-none" id="attendanceDateSpinner" aria-hidden="true"></span>
+                                <i class="bi bi-arrow-repeat me-1" id="attendanceDateIcon"></i>
+                                <span id="attendanceDateSubmitLabel">Tampilkan</span>
                             </button>
                         </form>
+                        <div class="attendance-date-feedback mt-2" aria-live="polite">
+                            <span class="badge text-bg-primary-subtle text-primary px-3 py-2">
+                                <i class="bi bi-calendar-check me-1"></i>
+                                <span id="attendanceActiveDateText">Tanggal aktif: {{ selected_date_label }}</span>
+                            </span>
+                            <span
+                                class="small d-inline-flex align-items-center gap-1 {% if date_change_notice %}text-{{ 'warning' if date_change_notice.level == 'warning' else 'success' }}{% else %}d-none{% endif %}"
+                                id="attendanceDateNotice"
+                            >
+                                <i
+                                    class="bi {% if date_change_notice and date_change_notice.level == 'warning' %}bi-exclamation-triangle{% else %}bi-check-circle{% endif %}"
+                                    id="attendanceDateNoticeIcon"
+                                ></i>
+                                <span id="attendanceDateNoticeText">{{ date_change_notice.message if date_change_notice else '' }}</span>
+                            </span>
+                        </div>
                         <div class="text-muted small mt-2">
                             {% if latest_submission_at %}
                             Terakhir diverifikasi: <strong>{{ latest_submission_at|jakarta("%d %b %Y %H:%M") }}</strong>
@@ -201,6 +232,13 @@
     .text-bg-primary-subtle {
         background-color: rgba(13, 110, 253, 0.1) !important;
     }
+
+    .attendance-date-feedback {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -209,26 +247,120 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     var form = document.getElementById("classSelectionForm");
-    if (!form) {
-        return;
+    if (form) {
+        form.addEventListener("submit", function (event) {
+            var select = document.getElementById("classSelect");
+            if (!select) {
+                return;
+            }
+            var current = select.getAttribute("data-current");
+            var chosen = select.value;
+            if (current && current === chosen) {
+                return;
+            }
+            var selectedOption = select.options[select.selectedIndex];
+            var label = selectedOption ? selectedOption.text : "kelas yang dipilih";
+            var confirmed = window.confirm("Anda akan mengatur kelas wali ke " + label + ". Lanjutkan?");
+            if (!confirmed) {
+                event.preventDefault();
+            }
+        });
     }
-    form.addEventListener("submit", function (event) {
-        var select = document.getElementById("classSelect");
-        if (!select) {
+
+    var dateForm = document.getElementById("attendanceDateForm");
+    var dateInput = document.getElementById("attendanceDateInput");
+    var activeDateText = document.getElementById("attendanceActiveDateText");
+    var notice = document.getElementById("attendanceDateNotice");
+    var noticeIcon = document.getElementById("attendanceDateNoticeIcon");
+    var noticeText = document.getElementById("attendanceDateNoticeText");
+    var dateSubmit = document.getElementById("attendanceDateSubmit");
+    var dateSubmitLabel = document.getElementById("attendanceDateSubmitLabel");
+    var dateIcon = document.getElementById("attendanceDateIcon");
+    var dateSpinner = document.getElementById("attendanceDateSpinner");
+
+    function formatDateLabel(dateValue) {
+        if (!dateValue) {
+            return "";
+        }
+        var parsed = new Date(dateValue + "T00:00:00");
+        if (Number.isNaN(parsed.getTime())) {
+            return dateValue;
+        }
+        try {
+            return new Intl.DateTimeFormat("id-ID", {
+                weekday: "long",
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+                timeZone: "Asia/Jakarta"
+            }).format(parsed);
+        } catch (error) {
+            return dateValue;
+        }
+    }
+
+    function setNotice(message, tone) {
+        if (!notice || !noticeIcon || !noticeText) {
             return;
         }
-        var current = select.getAttribute("data-current");
-        var chosen = select.value;
-        if (current && current === chosen) {
+        if (!message) {
+            notice.classList.add("d-none");
+            noticeText.textContent = "";
             return;
         }
-        var selectedOption = select.options[select.selectedIndex];
-        var label = selectedOption ? selectedOption.text : "kelas yang dipilih";
-        var confirmed = window.confirm("Anda akan mengatur kelas wali ke " + label + ". Lanjutkan?");
-        if (!confirmed) {
-            event.preventDefault();
+        notice.classList.remove("d-none", "text-success", "text-warning", "text-muted");
+        if (tone === "success") {
+            notice.classList.add("text-success");
+            noticeIcon.className = "bi bi-check-circle";
+        } else if (tone === "warning") {
+            notice.classList.add("text-warning");
+            noticeIcon.className = "bi bi-exclamation-triangle";
+        } else {
+            notice.classList.add("text-muted");
+            noticeIcon.className = "bi bi-info-circle";
         }
-    });
+        noticeText.textContent = message;
+    }
+
+    if (dateForm && dateInput && activeDateText) {
+        dateInput.addEventListener("change", function () {
+            var chosenDate = dateInput.value;
+            var chosenLabel = formatDateLabel(chosenDate);
+            if (chosenLabel) {
+                activeDateText.textContent = "Tanggal dipilih: " + chosenLabel;
+            }
+            if (!chosenDate) {
+                setNotice("", "info");
+                return;
+            }
+            if (chosenDate === dateForm.dataset.activeDate) {
+                setNotice("Tanggal aktif tidak berubah.", "info");
+                return;
+            }
+            setNotice("Tanggal berubah. Klik Tampilkan untuk memuat data baru.", "warning");
+        });
+
+        dateForm.addEventListener("submit", function () {
+            var chosenDate = dateInput.value;
+            var chosenLabel = formatDateLabel(chosenDate);
+            if (chosenLabel) {
+                activeDateText.textContent = "Memuat tanggal: " + chosenLabel;
+            }
+            setNotice("Sedang memuat data absensi...", "info");
+            if (dateSubmit) {
+                dateSubmit.disabled = true;
+            }
+            if (dateSubmitLabel) {
+                dateSubmitLabel.textContent = "Memuat...";
+            }
+            if (dateIcon) {
+                dateIcon.classList.add("d-none");
+            }
+            if (dateSpinner) {
+                dateSpinner.classList.remove("d-none");
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

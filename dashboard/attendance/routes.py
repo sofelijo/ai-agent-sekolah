@@ -716,8 +716,24 @@ def absen() -> str:
     if not user:
         return redirect(url_for("auth.login"))
 
-    selected_date = _resolve_attendance_date(request.args.get("date"))
+    current_time = current_jakarta_time()
+    requested_date_raw = (request.args.get("date") or "").strip()
+    selected_date = _resolve_attendance_date(requested_date_raw or None)
     selected_date_label = _format_indonesian_date(selected_date)
+    date_change_notice: Optional[Dict[str, str]] = None
+    if requested_date_raw:
+        try:
+            requested_date = date.fromisoformat(requested_date_raw)
+            if requested_date == current_time.date():
+                message = f"Tampilan absensi sudah berpindah ke hari ini ({selected_date_label})."
+            else:
+                message = f"Tampilan absensi sudah berpindah ke {selected_date_label}."
+            date_change_notice = {"level": "success", "message": message}
+        except ValueError:
+            date_change_notice = {
+                "level": "warning",
+                "message": f"Format tanggal tidak valid. Sistem menampilkan data {selected_date_label}.",
+            }
     class_options = list_school_classes()
     teacher_class = fetch_teacher_assigned_class(user["id"]) or {}
     assigned_class_id = teacher_class.get("assigned_class_id")
@@ -781,8 +797,9 @@ def absen() -> str:
         total_students=total_students,
         status_counts=status_counts,
         latest_submission_at=latest_submission_at,
-        today=current_jakarta_time(),
+        today=current_time,
         selected_date_label=selected_date_label,
+        date_change_notice=date_change_notice,
     )
 
 
@@ -2152,6 +2169,18 @@ def ekskul_absen() -> str:
                     )
                 )
 
+        material = (request.form.get("material") or "").strip()
+        if not material:
+            flash("Materi ekskul wajib diisi.", "danger")
+            return redirect(
+                url_for(
+                    "attendance.ekskul_absen",
+                    activity_id=selected_activity_id,
+                    date=selected_date.isoformat(),
+                    edit="1" if edit_mode else "0",
+                )
+            )
+
         entries: List[Dict[str, Any]] = []
         for member in members:
             student_id = int(member["student_id"])
@@ -2176,6 +2205,7 @@ def ekskul_absen() -> str:
                 longitude=longitude,
                 accuracy_meters=accuracy,
                 address=address,
+                material=material,
             )
             flash("Absensi ekskul berhasil disimpan.", "success")
         except Exception as exc:
@@ -2196,6 +2226,7 @@ def ekskul_absen() -> str:
     total_members = 0
     has_existing = False
     existing_evidence: Optional[Dict[str, Any]] = None
+    material_value: Optional[str] = None
     if selected_activity_id:
         members = fetch_extracurricular_members(selected_activity_id, include_inactive=False)
         attendance_map = fetch_extracurricular_attendance_for_date(selected_activity_id, selected_date)
@@ -2207,6 +2238,8 @@ def ekskul_absen() -> str:
             record = attendance_map.get(student_id)
             status = _normalize_status(record.get("status") if record else None)
             status_counts[status] = status_counts.get(status, 0) + 1
+            if material_value is None and record and record.get("material"):
+                material_value = record.get("material")
             submitted_at_raw = record.get("updated_at") if record else None
             if submitted_at_raw is None and record:
                 submitted_at_raw = record.get("recorded_at")
@@ -2251,6 +2284,7 @@ def ekskul_absen() -> str:
         has_existing=has_existing,
         edit_mode=edit_mode,
         existing_evidence=existing_evidence,
+        material_value=material_value,
         mapbox_token=os.getenv("MAPBOX_ACCESS_TOKEN") or os.getenv("MAPBOX_TOKEN") or "",
     )
 

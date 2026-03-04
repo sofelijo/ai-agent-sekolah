@@ -906,6 +906,13 @@ footer {
     margin-bottom: 0.6rem;
 }
 
+.timeline-material {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+}
+
 .timeline-media {
     display: flex;
     flex-wrap: wrap;

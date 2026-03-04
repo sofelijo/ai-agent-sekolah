@@ -183,6 +183,7 @@ def create_app() -> Flask:
                     "photo_path": photo_path,
                     "photo_url": _asset_url(photo_path),
                     "total_students": int(row.get("total_students") or 0),
+                    "material": (row.get("material") or "").strip(),
                 }
             )
         return items

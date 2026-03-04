@@ -1741,7 +1741,7 @@ def fetch_extracurricular_attendance_for_date(
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT student_id, status, note, recorded_by, recorded_at, updated_at
+            SELECT student_id, status, note, recorded_by, recorded_at, updated_at, material
             FROM extracurricular_attendance_records
             WHERE extracurricular_id = %s
               AND attendance_date = %s
@@ -1886,6 +1886,7 @@ def upsert_extracurricular_attendance_entries(
     longitude: Optional[float] = None,
     accuracy_meters: Optional[float] = None,
     address: Optional[str] = None,
+    material: Optional[str] = None,
 ) -> None:
     normalized_date = attendance_date
     with get_cursor(commit=True) as cur:
@@ -1918,7 +1919,8 @@ def upsert_extracurricular_attendance_entries(
                     latitude,
                     longitude,
                     accuracy_meters,
-                    address
+                    address,
+                    material
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (attendance_date, extracurricular_id, student_id)
@@ -1932,6 +1934,7 @@ def upsert_extracurricular_attendance_entries(
                     longitude = EXCLUDED.longitude,
                     accuracy_meters = EXCLUDED.accuracy_meters,
                     address = EXCLUDED.address,
+                    material = EXCLUDED.material,
                     updated_at = NOW()
                 """,
                 (
@@ -1947,6 +1950,7 @@ def upsert_extracurricular_attendance_entries(
                     longitude,
                     accuracy_meters,
                     address,
+                    material,
                 ),
             )
 
@@ -2099,11 +2103,20 @@ def fetch_extracurricular_attendance_history(
                     ORDER BY COALESCE(ear.captured_at, ear.recorded_at) DESC
                     LIMIT 1
                 ) AS photo_path,
+                (
+                    SELECT ear.material
+                    FROM extracurricular_attendance_records ear
+                    WHERE ear.extracurricular_id = %s
+                      AND ear.attendance_date = d.attendance_date
+                      AND ear.material IS NOT NULL
+                    ORDER BY COALESCE(ear.updated_at, ear.recorded_at) DESC
+                    LIMIT 1
+                ) AS material,
                 d.last_activity_at
             FROM daily d
             ORDER BY d.attendance_date DESC, d.last_activity_at DESC
             LIMIT %s OFFSET %s
             """,
-            (activity_id, activity_id, limit, offset),
+            (activity_id, activity_id, activity_id, limit, offset),
         )
         return [dict(row) for row in cur.fetchall()]
