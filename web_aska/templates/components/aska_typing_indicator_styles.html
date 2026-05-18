@@ -1,0 +1,33 @@
+        .typing-indicator {
+            align-self: flex-start;
+            color: #999;
+            font-style: italic;
+            margin-left: 20px;
+        }
+
+        .typing-indicator .loader {
+            width: 15px;
+            height: 15px;
+            border: 2px solid var(--loader-color, #888);
+            border-top-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        body.dark-mode .typing-indicator .loader {
+            border-color: var(--loader-color, #ccc);
+            border-top-color: transparent;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }

@@ -92,17 +92,24 @@
             {% endif %}
             <div class="hero-panel" data-reveal="up" data-reveal-delay="200" data-parallax="0.08">
                 {% set cta = content.get('hero', {}).get('primary_cta', {}) %}
-                {% if cta.get('label') and cta.get('url') %}
-                {% set cta_label = cta.get('label') %}
-                <a class="hero-cta" href="{{ cta.get('url') }}" target="_blank" rel="noopener noreferrer">
-                    {% if 'ASKA' in cta_label %}
-                        {% set parts = cta_label.split('ASKA', 1) %}
-                        {{ parts[0] }}<span class="hero-cta-highlight">ASKA{{ parts[1] }}</span>
-                    {% else %}
-                        {{ cta_label }}
+                <div class="hero-cta-group">
+                    {% if cta.get('label') and cta.get('url') %}
+                    {% set cta_label = cta.get('label') %}
+                    <a class="hero-cta" href="{{ cta.get('url') }}" target="_blank" rel="noopener noreferrer">
+                        {% if 'ASKA' in cta_label %}
+                            {% set parts = cta_label.split('ASKA', 1) %}
+                            {{ parts[0] }}<span class="hero-cta-highlight">ASKA{{ parts[1] }}</span>
+                        {% else %}
+                            {{ cta_label }}
+                        {% endif %}
+                    </a>
                     {% endif %}
-                </a>
-                {% endif %}
+                    {% if graduation_target_url %}
+                    <a class="hero-cta hero-cta-secondary" href="{{ graduation_target_url }}" rel="noopener noreferrer">
+                        Cek Kelulusan
+                    </a>
+                    {% endif %}
+                </div>
                 <div class="hero-social">
                     {% for link in content.get('hero', {}).get('social_links', []) %}
                     <a class="hero-social-btn" href="{{ link.get('url') }}" target="_blank" rel="noopener noreferrer" aria-label="{{ link.get('label') }}">

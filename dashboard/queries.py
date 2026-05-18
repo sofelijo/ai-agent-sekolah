@@ -172,33 +172,33 @@ def _default_landingpage_content() -> Dict[str, Any]:
             "items": [
                 {
                     "title": "Pramuka",
-                    "description": "Melatih disiplin, kepemimpinan, dan cinta alam melalui kegiatan kepramukaan.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/pramuka.jpg",
+                    "description": "Melatih kedisiplinan, kepemimpinan, dan kerja sama tim melalui kegiatan kepramukaan rutin.",
+                    "image": "landingpage/images/ekstra/pramuka.jpg",
                 },
                 {
                     "title": "Pencak Silat",
-                    "description": "Menumbuhkan sportivitas, ketahanan, dan keterampilan bela diri tradisional.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/silat.jpg",
+                    "description": "Mengembangkan keterampilan bela diri tradisional, sportivitas, dan kepercayaan diri.",
+                    "image": "landingpage/images/ekstra/silat.jpg",
                 },
                 {
                     "title": "Tari Tradisional",
-                    "description": "Mengembangkan kreativitas dan melestarikan budaya bangsa melalui seni tari.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/tari.jpg",
+                    "description": "Melestarikan budaya bangsa melalui seni tari daerah dan pertunjukan rutin.",
+                    "image": "landingpage/images/ekstra/tari.jpg",
                 },
                 {
                     "title": "Futsal",
-                    "description": "Meningkatkan kebugaran, kekompakan, dan semangat sportif dalam olahraga.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/futsal.jpg",
+                    "description": "Meningkatkan kebugaran dan kekompakan siswa melalui latihan dan pertandingan futsal.",
+                    "image": "landingpage/images/ekstra/futsal.jpg",
                 },
                 {
                     "title": "Marawis",
-                    "description": "Mengasah kemampuan seni musik Islami dan kekompakan tim.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/marawis.jpg",
+                    "description": "Menumbuhkan kecintaan terhadap seni musik Islami melalui grup marawis sekolah.",
+                    "image": "landingpage/images/ekstra/marawis.jpg",
                 },
                 {
                     "title": "PMR",
-                    "description": "Melatih kepedulian sosial dan kesiapsiagaan melalui kegiatan Palang Merah Remaja.",
-                    "image": "https://www.sdnsembar01.sch.id/ekstra/pmr.jpg",
+                    "description": "Membangun dan mengembangkan karakter kepalangmerahan pada diri remaja.",
+                    "image": "landingpage/images/ekstra/PMR.jpg",
                 },
             ],
         },
@@ -593,6 +593,291 @@ def seed_landingpage_teachers_if_empty(site_key: str = "default") -> int:
             )
             inserted += 1
     return inserted
+
+
+LANDINGPAGE_GRADUATION_STATUSES = ("lulus", "belum_lulus", "ditunda")
+
+
+def _normalize_nisn(value: Any) -> str:
+    raw = str(value or "").strip()
+    return re.sub(r"[^0-9]", "", raw)
+
+
+def _normalize_graduation_status(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in LANDINGPAGE_GRADUATION_STATUSES:
+        return raw
+    return "lulus"
+
+
+def _normalize_graduation_year(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    try:
+        year = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if year < 1900 or year > 3000:
+        return None
+    return year
+
+
+def fetch_landingpage_graduations(
+    site_key: str = "default",
+    *,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    include_inactive: bool = True,
+    limit: int = 500,
+) -> List[Dict[str, Any]]:
+    site_key = (site_key or "default").strip().lower()
+    normalized_status = _normalize_graduation_status(status) if status else None
+    q = (search or "").strip()
+    limit = max(1, min(int(limit or 500), 2000))
+
+    clauses = ["site_key = %s"]
+    params: List[Any] = [site_key]
+
+    if normalized_status:
+        clauses.append("status = %s")
+        params.append(normalized_status)
+    if not include_inactive:
+        clauses.append("is_active = TRUE")
+    if q:
+        clauses.append(
+            "(nisn ILIKE %s OR student_name ILIKE %s OR COALESCE(class_name, '') ILIKE %s)"
+        )
+        like_value = f"%{q}%"
+        params.extend([like_value, like_value, like_value])
+
+    where_sql = " AND ".join(clauses)
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT
+                id,
+                site_key,
+                nisn,
+                student_name,
+                class_name,
+                graduation_year,
+                status,
+                announcement_date,
+                message,
+                metadata,
+                is_active,
+                created_at,
+                updated_at
+            FROM landingpage_graduations
+            WHERE {where_sql}
+            ORDER BY
+                graduation_year DESC NULLS LAST,
+                updated_at DESC,
+                id DESC
+            LIMIT %s
+            """,
+            (*params, limit),
+        )
+        rows = cur.fetchall()
+
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        results.append(
+            {
+                "id": row["id"],
+                "site_key": row["site_key"],
+                "nisn": row["nisn"],
+                "nama_siswa": row["student_name"],
+                "kelas": row["class_name"],
+                "tahun_lulus": row["graduation_year"],
+                "status": row["status"],
+                "tanggal_pengumuman": row["announcement_date"],
+                "pesan_aska": row["message"],
+                "metadata": row["metadata"],
+                "is_active": row["is_active"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+        )
+    return results
+
+
+def fetch_landingpage_graduation_by_nisn(
+    site_key: str,
+    nisn: str,
+    *,
+    active_only: bool = True,
+) -> Optional[Dict[str, Any]]:
+    site_key = (site_key or "default").strip().lower()
+    cleaned_nisn = _normalize_nisn(nisn)
+    if not cleaned_nisn:
+        return None
+
+    active_clause = "AND is_active = TRUE" if active_only else ""
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT
+                id,
+                site_key,
+                nisn,
+                student_name,
+                class_name,
+                graduation_year,
+                status,
+                announcement_date,
+                message,
+                metadata,
+                is_active,
+                created_at,
+                updated_at
+            FROM landingpage_graduations
+            WHERE site_key = %s
+              AND nisn = %s
+              {active_clause}
+            LIMIT 1
+            """,
+            (site_key, cleaned_nisn),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "site_key": row["site_key"],
+        "nisn": row["nisn"],
+        "nama_siswa": row["student_name"],
+        "kelas": row["class_name"],
+        "tahun_lulus": row["graduation_year"],
+        "status": row["status"],
+        "tanggal_pengumuman": row["announcement_date"],
+        "pesan_aska": row["message"],
+        "metadata": row["metadata"],
+        "is_active": row["is_active"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def create_landingpage_graduation(site_key: str, payload: Dict[str, Any]) -> Optional[int]:
+    site_key = (site_key or "default").strip().lower()
+    payload = payload or {}
+    nisn = _normalize_nisn(payload.get("nisn"))
+    student_name = (payload.get("nama_siswa") or "").strip()
+    if not nisn or len(nisn) < 6:
+        raise ValueError("NISN wajib diisi dan minimal 6 digit.")
+    if not student_name:
+        raise ValueError("Nama siswa wajib diisi.")
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "SELECT id FROM landingpage_graduations WHERE site_key = %s AND nisn = %s LIMIT 1",
+            (site_key, nisn),
+        )
+        exists = cur.fetchone()
+        if exists:
+            return None
+
+        cur.execute(
+            """
+            INSERT INTO landingpage_graduations (
+                site_key,
+                nisn,
+                student_name,
+                class_name,
+                graduation_year,
+                status,
+                announcement_date,
+                message,
+                metadata,
+                is_active,
+                updated_at
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+            RETURNING id
+            """,
+            (
+                site_key,
+                nisn,
+                student_name,
+                (payload.get("kelas") or "").strip() or None,
+                _normalize_graduation_year(payload.get("tahun_lulus")),
+                _normalize_graduation_status(payload.get("status")),
+                payload.get("tanggal_pengumuman") or None,
+                (payload.get("pesan_aska") or "").strip() or None,
+                Json(payload.get("metadata")) if isinstance(payload.get("metadata"), dict) else None,
+                bool(payload.get("is_active", True)),
+            ),
+        )
+        row = cur.fetchone()
+    return int(row[0]) if row else None
+
+
+def update_landingpage_graduation(record_id: int, site_key: str, payload: Dict[str, Any]) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    payload = payload or {}
+    nisn = _normalize_nisn(payload.get("nisn"))
+    student_name = (payload.get("nama_siswa") or "").strip()
+    if not nisn or len(nisn) < 6:
+        raise ValueError("NISN wajib diisi dan minimal 6 digit.")
+    if not student_name:
+        raise ValueError("Nama siswa wajib diisi.")
+
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            SELECT id FROM landingpage_graduations
+            WHERE site_key = %s AND nisn = %s AND id <> %s
+            LIMIT 1
+            """,
+            (site_key, nisn, record_id),
+        )
+        if cur.fetchone():
+            raise ValueError("NISN sudah dipakai oleh data siswa lain.")
+
+        cur.execute(
+            """
+            UPDATE landingpage_graduations
+            SET nisn = %s,
+                student_name = %s,
+                class_name = %s,
+                graduation_year = %s,
+                status = %s,
+                announcement_date = %s,
+                message = %s,
+                metadata = %s,
+                is_active = %s,
+                updated_at = NOW()
+            WHERE id = %s AND site_key = %s
+            """,
+            (
+                nisn,
+                student_name,
+                (payload.get("kelas") or "").strip() or None,
+                _normalize_graduation_year(payload.get("tahun_lulus")),
+                _normalize_graduation_status(payload.get("status")),
+                payload.get("tanggal_pengumuman") or None,
+                (payload.get("pesan_aska") or "").strip() or None,
+                Json(payload.get("metadata")) if isinstance(payload.get("metadata"), dict) else None,
+                bool(payload.get("is_active", True)),
+                record_id,
+                site_key,
+            ),
+        )
+        return cur.rowcount > 0
+
+
+def delete_landingpage_graduation(record_id: int, site_key: str) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "DELETE FROM landingpage_graduations WHERE id = %s AND site_key = %s",
+            (record_id, site_key),
+        )
+        return cur.rowcount > 0
 
 VALID_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_GRADE_LEVEL = "sd6"
@@ -2998,5 +3283,3 @@ def fetch_feedback_by_message(chat_log_id: int) -> Optional[Dict[str, Any]]:
 
 
 # --- Latihan TKA helpers ----------------------------------------------------
-
-

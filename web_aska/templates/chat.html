@@ -423,12 +423,7 @@
             transform: none;
         }
 
-        .typing-indicator {
-            align-self: flex-start;
-            color: #999;
-            font-style: italic;
-            margin-left: 20px;
-        }
+{% include "components/aska_typing_indicator_styles.html" %}
 
         #theme-toggle {
             background: none;
@@ -509,28 +504,6 @@
 
             .chat-message {
                 max-width: 85%;
-            }
-        }
-
-        .loader {
-            width: 15px;
-            height: 15px;
-            border: 2px solid var(--loader-color);
-            border-top-color: transparent;
-            border-radius: 50%;
-            display: inline-block;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
             }
         }
 
@@ -857,6 +830,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
+    {% include "components/aska_typing_indicator_script.html" %}
     <script>
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
@@ -893,11 +867,13 @@
         let chatOffset = 10;
         let isLoadingHistory = false;
         let noMoreHistory = false;
-        let typingInterval;
         let isSending = false;
         let telegramCtaShown = false;
         let activeStatusBlock = {{ status_notice| tojson }};
         let statusBlockAcknowledged = Boolean(activeStatusBlock);
+        const typingIndicator = window.createAskaTypingIndicator(chatBox, { indicatorId: 'typing-indicator' });
+        const showTypingIndicator = typingIndicator.showTypingIndicator;
+        const removeTypingIndicator = typingIndicator.removeTypingIndicator;
 
         function updateServerOffset(serverTimeIso) {
             if (!serverTimeIso) return;
@@ -1550,31 +1526,6 @@
                 enforceQuotaLock();
             }
         });
-
-        function showTypingIndicator() {
-            const typingElement = document.createElement('div');
-            typingElement.id = 'typing-indicator';
-            typingElement.classList.add('chat-message', 'bot-message', 'typing-indicator');
-
-            typingElement.innerHTML = '<span class="loader"></span>ASKA lagi mikir 🤔<span id="dots">.</span>';
-            chatBox.appendChild(typingElement);
-            chatBox.scrollTop = chatBox.scrollHeight;
-
-            const dots = document.getElementById('dots');
-            let dotCount = 1;
-            typingInterval = setInterval(() => {
-                dotCount = (dotCount % 3) + 1;
-                dots.textContent = '.'.repeat(dotCount);
-            }, 500);
-        }
-
-        function removeTypingIndicator() {
-            clearInterval(typingInterval);
-            const typingElement = document.getElementById('typing-indicator');
-            if (typingElement) {
-                typingElement.remove();
-            }
-        }
 
         function copyMessage(messageEl) {
             const text = messageEl.innerText || '';

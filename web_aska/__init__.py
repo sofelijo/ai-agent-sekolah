@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import asyncio
+import re
 from datetime import datetime, timezone, timedelta
 import random
 from typing import Any
@@ -11,8 +12,10 @@ from authlib.integrations.flask_client import OAuth
 # Import from within the project
 from .handlers import process_web_request, web_sessions
 from db import (
+    conn as db_conn,
     get_or_create_web_user,
     get_chat_history,
+    save_chat,
     get_corruption_report,
     get_chat_quota_status,
     consume_chat_quota,
@@ -31,6 +34,7 @@ from db import (
     mark_tka_analysis_sent,
 )
 from dashboard.TKA.queries import fetch_tka_attempts
+from dashboard.queries import fetch_landingpage_graduation_by_nisn
 from account_status import (
     BLOCKING_STATUSES,
     build_status_notice,
@@ -61,6 +65,7 @@ SIMULATION_LOGIN = {
     "password": os.getenv("TKA_SIMULATION_PASSWORD", "ASKA2024"),
 }
 SIMULATION_STATE_KEY = "tka_simulasi_state"
+GRADUATION_CHAT_TOPIC = "graduation"
 
 
 def _format_preset_label(value: str | None) -> str:
@@ -382,6 +387,222 @@ def create_app() -> Flask:
         except Exception as exc:
             app.logger.error("Gagal menjalankan analisa Latihan TKA (%s): %s", attempt_id, exc)
 
+    def _clean_nisn(value: Any) -> str:
+        return re.sub(r"[^0-9]", "", str(value or "").strip())
+
+    def _resolve_graduation_site_key() -> str:
+        raw = (os.getenv("LANDINGPAGE_SITE_KEY") or "default").strip().lower()
+        return raw or "default"
+
+    def _graduation_user_id(nisn: str) -> int:
+        encoded = int(f"{len(nisn):02d}{nisn}") if nisn else 1
+        return -encoded
+
+    def _graduation_status_label(value: Any) -> str:
+        status = str(value or "").strip().lower()
+        mapping = {
+            "lulus": "LULUS",
+            "belum_lulus": "BELUM LULUS",
+            "ditunda": "DITUNDA",
+        }
+        return mapping.get(status, "LULUS")
+
+    def _serialize_graduation_student(record: dict) -> dict:
+        announcement_date = record.get("tanggal_pengumuman")
+        if hasattr(announcement_date, "isoformat"):
+            announcement_date = announcement_date.isoformat()
+        return {
+            "nisn": record.get("nisn"),
+            "nama_siswa": record.get("nama_siswa"),
+            "kelas": record.get("kelas"),
+            "tahun_lulus": record.get("tahun_lulus"),
+            "status": record.get("status"),
+            "status_label": _graduation_status_label(record.get("status")),
+            "tanggal_pengumuman": announcement_date,
+            "pesan_aska": record.get("pesan_aska"),
+        }
+
+    def _serialize_chat_items(rows: list[dict]) -> list[dict]:
+        history_payload = []
+        for item in reversed(rows or []):
+            payload = dict(item)
+            created_at = payload.get("created_at")
+            if hasattr(created_at, "isoformat"):
+                payload["created_at"] = created_at.isoformat()
+            history_payload.append(payload)
+        return history_payload
+
+    def _build_graduation_intro(record: dict) -> str:
+        name = record.get("nama_siswa") or "Siswa"
+        status = _graduation_status_label(record.get("status"))
+        class_name = (record.get("kelas") or "-").strip() or "-"
+        year = record.get("tahun_lulus") or "-"
+        announcement_date = record.get("tanggal_pengumuman")
+        if hasattr(announcement_date, "strftime"):
+            announcement_label = announcement_date.strftime("%d-%m-%Y")
+        else:
+            announcement_label = announcement_date or "-"
+        message = (record.get("pesan_aska") or "").strip()
+
+        lines = [f"Halo {name}! Data kelulusan kamu sudah ketemu nih."]
+        lines.append(f"Status kamu: {status} 🎓")
+        lines.append(f"Kelas: {class_name} | Tahun: {year}")
+        if announcement_label and announcement_label != "-":
+            lines.append(f"Tanggal : {announcement_label} 📅")
+        if message:
+            lines.append(f"Pesan dari sekolah: {message}")
+        else:
+            lines.append("Belum ada pesan tambahan dari sekolah.")
+        lines.append("")
+        lines.append("Aku ASKA siap bantu 😊. Kamu boleh tanya tentang sekolah ke aku ya 😊.")
+        return "\n".join(lines)
+
+    def _build_graduation_context_hint(record: dict, *, can_congratulate: bool) -> str:
+        name = record.get("nama_siswa") or "Siswa"
+        status = _graduation_status_label(record.get("status"))
+        class_name = (record.get("kelas") or "-").strip() or "-"
+        year = record.get("tahun_lulus") or "-"
+        nisn = record.get("nisn") or "-"
+        announcement_date = record.get("tanggal_pengumuman")
+        if hasattr(announcement_date, "strftime"):
+            announcement_label = announcement_date.strftime("%d-%m-%Y")
+        else:
+            announcement_label = announcement_date or "-"
+        message = (record.get("pesan_aska") or "").strip() or "Belum ada pesan tambahan dari sekolah."
+
+        lines = [
+            "Data resmi kelulusan siswa yang sedang chat:",
+            f"- Nama: {name}",
+            f"- NISN: {nisn}",
+            f"- Kelas: {class_name}",
+            f"- Tahun kelulusan: {year}",
+            f"- Status kelulusan: {status}",
+            f"- Tanggal pengumuman: {announcement_label}",
+            f"- Pesan sekolah: {message}",
+            "Gunakan data ini sebagai sumber utama untuk pertanyaan personal siswa.",
+            "Kalau user menanyakan hal di luar data kelulusan, jawab seperti ASKA biasa.",
+        ]
+        if can_congratulate:
+            lines.append(
+                "Boleh ucapkan selamat hanya sekali saja ketika pertama kali membahas status LULUS."
+            )
+        else:
+            lines.append(
+                "JANGAN mengulang ucapan selamat/lulus lagi. Langsung jawab inti pertanyaan user."
+            )
+        return "\n".join(lines)
+
+    def _has_graduation_congrats(history: list[dict]) -> bool:
+        congrat_markers = (
+            "selamat",
+            "congrats",
+            "kamu sudah lulus",
+            "udah lulus",
+        )
+        for item in history or []:
+            if item.get("role") == "user":
+                continue
+            text = normalize_input(item.get("text") or "")
+            if any(marker in text for marker in congrat_markers):
+                return True
+        return False
+
+    def _strip_repeated_graduation_intro(text: str) -> str:
+        raw = (text or "").strip()
+        if not raw:
+            return raw
+
+        paragraphs = [chunk.strip() for chunk in re.split(r"\n\s*\n", raw) if chunk.strip()]
+        if len(paragraphs) < 2:
+            return raw
+
+        first_paragraph = normalize_input(paragraphs[0])
+        intro_markers = (
+            "selamat",
+            "congrats",
+            "kamu sudah lulus",
+            "udah lulus",
+            "lulus, kan",
+        )
+        if any(marker in first_paragraph for marker in intro_markers):
+            trimmed = "\n\n".join(paragraphs[1:]).strip()
+            if trimmed:
+                return trimmed
+        return raw
+
+    def _build_graduation_reply(record: dict, message: str) -> str:
+        cleaned = normalize_input(message or "")
+        status_label = _graduation_status_label(record.get("status"))
+        name = record.get("nama_siswa") or "Siswa"
+        class_name = (record.get("kelas") or "-").strip() or "-"
+        year = record.get("tahun_lulus") or "-"
+        notes = (record.get("pesan_aska") or "").strip()
+        announcement_date = record.get("tanggal_pengumuman")
+        if hasattr(announcement_date, "strftime"):
+            announcement_label = announcement_date.strftime("%d-%m-%Y")
+        else:
+            announcement_label = announcement_date or "-"
+
+        if any(token in cleaned for token in ("siapa kamu", "kamu siapa", "aska siapa", "ini siapa")):
+            return (
+                "Aku ASKA 🤖 Agen AI Sekolah Kita. "
+                "Di halaman ini aku bantu cek info kelulusan, jadwal, dokumen, dan pertanyaan seputar sekolah ya 😊"
+            )
+        if any(token in cleaned for token in ("aku siapa", "aku sapa", "saya siapa", "saya sapa", "namaku siapa", "nama aku", "nama saya")):
+            return (
+                f"Kamu tercatat sebagai {name} 😊 "
+                f"NISN {record.get('nisn')}, kelas {class_name}, tahun kelulusan {year}."
+            )
+        if any(token in cleaned for token in ("status", "lulus", "kelulusan")):
+            return (
+                f"Hai {name}! Status kelulusan kamu adalah {status_label} 🎓 "
+                f"Kamu tercatat di kelas {class_name}, tahun {year}. Tetap semangat ya!"
+            )
+        if any(token in cleaned for token in ("ijazah", "skl", "dokumen", "berkas")):
+            base = "Untuk ijazah, SKL, atau berkas kelulusan, cek jadwal resmi dari sekolah dulu ya"
+            if announcement_label and announcement_label != "-":
+                base += f", mulai {announcement_label}"
+            base += ". Kalau mau lebih pasti, tanya wali kelas atau TU sekolah 😊"
+            return base
+        if any(token in cleaned for token in ("kapan", "jadwal", "tanggal", "ambil")):
+            if announcement_label and announcement_label != "-":
+                return f"Jadwal yang ASKA lihat adalah {announcement_label} 📅 Untuk jam pastinya, konfirmasi ke wali kelas atau sekolah ya."
+            return "Tanggal pengumuman belum diisi admin nih. Coba cek lagi nanti atau tanya wali kelas ya."
+        if any(token in cleaned for token in ("terima kasih", "makasih", "thanks")):
+            return "Sama-sama 😊 Kalau masih ada yang bikin bingung, tanya ASKA lagi ya."
+
+        return (
+            "Aku belum nangkap maksud pertanyaanmu 😅 "
+            "Coba tanya lebih jelas ya, misalnya: status kelulusanku, jadwal ambil dokumen, atau aku tercatat sebagai siapa?"
+        )
+
+    def _refresh_graduation_intro_if_needed(user_id: int, record: dict, history: list[dict]) -> list[dict]:
+        if not history:
+            return history
+
+        oldest_first = list(reversed(history))
+        first_bot = next((item for item in oldest_first if item.get("role") != "user"), None)
+        if not first_bot:
+            return history
+
+        current_text = first_bot.get("text") or ""
+        if "Aku ASKA siap bantu" in current_text:
+            return history
+
+        updated_intro = _build_graduation_intro(record)
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE chat_logs
+                SET text = %s
+                WHERE id = %s
+                  AND user_id = %s
+                """,
+                (updated_intro, first_bot.get("id"), user_id),
+            )
+        db_conn.commit()
+        return get_chat_history(user_id, limit=25, offset=0, topic=GRADUATION_CHAT_TOPIC)
+
     @app.route("/")
     def index():
         user = session.get('user')
@@ -403,6 +624,19 @@ def create_app() -> Flask:
             quota=_serialize_quota_payload(quota_status),
              status_notice=status_payload,
             server_time=datetime.now(timezone.utc).isoformat(),
+        )
+
+    @app.route("/kelulusan")
+    @app.route("/cek-kelulusan")
+    @app.route("/lp/kelulusan")
+    def graduation_page():
+        video_url = os.getenv("GRADUATION_VIDEO_URL") or url_for("static", filename="graduation_video.mp4")
+        poster_url = os.getenv("GRADUATION_POSTER_URL") or url_for("static", filename="graduation_poster.jpg")
+        return render_template(
+            "graduation_chat.html",
+            current_year=datetime.now(timezone.utc).year,
+            graduation_video_url=video_url,
+            graduation_poster_url=poster_url,
         )
 
     @app.route("/auth/login")
@@ -596,6 +830,126 @@ def create_app() -> Flask:
                 item['created_at'] = item['created_at'].isoformat()
 
         return jsonify(history)
+
+    @app.route("/api/kelulusan/check", methods=["POST"])
+    def graduation_check():
+        payload = request.get_json(silent=True) or {}
+        nisn = _clean_nisn(payload.get("nisn"))
+        if not nisn or len(nisn) < 6:
+            return jsonify({"success": False, "message": "NISN wajib diisi (minimal 6 digit)."}), 400
+
+        site_key = _resolve_graduation_site_key()
+        record = fetch_landingpage_graduation_by_nisn(site_key, nisn, active_only=True)
+        if not record:
+            return jsonify({"success": False, "message": "Data kelulusan tidak ditemukan. Periksa NISN kamu."}), 404
+
+        user_id = _graduation_user_id(nisn)
+        history = get_chat_history(user_id, limit=25, offset=0, topic=GRADUATION_CHAT_TOPIC)
+        if not history:
+            intro = _build_graduation_intro(record)
+            save_chat(
+                user_id=user_id,
+                username="ASKA",
+                message=intro,
+                role="aska",
+                topic=GRADUATION_CHAT_TOPIC,
+            )
+            history = get_chat_history(user_id, limit=25, offset=0, topic=GRADUATION_CHAT_TOPIC)
+        else:
+            history = _refresh_graduation_intro_if_needed(user_id, record, history)
+
+        session["graduation_nisn"] = nisn
+        session.modified = True
+        return jsonify(
+            {
+                "success": True,
+                "student": _serialize_graduation_student(record),
+                "history": _serialize_chat_items(history),
+            }
+        )
+
+    @app.route("/api/kelulusan/chat", methods=["POST"])
+    def graduation_chat():
+        payload = request.get_json(silent=True) or {}
+        nisn = _clean_nisn(payload.get("nisn") or session.get("graduation_nisn"))
+        message = (payload.get("message") or "").strip()
+        if not nisn or len(nisn) < 6:
+            return jsonify({"success": False, "message": "NISN tidak valid."}), 400
+        if not message:
+            return jsonify({"success": False, "message": "Pesan tidak boleh kosong."}), 400
+
+        site_key = _resolve_graduation_site_key()
+        record = fetch_landingpage_graduation_by_nisn(site_key, nisn, active_only=True)
+        if not record:
+            return jsonify({"success": False, "message": "Data kelulusan tidak ditemukan."}), 404
+
+        user_id = _graduation_user_id(nisn)
+        student_name = record.get("nama_siswa") or f"NISN-{nisn}"
+        recent_history = get_chat_history(
+            user_id,
+            limit=25,
+            offset=0,
+            topic=GRADUATION_CHAT_TOPIC,
+        )
+        can_congratulate = not _has_graduation_congrats(recent_history)
+        context_hint = _build_graduation_context_hint(
+            record,
+            can_congratulate=can_congratulate,
+        )
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        response_text, chat_log_id = loop.run_until_complete(
+            process_web_request(
+                user_id=user_id,
+                user_input=message,
+                username=student_name,
+                topic=GRADUATION_CHAT_TOPIC,
+                context_hint=context_hint,
+            )
+        )
+
+        if not can_congratulate:
+            cleaned_response = _strip_repeated_graduation_intro(response_text)
+            if cleaned_response and cleaned_response != response_text:
+                response_text = cleaned_response
+                if chat_log_id:
+                    with db_conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            UPDATE chat_logs
+                            SET text = %s
+                            WHERE id = %s
+                              AND user_id = %s
+                            """,
+                            (response_text, chat_log_id, user_id),
+                        )
+                    db_conn.commit()
+
+        session["graduation_nisn"] = nisn
+        session.modified = True
+        return jsonify(
+            {
+                "success": True,
+                "response": response_text,
+                "chat_log_id": chat_log_id,
+                "student": _serialize_graduation_student(record),
+            }
+        )
+
+    @app.route("/api/kelulusan/history")
+    def graduation_history():
+        nisn = _clean_nisn(request.args.get("nisn") or session.get("graduation_nisn"))
+        if not nisn or len(nisn) < 6:
+            return jsonify({"success": False, "message": "NISN tidak valid."}), 400
+        offset = max(0, int(request.args.get("offset", 0) or 0))
+        user_id = _graduation_user_id(nisn)
+        history = get_chat_history(user_id, limit=25, offset=offset, topic=GRADUATION_CHAT_TOPIC)
+        return jsonify({"success": True, "history": _serialize_chat_items(history)})
 
     @app.route("/api/quota")
     def quota_status_api():

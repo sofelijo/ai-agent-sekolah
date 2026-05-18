@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'lp/base.html' %}
 {% block title %}Pengaturan Landing Page - ASKA Insights{% endblock %}
 
 {% block head_extra %}
@@ -72,6 +72,11 @@
         background: var(--bg-muted);
         color: var(--text-primary);
     }
+    .lp-nav-link.active {
+        background: rgba(13, 110, 253, 0.14);
+        color: var(--primary);
+        border: 1px solid rgba(13, 110, 253, 0.28);
+    }
     .lp-section {
         scroll-margin-top: 7rem;
     }
@@ -80,6 +85,7 @@
 {% endblock %}
 
 {% block content %}
+{% set lp_section = lp_section|default('all') %}
 {% set hero = content.get('hero', {}) %}
 {% set documentation = content.get('documentation', {}) %}
 {% set profile = content.get('profile', {}) %}
@@ -94,11 +100,22 @@
         </span>
         <div>
             <h1 class="h4 fw-bold page-title mb-0">Pengaturan Landing Page</h1>
-            <p class="page-subtitle">Kelola konten untuk domain landingpage sekolah (site key: {{ site_key }}).</p>
+            <p class="page-subtitle">
+                {% if lp_section == 'content' %}
+                Kelola konten landing page (site key: {{ site_key }}).
+                {% elif lp_section == 'guru' %}
+                Kelola data guru & pegawai landing page (site key: {{ site_key }}).
+                {% elif lp_section == 'logs' %}
+                Audit log perubahan landing page (site key: {{ site_key }}).
+                {% else %}
+                Kelola konten untuk domain landingpage sekolah (site key: {{ site_key }}).
+                {% endif %}
+            </p>
         </div>
     </div>
 </section>
 
+{% if lp_section in ['content', 'all'] %}
 <nav class="lp-admin-nav">
     <div class="lp-nav-header">
         <span class="icon-badge section-icon text-primary">
@@ -106,24 +123,29 @@
         </span>
         <div>
             <div class="lp-nav-title">Navigasi Cepat</div>
-            <p class="lp-nav-subtitle">Loncat ke bagian yang ingin kamu ubah.</p>
+            <p class="lp-nav-subtitle">Buka halaman LP sesuai modul.</p>
         </div>
     </div>
     <div class="lp-nav-links">
-        <a class="lp-nav-link" href="#lp-identity"><i class="bi bi-stars"></i>Identitas</a>
-        <a class="lp-nav-link" href="#lp-profile"><i class="bi bi-person-badge"></i>Profil</a>
-        <a class="lp-nav-link" href="#lp-vision"><i class="bi bi-flag"></i>Visi &amp; Misi</a>
-        <a class="lp-nav-link" href="#lp-documentation"><i class="bi bi-camera-reels"></i>Dokumentasi</a>
-        <a class="lp-nav-link" href="#lp-activities"><i class="bi bi-calendar-event"></i>Kegiatan</a>
-        <a class="lp-nav-link" href="#lp-extracurricular"><i class="bi bi-award"></i>Ekstrakurikuler</a>
-        <a class="lp-nav-link" href="#lp-seo"><i class="bi bi-graph-up"></i>SEO</a>
-        <a class="lp-nav-link" href="#lp-footer"><i class="bi bi-brightness-alt-high"></i>Footer</a>
-        <a class="lp-nav-link" href="#lp-teachers"><i class="bi bi-people"></i>Guru</a>
-        <a class="lp-nav-link" href="#lp-logs"><i class="bi bi-activity"></i>Log</a>
+        <a class="lp-nav-link {% if lp_section == 'content' %}active{% endif %}" href="{{ url_for('main.lp_content', site_key=site_key) }}">
+            <i class="bi bi-layout-text-sidebar-reverse"></i>Konten LP
+        </a>
+        <a class="lp-nav-link {% if lp_section == 'guru' %}active{% endif %}" href="{{ url_for('main.lp_teachers', site_key=site_key) }}">
+            <i class="bi bi-people"></i>Data Guru
+        </a>
+        <a class="lp-nav-link {% if lp_section == 'kelulusan' %}active{% endif %}" href="{{ url_for('main.lp_graduations', site_key=site_key) }}">
+            <i class="bi bi-patch-check"></i>Kelulusan
+        </a>
+        <a class="lp-nav-link {% if lp_section == 'logs' %}active{% endif %}" href="{{ url_for('main.lp_logs', site_key=site_key) }}">
+            <i class="bi bi-activity"></i>Activity Log
+        </a>
     </div>
 </nav>
+{% endif %}
 
+{% if lp_section in ['content', 'all'] %}
 <form method="post" id="landingpageForm">
+    <input type="hidden" name="return_to" value="content">
     <div class="row g-4">
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm mb-4 lp-section" id="lp-identity">
@@ -652,7 +674,9 @@
         </button>
     </div>
 </form>
+{% endif %}
 
+{% if lp_section in ['guru', 'all'] %}
 <div class="row g-4 mt-5 lp-section" id="lp-teachers">
     <div class="col-12">
         <div class="page-header">
@@ -678,6 +702,7 @@
                 </div>
                 <form method="post" action="{{ url_for('main.landingpage_teacher_create') }}" enctype="multipart/form-data" data-photo-form>
                     <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <input type="hidden" name="return_to" value="guru">
                     <input type="hidden" name="photo_data">
                     <div class="mb-3">
                         <label class="form-label">Nama Lengkap</label>
@@ -788,6 +813,7 @@
                                         <form method="post" action="{{ url_for('main.landingpage_teacher_delete', teacher_id=teacher.id) }}"
                                             onsubmit="return confirm('Hapus data guru ini?');">
                                             <input type="hidden" name="site_key" value="{{ site_key }}">
+                                            <input type="hidden" name="return_to" value="guru">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -815,6 +841,7 @@
         <div class="modal-content">
             <form method="post" action="{{ url_for('main.landingpage_teacher_update', teacher_id=teacher.id) }}" enctype="multipart/form-data" data-photo-form>
                 <input type="hidden" name="site_key" value="{{ site_key }}">
+                <input type="hidden" name="return_to" value="guru">
                 <input type="hidden" name="photo_data">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editTeacherModalLabel{{ teacher.id }}">Edit Guru/Pegawai</h5>
@@ -889,7 +916,9 @@
     </div>
 </div>
 {% endfor %}
+{% endif %}
 
+{% if lp_section in ['logs', 'all'] %}
 <div class="card border-0 shadow-sm mt-4 lp-section" id="lp-logs">
     <div class="card-body">
         <div class="d-flex align-items-center gap-3 mb-3">
@@ -932,7 +961,9 @@
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if lp_section in ['guru', 'all'] %}
 <div class="modal fade" id="teacherCropModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -952,6 +983,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>

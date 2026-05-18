@@ -1,5 +1,6 @@
 # web_aska/handlers.py
 import asyncio
+import os
 import time
 from typing import Optional
 
@@ -73,7 +74,37 @@ class MockContext:
 web_sessions = {}
 
 load_dotenv()
-qa_chain = build_qa_chain()
+qa_chain = None
+qa_chain_init_error: Optional[str] = None
+qa_chain_retry_after: float = 0.0
+QA_CHAIN_RETRY_SECONDS = max(30, int(os.getenv("WEB_ASKA_QA_RETRY_SECONDS", "120") or 120))
+
+
+def _ensure_qa_chain():
+    """Lazy init QA chain supaya startup web tetap jalan saat API eksternal bermasalah."""
+    global qa_chain, qa_chain_init_error, qa_chain_retry_after
+    if qa_chain is not None:
+        return qa_chain
+
+    now_ts = time.time()
+    if qa_chain_retry_after and now_ts < qa_chain_retry_after:
+        return None
+
+    try:
+        print(f"[{now_str()}] WEB HANDLER - mencoba inisialisasi QA chain...")
+        qa_chain = build_qa_chain()
+        qa_chain_init_error = None
+        qa_chain_retry_after = 0.0
+        print(f"[{now_str()}] WEB HANDLER - QA chain siap digunakan.")
+        return qa_chain
+    except Exception as exc:
+        qa_chain_init_error = str(exc)
+        qa_chain_retry_after = now_ts + QA_CHAIN_RETRY_SECONDS
+        print(
+            f"[{now_str()}] WEB HANDLER - QA chain belum tersedia: {qa_chain_init_error}. "
+            f"Retry setelah {QA_CHAIN_RETRY_SECONDS} detik."
+        )
+        return None
 
 TEACHER_CONVERSATION_LIMIT = 10
 TEACHER_TIMEOUT_SECONDS = 600
@@ -92,14 +123,26 @@ PSYCH_TIMEOUT_MESSAGE = (
 
 # Psych severity rank handled inside shared flows (responses/psychologist)
 
-async def process_web_request(user_id: int, user_input: str, username: str = "WebUser") -> tuple[str, Optional[int]]:
+async def process_web_request(
+    user_id: int,
+    user_input: str,
+    username: str = "WebUser",
+    *,
+    topic: str = "web",
+    context_hint: Optional[str] = None,
+) -> tuple[str, Optional[int]]:
     """Main function to handle a chat request from the web API.
     
     Returns:
         tuple: (response_text, chat_log_id) where chat_log_id is the ID of the bot's response
     """
     
-    session_data = web_sessions.setdefault(user_id, {})
+    normalized_topic = (topic or "web").strip().lower() or "web"
+    session_key = f"{normalized_topic}:{user_id}"
+    if normalized_topic == "web":
+        session_data = web_sessions.setdefault(user_id, {})
+    else:
+        session_data = web_sessions.setdefault(session_key, {})
 
     user = MockUser(user_id, first_name=username)
     message = MockMessage(user, user_input)
@@ -119,10 +162,10 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         username = user.username
 
         print(
-            f"[{now_str()}] WEB HANDLER CALLED - FROM {username}: {normalized_input}"
+            f"[{now_str()}] WEB HANDLER CALLED [{normalized_topic}] - FROM {username}: {normalized_input}"
         )
 
-        storage_key = user_id
+        storage_key = session_key
 
         recent_messages_root = context.chat_data.setdefault("recent_messages_by_user", {})
         recent_messages = recent_messages_root.setdefault(storage_key, {})
@@ -142,7 +185,13 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
         recent_messages[normalized_input] = now_ts
 
         print(f"[{now_str()}] SAVING USER MESSAGE")
-        chat_log_id = save_chat(user_id, username, normalized_input, role="user", topic="web")
+        chat_log_id = save_chat(
+            user_id,
+            username,
+            normalized_input,
+            role="user",
+            topic=normalized_topic,
+        )
 
         # 1) Bullying / Safety (reuse shared flow)
         reply_target = MockMessage(user, "")
@@ -161,7 +210,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             storage_key=storage_key,
             now_ts=now_ts,
             timeout_seconds=BULLYING_TIMEOUT_SECONDS,
-            topic="web",
+            topic=normalized_topic,
         )
         if handled:
             print(f"[{now_str()}] WEB FLOW HANDLED: bullying")
@@ -180,7 +229,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             username=username,
             storage_key=storage_key,
             source="web",
-            topic="web",
+            topic=normalized_topic,
             mark_responded=lambda: None,
         )
         if handled:
@@ -201,7 +250,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             storage_key=storage_key,
             chat_log_id=chat_log_id,
             source="web",
-            topic="web",
+            topic=normalized_topic,
             mark_responded=lambda: None,
             timeout_seconds=PSYCH_TIMEOUT_SECONDS,
             timeout_message=PSYCH_TIMEOUT_MESSAGE,
@@ -224,7 +273,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             normalized_input=normalized_input,
             user_id=user_id,
             storage_key=storage_key,
-            topic="web",
+            topic=normalized_topic,
             mark_responded=lambda: None,
             timeout_seconds=TEACHER_TIMEOUT_SECONDS,
             timeout_message=TEACHER_TIMEOUT_MESSAGE,
@@ -243,7 +292,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             normalized_input=normalized_input,
             user_id=user_id,
             username=username,
-            topic="web",
+            topic=normalized_topic,
             mark_responded=lambda: None,
         )
         if handled:
@@ -254,12 +303,45 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
 
         print(f"[{now_str()}] ASKA sedang berpikir...")
 
-        history_from_db = get_chat_history(user_id, limit=5, offset=0)
+        history_from_db = get_chat_history(
+            user_id,
+            limit=5,
+            offset=0,
+            topic=normalized_topic,
+        )
         chat_history = format_history_for_chain(history_from_db)
 
         start_time = time.perf_counter()
 
-        result = await asyncio.to_thread(qa_chain.invoke, {"input": normalized_input, "chat_history": chat_history})
+        chain = _ensure_qa_chain()
+        if chain is None:
+            fallback = (
+                "ASKA lagi kesulitan mengakses mesin pengetahuan saat ini. "
+                "Coba lagi sebentar lagi ya, atau tanyakan pertanyaan ringkas dulu."
+            )
+            bot_chat_log_id = save_chat(
+                user_id,
+                "ASKA",
+                fallback,
+                role="aska",
+                topic=normalized_topic,
+                response_time_ms=0,
+            )
+            return fallback, bot_chat_log_id
+
+        chain_input = normalized_input
+        if context_hint:
+            sanitized_context = str(context_hint).strip()
+            if sanitized_context:
+                chain_input = (
+                    f"{normalized_input}\n\n"
+                    f"[KONTEKS TAMBAHAN]\n{sanitized_context}\n[/KONTEKS TAMBAHAN]"
+                )
+
+        result = await asyncio.to_thread(
+            chain.invoke,
+            {"input": chain_input, "chat_history": chat_history},
+        )
 
         print(f"[{now_str()}] ?? ASKA AMBIL {len(result['context'])} KONTEN:")
         for i, doc in enumerate(result["context"], 1):
@@ -278,7 +360,7 @@ async def process_web_request(user_id: int, user_input: str, username: str = "We
             "ASKA",
             response,
             role="aska",
-            topic="web",
+            topic=normalized_topic,
             response_time_ms=int(duration_ms),
         )
 

@@ -169,8 +169,8 @@
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item {% if request.endpoint == 'main.landingpage_settings' %}active{% endif %}"
-                                    href="{{ url_for('main.landingpage_settings') }}">
+                                <a class="dropdown-item {% if request.endpoint in ['main.landingpage_settings', 'main.landingpage_settings_alias', 'main.lp_index', 'main.lp_content', 'main.lp_teachers', 'main.lp_logs'] %}active{% endif %}"
+                                    href="{{ url_for('main.lp_index') }}">
                                     <i class="bi bi-window me-2 text-primary"></i>Landing Page
                                 </a>
                             </li>

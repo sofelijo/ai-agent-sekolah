@@ -838,7 +838,7 @@ def record_bullying_report(
 
 def _resolve_channel(topic: Optional[str]) -> str:
     value = (topic or "").strip().lower()
-    if value == "web":
+    if value in {"web", "graduation"}:
         return "web"
     if value == "twitter":
         return "twitter"
@@ -956,21 +956,44 @@ def save_chat(
     conn.commit()
     return inserted_id
 
-def get_chat_history(user_id: int, limit: int, offset: int = 0) -> List[Dict[str, Any]]:
+def get_chat_history(
+    user_id: int,
+    limit: int,
+    offset: int = 0,
+    topic: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """
     Ambil riwayat chat dengan paginasi, mengembalikan list of dictionaries.
     Urutan: Terbaru di atas (DESC).
     """
+    normalized_topic: Optional[str] = None
+    if topic is not None:
+        clean_topic = str(topic).strip().lower()
+        normalized_topic = clean_topic or None
+
+    use_topic = bool(normalized_topic) and _chat_logs_has_topic_column()
+
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(
-            """
-            SELECT id, role, text, created_at FROM chat_logs
-            WHERE user_id = %s
-            ORDER BY created_at DESC
-            LIMIT %s OFFSET %s
-            """,
-            (user_id, limit, offset),
-        )
+        if use_topic:
+            cur.execute(
+                """
+                SELECT id, role, text, created_at FROM chat_logs
+                WHERE user_id = %s AND topic = %s
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                (user_id, normalized_topic, limit, offset),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT id, role, text, created_at FROM chat_logs
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                (user_id, limit, offset),
+            )
         return cur.fetchall()
 
 def get_or_create_web_user(

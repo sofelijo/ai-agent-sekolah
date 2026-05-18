@@ -1,0 +1,244 @@
+{% extends 'lp/base.html' %}
+{% block title %}Kelulusan Siswa - LP Admin{% endblock %}
+
+{% block head_extra %}
+<style>
+    .grad-card {
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-soft);
+        border-radius: 1rem;
+    }
+
+    .grad-status-badge {
+        font-size: 0.75rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .grad-table td,
+    .grad-table th {
+        vertical-align: middle;
+    }
+
+    .grad-message {
+        max-width: 340px;
+        white-space: pre-wrap;
+        line-height: 1.35;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="page-header mb-3">
+    <div class="page-title-group">
+        <span class="icon-badge feature-icon text-primary">
+            <i class="bi bi-patch-check"></i>
+        </span>
+        <div>
+            <h1 class="h4 fw-bold page-title mb-0">Kelulusan Siswa</h1>
+            <p class="page-subtitle mb-0">Kelola data kelulusan untuk integrasi tombol Cek Kelulusan di landing page.</p>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4">
+    <div class="col-xl-4">
+        <div class="card grad-card border-0">
+            <div class="card-body">
+                <h2 class="h6 fw-bold mb-3">Tambah Data Kelulusan</h2>
+                <form method="post" action="{{ url_for('main.landingpage_graduation_create') }}">
+                    <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <input type="hidden" name="return_to" value="kelulusan">
+                    <div class="mb-3">
+                        <label class="form-label">NISN</label>
+                        <input class="form-control" type="text" name="nisn" inputmode="numeric" pattern="[0-9]+" placeholder="Contoh: 0123456789" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nama Siswa</label>
+                        <input class="form-control" type="text" name="nama_siswa" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kelas</label>
+                        <input class="form-control" type="text" name="kelas" placeholder="Contoh: VI-A">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Tahun Lulus</label>
+                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" placeholder="2026">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                {% for status in graduation_statuses %}
+                                <option value="{{ status }}">{{ status.replace('_', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal Pengumuman</label>
+                        <input class="form-control" type="date" name="tanggal_pengumuman">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pesan ASKA</label>
+                        <textarea class="form-control" name="pesan_aska" rows="4" placeholder="Pesan ini akan muncul di halaman chat kelulusan."></textarea>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="activeSwitchNew" checked>
+                        <label class="form-check-label" for="activeSwitchNew">Aktifkan data ini</label>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">
+                        <i class="bi bi-plus-circle me-1"></i>Simpan Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-8">
+        <div class="card grad-card border-0">
+            <div class="card-body">
+                <form class="row g-2 mb-3" method="get" action="{{ url_for('main.lp_graduations') }}">
+                    <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <div class="col-md-6">
+                        <input class="form-control" type="text" name="q" value="{{ search_query }}" placeholder="Cari NISN / nama / kelas">
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" name="status">
+                            <option value="">Semua Status</option>
+                            {% for status in graduation_statuses %}
+                            <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status.replace('_', ' ')|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-outline-primary" type="submit">Filter</button>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle grad-table">
+                        <thead>
+                            <tr>
+                                <th>NISN</th>
+                                <th>Siswa</th>
+                                <th>Status</th>
+                                <th>Pesan</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if graduations %}
+                            {% for item in graduations %}
+                            <tr>
+                                <td class="fw-semibold">{{ item.nisn }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ item.nama_siswa }}</div>
+                                    <div class="small text-muted">{{ item.kelas or '-' }} · {{ item.tahun_lulus or '-' }}</div>
+                                    {% if item.tanggal_pengumuman %}
+                                    <div class="small text-muted">Pengumuman: {{ item.tanggal_pengumuman }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% set badge = 'success' if item.status == 'lulus' else ('warning text-dark' if item.status == 'ditunda' else 'secondary') %}
+                                    <span class="badge bg-{{ badge }} grad-status-badge">{{ item.status.replace('_', ' ') }}</span>
+                                    {% if not item.is_active %}
+                                    <span class="badge bg-light text-dark border ms-1">nonaktif</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small grad-message">{{ item.pesan_aska or '-' }}</div>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editGrad{{ item.id }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <form method="post" action="{{ url_for('main.landingpage_graduation_delete', record_id=item.id) }}" class="d-inline"
+                                        onsubmit="return confirm('Hapus data kelulusan ini?')">
+                                        <input type="hidden" name="site_key" value="{{ site_key }}">
+                                        <input type="hidden" name="return_to" value="kelulusan">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Belum ada data kelulusan.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if graduations %}
+{% for item in graduations %}
+<div class="modal fade" id="editGrad{{ item.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('main.landingpage_graduation_update', record_id=item.id) }}">
+                <input type="hidden" name="site_key" value="{{ site_key }}">
+                <input type="hidden" name="return_to" value="kelulusan">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Kelulusan · {{ item.nama_siswa }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">NISN</label>
+                            <input class="form-control" type="text" name="nisn" value="{{ item.nisn }}" inputmode="numeric" pattern="[0-9]+" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Siswa</label>
+                            <input class="form-control" type="text" name="nama_siswa" value="{{ item.nama_siswa }}" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Kelas</label>
+                            <input class="form-control" type="text" name="kelas" value="{{ item.kelas or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tahun</label>
+                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" value="{{ item.tahun_lulus or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                {% for status in graduation_statuses %}
+                                <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status.replace('_', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tanggal Pengumuman</label>
+                            <input class="form-control" type="date" name="tanggal_pengumuman" value="{{ item.tanggal_pengumuman or '' }}">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="activeSwitch{{ item.id }}" {% if item.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="activeSwitch{{ item.id }}">Aktifkan data</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Pesan ASKA</label>
+                            <textarea class="form-control" name="pesan_aska" rows="4">{{ item.pesan_aska or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Batal</button>
+                    <button class="btn btn-primary" type="submit">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

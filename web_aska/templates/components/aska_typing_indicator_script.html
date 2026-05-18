@@ -1,0 +1,55 @@
+<script>
+    (function () {
+        function createAskaTypingIndicator(chatBox, options) {
+            const config = options || {};
+            const indicatorId = config.indicatorId || 'typing-indicator';
+            const message = config.message || 'ASKA lagi mikir 🤔';
+            const dotIntervalMs = Number(config.dotIntervalMs) > 0 ? Number(config.dotIntervalMs) : 500;
+            const dotsId = `${indicatorId}-dots`;
+            let typingInterval = null;
+
+            function removeTypingIndicator() {
+                if (typingInterval) {
+                    clearInterval(typingInterval);
+                    typingInterval = null;
+                }
+                const typingElement = document.getElementById(indicatorId);
+                if (typingElement) {
+                    typingElement.remove();
+                }
+            }
+
+            function showTypingIndicator() {
+                if (!chatBox) return;
+                removeTypingIndicator();
+
+                const typingElement = document.createElement('div');
+                typingElement.id = indicatorId;
+                typingElement.classList.add('chat-message', 'bot-message', 'typing-indicator');
+
+                const loader = document.createElement('span');
+                loader.className = 'loader';
+                const textNode = document.createTextNode(message);
+                const dots = document.createElement('span');
+                dots.id = dotsId;
+                dots.textContent = '.';
+
+                typingElement.appendChild(loader);
+                typingElement.appendChild(textNode);
+                typingElement.appendChild(dots);
+                chatBox.appendChild(typingElement);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                let dotCount = 1;
+                typingInterval = window.setInterval(() => {
+                    dotCount = (dotCount % 3) + 1;
+                    dots.textContent = '.'.repeat(dotCount);
+                }, dotIntervalMs);
+            }
+
+            return { showTypingIndicator, removeTypingIndicator };
+        }
+
+        window.createAskaTypingIndicator = createAskaTypingIndicator;
+    })();
+</script>

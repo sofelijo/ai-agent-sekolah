@@ -220,6 +220,24 @@ a {
     box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
+.hero-cta-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.hero-cta-secondary {
+    background: rgba(31, 41, 55, 0.95);
+    color: #f8fafc;
+}
+
+.hero-cta-secondary:hover {
+    background: rgba(17, 24, 39, 0.95);
+    color: #ffffff;
+}
+
 .hero-cta-highlight {
     font-style: italic;
     font-weight: 700;

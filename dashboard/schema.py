@@ -367,6 +367,36 @@ CREATE INDEX IF NOT EXISTS idx_landingpage_audit_logs_site
 ON landingpage_audit_logs (site_key, created_at DESC);
 """
 
+_LANDINGPAGE_GRADUATIONS_SQL = """
+CREATE TABLE IF NOT EXISTS landingpage_graduations (
+    id SERIAL PRIMARY KEY,
+    site_key TEXT NOT NULL,
+    nisn TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    class_name TEXT,
+    graduation_year INTEGER,
+    status TEXT NOT NULL DEFAULT 'lulus',
+    announcement_date DATE,
+    message TEXT,
+    metadata JSONB,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT landingpage_graduations_status_check CHECK (status IN ('lulus', 'belum_lulus', 'ditunda')),
+    CONSTRAINT landingpage_graduations_site_nisn_key UNIQUE (site_key, nisn)
+);
+"""
+
+_LANDINGPAGE_GRADUATIONS_SITE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_graduations_site
+ON landingpage_graduations (site_key, is_active, status, student_name);
+"""
+
+_LANDINGPAGE_GRADUATIONS_YEAR_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_landingpage_graduations_year
+ON landingpage_graduations (site_key, graduation_year DESC, created_at DESC);
+"""
+
 _TWITTER_LOGS_SQL = """
 CREATE TABLE IF NOT EXISTS twitter_worker_logs (
     id SERIAL PRIMARY KEY,
@@ -545,6 +575,9 @@ def ensure_dashboard_schema() -> None:
         _LANDINGPAGE_TEACHERS_ORDER_INDEX_SQL,
         _LANDINGPAGE_AUDIT_LOGS_SQL,
         _LANDINGPAGE_AUDIT_LOGS_INDEX_SQL,
+        _LANDINGPAGE_GRADUATIONS_SQL,
+        _LANDINGPAGE_GRADUATIONS_SITE_INDEX_SQL,
+        _LANDINGPAGE_GRADUATIONS_YEAR_INDEX_SQL,
         _TWITTER_LOGS_SQL,
         _TWITTER_LOGS_INDEX_CREATED,
         _TWITTER_LOGS_INDEX_LEVEL,
@@ -608,6 +641,10 @@ def ensure_dashboard_schema() -> None:
         _BORROWING_RECORDS_ITEM_INDEX_SQL,
         _ATTENDANCE_UNIQUE_INDEX_SQL,
         "ALTER TABLE landingpage_teachers ADD COLUMN IF NOT EXISTS sort_order INTEGER",
+        "ALTER TABLE landingpage_graduations ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE landingpage_graduations ADD COLUMN IF NOT EXISTS metadata JSONB",
+        "ALTER TABLE landingpage_graduations DROP CONSTRAINT IF EXISTS landingpage_graduations_status_check",
+        "ALTER TABLE landingpage_graduations ADD CONSTRAINT landingpage_graduations_status_check CHECK (status IN ('lulus', 'belum_lulus', 'ditunda'))",
     )
     with get_cursor(commit=True) as cur:
         for statement in statements:
@@ -644,6 +681,7 @@ def ensure_sequences_integrity(cur) -> None:
         "landingpage_settings",
         "landingpage_teachers",
         "landingpage_audit_logs",
+        "landingpage_graduations",
     ]
     for table in tables:
         try:

@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from flask import Flask, render_template, Response, request, send_file, abort, jsonify, url_for
+from flask import Flask, render_template, Response, request, send_file, abort, jsonify, redirect, url_for
 
 from dashboard.queries import fetch_landingpage_content, fetch_landingpage_teachers
 from dashboard.attendance.queries import (
@@ -32,6 +32,11 @@ def create_app() -> Flask:
     data_path = Path(__file__).resolve().parent / "static" / "landingpage" / "data" / "guru_full.json"
     dashboard_static = Path(__file__).resolve().parent.parent / "dashboard" / "static"
     default_ekskul_image = "landingpage/images/ekstra-pramuka.jpg"
+    base_web_aska_url = (os.getenv("ASKA_WEB_URL") or "http://127.0.0.1:5001").rstrip("/")
+    graduation_target_url = (
+        os.getenv("ASKA_WEB_GRADUATION_URL")
+        or f"{base_web_aska_url}/kelulusan"
+    )
 
     def _normalize_guru_photo(item: dict) -> dict:
         foto = (item.get("foto") or "").strip()
@@ -198,7 +203,13 @@ def create_app() -> Flask:
             content=content,
             site_key=site_key,
             extracurriculars=extracurriculars,
+            graduation_target_url=url_for("landing_graduation_redirect"),
         )
+
+    @app.route("/kelulusan")
+    @app.route("/cek-kelulusan")
+    def landing_graduation_redirect():
+        return redirect(graduation_target_url)
 
     @app.route("/ekskul/<int:activity_id>")
     def landing_extracurricular_detail(activity_id: int):
