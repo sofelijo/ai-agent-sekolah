@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 import json
 import os
 from pathlib import Path
@@ -399,9 +399,16 @@ def _compose_teacher_display_name(profile: Optional[Dict[str, Any]], fallback_na
 
 
 def _build_ekskul_schedule_text(activity: Dict[str, Any]) -> str:
-    day_label = (activity.get("schedule_day") or "").strip()
-    start_time = (activity.get("start_time") or "").strip()
-    end_time = (activity.get("end_time") or "").strip()
+    def _normalize_text(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, time):
+            return value.strftime("%H:%M")
+        return str(value).strip()
+
+    day_label = _normalize_text(activity.get("schedule_day"))
+    start_time = _normalize_text(activity.get("start_time"))
+    end_time = _normalize_text(activity.get("end_time"))
     parts: List[str] = []
     if day_label:
         parts.append(day_label)
@@ -429,6 +436,19 @@ def _build_unique_sheet_title(base_title: str, used_titles: set[str]) -> str:
         index += 1
     used_titles.add(candidate)
     return candidate
+
+
+def _to_excel_naive_datetime(value: Any) -> Any:
+    if not isinstance(value, datetime):
+        return value
+    normalized = value
+    try:
+        normalized = to_jakarta(value) or value
+    except Exception:
+        normalized = value
+    if isinstance(normalized, datetime) and normalized.tzinfo is not None:
+        return normalized.replace(tzinfo=None)
+    return normalized
 
 
 def _build_month_options(available_months: List[date], selected_month: date) -> List[Dict[str, str]]:
@@ -2104,7 +2124,7 @@ def ekskul_export_excel() -> Response:
         12: 20,
         13: 12,
     }
-    generated_at = current_jakarta_time()
+    generated_at = _to_excel_naive_datetime(current_jakarta_time())
     used_titles: set[str] = set()
 
     for item in overview:
@@ -2152,18 +2172,8 @@ def ekskul_export_excel() -> Response:
         for index, row in enumerate(export_rows, start=1):
             excel_row = data_start_row + index - 1
             attendance_date = row.get("attendance_date")
-            recorded_at = row.get("recorded_at")
-            updated_at = row.get("updated_at")
-            if isinstance(recorded_at, datetime):
-                try:
-                    recorded_at = to_jakarta(recorded_at)
-                except Exception:
-                    pass
-            if isinstance(updated_at, datetime):
-                try:
-                    updated_at = to_jakarta(updated_at)
-                except Exception:
-                    pass
+            recorded_at = _to_excel_naive_datetime(row.get("recorded_at"))
+            updated_at = _to_excel_naive_datetime(row.get("updated_at"))
 
             status_raw = (row.get("status") or "").strip().lower()
             status_label = STATUS_LABELS.get(status_raw, status_raw.title() if status_raw else "-")
@@ -2198,7 +2208,12 @@ def ekskul_export_excel() -> Response:
         ws.freeze_panes = "A8"
 
     output = io.BytesIO()
-    workbook.save(output)
+    try:
+        workbook.save(output)
+    except Exception as exc:
+        current_app.logger.exception("Gagal membuat export Excel ekskul: %s", exc)
+        flash("Gagal membuat file Excel absensi ekskul.", "danger")
+        return redirect(url_for("attendance.ekskul_dashboard"))
     output.seek(0)
 
     timestamp = generated_at
