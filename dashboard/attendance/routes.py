@@ -60,6 +60,7 @@ from .queries import (
     fetch_recent_attendance,
     fetch_extracurricular_attendance_for_date,
     fetch_extracurricular_attendance_detail,
+    fetch_extracurricular_attendance_export_rows,
     fetch_extracurricular_attendance_totals_for_date_all,
     fetch_extracurricular_daily_totals,
     fetch_extracurricular_members,
@@ -395,6 +396,39 @@ def _compose_teacher_display_name(profile: Optional[Dict[str, Any]], fallback_na
     full_name = (profile.get("full_name") or fallback_name or "").strip()
     parts = [part for part in (prefix, full_name, suffix) if part]
     return " ".join(parts) if parts else None
+
+
+def _build_ekskul_schedule_text(activity: Dict[str, Any]) -> str:
+    day_label = (activity.get("schedule_day") or "").strip()
+    start_time = (activity.get("start_time") or "").strip()
+    end_time = (activity.get("end_time") or "").strip()
+    parts: List[str] = []
+    if day_label:
+        parts.append(day_label)
+    if start_time:
+        if end_time:
+            parts.append(f"{start_time} - {end_time}")
+        else:
+            parts.append(start_time)
+    return " | ".join(parts) if parts else "-"
+
+
+def _build_unique_sheet_title(base_title: str, used_titles: set[str]) -> str:
+    invalid_chars = set('[]:*?/\\')
+    raw = "".join(" " if ch in invalid_chars else ch for ch in (base_title or "").strip())
+    normalized = " ".join(raw.split()) or "Ekskul"
+    max_len = 31
+    trimmed = normalized[:max_len]
+    candidate = trimmed
+    index = 2
+    while candidate in used_titles:
+        suffix = f" ({index})"
+        allowed_len = max_len - len(suffix)
+        base = trimmed[:allowed_len].rstrip() if allowed_len > 0 else ""
+        candidate = f"{base}{suffix}" if base else f"Sheet{suffix}"
+        index += 1
+    used_titles.add(candidate)
+    return candidate
 
 
 def _build_month_options(available_months: List[date], selected_month: date) -> List[Dict[str, str]]:
@@ -772,6 +806,7 @@ def absen() -> str:
                     "id": student_id,
                     "name": student.get("full_name"),
                     "student_number": student.get("student_number"),
+                    "nisn": student.get("nisn"),
                     "status": status,
                     "has_record": bool(record),
                 }
@@ -1987,6 +2022,195 @@ def ekskul_dashboard() -> str:
         landingpage_base_url=os.getenv("LANDINGPAGE_PUBLIC_URL")
         or os.getenv("LANDINGPAGE_URL")
         or "http://127.0.0.1:5003",
+    )
+
+
+@attendance_bp.route("/absen/ekskul/export-excel", methods=["GET"], endpoint="ekskul_export_excel")
+@login_required
+@role_required("admin", "ekskul")
+def ekskul_export_excel() -> Response:
+    user = current_user() or {}
+    is_admin = user.get("role") == "admin"
+    coach_user_id = None if is_admin else user.get("id")
+
+    overview = fetch_extracurricular_overview(include_inactive=False, coach_user_id=coach_user_id)
+    if not overview:
+        flash("Belum ada data ekskul aktif untuk diekspor.", "warning")
+        return redirect(url_for("attendance.ekskul_dashboard"))
+
+    activity_ids: List[int] = []
+    for item in overview:
+        try:
+            activity_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        activity_ids.append(activity_id)
+    if not activity_ids:
+        flash("Data ekskul tidak valid untuk diekspor.", "warning")
+        return redirect(url_for("attendance.ekskul_dashboard"))
+
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+    except Exception:
+        flash("Library openpyxl belum tersedia. Install dependency untuk export Excel.", "danger")
+        return redirect(url_for("attendance.ekskul_dashboard"))
+
+    rows = fetch_extracurricular_attendance_export_rows(activity_ids=activity_ids)
+    rows_by_activity: Dict[int, List[Dict[str, Any]]] = {}
+    for row in rows:
+        try:
+            activity_id = int(row.get("extracurricular_id"))
+        except (TypeError, ValueError):
+            continue
+        rows_by_activity.setdefault(activity_id, []).append(row)
+
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+
+    header_fill = PatternFill(fill_type="solid", fgColor="E8F0FE")
+    header_font = Font(bold=True, color="1F3A8A")
+    label_font = Font(bold=True)
+    wrap_alignment = Alignment(wrap_text=True, vertical="top")
+    center_alignment = Alignment(horizontal="center", vertical="top")
+
+    headers = [
+        "No",
+        "Tanggal",
+        "Nama Siswa",
+        "NIS",
+        "NISN",
+        "Kelas",
+        "Status",
+        "Materi",
+        "Catatan",
+        "Diinput Oleh",
+        "Waktu Input",
+        "Update Terakhir",
+        "Bukti Foto",
+    ]
+    column_widths = {
+        1: 6,
+        2: 14,
+        3: 28,
+        4: 14,
+        5: 16,
+        6: 14,
+        7: 12,
+        8: 28,
+        9: 28,
+        10: 24,
+        11: 20,
+        12: 20,
+        13: 12,
+    }
+    generated_at = current_jakarta_time()
+    used_titles: set[str] = set()
+
+    for item in overview:
+        try:
+            activity_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+
+        sheet_title = _build_unique_sheet_title(str(item.get("name") or f"Ekskul {activity_id}"), used_titles)
+        ws = workbook.create_sheet(title=sheet_title)
+
+        ws["A1"] = "Ekskul"
+        ws["B1"] = item.get("name") or "-"
+        ws["A2"] = "Pembina"
+        ws["B2"] = item.get("coach_display") or item.get("coach_name") or "-"
+        ws["A3"] = "Jadwal"
+        ws["B3"] = _build_ekskul_schedule_text(item)
+        ws["A4"] = "Lokasi"
+        ws["B4"] = item.get("location") or "-"
+        ws["A5"] = "Diekspor"
+        ws["B5"] = generated_at
+        ws["B5"].number_format = "dd-mm-yyyy hh:mm"
+
+        for row_idx in range(1, 6):
+            ws.cell(row=row_idx, column=1).font = label_font
+
+        header_row = 7
+        for col_idx, title in enumerate(headers, start=1):
+            cell = ws.cell(row=header_row, column=col_idx, value=title)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_alignment
+            ws.column_dimensions[cell.column_letter].width = column_widths.get(col_idx, 16)
+
+        export_rows = rows_by_activity.get(activity_id, [])
+        data_start_row = header_row + 1
+        if not export_rows:
+            ws.merge_cells(start_row=data_start_row, start_column=1, end_row=data_start_row, end_column=len(headers))
+            empty_cell = ws.cell(row=data_start_row, column=1, value="Belum ada data absensi.")
+            empty_cell.alignment = Alignment(horizontal="center", vertical="center")
+            ws.row_dimensions[data_start_row].height = 22
+            ws.freeze_panes = "A8"
+            continue
+
+        for index, row in enumerate(export_rows, start=1):
+            excel_row = data_start_row + index - 1
+            attendance_date = row.get("attendance_date")
+            recorded_at = row.get("recorded_at")
+            updated_at = row.get("updated_at")
+            if isinstance(recorded_at, datetime):
+                try:
+                    recorded_at = to_jakarta(recorded_at)
+                except Exception:
+                    pass
+            if isinstance(updated_at, datetime):
+                try:
+                    updated_at = to_jakarta(updated_at)
+                except Exception:
+                    pass
+
+            status_raw = (row.get("status") or "").strip().lower()
+            status_label = STATUS_LABELS.get(status_raw, status_raw.title() if status_raw else "-")
+
+            values: List[Any] = [
+                index,
+                attendance_date,
+                row.get("full_name") or "-",
+                row.get("student_number") or "-",
+                row.get("nisn") or "-",
+                row.get("class_name") or "-",
+                status_label,
+                row.get("material") or "-",
+                row.get("note") or "-",
+                row.get("recorded_by_name") or "-",
+                recorded_at,
+                updated_at,
+                "Ada" if row.get("photo_path") else "-",
+            ]
+
+            for col_idx, value in enumerate(values, start=1):
+                cell = ws.cell(row=excel_row, column=col_idx, value=value)
+                if col_idx in {1, 2, 7, 13}:
+                    cell.alignment = center_alignment
+                else:
+                    cell.alignment = wrap_alignment
+                if col_idx == 2 and isinstance(attendance_date, date):
+                    cell.number_format = "dd-mm-yyyy"
+                if col_idx in {11, 12} and isinstance(value, datetime):
+                    cell.number_format = "dd-mm-yyyy hh:mm"
+
+        ws.freeze_panes = "A8"
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    timestamp = generated_at
+    filename = secure_filename(f"absen-ekskul-semua-{timestamp:%Y%m%d-%H%M%S}.xlsx")
+    if not filename:
+        filename = "absen-ekskul-semua.xlsx"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

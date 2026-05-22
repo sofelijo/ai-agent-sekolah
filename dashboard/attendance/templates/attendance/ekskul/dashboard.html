@@ -253,6 +253,9 @@
                 <div class="text-muted small">Ringkasan anggota dan jadwal setiap kegiatan.</div>
             </div>
             <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-success btn-sm" href="{{ url_for('attendance.ekskul_export_excel') }}">
+                    <i class="bi bi-file-earmark-excel me-1"></i>Download Seluruh Absen Excel
+                </a>
                 <a class="btn btn-outline-primary btn-sm" href="{{ url_for('attendance.ekskul_config') }}">
                     <i class="bi bi-sliders me-1"></i>Konfigurasi Jadwal
                 </a>

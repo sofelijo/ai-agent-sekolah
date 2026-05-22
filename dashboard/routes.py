@@ -24,6 +24,7 @@ from flask import (
     current_app,
 )
 from werkzeug.datastructures import MultiDict
+from werkzeug.utils import secure_filename
 from PIL import Image
 
 from .auth import current_user, login_required, role_required
@@ -79,9 +80,18 @@ from .queries import (
     log_landingpage_activity,
     fetch_landingpage_audit_logs,
     fetch_landingpage_graduations,
+    fetch_landingpage_graduation_by_nisn,
+    fetch_landingpage_graduation_by_id,
     create_landingpage_graduation,
     update_landingpage_graduation,
     delete_landingpage_graduation,
+    update_landingpage_graduation_metadata,
+    delete_landingpage_graduations,
+)
+from .attendance.queries import (
+    fetch_students_for_class,
+    get_school_class,
+    list_school_classes,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -89,6 +99,12 @@ PAGE_SIZE = 50
 REPORT_PAGE_SIZE = 25
 TWITTER_PAGE_SIZE = 25
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+GRADUATION_STATUS_LABELS = {
+    "lulus": "Lulus",
+    "belum_lulus": "Tidak Lulus",
+    "ditunda": "Ditunda",
+}
+GRADUATION_DOC_MAX_SIZE = 10 * 1024 * 1024
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -296,16 +312,75 @@ def _save_teacher_photo(site_key: str, teacher_id: int, photo_data: str | None, 
     return relative
 
 
+def _normalize_relative_upload_path(value: Any) -> Optional[str]:
+    raw = str(value or "").strip().replace("\\", "/")
+    if not raw:
+        return None
+    clean = raw.lstrip("/")
+    parts = [part for part in clean.split("/") if part]
+    if not parts or any(part in {".", ".."} for part in parts):
+        return None
+    return "/".join(parts)
+
+
+def _resolve_landingpage_static_upload_path(relative_path: str) -> Optional[Path]:
+    normalized = _normalize_relative_upload_path(relative_path)
+    if not normalized:
+        return None
+    if not normalized.startswith("landingpage/uploads/graduations/"):
+        return None
+    candidate = (PROJECT_ROOT / "landingpage" / "static" / normalized).resolve()
+    root = (PROJECT_ROOT / "landingpage" / "static").resolve()
+    if root not in candidate.parents and candidate != root:
+        return None
+    return candidate
+
+
+def _save_graduation_document_file(site_key: str, record_id: int, file_storage) -> Dict[str, Any]:
+    if not file_storage or not getattr(file_storage, "filename", None):
+        raise ValueError("Silakan pilih file Surat Keterangan Lulus (PDF) terlebih dahulu.")
+
+    original_name = (file_storage.filename or "").strip()
+    safe_original = secure_filename(original_name) or "surat-keterangan-lulus.pdf"
+    if not safe_original.lower().endswith(".pdf"):
+        raise ValueError("File harus berformat PDF (.pdf).")
+
+    file_bytes = file_storage.read() or b""
+    if not file_bytes:
+        raise ValueError("File PDF kosong.")
+    if len(file_bytes) > GRADUATION_DOC_MAX_SIZE:
+        raise ValueError("Ukuran PDF maksimal 10 MB.")
+    if b"%PDF-" not in file_bytes[:1024]:
+        raise ValueError("File yang diunggah bukan PDF valid.")
+
+    safe_site = re.sub(r"[^a-z0-9_-]", "-", site_key.lower()) or "default"
+    filename = f"skl_{record_id}_{secrets.token_hex(6)}.pdf"
+    relative = f"landingpage/uploads/graduations/{safe_site}/{filename}"
+    output_path = PROJECT_ROOT / "landingpage" / "static" / relative
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("wb") as fp:
+        fp.write(file_bytes)
+
+    return {
+        "relative_path": relative,
+        "original_name": original_name or safe_original,
+        "size_bytes": len(file_bytes),
+        "uploaded_at": current_jakarta_time().isoformat(),
+        "mime_type": "application/pdf",
+    }
+
+
 def _normalize_nisn(value: Optional[str]) -> str:
     return re.sub(r"[^0-9]", "", str(value or "").strip())
 
 
 def _extract_graduation_form_payload() -> Dict[str, Any]:
+    default_year = str(current_jakarta_time().year)
     return {
         "nisn": _normalize_nisn(request.form.get("nisn")),
         "nama_siswa": (request.form.get("nama_siswa") or "").strip(),
         "kelas": (request.form.get("kelas") or "").strip(),
-        "tahun_lulus": (request.form.get("tahun_lulus") or "").strip(),
+        "tahun_lulus": (request.form.get("tahun_lulus") or default_year).strip(),
         "status": (request.form.get("status") or "lulus").strip().lower(),
         "tanggal_pengumuman": request.form.get("tanggal_pengumuman") or None,
         "pesan_aska": (request.form.get("pesan_aska") or "").strip(),
@@ -652,6 +727,8 @@ def lp_graduations() -> Response:
         include_inactive=True,
         limit=1000,
     )
+    class_options = list_school_classes()
+    graduation_default_year = current_jakarta_time().year
     return render_template(
         "lp/graduation.html",
         content=content,
@@ -660,6 +737,9 @@ def lp_graduations() -> Response:
         landingpage_public_url=landingpage_public_url,
         graduations=graduations,
         graduation_statuses=LANDINGPAGE_GRADUATION_STATUSES,
+        graduation_status_labels=GRADUATION_STATUS_LABELS,
+        class_options=class_options,
+        graduation_default_year=graduation_default_year,
         search_query=q,
         selected_status=status,
     )
@@ -733,6 +813,112 @@ def landingpage_graduation_create() -> Response:
     return _resolve_landingpage_return(site_key, default_tab="kelulusan")
 
 
+@main_bp.route("/settings/landingpage/graduations/import-class", methods=["POST"])
+@role_required("admin")
+def landingpage_graduation_import_class() -> Response:
+    site_key = _resolve_landingpage_site_key()
+    raw_class_id = (request.form.get("class_id") or "").strip()
+    try:
+        class_id = int(raw_class_id)
+    except (TypeError, ValueError):
+        flash("Silakan pilih kelas yang valid.", "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    class_detail = get_school_class(class_id)
+    if not class_detail:
+        flash("Kelas tidak ditemukan.", "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    students = fetch_students_for_class(class_id)
+    if not students:
+        flash("Belum ada siswa aktif pada kelas yang dipilih.", "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    status = (request.form.get("status") or "lulus").strip().lower()
+    if status not in LANDINGPAGE_GRADUATION_STATUSES:
+        status = "lulus"
+    default_year = str(current_jakarta_time().year)
+    bulk_year = (request.form.get("tahun_lulus") or default_year).strip()
+
+    base_payload = {
+        "kelas": class_detail.get("name") or "",
+        "tahun_lulus": bulk_year,
+        "status": status,
+        "tanggal_pengumuman": request.form.get("tanggal_pengumuman") or None,
+        "is_active": request.form.get("is_active") == "on",
+    }
+    update_existing = request.form.get("update_existing") == "on"
+
+    created_count = 0
+    updated_count = 0
+    skipped_count = 0
+    invalid_count = 0
+
+    for student in students:
+        nisn = _normalize_nisn(student.get("nisn"))
+        student_name = (student.get("full_name") or "").strip()
+        if not nisn or len(nisn) < 6 or not student_name:
+            invalid_count += 1
+            continue
+
+        payload = {
+            **base_payload,
+            "nisn": nisn,
+            "nama_siswa": student_name,
+        }
+        existing = fetch_landingpage_graduation_by_nisn(site_key, nisn, active_only=False)
+        try:
+            if existing:
+                if update_existing:
+                    payload["pesan_aska"] = existing.get("pesan_aska") or ""
+                    updated = update_landingpage_graduation(int(existing["id"]), site_key, payload)
+                    updated_count += 1 if updated else 0
+                    skipped_count += 0 if updated else 1
+                else:
+                    skipped_count += 1
+            else:
+                created_id = create_landingpage_graduation(site_key, payload)
+                created_count += 1 if created_id else 0
+                skipped_count += 0 if created_id else 1
+        except ValueError:
+            invalid_count += 1
+        except Exception:
+            current_app.logger.exception(
+                "Gagal mengimpor data kelulusan siswa %s dari kelas %s",
+                nisn,
+                class_detail.get("name"),
+            )
+            skipped_count += 1
+
+    if created_count or updated_count:
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="graduation_import_class",
+            entity_type="graduation",
+            metadata={
+                "class_id": class_id,
+                "class_name": class_detail.get("name"),
+                "status": status,
+                "created": created_count,
+                "updated": updated_count,
+                "skipped": skipped_count,
+                "invalid": invalid_count,
+            },
+        )
+
+    summary = [
+        f"{created_count} data baru",
+        f"{updated_count} diperbarui",
+        f"{skipped_count} dilewati",
+    ]
+    if invalid_count:
+        summary.append(f"{invalid_count} siswa tanpa NISN valid")
+    flash_level = "success" if created_count or updated_count else "warning"
+    flash(f"Import kelulusan kelas {class_detail.get('name')} selesai: {', '.join(summary)}.", flash_level)
+    return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+
 @main_bp.route("/settings/landingpage/graduations/<int:record_id>/update", methods=["POST"])
 @role_required("admin")
 def landingpage_graduation_update(record_id: int) -> Response:
@@ -778,6 +964,102 @@ def landingpage_graduation_delete(record_id: int) -> Response:
         flash("Data kelulusan berhasil dihapus.", "success")
     else:
         flash("Data kelulusan tidak ditemukan.", "warning")
+    return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+
+@main_bp.route("/settings/landingpage/graduations/<int:record_id>/document", methods=["POST"])
+@role_required("admin")
+def landingpage_graduation_upload_document(record_id: int) -> Response:
+    site_key = _resolve_landingpage_site_key()
+    record = fetch_landingpage_graduation_by_id(record_id, site_key)
+    if not record:
+        flash("Data kelulusan tidak ditemukan.", "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    file_storage = request.files.get("document_file")
+    try:
+        document_meta = _save_graduation_document_file(site_key, record_id, file_storage)
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+    except Exception:
+        flash("Terjadi error saat mengunggah Surat Keterangan Lulus (PDF).", "danger")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    existing_metadata = record.get("metadata")
+    metadata = dict(existing_metadata) if isinstance(existing_metadata, dict) else {}
+    old_document = metadata.get("document") if isinstance(metadata.get("document"), dict) else {}
+    old_relative_path = old_document.get("relative_path") if isinstance(old_document, dict) else None
+    metadata["document"] = document_meta
+
+    updated = update_landingpage_graduation_metadata(record_id, site_key, metadata)
+    if not updated:
+        new_file_path = _resolve_landingpage_static_upload_path(document_meta.get("relative_path"))
+        if new_file_path and new_file_path.exists():
+            try:
+                new_file_path.unlink()
+            except Exception:
+                pass
+        flash("Gagal menyimpan metadata Surat Keterangan Lulus.", "danger")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    old_path = _resolve_landingpage_static_upload_path(old_relative_path)
+    new_relative_path = document_meta.get("relative_path")
+    if old_path and old_path.exists() and old_relative_path != new_relative_path:
+        try:
+            old_path.unlink()
+        except Exception:
+            pass
+
+    log_landingpage_activity(
+        site_key,
+        (current_user() or {}).get("id"),
+        action="graduation_upload_document",
+        entity_type="graduation",
+        entity_id=record_id,
+        metadata={
+            "nisn": record.get("nisn"),
+            "filename": document_meta.get("original_name"),
+            "size_bytes": document_meta.get("size_bytes"),
+        },
+    )
+    flash("Surat Keterangan Lulus berhasil diunggah.", "success")
+    return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+
+@main_bp.route("/settings/landingpage/graduations/bulk-delete", methods=["POST"])
+@role_required("admin")
+def landingpage_graduation_bulk_delete() -> Response:
+    site_key = _resolve_landingpage_site_key()
+    raw_ids = request.form.getlist("record_ids")
+    record_ids: List[int] = []
+    for raw_id in raw_ids:
+        try:
+            value = int(str(raw_id).strip())
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            record_ids.append(value)
+
+    if not record_ids:
+        flash("Pilih minimal satu data kelulusan untuk dihapus.", "warning")
+        return _resolve_landingpage_return(site_key, default_tab="kelulusan")
+
+    deleted_count = delete_landingpage_graduations(record_ids, site_key)
+    if deleted_count > 0:
+        log_landingpage_activity(
+            site_key,
+            (current_user() or {}).get("id"),
+            action="graduation_bulk_delete",
+            entity_type="graduation",
+            metadata={
+                "requested_count": len(record_ids),
+                "deleted_count": deleted_count,
+            },
+        )
+        flash(f"{deleted_count} data kelulusan berhasil dihapus.", "success")
+    else:
+        flash("Data kelulusan terpilih tidak ditemukan.", "warning")
     return _resolve_landingpage_return(site_key, default_tab="kelulusan")
 
 

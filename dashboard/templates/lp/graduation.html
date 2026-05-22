@@ -20,11 +20,6 @@
         vertical-align: middle;
     }
 
-    .grad-message {
-        max-width: 340px;
-        white-space: pre-wrap;
-        line-height: 1.35;
-    }
 </style>
 {% endblock %}
 
@@ -64,13 +59,13 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label">Tahun Lulus</label>
-                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" placeholder="2026">
+                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" value="{{ graduation_default_year }}" placeholder="2026">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Status</label>
                             <select class="form-select" name="status">
                                 {% for status in graduation_statuses %}
-                                <option value="{{ status }}">{{ status.replace('_', ' ')|title }}</option>
+                                <option value="{{ status }}">{{ graduation_status_labels.get(status, status.replace('_', ' ')|title) }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -79,16 +74,63 @@
                         <label class="form-label">Tanggal Pengumuman</label>
                         <input class="form-control" type="date" name="tanggal_pengumuman">
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Pesan ASKA</label>
-                        <textarea class="form-control" name="pesan_aska" rows="4" placeholder="Pesan ini akan muncul di halaman chat kelulusan."></textarea>
-                    </div>
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="activeSwitchNew" checked>
                         <label class="form-check-label" for="activeSwitchNew">Aktifkan data ini</label>
                     </div>
                     <button class="btn btn-primary w-100" type="submit">
                         <i class="bi bi-plus-circle me-1"></i>Simpan Data
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card grad-card border-0 mt-4">
+            <div class="card-body">
+                <h2 class="h6 fw-bold mb-3">Tambah dari Kelas</h2>
+                <form method="post" action="{{ url_for('main.landingpage_graduation_import_class') }}">
+                    <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <input type="hidden" name="return_to" value="kelulusan">
+                    <div class="mb-3">
+                        <label class="form-label">Pilih Kelas</label>
+                        <select class="form-select" name="class_id" required>
+                            <option value="">-- Pilih kelas --</option>
+                            {% for class_item in class_options %}
+                            <option value="{{ class_item.id }}">
+                                {{ class_item.name }}{% if class_item.academic_year %} · {{ class_item.academic_year }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Tahun Lulus</label>
+                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" value="{{ graduation_default_year }}" placeholder="2026">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Status Default</label>
+                            <select class="form-select" name="status">
+                                {% for status in graduation_statuses %}
+                                <option value="{{ status }}" {% if status == 'lulus' %}selected{% endif %}>{{ graduation_status_labels.get(status, status.replace('_', ' ')|title) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal Pengumuman</label>
+                        <input class="form-control" type="date" name="tanggal_pengumuman">
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="activeSwitchClass" checked>
+                        <label class="form-check-label" for="activeSwitchClass">Aktifkan data hasil import</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="update_existing" id="updateExistingClass">
+                        <label class="form-check-label" for="updateExistingClass">Perbarui data yang sudah ada</label>
+                    </div>
+                    <p class="text-muted small mb-3">Siswa tanpa NISN valid akan dilewati. Status per siswa tetap bisa diedit setelah import.</p>
+                    <button class="btn btn-success w-100" type="submit">
+                        <i class="bi bi-people-fill me-1"></i>Import Satu Kelas
                     </button>
                 </form>
             </div>
@@ -107,7 +149,7 @@
                         <select class="form-select" name="status">
                             <option value="">Semua Status</option>
                             {% for status in graduation_statuses %}
-                            <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status.replace('_', ' ')|title }}</option>
+                            <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ graduation_status_labels.get(status, status.replace('_', ' ')|title) }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -116,14 +158,32 @@
                     </div>
                 </form>
 
+                <form
+                    id="graduationBulkDeleteForm"
+                    class="d-flex align-items-center justify-content-between gap-2 mb-3"
+                    method="post"
+                    action="{{ url_for('main.landingpage_graduation_bulk_delete') }}"
+                    onsubmit="return confirm('Hapus semua data kelulusan yang dipilih?')"
+                >
+                    <input type="hidden" name="site_key" value="{{ site_key }}">
+                    <input type="hidden" name="return_to" value="kelulusan">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="graduationSelectAll">
+                        <label class="form-check-label" for="graduationSelectAll">Pilih semua</label>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" type="submit" id="graduationBulkDeleteBtn" disabled>
+                        <i class="bi bi-trash3 me-1"></i>Hapus Terpilih
+                    </button>
+                </form>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle grad-table">
                         <thead>
                             <tr>
+                                <th style="width: 44px;"></th>
                                 <th>NISN</th>
                                 <th>Siswa</th>
                                 <th>Status</th>
-                                <th>Pesan</th>
                                 <th class="text-end">Aksi</th>
                             </tr>
                         </thead>
@@ -131,6 +191,17 @@
                             {% if graduations %}
                             {% for item in graduations %}
                             <tr>
+                                {% set doc = (item.metadata or {}).get('document') %}
+                                <td>
+                                    <input
+                                        class="form-check-input graduation-row-select"
+                                        type="checkbox"
+                                        name="record_ids"
+                                        value="{{ item.id }}"
+                                        form="graduationBulkDeleteForm"
+                                        aria-label="Pilih {{ item.nama_siswa }}"
+                                    >
+                                </td>
                                 <td class="fw-semibold">{{ item.nisn }}</td>
                                 <td>
                                     <div class="fw-semibold">{{ item.nama_siswa }}</div>
@@ -141,16 +212,17 @@
                                 </td>
                                 <td>
                                     {% set badge = 'success' if item.status == 'lulus' else ('warning text-dark' if item.status == 'ditunda' else 'secondary') %}
-                                    <span class="badge bg-{{ badge }} grad-status-badge">{{ item.status.replace('_', ' ') }}</span>
+                                    <span class="badge bg-{{ badge }} grad-status-badge">{{ graduation_status_labels.get(item.status, item.status.replace('_', ' ')) }}</span>
                                     {% if not item.is_active %}
                                     <span class="badge bg-light text-dark border ms-1">nonaktif</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <div class="small grad-message">{{ item.pesan_aska or '-' }}</div>
-                                </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editGrad{{ item.id }}">
+                                    <button type="button" class="btn btn-sm {% if doc %}btn-outline-success{% else %}btn-outline-secondary{% endif %}"
+                                        data-bs-toggle="modal" data-bs-target="#uploadDoc{{ item.id }}" title="Upload Surat Keterangan Lulus (PDF)">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editGrad{{ item.id }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     <form method="post" action="{{ url_for('main.landingpage_graduation_delete', record_id=item.id) }}" class="d-inline"
@@ -185,6 +257,7 @@
             <form method="post" action="{{ url_for('main.landingpage_graduation_update', record_id=item.id) }}">
                 <input type="hidden" name="site_key" value="{{ site_key }}">
                 <input type="hidden" name="return_to" value="kelulusan">
+                <input type="hidden" name="pesan_aska" value="{{ item.pesan_aska or '' }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Kelulusan · {{ item.nama_siswa }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -205,13 +278,13 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Tahun</label>
-                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" value="{{ item.tahun_lulus or '' }}">
+                            <input class="form-control" type="number" min="1900" max="3000" name="tahun_lulus" value="{{ item.tahun_lulus or graduation_default_year }}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Status</label>
                             <select class="form-select" name="status">
                                 {% for status in graduation_statuses %}
-                                <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status.replace('_', ' ')|title }}</option>
+                                <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ graduation_status_labels.get(status, status.replace('_', ' ')|title) }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -225,10 +298,6 @@
                                 <label class="form-check-label" for="activeSwitch{{ item.id }}">Aktifkan data</label>
                             </div>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label">Pesan ASKA</label>
-                            <textarea class="form-control" name="pesan_aska" rows="4">{{ item.pesan_aska or '' }}</textarea>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -241,4 +310,95 @@
 </div>
 {% endfor %}
 {% endif %}
+
+{% if graduations %}
+{% for item in graduations %}
+{% set doc = (item.metadata or {}).get('document') %}
+<div class="modal fade" id="uploadDoc{{ item.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('main.landingpage_graduation_upload_document', record_id=item.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="site_key" value="{{ site_key }}">
+                <input type="hidden" name="return_to" value="kelulusan">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Surat Keterangan Lulus · {{ item.nama_siswa }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if doc %}
+                    <div class="alert alert-success py-2">
+                        <div class="small mb-1"><strong>SKL saat ini:</strong> {{ doc.original_name or '-' }}</div>
+                        {% if doc.uploaded_at %}
+                        <div class="small text-muted">Diunggah: {{ doc.uploaded_at }}</div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning py-2">
+                        <div class="small mb-0">Belum ada Surat Keterangan Lulus untuk siswa ini.</div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="form-label">Pilih file Surat Keterangan Lulus (PDF)</label>
+                        <input class="form-control" type="file" name="document_file" accept="application/pdf,.pdf" required>
+                        <div class="form-text">Maksimal 10 MB. Upload baru akan menggantikan SKL lama.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Batal</button>
+                    <button class="btn btn-primary" type="submit">Simpan SKL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var bulkForm = document.getElementById("graduationBulkDeleteForm");
+    if (!bulkForm) {
+        return;
+    }
+
+    var selectAll = document.getElementById("graduationSelectAll");
+    var bulkButton = document.getElementById("graduationBulkDeleteBtn");
+    var rowChecks = Array.prototype.slice.call(document.querySelectorAll(".graduation-row-select"));
+
+    var syncState = function () {
+        var selectedCount = rowChecks.filter(function (cb) { return cb.checked; }).length;
+        if (bulkButton) {
+            bulkButton.disabled = selectedCount === 0;
+        }
+        if (selectAll) {
+            if (rowChecks.length === 0) {
+                selectAll.checked = false;
+                selectAll.disabled = true;
+                return;
+            }
+            selectAll.disabled = false;
+            selectAll.checked = selectedCount > 0 && selectedCount === rowChecks.length;
+            selectAll.indeterminate = selectedCount > 0 && selectedCount < rowChecks.length;
+        }
+    };
+
+    if (selectAll) {
+        selectAll.addEventListener("change", function () {
+            rowChecks.forEach(function (cb) {
+                cb.checked = selectAll.checked;
+            });
+            syncState();
+        });
+    }
+
+    rowChecks.forEach(function (cb) {
+        cb.addEventListener("change", syncState);
+    });
+
+    syncState();
+});
+</script>
 {% endblock %}

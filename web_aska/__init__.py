@@ -5,9 +5,11 @@ import asyncio
 import re
 from datetime import datetime, timezone, timedelta
 import random
+from pathlib import Path
 from typing import Any
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_file
 from authlib.integrations.flask_client import OAuth
+from werkzeug.utils import secure_filename
 
 # Import from within the project
 from .handlers import process_web_request, web_sessions
@@ -66,6 +68,8 @@ SIMULATION_LOGIN = {
 }
 SIMULATION_STATE_KEY = "tka_simulasi_state"
 GRADUATION_CHAT_TOPIC = "graduation"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+GRADUATION_DOCUMENT_PREFIX = "landingpage/uploads/graduations/"
 
 
 def _format_preset_label(value: str | None) -> str:
@@ -402,15 +406,51 @@ def create_app() -> Flask:
         status = str(value or "").strip().lower()
         mapping = {
             "lulus": "LULUS",
-            "belum_lulus": "BELUM LULUS",
+            "belum_lulus": "TIDAK LULUS",
             "ditunda": "DITUNDA",
         }
         return mapping.get(status, "LULUS")
+
+    def _normalize_graduation_document_path(value: Any) -> str:
+        raw = str(value or "").strip().replace("\\", "/")
+        if not raw:
+            return ""
+        cleaned = raw.lstrip("/")
+        parts = [part for part in cleaned.split("/") if part]
+        if not parts or any(part in {".", ".."} for part in parts):
+            return ""
+        normalized = "/".join(parts)
+        if not normalized.startswith(GRADUATION_DOCUMENT_PREFIX):
+            return ""
+        return normalized
+
+    def _resolve_graduation_document(record: dict) -> dict | None:
+        metadata = record.get("metadata")
+        if not isinstance(metadata, dict):
+            return None
+        document_meta = metadata.get("document")
+        if not isinstance(document_meta, dict):
+            return None
+        relative_path = _normalize_graduation_document_path(document_meta.get("relative_path"))
+        if not relative_path:
+            return None
+        file_name = str(document_meta.get("original_name") or "").strip() or f"surat-keterangan-lulus-{record.get('nisn')}.pdf"
+        return {
+            "name": file_name,
+            "url": url_for("graduation_document_download", nisn=record.get("nisn")),
+            "relative_path": relative_path,
+        }
 
     def _serialize_graduation_student(record: dict) -> dict:
         announcement_date = record.get("tanggal_pengumuman")
         if hasattr(announcement_date, "isoformat"):
             announcement_date = announcement_date.isoformat()
+        document = _resolve_graduation_document(record)
+        if document:
+            document = {
+                "name": document.get("name"),
+                "url": document.get("url"),
+            }
         return {
             "nisn": record.get("nisn"),
             "nama_siswa": record.get("nama_siswa"),
@@ -420,6 +460,7 @@ def create_app() -> Flask:
             "status_label": _graduation_status_label(record.get("status")),
             "tanggal_pengumuman": announcement_date,
             "pesan_aska": record.get("pesan_aska"),
+            "document": document,
         }
 
     def _serialize_chat_items(rows: list[dict]) -> list[dict]:
@@ -559,7 +600,7 @@ def create_app() -> Flask:
                 f"Kamu tercatat di kelas {class_name}, tahun {year}. Tetap semangat ya!"
             )
         if any(token in cleaned for token in ("ijazah", "skl", "dokumen", "berkas")):
-            base = "Untuk ijazah, SKL, atau berkas kelulusan, cek jadwal resmi dari sekolah dulu ya"
+            base = "Untuk ijazah atau Surat Keterangan Lulus (SKL), cek jadwal resmi dari sekolah dulu ya"
             if announcement_label and announcement_label != "-":
                 base += f", mulai {announcement_label}"
             base += ". Kalau mau lebih pasti, tanya wali kelas atau TU sekolah 😊"
@@ -637,6 +678,47 @@ def create_app() -> Flask:
             current_year=datetime.now(timezone.utc).year,
             graduation_video_url=video_url,
             graduation_poster_url=poster_url,
+        )
+
+    @app.route("/api/kelulusan/document/<nisn>")
+    def graduation_document_download(nisn: str):
+        cleaned_nisn = _clean_nisn(nisn)
+        active_nisn = _clean_nisn(session.get("graduation_nisn"))
+        if not cleaned_nisn or cleaned_nisn != active_nisn:
+            return jsonify({"success": False, "message": "Akses Surat Keterangan Lulus ditolak."}), 403
+
+        site_key = _resolve_graduation_site_key()
+        record = fetch_landingpage_graduation_by_nisn(site_key, cleaned_nisn, active_only=True)
+        if not record:
+            return jsonify({"success": False, "message": "Data kelulusan tidak ditemukan."}), 404
+
+        document = _resolve_graduation_document(record)
+        if not document:
+            return jsonify({"success": False, "message": "Surat Keterangan Lulus belum tersedia."}), 404
+
+        relative_path = document.get("relative_path")
+        if not relative_path:
+            return jsonify({"success": False, "message": "Surat Keterangan Lulus belum tersedia."}), 404
+
+        file_path = (PROJECT_ROOT / "landingpage" / "static" / relative_path).resolve()
+        static_root = (PROJECT_ROOT / "landingpage" / "static").resolve()
+        if static_root not in file_path.parents:
+            return jsonify({"success": False, "message": "Path Surat Keterangan Lulus tidak valid."}), 400
+        if not file_path.exists() or not file_path.is_file():
+            return jsonify({"success": False, "message": "Surat Keterangan Lulus tidak ditemukan."}), 404
+
+        download_name = secure_filename(document.get("name") or f"surat-keterangan-lulus-{cleaned_nisn}.pdf")
+        if not download_name:
+            download_name = f"surat-keterangan-lulus-{cleaned_nisn}.pdf"
+        if not download_name.lower().endswith(".pdf"):
+            download_name = f"{download_name}.pdf"
+
+        return send_file(
+            file_path,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=download_name,
+            conditional=True,
         )
 
     @app.route("/auth/login")

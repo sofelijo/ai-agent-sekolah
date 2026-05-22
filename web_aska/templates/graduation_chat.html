@@ -459,9 +459,32 @@
             font-size: 0.92rem;
         }
 
+        .graduation-doc-link {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: rgba(74, 144, 226, 0.12);
+            color: #1d4ed8;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .graduation-doc-link:hover {
+            background: rgba(74, 144, 226, 0.2);
+            color: #1e3a8a;
+        }
+
         body.dark-mode .poster-info,
         body.dark-mode .congrats-card {
             background: rgba(255, 255, 255, 0.05);
+        }
+
+        body.dark-mode .graduation-doc-link {
+            background: rgba(96, 165, 250, 0.22);
+            color: #bfdbfe;
         }
 
         .hidden { display: none !important; }
@@ -581,6 +604,7 @@
                     <strong id="congratsTitle">Informasi</strong>
                     <p id="congratsText" class="mb-0 mt-2" style="white-space: pre-wrap;">-</p>
                 </div>
+                <a id="graduationDocLink" class="graduation-doc-link hidden" href="#" target="_blank" rel="noopener noreferrer">Unduh Surat Keterangan Lulus</a>
             </div>
         </aside>
 
@@ -633,6 +657,7 @@
         const studentMeta = document.getElementById('studentMeta');
         const congratsTitle = document.getElementById('congratsTitle');
         const congratsText = document.getElementById('congratsText');
+        const graduationDocLink = document.getElementById('graduationDocLink');
         const headerStudentName = document.getElementById('headerStudentName');
         const headerAvatar = document.getElementById('headerAvatar');
         const headerStatusText = document.getElementById('headerStatusText');
@@ -696,6 +721,11 @@
             chatBox.innerHTML = '';
             messageInput.value = '';
             showLookupError('');
+            if (graduationDocLink) {
+                graduationDocLink.classList.add('hidden');
+                graduationDocLink.removeAttribute('href');
+                graduationDocLink.removeAttribute('title');
+            }
         }
 
         function escapeHtml(value) {
@@ -794,6 +824,27 @@
             items.forEach((item) => appendMessage(item.text || '', item.role === 'user' ? 'user' : 'bot'));
         }
 
+        function appendDocumentMessage(documentInfo) {
+            if (!documentInfo || !documentInfo.url) return;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-message bot-message';
+
+            const text = document.createElement('div');
+            text.textContent = 'Surat Keterangan Lulus kamu tersedia. Unduh lewat tombol berikut:';
+
+            const link = document.createElement('a');
+            link.className = 'graduation-doc-link';
+            link.href = documentInfo.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = documentInfo.name || 'Unduh Surat Keterangan Lulus';
+
+            wrapper.appendChild(text);
+            wrapper.appendChild(link);
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
         function renderStudent(student) {
             const fullName = student.nama_siswa || '-';
             const firstName = fullName.split(/\s+/)[0] || 'Siswa';
@@ -813,6 +864,19 @@
             if (student.tanggal_pengumuman) extra.push(`Tanggal pengumuman: ${student.tanggal_pengumuman}`);
             if (student.pesan_aska) extra.push(student.pesan_aska);
             congratsText.textContent = extra.length ? extra.join('\n') : 'Silakan lanjutkan tanya jawab di chat.';
+
+            const doc = student.document;
+            if (graduationDocLink) {
+                if (doc && doc.url) {
+                    graduationDocLink.href = doc.url;
+                    graduationDocLink.title = doc.name || 'Unduh Surat Keterangan Lulus';
+                    graduationDocLink.classList.remove('hidden');
+                } else {
+                    graduationDocLink.classList.add('hidden');
+                    graduationDocLink.removeAttribute('href');
+                    graduationDocLink.removeAttribute('title');
+                }
+            }
         }
 
         lookupForm.addEventListener('submit', async (e) => {
@@ -840,8 +904,12 @@
                 }
 
                 activeNisn = nisn;
-                renderStudent(data.student || {});
+                const studentPayload = data.student || {};
+                renderStudent(studentPayload);
                 renderHistory(data.history || []);
+                if (studentPayload.document && studentPayload.document.url) {
+                    appendDocumentMessage(studentPayload.document);
+                }
                 openChatStage();
             } catch (err) {
                 showLookupError('Terjadi masalah jaringan. Coba lagi.');

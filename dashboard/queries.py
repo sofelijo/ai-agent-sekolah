@@ -762,6 +762,52 @@ def fetch_landingpage_graduation_by_nisn(
     }
 
 
+def fetch_landingpage_graduation_by_id(record_id: int, site_key: str) -> Optional[Dict[str, Any]]:
+    site_key = (site_key or "default").strip().lower()
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                site_key,
+                nisn,
+                student_name,
+                class_name,
+                graduation_year,
+                status,
+                announcement_date,
+                message,
+                metadata,
+                is_active,
+                created_at,
+                updated_at
+            FROM landingpage_graduations
+            WHERE id = %s
+              AND site_key = %s
+            LIMIT 1
+            """,
+            (record_id, site_key),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "site_key": row["site_key"],
+        "nisn": row["nisn"],
+        "nama_siswa": row["student_name"],
+        "kelas": row["class_name"],
+        "tahun_lulus": row["graduation_year"],
+        "status": row["status"],
+        "tanggal_pengumuman": row["announcement_date"],
+        "pesan_aska": row["message"],
+        "metadata": row["metadata"],
+        "is_active": row["is_active"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
 def create_landingpage_graduation(site_key: str, payload: Dict[str, Any]) -> Optional[int]:
     site_key = (site_key or "default").strip().lower()
     payload = payload or {}
@@ -878,6 +924,45 @@ def delete_landingpage_graduation(record_id: int, site_key: str) -> bool:
             (record_id, site_key),
         )
         return cur.rowcount > 0
+
+
+def update_landingpage_graduation_metadata(record_id: int, site_key: str, metadata: Dict[str, Any]) -> bool:
+    site_key = (site_key or "default").strip().lower()
+    payload = metadata if isinstance(metadata, dict) else {}
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE landingpage_graduations
+            SET metadata = %s,
+                updated_at = NOW()
+            WHERE id = %s AND site_key = %s
+            """,
+            (Json(payload), record_id, site_key),
+        )
+        return cur.rowcount > 0
+
+
+def delete_landingpage_graduations(record_ids: List[int], site_key: str) -> int:
+    site_key = (site_key or "default").strip().lower()
+    normalized_set = set()
+    for rid in (record_ids or []):
+        try:
+            value = int(rid)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            normalized_set.add(value)
+    normalized_ids = sorted(normalized_set)
+    if not normalized_ids:
+        return 0
+
+    placeholders = ",".join(["%s"] * len(normalized_ids))
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            f"DELETE FROM landingpage_graduations WHERE site_key = %s AND id IN ({placeholders})",
+            (site_key, *normalized_ids),
+        )
+        return int(cur.rowcount or 0)
 
 VALID_GRADE_LEVELS = {"sd6", "smp3", "sma"}
 DEFAULT_GRADE_LEVEL = "sd6"

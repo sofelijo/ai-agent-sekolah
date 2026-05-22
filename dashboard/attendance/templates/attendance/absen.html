@@ -170,6 +170,8 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width: 60px;">No</th>
+                            <th style="width: 120px;">NIS</th>
+                            <th style="width: 140px;">NISN</th>
                             <th>Nama Siswa</th>
                             <th style="width: 180px;">Status</th>
                         </tr>
@@ -178,11 +180,10 @@
                         {% for student in students %}
                         <tr>
                             <td class="text-muted">{{ loop.index }}</td>
+                            <td class="text-muted text-nowrap">{{ student.student_number or '-' }}</td>
+                            <td class="text-muted text-nowrap">{{ student.nisn or '-' }}</td>
                             <td>
                                 <div class="fw-semibold">{{ student.name }}</div>
-                                {% if student.student_number %}
-                                <div class="small text-muted">NIS: {{ student.student_number }}</div>
-                                {% endif %}
                             </td>
                             <td>
                                 <select class="form-select" name="status_{{ student.id }}">

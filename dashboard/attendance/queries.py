@@ -1775,6 +1775,55 @@ def fetch_extracurricular_attendance_detail(
         return [dict(row) for row in cur.fetchall()]
 
 
+def fetch_extracurricular_attendance_export_rows(
+    *,
+    activity_ids: Optional[List[int]] = None,
+) -> List[Dict[str, Any]]:
+    if activity_ids is not None and not activity_ids:
+        return []
+    conditions: List[str] = []
+    params: List[Any] = []
+    if activity_ids is not None:
+        conditions.append("ear.extracurricular_id = ANY(%s)")
+        params.append(activity_ids)
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    with get_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT
+                ear.extracurricular_id,
+                e.name AS extracurricular_name,
+                ear.attendance_date,
+                s.full_name,
+                s.student_number,
+                s.nisn,
+                sc.name AS class_name,
+                ear.status,
+                ear.material,
+                ear.note,
+                COALESCE(du.full_name, e.coach_name) AS recorded_by_name,
+                ear.recorded_at,
+                ear.updated_at,
+                ear.photo_path
+            FROM extracurricular_attendance_records ear
+            JOIN extracurriculars e ON e.id = ear.extracurricular_id
+            JOIN students s ON s.id = ear.student_id
+            LEFT JOIN school_classes sc ON sc.id = s.class_id
+            LEFT JOIN dashboard_users du ON du.id = ear.recorded_by
+            {where_clause}
+            ORDER BY
+                e.name ASC,
+                ear.attendance_date DESC,
+                sc.name ASC NULLS LAST,
+                COALESCE(s.sequence, 9999) ASC,
+                s.full_name ASC
+            """,
+            params,
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
 def fetch_extracurricular_evidence_for_date(
     activity_id: int,
     attendance_date: date,
