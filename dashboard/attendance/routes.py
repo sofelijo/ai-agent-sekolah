@@ -451,6 +451,14 @@ def _to_excel_naive_datetime(value: Any) -> Any:
     return normalized
 
 
+def _to_excel_date(value: Any) -> Any:
+    if isinstance(value, datetime):
+        normalized = _to_excel_naive_datetime(value)
+        if isinstance(normalized, datetime):
+            return normalized.date()
+    return value
+
+
 def _build_month_options(available_months: List[date], selected_month: date) -> List[Dict[str, str]]:
     options: List[Dict[str, str]] = []
     observed: set[str] = set()
@@ -2072,6 +2080,7 @@ def ekskul_export_excel() -> Response:
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
     except Exception:
         flash("Library openpyxl belum tersedia. Install dependency untuk export Excel.", "danger")
         return redirect(url_for("attendance.ekskul_dashboard"))
@@ -2094,35 +2103,19 @@ def ekskul_export_excel() -> Response:
     wrap_alignment = Alignment(wrap_text=True, vertical="top")
     center_alignment = Alignment(horizontal="center", vertical="top")
 
-    headers = [
+    fixed_headers = [
         "No",
-        "Tanggal",
         "Nama Siswa",
         "NIS",
         "NISN",
         "Kelas",
-        "Status",
-        "Materi",
-        "Catatan",
-        "Diinput Oleh",
-        "Waktu Input",
-        "Update Terakhir",
-        "Bukti Foto",
     ]
-    column_widths = {
+    fixed_widths = {
         1: 6,
-        2: 14,
-        3: 28,
-        4: 14,
-        5: 16,
-        6: 14,
-        7: 12,
-        8: 28,
-        9: 28,
-        10: 24,
-        11: 20,
-        12: 20,
-        13: 12,
+        2: 30,
+        3: 14,
+        4: 16,
+        5: 14,
     }
     generated_at = _to_excel_naive_datetime(current_jakarta_time())
     used_titles: set[str] = set()
@@ -2151,61 +2144,111 @@ def ekskul_export_excel() -> Response:
         for row_idx in range(1, 6):
             ws.cell(row=row_idx, column=1).font = label_font
 
+        export_rows = rows_by_activity.get(activity_id, [])
+        date_columns_set: set[date] = set()
+        students_map: Dict[Any, Dict[str, Any]] = {}
+        for row in export_rows:
+            attendance_date = _to_excel_date(row.get("attendance_date"))
+            if isinstance(attendance_date, datetime):
+                attendance_date = attendance_date.date()
+            if isinstance(attendance_date, str):
+                try:
+                    attendance_date = date.fromisoformat(attendance_date[:10])
+                except Exception:
+                    attendance_date = None
+            if not isinstance(attendance_date, date):
+                continue
+            date_columns_set.add(attendance_date)
+
+            student_id_raw = row.get("student_id")
+            try:
+                student_id = int(student_id_raw)
+                student_key: Any = student_id
+            except (TypeError, ValueError):
+                student_key = (
+                    str(row.get("full_name") or "").strip().casefold(),
+                    str(row.get("student_number") or "").strip(),
+                    str(row.get("nisn") or "").strip(),
+                    str(row.get("class_name") or "").strip(),
+                )
+
+            student_entry = students_map.get(student_key)
+            if not student_entry:
+                student_entry = {
+                    "name": row.get("full_name") or "-",
+                    "student_number": row.get("student_number") or "-",
+                    "nisn": row.get("nisn") or "-",
+                    "class_name": row.get("class_name") or "-",
+                    "statuses": {},
+                }
+                students_map[student_key] = student_entry
+
+            status_raw = (row.get("status") or "").strip().lower()
+            status_label = STATUS_LABELS.get(status_raw, status_raw.title() if status_raw else "-")
+            student_entry["statuses"][attendance_date] = status_label
+
+        date_columns = sorted(date_columns_set)
         header_row = 7
-        for col_idx, title in enumerate(headers, start=1):
+        for col_idx, title in enumerate(fixed_headers, start=1):
             cell = ws.cell(row=header_row, column=col_idx, value=title)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = center_alignment
-            ws.column_dimensions[cell.column_letter].width = column_widths.get(col_idx, 16)
+            ws.column_dimensions[get_column_letter(col_idx)].width = fixed_widths.get(col_idx, 14)
 
-        export_rows = rows_by_activity.get(activity_id, [])
+        dynamic_start_col = len(fixed_headers) + 1
+        for offset, date_value in enumerate(date_columns, start=0):
+            col_idx = dynamic_start_col + offset
+            cell = ws.cell(row=header_row, column=col_idx, value=date_value.strftime("%d-%m-%Y"))
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_alignment
+            ws.column_dimensions[get_column_letter(col_idx)].width = 12
+
         data_start_row = header_row + 1
-        if not export_rows:
-            ws.merge_cells(start_row=data_start_row, start_column=1, end_row=data_start_row, end_column=len(headers))
+        if not students_map:
+            total_columns = len(fixed_headers) + max(1, len(date_columns))
+            ws.merge_cells(start_row=data_start_row, start_column=1, end_row=data_start_row, end_column=total_columns)
             empty_cell = ws.cell(row=data_start_row, column=1, value="Belum ada data absensi.")
             empty_cell.alignment = Alignment(horizontal="center", vertical="center")
             ws.row_dimensions[data_start_row].height = 22
-            ws.freeze_panes = "A8"
+            ws.freeze_panes = "F8"
             continue
 
-        for index, row in enumerate(export_rows, start=1):
+        students_sorted = sorted(
+            students_map.values(),
+            key=lambda item: (
+                str(item.get("name") or "").casefold(),
+                str(item.get("class_name") or "").casefold(),
+                str(item.get("student_number") or ""),
+            ),
+        )
+
+        for index, student in enumerate(students_sorted, start=1):
             excel_row = data_start_row + index - 1
-            attendance_date = row.get("attendance_date")
-            recorded_at = _to_excel_naive_datetime(row.get("recorded_at"))
-            updated_at = _to_excel_naive_datetime(row.get("updated_at"))
-
-            status_raw = (row.get("status") or "").strip().lower()
-            status_label = STATUS_LABELS.get(status_raw, status_raw.title() if status_raw else "-")
-
             values: List[Any] = [
                 index,
-                attendance_date,
-                row.get("full_name") or "-",
-                row.get("student_number") or "-",
-                row.get("nisn") or "-",
-                row.get("class_name") or "-",
-                status_label,
-                row.get("material") or "-",
-                row.get("note") or "-",
-                row.get("recorded_by_name") or "-",
-                recorded_at,
-                updated_at,
-                "Ada" if row.get("photo_path") else "-",
+                student.get("name") or "-",
+                student.get("student_number") or "-",
+                student.get("nisn") or "-",
+                student.get("class_name") or "-",
             ]
 
             for col_idx, value in enumerate(values, start=1):
                 cell = ws.cell(row=excel_row, column=col_idx, value=value)
-                if col_idx in {1, 2, 7, 13}:
+                if col_idx == 1:
                     cell.alignment = center_alignment
                 else:
                     cell.alignment = wrap_alignment
-                if col_idx == 2 and isinstance(attendance_date, date):
-                    cell.number_format = "dd-mm-yyyy"
-                if col_idx in {11, 12} and isinstance(value, datetime):
-                    cell.number_format = "dd-mm-yyyy hh:mm"
 
-        ws.freeze_panes = "A8"
+            status_map = student.get("statuses") or {}
+            for offset, date_value in enumerate(date_columns, start=0):
+                col_idx = dynamic_start_col + offset
+                status_value = status_map.get(date_value, "-")
+                status_cell = ws.cell(row=excel_row, column=col_idx, value=status_value)
+                status_cell.alignment = center_alignment
+
+        ws.freeze_panes = "F8"
 
     output = io.BytesIO()
     try:

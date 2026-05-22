@@ -1795,6 +1795,7 @@ def fetch_extracurricular_attendance_export_rows(
                 ear.extracurricular_id,
                 e.name AS extracurricular_name,
                 ear.attendance_date,
+                s.id AS student_id,
                 s.full_name,
                 s.student_number,
                 s.nisn,
