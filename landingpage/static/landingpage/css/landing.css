@@ -229,9 +229,9 @@ a {
 }
 
 .hero-cta-secondary {
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
     color: #ffffff;
-    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.38);
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.38);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     position: relative;
     overflow: hidden;
@@ -246,10 +246,10 @@ a {
 }
 
 .hero-cta-secondary:hover {
-    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+    background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
     color: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 14px 28px rgba(249, 115, 22, 0.48);
+    box-shadow: 0 14px 28px rgba(15, 118, 110, 0.48);
 }
 
 .hero-cta-highlight {
