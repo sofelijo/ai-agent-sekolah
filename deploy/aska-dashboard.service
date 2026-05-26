@@ -1,0 +1,36 @@
+[Unit]
+Description=ASKA Dashboard (Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+# Sesuaikan path ini dengan lokasi repo di server Anda
+WorkingDirectory=/opt/ai-agent-sekolah
+EnvironmentFile=/opt/ai-agent-sekolah/.env
+
+# Gunicorn: 2 worker + gthread, listen di 127.0.0.1:8001
+# Sesuaikan --workers jika RAM server lebih dari 1GB (bisa naik ke 3-4)
+ExecStart=/opt/ai-agent-sekolah/venv/bin/gunicorn \
+    --workers 2 \
+    --worker-class gthread \
+    --threads 4 \
+    --bind 127.0.0.1:8001 \
+    --timeout 120 \
+    --log-level info \
+    --access-logfile /var/log/aska-dashboard-access.log \
+    --error-logfile /var/log/aska-dashboard-error.log \
+    dashboard.app:app
+
+# Auto-restart jika crash
+Restart=always
+RestartSec=5
+
+# Ganti ke user yang punya akses ke folder repo
+User=www-data
+Group=www-data
+
+# Batasi resource agar tidak memakan seluruh RAM
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
