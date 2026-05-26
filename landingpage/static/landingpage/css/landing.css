@@ -229,13 +229,27 @@ a {
 }
 
 .hero-cta-secondary {
-    background: rgba(31, 41, 55, 0.95);
-    color: #f8fafc;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.38);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-cta-secondary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    pointer-events: none;
 }
 
 .hero-cta-secondary:hover {
-    background: rgba(17, 24, 39, 0.95);
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
     color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(249, 115, 22, 0.48);
 }
 
 .hero-cta-highlight {
