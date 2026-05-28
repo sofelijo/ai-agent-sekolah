@@ -721,6 +721,45 @@ def create_app() -> Flask:
             conditional=True,
         )
 
+    @app.route("/api/kelulusan/preview/<nisn>")
+    def graduation_document_preview(nisn: str):
+        """Serve PDF inline for iframe preview (no download prompt)."""
+        cleaned_nisn = _clean_nisn(nisn)
+        active_nisn = _clean_nisn(session.get("graduation_nisn"))
+        if not cleaned_nisn or cleaned_nisn != active_nisn:
+            return jsonify({"success": False, "message": "Akses ditolak."}), 403
+
+        site_key = _resolve_graduation_site_key()
+        record = fetch_landingpage_graduation_by_nisn(site_key, cleaned_nisn, active_only=True)
+        if not record:
+            return jsonify({"success": False, "message": "Data tidak ditemukan."}), 404
+
+        document = _resolve_graduation_document(record)
+        if not document:
+            return jsonify({"success": False, "message": "Dokumen belum tersedia."}), 404
+
+        relative_path = document.get("relative_path")
+        if not relative_path:
+            return jsonify({"success": False, "message": "Dokumen belum tersedia."}), 404
+
+        file_path = (PROJECT_ROOT / "landingpage" / "static" / relative_path).resolve()
+        static_root = (PROJECT_ROOT / "landingpage" / "static").resolve()
+        if static_root not in file_path.parents:
+            return jsonify({"success": False, "message": "Path tidak valid."}), 400
+        if not file_path.exists() or not file_path.is_file():
+            return jsonify({"success": False, "message": "File tidak ditemukan."}), 404
+
+        response = send_file(
+            file_path,
+            mimetype="application/pdf",
+            as_attachment=False,
+            conditional=True,
+        )
+        # Allow iframe embedding on same origin
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
+        return response
+
     @app.route("/auth/login")
     def login_page():
         return render_template("login.html")
