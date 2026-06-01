@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pengumuman Kelulusan – SDN Semper Barat 01</title>
+    <meta name="description"
+        content="Pengumuman kelulusan SDN Semper Barat 01 akan dibuka pada 2 Juni 2026 pukul 10.00 WIB.">
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --font-display: "Fraunces", serif;
+            --font-body: "Manrope", sans-serif;
+            --font-title: "Plus Jakarta Sans", "Manrope", sans-serif;
+            --bg-start: #0d1b2a;
+            --bg-mid: #1b2d4f;
+            --bg-end: #112240;
+            --accent: #14b8a6;
+            --accent-warm: #f97316;
+            --accent-glow: rgba(20, 184, 166, 0.35);
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --card: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --radius: 20px;
+            --radius-sm: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text);
+            min-height: 100vh;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% -10%, rgba(20, 184, 166, 0.18) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 50% at 100% 100%, rgba(249, 115, 22, 0.12) 0%, transparent 60%),
+                linear-gradient(160deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+
+        /* Stars */
+        .stars {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle var(--d, 4s) ease-in-out infinite var(--delay, 0s);
+        }
+
+        @keyframes twinkle {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+
+            50% {
+                opacity: var(--max-op, 0.6);
+                transform: scale(1.2);
+            }
+        }
+
+        /* Orbit ring – hidden on very small screens */
+        .orbit-ring {
+            position: fixed;
+            width: 560px;
+            height: 560px;
+            border-radius: 50%;
+            border: 1px solid rgba(20, 184, 166, 0.1);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 60s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orbit-ring::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 12px 4px var(--accent-glow);
+            margin-top: -3.5px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        /* ── CARD ─────────────────────────────────────────── */
+        .card {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 1.75rem 1.5rem 1.5rem;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(20, 184, 166, 0.08),
+                0 24px 48px rgba(0, 0, 0, 0.4),
+                0 0 60px rgba(20, 184, 166, 0.08) inset;
+            text-align: center;
+            animation: fadeInUp 0.7s ease both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── SCHOOL HEADER ─────────────────────────────────── */
+        .school-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            margin-bottom: 1.1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .school-logo {
+            width: 46px;
+            height: 46px;
+            object-fit: contain;
+            flex-shrink: 0;
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+        }
+
+        .school-info {
+            text-align: left;
+        }
+
+        .school-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            line-height: 1;
+            margin-bottom: 0.18rem;
+        }
+
+        .school-name {
+            font-family: var(--font-title);
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        /* ── BADGE ─────────────────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(20, 184, 166, 0.15);
+            border: 1px solid rgba(20, 184, 166, 0.3);
+            color: var(--accent);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 0.28rem 0.75rem;
+            border-radius: 999px;
+            margin-bottom: 0.85rem;
+        }
+
+        .badge-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.6);
+                opacity: 0.5;
+            }
+        }
+
+        /* ── TITLE ─────────────────────────────────────────── */
+        h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 5vw, 2.2rem);
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.45rem;
+            color: #fff;
+        }
+
+        h1 span {
+            background: linear-gradient(135deg, var(--accent), #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.83rem;
+            line-height: 1.6;
+            max-width: 380px;
+            margin: 0 auto 0.9rem;
+        }
+
+        /* ── DATE CHIP ─────────────────────────────────────── */
+        .date-highlight {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(249, 115, 22, 0.12);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            color: #fb923c;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 0.32rem 0.85rem;
+            border-radius: 999px;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* ── COUNTDOWN ─────────────────────────────────────── */
+        .countdown {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+            margin-bottom: 1.1rem;
+        }
+
+        .countdown-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .countdown-number {
+            background: linear-gradient(160deg, rgba(20, 184, 166, 0.22), rgba(20, 184, 166, 0.06));
+            border: 1px solid rgba(20, 184, 166, 0.28);
+            border-radius: var(--radius-sm);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-size: clamp(1.6rem, 6vw, 2.4rem);
+            font-weight: 800;
+            color: #fff;
+            box-shadow:
+                0 0 16px rgba(20, 184, 166, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .countdown-number::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 45%;
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .countdown-number.flip {
+            animation: flipNum 0.28s ease;
+        }
+
+        @keyframes flipNum {
+            0% {
+                transform: rotateX(0deg);
+            }
+
+            50% {
+                transform: rotateX(-80deg);
+                opacity: 0.3;
+            }
+
+            100% {
+                transform: rotateX(0deg);
+                opacity: 1;
+            }
+        }
+
+        .countdown-label {
+            font-size: 0.64rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        .countdown-sep {
+            font-size: clamp(1.4rem, 5vw, 2rem);
+            font-weight: 800;
+            color: rgba(20, 184, 166, 0.5);
+            padding-top: 0.55rem;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        /* ── PROGRESS ──────────────────────────────────────── */
+        .progress-wrap {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            height: 4px;
+            margin-bottom: 1.2rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), #38bdf8, var(--accent-warm));
+            background-size: 200% 100%;
+            animation: shimmer 2.5s ease-in-out infinite;
+            transition: width 1s linear;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 200% 50%;
+            }
+        }
+
+        /* ── READY MSG ─────────────────────────────────────── */
+        .ready-msg {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+            animation: fadeInUp 0.6s ease both;
+        }
+
+        .ready-msg.show {
+            display: flex;
+        }
+
+        .ready-icon {
+            font-size: 2.5rem;
+            animation: bounce-in 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            60% {
+                transform: scale(1.15);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* ── BACK LINK ─────────────────────────────────────── */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-decoration: none;
+            transition: color 0.2s;
+            margin-top: 0.4rem;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+        }
+
+        .footer-note {
+            margin-top: 0.85rem;
+            color: var(--muted);
+            font-size: 0.72rem;
+            opacity: 0.55;
+        }
+
+        /* ── RESPONSIVE ────────────────────────────────────── */
+        @media (max-width: 360px) {
+            body {
+                padding: 0.75rem;
+            }
+
+            .card {
+                padding: 1.25rem 1rem 1.1rem;
+                border-radius: 16px;
+            }
+
+            .school-logo {
+                width: 38px;
+                height: 38px;
+            }
+
+            .school-name {
+                font-size: 0.8rem;
+            }
+
+            .countdown-sep {
+                font-size: 1.2rem;
+                padding-top: 0.45rem;
+            }
+        }
+
+        @media (min-width: 480px) {
+            .card {
+                padding: 2rem 2rem 1.75rem;
+            }
+
+            .school-logo {
+                width: 52px;
+                height: 52px;
+            }
+
+            .school-name {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="stars" id="stars-bg" aria-hidden="true"></div>
+    <div class="orbit-ring" aria-hidden="true"></div>
+
+    <div class="card">
+
+        <!-- School Identity -->
+        <div class="school-header">
+            <img class="school-logo" src="{{ url_for('static', filename='landingpage/images/favicon.ico') }}"
+                alt="Logo SDN Semper Barat 01" width="52" height="52">
+            <div class="school-info">
+
+                <div class="school-name">SDN Semper Barat 01</div>
+            </div>
+        </div>
+
+        <!-- Badge -->
+        <div class="badge">
+            <span class="badge-dot"></span>
+            Pengumuman Kelulusan
+        </div>
+
+        <!-- Title -->
+        <h1>Segera <span>Hadir</span> ✨</h1>
+        <p class="subtitle">
+            Hasil kelulusan akan dibuka secara resmi. Pantau terus halaman ini!
+        </p>
+
+        <!-- Date chip -->
+        <div class="date-highlight">
+            📅&nbsp;Senin, 2 Juni 2026&nbsp;&bull;&nbsp;Pukul 10.00 WIB
+        </div>
+
+        <!-- Countdown -->
+        <div class="countdown" id="countdown-wrap">
+            <div class="countdown-unit">
+                <div class="countdown-number" id="cd-hari">--</div>
+                <span class="countdown-label">Hari</span>
+            </div>
+            <div class="countdown-sep" aria-hidden="true">:</div>
+            <div class="countdown-unit">
+                <div class="countdown-number" id="cd-jam">--</div>
+                <span class="countdown-label">Jam</span>
+            </div>
+            <div class="countdown-sep" aria-hidden="true">:</div>
+            <div class="countdown-unit">
+                <div class="countdown-number" id="cd-menit">--</div>
+                <span class="countdown-label">Menit</span>
+            </div>
+            <div class="countdown-sep" aria-hidden="true">:</div>
+            <div class="countdown-unit">
+                <div class="countdown-number" id="cd-detik">--</div>
+                <span class="countdown-label">Detik</span>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+
+        <!-- Ready message -->
+        <div class="ready-msg" id="ready-msg">
+            <div class="ready-icon">🎉</div>
+            <p style="font-size:1rem; font-weight:700; color:#fff;">Pengumuman sudah dibuka!</p>
+            <p style="color:var(--muted); font-size:0.85rem;">Mengalihkan ke halaman cek kelulusan…</p>
+        </div>
+
+        <a href="/" class="back-link">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5" />
+                <path d="m12 5-7 7 7 7" />
+            </svg>
+            Kembali ke Beranda
+        </a>
+
+        <p class="footer-note">Halaman ini akan otomatis diarahkan saat pengumuman dibuka.</p>
+    </div>
+
+    <script>
+        // Stars
+        (function () {
+            var c = document.getElementById('stars-bg');
+            for (var i = 0; i < 60; i++) {
+                var s = document.createElement('span');
+                s.className = 'star';
+                s.style.top = Math.random() * 100 + '%';
+                s.style.left = Math.random() * 100 + '%';
+                var sz = Math.random() * 2 + 1;
+                s.style.width = sz + 'px'; s.style.height = sz + 'px';
+                s.style.setProperty('--d', (Math.random() * 5 + 3) + 's');
+                s.style.setProperty('--delay', (Math.random() * 6) + 's');
+                s.style.setProperty('--max-op', (Math.random() * 0.5 + 0.2).toFixed(2));
+                c.appendChild(s);
+            }
+        })();
+
+        // Countdown
+        var TARGET_ISO = "{{ announcement_iso }}";
+        var GRAD_URL = "{{ graduation_url }}";
+        var targetMs = new Date(TARGET_ISO).getTime();
+        var startMs = targetMs - 14 * 24 * 60 * 60 * 1000;
+
+        var elHari = document.getElementById('cd-hari');
+        var elJam = document.getElementById('cd-jam');
+        var elMenit = document.getElementById('cd-menit');
+        var elDetik = document.getElementById('cd-detik');
+        var elProg = document.getElementById('progress-bar');
+        var elWrap = document.getElementById('countdown-wrap');
+        var elReady = document.getElementById('ready-msg');
+
+        var prev = { hari: null, jam: null, menit: null, detik: null };
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+        function flip(el, key, val) {
+            if (prev[key] !== val) {
+                prev[key] = val;
+                el.classList.remove('flip');
+                void el.offsetWidth;
+                el.classList.add('flip');
+                el.textContent = pad(val);
+            }
+        }
+
+        function tick() {
+            var diff = targetMs - Date.now();
+            if (diff <= 0) {
+                elWrap.style.display = 'none';
+                elReady.classList.add('show');
+                setTimeout(function () { window.location.href = GRAD_URL; }, 2500);
+                return;
+            }
+            var s = Math.floor(diff / 1000);
+            flip(elHari, 'hari', Math.floor(s / 86400));
+            flip(elJam, 'jam', Math.floor((s % 86400) / 3600));
+            flip(elMenit, 'menit', Math.floor((s % 3600) / 60));
+            flip(elDetik, 'detik', s % 60);
+
+            var pct = Math.max(0, Math.min(100, ((Date.now() - startMs) / (targetMs - startMs)) * 100));
+            elProg.style.width = pct.toFixed(2) + '%';
+            setTimeout(tick, 1000);
+        }
+        tick();
+    </script>
+</body>
+
+</html>

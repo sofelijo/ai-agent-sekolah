@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from flask import Flask, render_template, Response, request, send_file, abort, jsonify, redirect, url_for
@@ -206,9 +207,22 @@ def create_app() -> Flask:
             graduation_target_url=url_for("landing_graduation_redirect"),
         )
 
+    # Waktu pengumuman kelulusan: 2 Juni 2026 jam 10:00 WIB (UTC+7)
+    GRADUATION_ANNOUNCEMENT_TIME = datetime(
+        2026, 6, 2, 10, 0, 0,
+        tzinfo=timezone(timedelta(hours=7))
+    )
+
     @app.route("/kelulusan")
     @app.route("/cek-kelulusan")
     def landing_graduation_redirect():
+        now_wib = datetime.now(tz=timezone(timedelta(hours=7)))
+        if now_wib < GRADUATION_ANNOUNCEMENT_TIME:
+            return render_template(
+                "countdown.html",
+                graduation_url=graduation_target_url,
+                announcement_iso=GRADUATION_ANNOUNCEMENT_TIME.isoformat(),
+            )
         return redirect(graduation_target_url)
 
     @app.route("/ekskul/<int:activity_id>")
