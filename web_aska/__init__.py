@@ -758,6 +758,12 @@ def create_app() -> Flask:
         # Allow iframe embedding on same origin
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
+        
+        # Cegah browser nge-cache file PDF (selalu minta ke server)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
         return response
 
     @app.route("/auth/login")
