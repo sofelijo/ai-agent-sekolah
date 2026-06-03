@@ -1972,7 +1972,7 @@ def upsert_extracurricular_attendance_entries(
                     address,
                     material
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (attendance_date, extracurricular_id, student_id)
                 DO UPDATE SET
                     status = EXCLUDED.status,
