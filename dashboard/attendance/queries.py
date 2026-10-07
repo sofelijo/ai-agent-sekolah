@@ -104,6 +104,55 @@ def fetch_student_graduations() -> List[Dict[str, Any]]:
         return [dict(row) for row in cur.fetchall()]
 
 
+def fetch_nonactive_students() -> List[Dict[str, Any]]:
+    """Return students absent from the latest school year without a verified graduation."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            WITH latest_year AS (
+                SELECT MAX(academic_year) AS academic_year
+                FROM student_class_history
+            ),
+            last_history AS (
+                SELECT DISTINCT ON (student_id)
+                    student_id,
+                    academic_year,
+                    class_name,
+                    full_name,
+                    student_number,
+                    nisn
+                FROM student_class_history
+                WHERE student_id IS NOT NULL
+                ORDER BY student_id, academic_year DESC, id DESC
+            )
+            SELECT
+                s.id AS student_id,
+                h.full_name,
+                h.student_number,
+                h.nisn,
+                h.academic_year AS last_academic_year,
+                h.class_name AS last_class_name,
+                s.student_status,
+                s.exit_date,
+                s.exit_reason
+            FROM students s
+            JOIN last_history h ON h.student_id = s.id
+            CROSS JOIN latest_year y
+            WHERE s.active IS FALSE
+              AND s.student_status = 'nonaktif'
+              AND h.academic_year < y.academic_year
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM student_class_history graduation
+                  WHERE graduation.student_id = s.id
+                    AND graduation.graduation_date IS NOT NULL
+              )
+            ORDER BY h.class_name ASC, h.full_name ASC
+            """
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
 def update_teacher_assigned_class(user_id: int, class_id: Optional[int]) -> bool:
     with get_cursor(commit=True) as cur:
         cur.execute(
@@ -621,6 +670,11 @@ def create_student(
                     mother_name = EXCLUDED.mother_name,
                     nik = EXCLUDED.nik,
                     kk_number = EXCLUDED.kk_number,
+                    active = TRUE,
+                    student_status = 'aktif',
+                    exit_date = NULL,
+                    exit_reason = NULL,
+                    status_updated_at = NOW(),
                     updated_at = NOW()
             RETURNING id
             """,
@@ -799,6 +853,10 @@ def deactivate_student(student_id: int) -> bool:
             UPDATE students
             SET
                 active = FALSE,
+                student_status = 'nonaktif',
+                exit_date = NULL,
+                exit_reason = NULL,
+                status_updated_at = NOW(),
                 updated_at = NOW()
             WHERE id = %s
               AND active IS TRUE

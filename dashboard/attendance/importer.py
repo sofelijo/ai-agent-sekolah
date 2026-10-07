@@ -442,9 +442,10 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                         INSERT INTO students (
                             class_id, full_name, student_number, sequence, nisn, gender,
                             birth_place, birth_date, religion, address_line, rt, rw,
-                            kelurahan, kecamatan, father_name, mother_name, nik, kk_number, active
+                            kelurahan, kecamatan, father_name, mother_name, nik, kk_number,
+                            active, student_status
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 'aktif')
                         RETURNING id
                         """,
                         (
@@ -493,6 +494,10 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                             nik = COALESCE(%s, nik),
                             kk_number = COALESCE(%s, kk_number),
                             active = TRUE,
+                            student_status = 'aktif',
+                            exit_date = NULL,
+                            exit_reason = NULL,
+                            status_updated_at = NOW(),
                             updated_at = NOW()
                         WHERE id = %s
                         """,
@@ -524,6 +529,19 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                     raise ValueError(f"Siswa {student.full_name} cocok ke identitas yang sama lebih dari sekali.")
                 imported_ids.add(student_id)
                 _record_history(cur, student_id, active_year, class_id, class_name, student, source_name)
+
+        cur.execute(
+            """
+            UPDATE students
+            SET student_status = 'nonaktif',
+                exit_date = NULL,
+                exit_reason = NULL,
+                status_updated_at = NOW()
+            WHERE active IS FALSE
+              AND student_status <> 'lulus'
+              AND student_status IS DISTINCT FROM 'nonaktif'
+            """
+        )
 
         cur.execute("SELECT COUNT(*) FROM students WHERE active IS FALSE")
         summary["inactive"] = int(cur.fetchone()[0])

@@ -56,6 +56,7 @@ from .queries import (
     fetch_master_data_overview,
     fetch_student_class_movements,
     fetch_student_graduations,
+    fetch_nonactive_students,
     fetch_most_missing_attendance_classes,
     fetch_monthly_attendance_overview,
     fetch_class_month_attendance_entries,
@@ -1718,6 +1719,7 @@ def master_data() -> str:
     students = fetch_all_students()
     class_movements = fetch_student_class_movements()
     student_graduations = fetch_student_graduations()
+    nonactive_students = fetch_nonactive_students()
     class_lookup = {int(c["id"]): c for c in classes}
 
     students_by_class: Dict[int, List[Dict[str, Any]]] = {int(c["id"]): [] for c in classes}
@@ -1736,6 +1738,7 @@ def master_data() -> str:
         class_lookup=class_lookup,
         class_movements=class_movements,
         student_graduations=student_graduations,
+        nonactive_students=nonactive_students,
     )
 
 

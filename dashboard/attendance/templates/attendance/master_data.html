@@ -192,6 +192,52 @@
     <div class="card-body">
         <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
             <div>
+                <h2 class="h5 mb-1">Siswa Nonaktif (Perlu Verifikasi)</h2>
+                <p class="text-muted small mb-0">Siswa yang ada pada tahun sebelumnya tetapi tidak ditemukan pada tahun terbaru dan tidak memiliki data kelulusan.</p>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary">{{ nonactive_students|length }} siswa nonaktif</span>
+        </div>
+        {% if nonactive_students %}
+        <div class="table-responsive" style="max-height: 28rem;">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>Nama Siswa</th>
+                        <th>NIS / NISN</th>
+                        <th>Terakhir Tercatat</th>
+                        <th>Status</th>
+                        <th>Alasan Keluar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in nonactive_students %}
+                    <tr>
+                        <td>{{ student.full_name }}</td>
+                        <td>
+                            <div>{{ student.student_number or '—' }}</div>
+                            <div class="text-muted small">{{ student.nisn or '—' }}</div>
+                        </td>
+                        <td>
+                            <div>{{ student.last_class_name }}</div>
+                            <div class="text-muted small">{{ student.last_academic_year }}</div>
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">Nonaktif</span></td>
+                        <td>{{ student.exit_reason or 'Belum diketahui' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Tidak ada siswa nonaktif yang perlu diverifikasi.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
                 <h2 class="h5 mb-1">Riwayat Kelulusan</h2>
                 <p class="text-muted small mb-0">Tanggal kelulusan yang telah dicocokkan dengan NISN dan dokumen kelulusan.</p>
             </div>
