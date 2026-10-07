@@ -9,6 +9,7 @@ from flask import Flask, render_template, Response, request, send_file, abort, j
 
 from dashboard.queries import fetch_landingpage_content, fetch_landingpage_teachers
 from dashboard.attendance.queries import (
+    fetch_public_student_status,
     list_extracurriculars,
     get_extracurricular,
     fetch_extracurricular_photo_options,
@@ -205,6 +206,36 @@ def create_app() -> Flask:
             site_key=site_key,
             extracurriculars=extracurriculars,
             graduation_target_url=url_for("landing_graduation_redirect"),
+            student_check_url=url_for("landing_student_check"),
+        )
+
+    @app.route("/cek-siswa", methods=["GET", "POST"])
+    def landing_student_check():
+        site_key = _resolve_site_key()
+        content = fetch_landingpage_content(site_key=site_key)
+        nisn = ""
+        student = None
+        error = None
+
+        if request.method == "POST":
+            nisn = (request.form.get("nisn") or "").strip()
+            if len(nisn) != 10 or not nisn.isdigit():
+                error = "Masukkan NISN yang terdiri dari tepat 10 digit angka."
+            else:
+                student = fetch_public_student_status(nisn)
+                if not student:
+                    error = "Data siswa tidak ditemukan. Periksa kembali NISN yang dimasukkan."
+
+        return (
+            render_template(
+                "cek_siswa.html",
+                content=content,
+                nisn=nisn,
+                student=student,
+                error=error,
+            ),
+            200,
+            {"Cache-Control": "no-store, max-age=0"},
         )
 
     # Waktu pengumuman kelulusan: 2 Juni 2026 jam 10:00 WIB (UTC+7)
@@ -318,7 +349,7 @@ def create_app() -> Flask:
     @app.route("/sitemap.xml")
     def sitemap() -> Response:
         base = request.url_root.rstrip("/")
-        urls = [f"{base}/", f"{base}/guru"]
+        urls = [f"{base}/", f"{base}/guru", f"{base}/cek-siswa"]
         try:
             content = fetch_landingpage_content(site_key=_resolve_site_key())
             for item in _build_extracurricular_list(content):

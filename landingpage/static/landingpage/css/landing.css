@@ -252,6 +252,275 @@ a {
     box-shadow: 0 14px 28px rgba(15, 118, 110, 0.48);
 }
 
+.hero-cta-student {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hero-cta-student:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(234, 88, 12, 0.4);
+}
+
+.student-check-body {
+    background:
+        radial-gradient(circle at 15% 10%, rgba(15, 118, 110, 0.14), transparent 35%),
+        radial-gradient(circle at 85% 85%, rgba(249, 115, 22, 0.14), transparent 35%),
+        #f8fafc;
+}
+
+.student-check-page {
+    min-height: 100vh;
+    padding: 2rem 0 4rem;
+}
+
+.student-check-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.student-check-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1rem;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    font-weight: 600;
+}
+
+.student-check-back svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.student-check-school {
+    color: var(--muted);
+    font-size: 0.92rem;
+    text-align: right;
+}
+
+.student-check-shell {
+    width: min(760px, 100%);
+    margin: 0 auto;
+}
+
+.student-check-heading {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.student-check-heading h1 {
+    margin: 0 0 0.65rem;
+    font-family: var(--font-title);
+    font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.student-check-heading p {
+    max-width: 620px;
+    margin: 0 auto;
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+.student-check-card,
+.student-result-card {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+}
+
+.student-check-card {
+    padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+.student-check-form label {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-weight: 700;
+}
+
+.student-check-input-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+}
+
+.student-check-input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 13px;
+    background: #ffffff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+}
+
+.student-check-input:focus {
+    outline: 3px solid rgba(15, 118, 110, 0.18);
+    border-color: var(--accent);
+}
+
+.student-check-submit {
+    border: 0;
+    border-radius: 13px;
+    padding: 0.9rem 1.3rem;
+    background: var(--accent);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.student-check-submit:hover {
+    background: var(--accent-strong);
+}
+
+.student-check-help {
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.student-check-error {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: #fff1f2;
+    color: #be123c;
+    border: 1px solid #fecdd3;
+}
+
+.student-result-card {
+    margin-top: 1.5rem;
+    overflow: hidden;
+}
+
+.student-result-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.09), rgba(249, 115, 22, 0.08));
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.student-result-name {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-title);
+    font-size: clamp(1.35rem, 4vw, 1.8rem);
+}
+
+.student-result-kicker {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.student-status-badge {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.student-status-aktif {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.student-status-lulus {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.student-status-nonaktif {
+    color: #475569;
+    background: #e2e8f0;
+}
+
+.student-result-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.student-result-field {
+    padding: 1rem;
+    border-radius: 15px;
+    background: #f8fafc;
+}
+
+.student-result-field span {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.student-result-field strong {
+    line-height: 1.45;
+}
+
+.student-history {
+    padding: 0 1.5rem 1.5rem;
+}
+
+.student-history h2 {
+    margin: 0 0 1rem;
+    font-family: var(--font-title);
+    font-size: 1.05rem;
+}
+
+.student-history-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.student-history-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.student-history-class {
+    font-weight: 700;
+}
+
+.student-history-year {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.student-privacy-note {
+    margin: 1.2rem auto 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    text-align: center;
+}
+
 .hero-cta-highlight {
     font-style: italic;
     font-weight: 700;
@@ -1079,6 +1348,15 @@ footer {
         bottom: 1.1rem;
         width: 30px;
         height: 48px;
+    }
+
+    .student-check-input-row,
+    .student-result-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .student-result-header {
+        flex-direction: column;
     }
 }
 

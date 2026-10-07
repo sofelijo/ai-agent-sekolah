@@ -154,6 +154,57 @@ def fetch_nonactive_students() -> List[Dict[str, Any]]:
         return [dict(row) for row in cur.fetchall()]
 
 
+def fetch_public_student_status(nisn: str) -> Optional[Dict[str, Any]]:
+    """Return a privacy-limited student status record for the public checker."""
+    clean_nisn = (nisn or "").strip()
+    if len(clean_nisn) != 10 or not clean_nisn.isdigit():
+        return None
+
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                full_name,
+                nisn,
+                active,
+                student_status,
+                status_academic_year,
+                exit_date,
+                exit_reason
+            FROM students
+            WHERE nisn = %s
+            ORDER BY active DESC, updated_at DESC, id DESC
+            LIMIT 1
+            """,
+            (clean_nisn,),
+        )
+        student: Optional[DictRow] = cur.fetchone()
+        if not student:
+            return None
+
+        result = dict(student)
+        cur.execute(
+            """
+            SELECT
+                academic_year,
+                class_name,
+                graduation_date,
+                graduation_status
+            FROM student_class_history
+            WHERE student_id = %s
+            ORDER BY academic_year DESC, id DESC
+            """,
+            (student["id"],),
+        )
+        history = [dict(row) for row in cur.fetchall()]
+
+    result["history"] = history
+    result["latest_history"] = history[0] if history else None
+    result["masked_nisn"] = f"******{clean_nisn[-4:]}"
+    return result
+
+
 def update_teacher_assigned_class(user_id: int, class_id: Optional[int]) -> bool:
     with get_cursor(commit=True) as cur:
         cur.execute(

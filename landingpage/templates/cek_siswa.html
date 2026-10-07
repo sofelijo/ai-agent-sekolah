@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="index,follow">
+    <title>Cek Status Siswa · {{ content.get('site_name', 'Sekolah') }}</title>
+    <meta name="description" content="Cek status dan riwayat kelas siswa menggunakan NISN.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+</head>
+<body class="student-check-body">
+<main class="student-check-page">
+    <div class="container">
+        <div class="student-check-topbar">
+            <a class="student-check-back" href="{{ url_for('landing_home') }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19l-7-7 7-7"/></svg>
+                Kembali
+            </a>
+            <div class="student-check-school">{{ content.get('site_name', 'Sekolah') }}</div>
+        </div>
+
+        <div class="student-check-shell">
+            <header class="student-check-heading">
+                <h1>Cek Status Siswa</h1>
+                <p>Masukkan NISN untuk melihat status siswa dan riwayat kelas yang tercatat pada sistem sekolah.</p>
+            </header>
+
+            <section class="student-check-card" aria-labelledby="student-check-form-title">
+                <form class="student-check-form" method="post" action="{{ url_for('landing_student_check') }}">
+                    <label id="student-check-form-title" for="nisn">NISN Siswa</label>
+                    <div class="student-check-input-row">
+                        <input
+                            class="student-check-input"
+                            id="nisn"
+                            name="nisn"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]{10}"
+                            minlength="10"
+                            maxlength="10"
+                            value="{{ nisn }}"
+                            placeholder="Masukkan 10 digit NISN"
+                            autocomplete="off"
+                            required
+                            autofocus>
+                        <button class="student-check-submit" type="submit">Cek Siswa</button>
+                    </div>
+                    <p class="student-check-help">NISN terdiri dari 10 digit angka. Data pribadi sensitif tidak ditampilkan.</p>
+                </form>
+
+                {% if error %}
+                <div class="student-check-error" role="alert">{{ error }}</div>
+                {% endif %}
+            </section>
+
+            {% if student %}
+            {% set status = student.student_status or ('aktif' if student.active else 'nonaktif') %}
+            {% set latest = student.latest_history %}
+            <section class="student-result-card" aria-live="polite">
+                <div class="student-result-header">
+                    <div>
+                        <div class="student-result-kicker">Data siswa ditemukan</div>
+                        <h2 class="student-result-name">{{ student.full_name }}</h2>
+                    </div>
+                    <span class="student-status-badge student-status-{{ status }}">{{ status|title }}</span>
+                </div>
+
+                <div class="student-result-grid">
+                    <div class="student-result-field">
+                        <span>NISN</span>
+                        <strong>{{ student.masked_nisn }}</strong>
+                    </div>
+                    <div class="student-result-field">
+                        <span>Tahun Status</span>
+                        <strong>{{ student.status_academic_year or 'Belum tersedia' }}</strong>
+                    </div>
+                    <div class="student-result-field">
+                        <span>Kelas Terakhir</span>
+                        <strong>{{ latest.class_name if latest else 'Belum tersedia' }}</strong>
+                    </div>
+                    <div class="student-result-field">
+                        <span>Tahun Ajaran Terakhir</span>
+                        <strong>{{ latest.academic_year if latest else 'Belum tersedia' }}</strong>
+                    </div>
+                    {% if status == 'lulus' and student.exit_date %}
+                    <div class="student-result-field">
+                        <span>Tanggal Kelulusan</span>
+                        <strong>{{ student.exit_date.strftime('%d-%m-%Y') }}</strong>
+                    </div>
+                    {% elif status == 'nonaktif' %}
+                    <div class="student-result-field">
+                        <span>Keterangan</span>
+                        <strong>{{ student.exit_reason or 'Belum diketahui — perlu verifikasi sekolah' }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if student.history %}
+                <div class="student-history">
+                    <h2>Riwayat Kelas</h2>
+                    <div class="student-history-list">
+                        {% for item in student.history %}
+                        <div class="student-history-item">
+                            <span class="student-history-class">{{ item.class_name }}</span>
+                            <span class="student-history-year">{{ item.academic_year }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <p class="student-privacy-note">Jika data tidak sesuai, silakan menghubungi operator sekolah. Halaman ini tidak menampilkan alamat, tanggal lahir, data orang tua, NIK, atau nomor KK.</p>
+        </div>
+    </div>
+</main>
+</body>
+</html>

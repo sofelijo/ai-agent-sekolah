@@ -109,6 +109,11 @@
                         🎓 Cek Kelulusan
                     </a>
                     {% endif %}
+                    {% if student_check_url %}
+                    <a class="hero-cta hero-cta-student" href="{{ student_check_url }}">
+                        🔎 Cek Status Siswa
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="hero-social">
                     {% for link in content.get('hero', {}).get('social_links', []) %}
