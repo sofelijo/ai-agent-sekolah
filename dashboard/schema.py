@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS school_classes (
     name TEXT UNIQUE NOT NULL,
     academic_year TEXT,
     metadata JSONB,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -68,6 +69,33 @@ CREATE TABLE IF NOT EXISTS students (
 _STUDENTS_CLASS_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_students_class_id
 ON students (class_id);
+"""
+
+_STUDENT_CLASS_HISTORY_SQL = """
+CREATE TABLE IF NOT EXISTS student_class_history (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+    academic_year TEXT NOT NULL,
+    class_id INTEGER REFERENCES school_classes(id) ON DELETE SET NULL,
+    class_name TEXT NOT NULL,
+    sequence INTEGER,
+    student_number TEXT,
+    nisn TEXT,
+    full_name TEXT NOT NULL,
+    gender TEXT,
+    graduation_date DATE,
+    graduation_status TEXT,
+    graduation_source TEXT,
+    source TEXT,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (student_id, academic_year)
+);
+"""
+
+_STUDENT_CLASS_HISTORY_LOOKUP_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_student_class_history_lookup
+ON student_class_history (nisn, student_number, academic_year);
 """
 
 _ATTENDANCE_RECORDS_SQL = """
@@ -546,6 +574,8 @@ def ensure_dashboard_schema() -> None:
         _SCHOOL_CLASSES_SQL,
         _STUDENTS_SQL,
         _STUDENTS_CLASS_INDEX_SQL,
+        _STUDENT_CLASS_HISTORY_SQL,
+        _STUDENT_CLASS_HISTORY_LOOKUP_INDEX_SQL,
         _ATTENDANCE_RECORDS_SQL,
         _ATTENDANCE_CLASS_DATE_INDEX_SQL,
         _TEACHER_ATTENDANCE_SQL,
@@ -612,6 +642,10 @@ def ensure_dashboard_schema() -> None:
         "ALTER TABLE bullying_reports DROP CONSTRAINT IF EXISTS bullying_reports_status_check",
         "ALTER TABLE bullying_reports ADD CONSTRAINT bullying_reports_status_check CHECK (status IN ('pending', 'in_progress', 'resolved', 'spam'))",
         "ALTER TABLE dashboard_users ADD COLUMN IF NOT EXISTS assigned_class_id INTEGER REFERENCES school_classes(id) ON DELETE SET NULL",
+        "ALTER TABLE school_classes ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE student_class_history ADD COLUMN IF NOT EXISTS graduation_date DATE",
+        "ALTER TABLE student_class_history ADD COLUMN IF NOT EXISTS graduation_status TEXT",
+        "ALTER TABLE student_class_history ADD COLUMN IF NOT EXISTS graduation_source TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS nisn TEXT",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS sequence INTEGER",
         "ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT",
@@ -662,6 +696,7 @@ def ensure_sequences_integrity(cur) -> None:
         "dashboard_users",
         "school_classes",
         "students",
+        "student_class_history",
         "attendance_records",
         "teacher_attendance_records",
         "attendance_late_students",

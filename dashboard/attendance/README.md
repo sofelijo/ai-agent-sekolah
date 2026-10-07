@@ -208,24 +208,29 @@ python -m dashboard.cli create-user guru1@sekolah.sch.id "Guru 1" --role staff
 ## Import Data Siswa dari Excel
 
 1. **Format workbook**
-   - Satu sheet per kelas (mis. `1A`, `6B`). Nama sheet = nama kelas.
+   - Satu sheet per kelas (mis. `1A`, `KELAS 1A`, atau `6B`).
    - Gunakan template `data_siswa/data_siswa.xlsx` sebagai referensi.
-   - Header wajib memuat kolom `NO`, `NIS`, `NISN`, `NAMA SISWA`, `JK`, `TANGGAL LAHIR`, dst (lihat tabel detail di README root).
+   - Format lengkap lama dan format ringkas `No`, `Rombel Saat Ini`, `NIPD`, `NISN`, `Nama`, `JK` sama-sama didukung.
    - Hindari cell merge / komentar. Jika ada sheet rekap, biarkan (akan dilewati).
 
 2. **Jalankan CLI import**
 
 ```bash
 source venv/bin/activate
-python -m dashboard.cli import-attendance dashboard/attendance/data_siswa/data_siswa.xlsx --academic-year 2024/2025
+python -m dashboard.cli import-attendance dashboard/attendance/data_siswa/data_siswa.xlsx --academic-year 2026/2027
 ```
 
-- Flag `--academic-year` opsional (skrip mencoba mendeteksi teks `2024/2025`).  
-- Perintah ini membuat entri kelas (`school_classes`) lalu mengisi tabel `students`.
+- Flag `--academic-year` opsional bila tahun ajaran tertulis di workbook; untuk file ringkas tanpa tahun, flag ini wajib diisi.
+- Sebelum memperbarui data aktif, importer menyimpan snapshot ke `student_class_history`.
+- Siswa dicocokkan melalui NISN lalu NIPD/NIS, sehingga perpindahan kelas tidak membuat identitas baru.
+- Siswa yang tidak ada pada file terbaru dibuat nonaktif, bukan dihapus. Kelas tahun lama juga diarsipkan, sehingga absensi dan riwayat tetap utuh.
+- Riwayat juga dapat menyimpan `graduation_date`, `graduation_status`, dan sumber bukti kelulusan. Data kelulusan 2025/2026 dicocokkan melalui NISN dengan dokumen resmi siswa.
 
 3. **Verifikasi**
    - Buka `/absen/master` → pastikan daftar siswa & kelas sesuai.
-   - Jika ingin mengulang dari nol, hapus data terkait (`DELETE FROM attendance_records; DELETE FROM students; DELETE FROM school_classes;`) lalu jalankan import lagi.
+   - Buka bagian **Riwayat Perpindahan Kelas** pada `/absen/master` untuk membandingkan kelas antar-tahun.
+   - Buka bagian **Riwayat Kelulusan** pada `/absen/master` untuk melihat tanggal, kelas terakhir, dan status kelulusan.
+   - Import file dan tahun ajaran yang sama aman diulang; riwayat tahun yang sama akan diperbarui, bukan digandakan.
 
 ---
 

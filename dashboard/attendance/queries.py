@@ -19,6 +19,7 @@ def list_school_classes() -> List[Dict[str, Any]]:
             """
             SELECT id, name, academic_year, metadata
             FROM school_classes
+            WHERE active IS TRUE
             ORDER BY name ASC
             """
         )
@@ -38,6 +39,69 @@ def get_school_class(class_id: int) -> Optional[Dict[str, Any]]:
         )
         row: Optional[DictRow] = cur.fetchone()
     return dict(row) if row else None
+
+
+def fetch_student_class_movements() -> List[Dict[str, Any]]:
+    """Return year-to-year class changes recorded during annual imports."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            WITH ordered_history AS (
+                SELECT
+                    student_id,
+                    full_name,
+                    student_number,
+                    nisn,
+                    academic_year,
+                    class_name,
+                    LAG(academic_year) OVER (
+                        PARTITION BY student_id ORDER BY academic_year
+                    ) AS previous_academic_year,
+                    LAG(class_name) OVER (
+                        PARTITION BY student_id ORDER BY academic_year
+                    ) AS previous_class_name
+                FROM student_class_history
+                WHERE student_id IS NOT NULL
+            )
+            SELECT
+                student_id,
+                full_name,
+                student_number,
+                nisn,
+                previous_academic_year,
+                previous_class_name,
+                academic_year,
+                class_name
+            FROM ordered_history
+            WHERE previous_class_name IS NOT NULL
+              AND previous_class_name IS DISTINCT FROM class_name
+            ORDER BY academic_year DESC, full_name ASC
+            """
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def fetch_student_graduations() -> List[Dict[str, Any]]:
+    """Return verified graduation dates attached to annual student history."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                student_id,
+                full_name,
+                student_number,
+                nisn,
+                academic_year,
+                class_name,
+                graduation_date,
+                graduation_status,
+                graduation_source
+            FROM student_class_history
+            WHERE graduation_date IS NOT NULL
+            ORDER BY graduation_date DESC, full_name ASC
+            """
+        )
+        return [dict(row) for row in cur.fetchall()]
 
 
 def update_teacher_assigned_class(user_id: int, class_id: Optional[int]) -> bool:
@@ -483,6 +547,7 @@ def create_school_class(name: str, academic_year: Optional[str] = None) -> int:
             VALUES (%s, %s)
             ON CONFLICT (name) DO UPDATE
                 SET academic_year = EXCLUDED.academic_year,
+                    active = TRUE,
                     updated_at = NOW()
             RETURNING id
             """,
@@ -745,7 +810,7 @@ def deactivate_student(student_id: int) -> bool:
 
 def fetch_master_data_overview() -> Dict[str, Any]:
     with get_cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS total_classes FROM school_classes")
+        cur.execute("SELECT COUNT(*) AS total_classes FROM school_classes WHERE active IS TRUE")
         total_classes = int(cur.fetchone()["total_classes"])
 
         cur.execute("SELECT COUNT(*) AS total_students FROM students WHERE active IS TRUE")

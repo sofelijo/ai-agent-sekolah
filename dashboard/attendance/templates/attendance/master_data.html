@@ -190,6 +190,99 @@
 
 <div class="card shadow-sm border-0 mt-4">
     <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1">Riwayat Kelulusan</h2>
+                <p class="text-muted small mb-0">Tanggal kelulusan yang telah dicocokkan dengan NISN dan dokumen kelulusan.</p>
+            </div>
+            <span class="badge bg-success-subtle text-success">{{ student_graduations|length }} siswa lulus</span>
+        </div>
+        {% if student_graduations %}
+        <div class="table-responsive" style="max-height: 28rem;">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>Nama Siswa</th>
+                        <th>NIS / NISN</th>
+                        <th>Kelas Terakhir</th>
+                        <th>Tanggal Kelulusan</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for graduation in student_graduations %}
+                    <tr>
+                        <td>{{ graduation.full_name }}</td>
+                        <td>
+                            <div>{{ graduation.student_number or '—' }}</div>
+                            <div class="text-muted small">{{ graduation.nisn or '—' }}</div>
+                        </td>
+                        <td>
+                            <div>{{ graduation.class_name }}</div>
+                            <div class="text-muted small">{{ graduation.academic_year }}</div>
+                        </td>
+                        <td>{{ graduation.graduation_date.strftime('%d-%m-%Y') }}</td>
+                        <td><span class="badge bg-success-subtle text-success">{{ graduation.graduation_status|default('lulus', true)|replace('_', ' ')|title }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Belum ada tanggal kelulusan yang terverifikasi.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1">Riwayat Perpindahan Kelas</h2>
+                <p class="text-muted small mb-0">Perubahan kelas siswa antar-tahun berdasarkan NISN/NIPD.</p>
+            </div>
+            <span class="badge bg-primary-subtle text-primary">{{ class_movements|length }} perpindahan</span>
+        </div>
+        {% if class_movements %}
+        <div class="table-responsive" style="max-height: 28rem;">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>Nama Siswa</th>
+                        <th>NIS / NISN</th>
+                        <th>Dari</th>
+                        <th>Ke</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movement in class_movements %}
+                    <tr>
+                        <td>{{ movement.full_name }}</td>
+                        <td>
+                            <div>{{ movement.student_number or '—' }}</div>
+                            <div class="text-muted small">{{ movement.nisn or '—' }}</div>
+                        </td>
+                        <td>
+                            <div>{{ movement.previous_class_name }}</div>
+                            <div class="text-muted small">{{ movement.previous_academic_year }}</div>
+                        </td>
+                        <td>
+                            <div>{{ movement.class_name }}</div>
+                            <div class="text-muted small">{{ movement.academic_year }}</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Belum ada perpindahan kelas antar-tahun yang tercatat.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
                 <h2 class="h5 mb-1">Daftar Kelas &amp; Siswa</h2>
