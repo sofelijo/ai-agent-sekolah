@@ -206,6 +206,7 @@
                         <th>NIS / NISN</th>
                         <th>Terakhir Tercatat</th>
                         <th>Status</th>
+                        <th>Tahun Status</th>
                         <th>Alasan Keluar</th>
                     </tr>
                 </thead>
@@ -222,6 +223,7 @@
                             <div class="text-muted small">{{ student.last_academic_year }}</div>
                         </td>
                         <td><span class="badge bg-secondary-subtle text-secondary">Nonaktif</span></td>
+                        <td>{{ student.status_academic_year or '—' }}</td>
                         <td>{{ student.exit_reason or 'Belum diketahui' }}</td>
                     </tr>
                     {% endfor %}

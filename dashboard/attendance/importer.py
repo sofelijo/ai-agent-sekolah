@@ -443,9 +443,9 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                             class_id, full_name, student_number, sequence, nisn, gender,
                             birth_place, birth_date, religion, address_line, rt, rw,
                             kelurahan, kecamatan, father_name, mother_name, nik, kk_number,
-                            active, student_status
+                            active, student_status, status_academic_year
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 'aktif')
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 'aktif', %s)
                         RETURNING id
                         """,
                         (
@@ -467,6 +467,7 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                             student.mother_name,
                             student.nik,
                             student.kk_number,
+                            active_year,
                         ),
                     )
                     student_id = int(cur.fetchone()[0])
@@ -495,6 +496,7 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                             kk_number = COALESCE(%s, kk_number),
                             active = TRUE,
                             student_status = 'aktif',
+                            status_academic_year = %s,
                             exit_date = NULL,
                             exit_reason = NULL,
                             status_updated_at = NOW(),
@@ -520,6 +522,7 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                             student.mother_name,
                             student.nik,
                             student.kk_number,
+                            active_year,
                             student_id,
                         ),
                     )
@@ -534,13 +537,15 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
             """
             UPDATE students
             SET student_status = 'nonaktif',
+                status_academic_year = %s,
                 exit_date = NULL,
                 exit_reason = NULL,
                 status_updated_at = NOW()
             WHERE active IS FALSE
               AND student_status <> 'lulus'
               AND student_status IS DISTINCT FROM 'nonaktif'
-            """
+            """,
+            (active_year,),
         )
 
         cur.execute("SELECT COUNT(*) FROM students WHERE active IS FALSE")

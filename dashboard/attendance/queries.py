@@ -133,6 +133,7 @@ def fetch_nonactive_students() -> List[Dict[str, Any]]:
                 h.academic_year AS last_academic_year,
                 h.class_name AS last_class_name,
                 s.student_status,
+                s.status_academic_year,
                 s.exit_date,
                 s.exit_reason
             FROM students s
@@ -360,6 +361,19 @@ def create_teacher_user(
             ),
         )
         new_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            UPDATE students
+            SET status_academic_year = (
+                    SELECT academic_year FROM school_classes WHERE id = %s
+                ),
+                student_status = 'aktif',
+                active = TRUE,
+                status_updated_at = NOW()
+            WHERE id = %s
+            """,
+            (class_id, new_id),
+        )
     return int(new_id)
 
 
