@@ -162,6 +162,11 @@ def _normalise_header(value: Optional[str]) -> str:
     return (_clean(value) or "").upper().replace("_", " ")
 
 
+def _normalise_name(value: Optional[str]) -> str:
+    """Normalize a student name for a conservative identity fallback."""
+    return re.sub(r"[^A-Z0-9]+", " ", (_clean(value) or "").upper()).strip()
+
+
 def _normalise_class(value: Optional[str]) -> Optional[str]:
     cleaned = _normalise_header(value)
     cleaned = re.sub(r"^KELAS\s*", "", cleaned)
@@ -416,14 +421,26 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
             )
             class_ids[class_name] = int(cur.fetchone()[0])
 
-        cur.execute("SELECT id, student_number, nisn FROM students ORDER BY active DESC, id ASC")
+        cur.execute(
+            "SELECT id, student_number, nisn, full_name FROM students ORDER BY active DESC, id ASC"
+        )
         by_nisn: Dict[str, int] = {}
         by_number: Dict[str, int] = {}
+        by_unique_name: Dict[str, Optional[int]] = {}
         for record in cur.fetchall():
             if record["nisn"]:
                 by_nisn.setdefault(str(record["nisn"]).strip(), int(record["id"]))
             if record["student_number"]:
                 by_number.setdefault(str(record["student_number"]).strip(), int(record["id"]))
+            name_key = _normalise_name(record["full_name"])
+            if name_key:
+                existing_id = by_unique_name.get(name_key)
+                if existing_id is None and name_key not in by_unique_name:
+                    by_unique_name[name_key] = int(record["id"])
+                elif existing_id != int(record["id"]):
+                    # Nama yang dipakai lebih dari satu siswa tidak aman untuk
+                    # dijadikan identitas cadangan.
+                    by_unique_name[name_key] = None
 
         cur.execute("UPDATE students SET active = FALSE, updated_at = NOW() WHERE active IS TRUE")
         imported_ids: set[int] = set()
@@ -435,6 +452,8 @@ def import_attendance_from_excel(path: str, *, academic_year: Optional[str] = No
                 student_id = by_nisn.get(student.nisn) if student.nisn else None
                 if student_id is None and student.student_number:
                     student_id = by_number.get(student.student_number)
+                if student_id is None and not student.nisn and not student.student_number:
+                    student_id = by_unique_name.get(_normalise_name(student.full_name))
 
                 if student_id is None:
                     cur.execute(
