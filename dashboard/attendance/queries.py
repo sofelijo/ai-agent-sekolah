@@ -1446,7 +1446,10 @@ def list_extracurriculars(
     if not include_inactive:
         conditions.append("e.active IS TRUE")
     if coach_user_id is not None:
-        conditions.append("e.coach_user_id = %s")
+        conditions.append(
+            "EXISTS (SELECT 1 FROM extracurricular_coaches ec_filter "
+            "WHERE ec_filter.extracurricular_id = e.id AND ec_filter.coach_user_id = %s)"
+        )
         params.append(coach_user_id)
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     query = f"""
@@ -1455,8 +1458,9 @@ def list_extracurriculars(
             e.name,
             e.coach_name,
             e.coach_user_id,
-            COALESCE(du.full_name, e.coach_name) AS coach_display,
-            du.email AS coach_email,
+            COALESCE(coaches.coach_user_ids, ARRAY[]::INTEGER[]) AS coach_user_ids,
+            COALESCE(coaches.coach_display, legacy_coach.full_name, e.coach_name) AS coach_display,
+            COALESCE(coaches.coach_email, legacy_coach.email) AS coach_email,
             e.schedule_day,
             e.start_time,
             e.end_time,
@@ -1468,7 +1472,16 @@ def list_extracurriculars(
             e.created_at,
             e.updated_at
         FROM extracurriculars e
-        LEFT JOIN dashboard_users du ON du.id = e.coach_user_id
+        LEFT JOIN dashboard_users legacy_coach ON legacy_coach.id = e.coach_user_id
+        LEFT JOIN LATERAL (
+            SELECT
+                ARRAY_AGG(du.id ORDER BY ec.assigned_at, du.full_name) AS coach_user_ids,
+                STRING_AGG(du.full_name, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_display,
+                STRING_AGG(du.email, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_email
+            FROM extracurricular_coaches ec
+            JOIN dashboard_users du ON du.id = ec.coach_user_id
+            WHERE ec.extracurricular_id = e.id
+        ) coaches ON TRUE
         {where_clause}
         ORDER BY e.name ASC
     """
@@ -1487,7 +1500,10 @@ def fetch_extracurricular_overview(
     if not include_inactive:
         conditions.append("e.active IS TRUE")
     if coach_user_id is not None:
-        conditions.append("e.coach_user_id = %s")
+        conditions.append(
+            "EXISTS (SELECT 1 FROM extracurricular_coaches ec_filter "
+            "WHERE ec_filter.extracurricular_id = e.id AND ec_filter.coach_user_id = %s)"
+        )
         params.append(coach_user_id)
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     query = f"""
@@ -1496,8 +1512,9 @@ def fetch_extracurricular_overview(
             e.name,
             e.coach_name,
             e.coach_user_id,
-            COALESCE(du.full_name, e.coach_name) AS coach_display,
-            du.email AS coach_email,
+            COALESCE(coaches.coach_user_ids, ARRAY[]::INTEGER[]) AS coach_user_ids,
+            COALESCE(coaches.coach_display, legacy_coach.full_name, e.coach_name) AS coach_display,
+            COALESCE(coaches.coach_email, legacy_coach.email) AS coach_email,
             e.schedule_day,
             e.start_time,
             e.end_time,
@@ -1512,7 +1529,16 @@ def fetch_extracurricular_overview(
             COALESCE(member_stats.active_members, 0) AS active_members,
             last_att.last_attendance_date
         FROM extracurriculars e
-        LEFT JOIN dashboard_users du ON du.id = e.coach_user_id
+        LEFT JOIN dashboard_users legacy_coach ON legacy_coach.id = e.coach_user_id
+        LEFT JOIN LATERAL (
+            SELECT
+                ARRAY_AGG(du.id ORDER BY ec.assigned_at, du.full_name) AS coach_user_ids,
+                STRING_AGG(du.full_name, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_display,
+                STRING_AGG(du.email, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_email
+            FROM extracurricular_coaches ec
+            JOIN dashboard_users du ON du.id = ec.coach_user_id
+            WHERE ec.extracurricular_id = e.id
+        ) coaches ON TRUE
         LEFT JOIN (
             SELECT
                 extracurricular_id,
@@ -1545,8 +1571,9 @@ def get_extracurricular(activity_id: int) -> Optional[Dict[str, Any]]:
                 e.name,
                 e.coach_name,
                 e.coach_user_id,
-                COALESCE(du.full_name, e.coach_name) AS coach_display,
-                du.email AS coach_email,
+                COALESCE(coaches.coach_user_ids, ARRAY[]::INTEGER[]) AS coach_user_ids,
+                COALESCE(coaches.coach_display, legacy_coach.full_name, e.coach_name) AS coach_display,
+                COALESCE(coaches.coach_email, legacy_coach.email) AS coach_email,
                 e.schedule_day,
                 e.start_time,
                 e.end_time,
@@ -1558,7 +1585,16 @@ def get_extracurricular(activity_id: int) -> Optional[Dict[str, Any]]:
                 e.created_at,
                 e.updated_at
             FROM extracurriculars e
-            LEFT JOIN dashboard_users du ON du.id = e.coach_user_id
+            LEFT JOIN dashboard_users legacy_coach ON legacy_coach.id = e.coach_user_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    ARRAY_AGG(du.id ORDER BY ec.assigned_at, du.full_name) AS coach_user_ids,
+                    STRING_AGG(du.full_name, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_display,
+                    STRING_AGG(du.email, ', ' ORDER BY ec.assigned_at, du.full_name) AS coach_email
+                FROM extracurricular_coaches ec
+                JOIN dashboard_users du ON du.id = ec.coach_user_id
+                WHERE ec.extracurricular_id = e.id
+            ) coaches ON TRUE
             WHERE e.id = %s
             LIMIT 1
             """,
@@ -1573,6 +1609,7 @@ def create_extracurricular(
     name: str,
     coach_name: Optional[str] = None,
     coach_user_id: Optional[int] = None,
+    coach_user_ids: Optional[Iterable[int]] = None,
     schedule_day: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
@@ -1622,6 +1659,16 @@ def create_extracurricular(
             ),
         )
         new_id = cur.fetchone()[0]
+        assigned_coach_ids = list(dict.fromkeys(coach_user_ids or ([coach_user_id] if coach_user_id else [])))
+        for assigned_coach_id in assigned_coach_ids:
+            cur.execute(
+                """
+                INSERT INTO extracurricular_coaches (extracurricular_id, coach_user_id, assigned_by)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (extracurricular_id, coach_user_id) DO NOTHING
+                """,
+                (new_id, assigned_coach_id, created_by),
+            )
     return int(new_id)
 
 
@@ -1631,6 +1678,7 @@ def update_extracurricular(
     name: str,
     coach_name: Optional[str] = None,
     coach_user_id: Optional[int] = None,
+    coach_user_ids: Optional[Iterable[int]] = None,
     schedule_day: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
@@ -1683,7 +1731,22 @@ def update_extracurricular(
         """
     with get_cursor(commit=True) as cur:
         cur.execute(query, values)
-        return cur.rowcount > 0
+        updated = cur.rowcount > 0
+        if updated and coach_user_ids is not None:
+            assigned_coach_ids = list(dict.fromkeys(coach_user_ids))
+            cur.execute(
+                "DELETE FROM extracurricular_coaches WHERE extracurricular_id = %s",
+                (activity_id,),
+            )
+            for assigned_coach_id in assigned_coach_ids:
+                cur.execute(
+                    """
+                    INSERT INTO extracurricular_coaches (extracurricular_id, coach_user_id, assigned_by)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (activity_id, assigned_coach_id, updated_by),
+                )
+        return updated
 
 
 def set_extracurricular_active(activity_id: int, active: bool, updated_by: Optional[int] = None) -> bool:

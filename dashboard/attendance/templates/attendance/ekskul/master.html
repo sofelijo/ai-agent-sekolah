@@ -37,13 +37,20 @@
                         <input type="text" class="form-control" id="nameInputNew" name="name" placeholder="Tulis nama baru jika belum ada" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Pembina</label>
-                        <select class="form-select" name="coach_user_id" required>
-                            <option value="">-- Pilih pembina --</option>
+                        <label class="form-label">Pembina (bisa lebih dari satu)</label>
+                        <div class="border rounded p-2">
                             {% for coach in coaches %}
-                            <option value="{{ coach.id }}">{{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}</option>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="coach_user_ids" value="{{ coach.id }}" id="newCoach{{ coach.id }}">
+                                <label class="form-check-label" for="newCoach{{ coach.id }}">
+                                    {{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}
+                                </label>
+                            </div>
+                            {% else %}
+                            <div class="small text-muted">Belum ada pengguna dengan role ekskul.</div>
                             {% endfor %}
-                        </select>
+                        </div>
+                        <div class="form-text">Pilih minimal satu pembina.</div>
                     </div>
                     <div class="alert alert-info small">
                         Jadwal, jam, kapasitas, lokasi, dan deskripsi diatur oleh pembina pada menu Konfigurasi Ekskul.
@@ -158,15 +165,22 @@
                             <input type="text" class="form-control" id="nameInput{{ activity.id }}" name="name" value="{{ activity.name }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Pembina</label>
-                            <select class="form-select" name="coach_user_id" required>
-                                <option value="">-- Pilih pembina --</option>
+                            <label class="form-label">Pembina (bisa lebih dari satu)</label>
+                            <div class="border rounded p-2">
                                 {% for coach in coaches %}
-                                <option value="{{ coach.id }}" {% if activity.coach_user_id == coach.id %}selected{% endif %}>
-                                    {{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}
-                                </option>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="coach_user_ids" value="{{ coach.id }}"
+                                        id="activity{{ activity.id }}Coach{{ coach.id }}"
+                                        {% if coach.id in activity.coach_user_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="activity{{ activity.id }}Coach{{ coach.id }}">
+                                        {{ coach.full_name }}{% if coach.email %} • {{ coach.email }}{% endif %}
+                                    </label>
+                                </div>
+                                {% else %}
+                                <div class="small text-muted">Belum ada pengguna dengan role ekskul.</div>
                                 {% endfor %}
-                            </select>
+                            </div>
+                            <div class="form-text">Pilih minimal satu pembina.</div>
                         </div>
                         <div class="col-12">
                             <div class="alert alert-info small mb-0">

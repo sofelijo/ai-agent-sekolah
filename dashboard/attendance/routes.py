@@ -2797,17 +2797,32 @@ def ekskul_master() -> str:
     user = current_user()
     if request.method == "POST":
         coach_lookup = {coach["id"]: coach["full_name"] for coach in fetch_extracurricular_coaches()}
+
+        def selected_coach_ids() -> List[int]:
+            selected: List[int] = []
+            for raw_value in request.form.getlist("coach_user_ids"):
+                coach_id = _parse_optional_int(raw_value, field_label="Pembina")
+                if coach_id is None:
+                    continue
+                if coach_id not in coach_lookup:
+                    raise ValueError("Pilihan pembina tidak valid.")
+                if coach_id not in selected:
+                    selected.append(coach_id)
+            if not selected:
+                raise ValueError("Minimal satu pembina ekskul wajib dipilih.")
+            return selected
+
         action = (request.form.get("action") or "").strip()
         try:
             if action == "create":
-                coach_user_id = _parse_optional_int(request.form.get("coach_user_id"), field_label="Pembina")
-                if coach_user_id is None:
-                    raise ValueError("Pembina ekskul wajib dipilih.")
-                coach_name = coach_lookup.get(coach_user_id)
+                coach_user_ids = selected_coach_ids()
+                coach_user_id = coach_user_ids[0]
+                coach_name = ", ".join(coach_lookup[coach_id] for coach_id in coach_user_ids)
                 create_extracurricular(
                     name=request.form.get("name") or "",
                     coach_name=coach_name,
                     coach_user_id=coach_user_id,
+                    coach_user_ids=coach_user_ids,
                     schedule_day=None,
                     start_time=None,
                     end_time=None,
@@ -2825,10 +2840,9 @@ def ekskul_master() -> str:
                     activity_id = int(raw_activity_id)
                 except (TypeError, ValueError) as exc:
                     raise ValueError("ID ekskul tidak valid.") from exc
-                coach_user_id = _parse_optional_int(request.form.get("coach_user_id"), field_label="Pembina")
-                if coach_user_id is None:
-                    raise ValueError("Pembina ekskul wajib dipilih.")
-                coach_name = coach_lookup.get(coach_user_id)
+                coach_user_ids = selected_coach_ids()
+                coach_user_id = coach_user_ids[0]
+                coach_name = ", ".join(coach_lookup[coach_id] for coach_id in coach_user_ids)
                 current_activity = get_extracurricular(activity_id)
                 if not current_activity:
                     raise ValueError("Ekskul tidak ditemukan.")
@@ -2837,6 +2851,7 @@ def ekskul_master() -> str:
                     name=request.form.get("name") or "",
                     coach_name=coach_name,
                     coach_user_id=coach_user_id,
+                    coach_user_ids=coach_user_ids,
                     schedule_day=current_activity.get("schedule_day"),
                     start_time=current_activity.get("start_time"),
                     end_time=current_activity.get("end_time"),

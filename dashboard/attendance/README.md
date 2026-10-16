@@ -14,7 +14,7 @@ Modul attendance pada folder ini adalah paket lengkap untuk mengelola absensi ke
   Admin menandai kehadiran staff, lengkap dengan ringkasan status dan log siapa yang mengisi.
 - **Absensi Ekskul** (`/absen/ekskul`)  
   Dashboard, input absensi, dan manajemen anggota ekstrakurikuler dengan foto bukti + GPS. Pencarian siswa (min 3 karakter), edit peran/tanggal/catatan, serta bulk aktif/nonaktif/hapus. Dapat diakses role `ekskul` dan `admin`.
-  Pembina ekskul diambil dari user dashboard dengan role `ekskul`, dan pembina hanya bisa mengakses ekskul yang dibinanya.
+  Pembina ekskul diambil dari user dashboard dengan role `ekskul`. Satu ekskul dapat memiliki beberapa pembina, dan setiap pembina hanya bisa mengakses ekskul yang dibinanya.
 - **Laporan Harian & Bulanan** (`/absen/laporan-harian`, `/absen/laporan-bulanan`, `/absen/lembar-bulanan`)  
   Template HTML siap cetak (lihat `templates/attendance/report_*.html`) untuk ditempel di papan pengumuman.
 - **Master Data** (`/absen/master`, `/absen/master/staff`)  

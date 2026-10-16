@@ -206,6 +206,70 @@ CREATE INDEX IF NOT EXISTS idx_extracurriculars_coach_user
 ON extracurriculars (coach_user_id);
 """
 
+_EXTRACURRICULAR_COACHES_SQL = """
+CREATE TABLE IF NOT EXISTS extracurricular_coaches (
+    extracurricular_id INTEGER NOT NULL REFERENCES extracurriculars(id) ON DELETE CASCADE,
+    coach_user_id INTEGER NOT NULL REFERENCES dashboard_users(id) ON DELETE CASCADE,
+    assigned_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (extracurricular_id, coach_user_id)
+);
+"""
+
+_EXTRACURRICULAR_COACHES_USER_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_extracurricular_coaches_user
+ON extracurricular_coaches (coach_user_id);
+"""
+
+_MIGRATE_LEGACY_EXTRACURRICULAR_COACHES_SQL = """
+INSERT INTO extracurricular_coaches (extracurricular_id, coach_user_id, assigned_by)
+SELECT id, coach_user_id, updated_by
+FROM extracurriculars
+WHERE coach_user_id IS NOT NULL
+ON CONFLICT (extracurricular_id, coach_user_id) DO NOTHING;
+"""
+
+_DASHBOARD_DATA_MIGRATIONS_SQL = """
+CREATE TABLE IF NOT EXISTS dashboard_data_migrations (
+    migration_key TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_SEED_PENCAK_SILAT_COACH_SQL = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM dashboard_data_migrations
+        WHERE migration_key = '20261016_add_setila_to_pencak_silat'
+    ) THEN
+        INSERT INTO dashboard_users (email, full_name, password_hash, role)
+        VALUES ('setilasukaningsih1@gmail.com', 'Setila Sukaningsih', '!', 'ekskul')
+        ON CONFLICT (email) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            role = EXCLUDED.role;
+
+        INSERT INTO extracurriculars (name, description)
+        VALUES (
+            'Pencak Silat',
+            'Mengembangkan keterampilan bela diri tradisional, sportivitas, dan kepercayaan diri.'
+        )
+        ON CONFLICT (name) DO NOTHING;
+
+        INSERT INTO extracurricular_coaches (extracurricular_id, coach_user_id)
+        SELECT e.id, du.id
+        FROM extracurriculars e
+        JOIN dashboard_users du ON du.email = 'setilasukaningsih1@gmail.com'
+        WHERE LOWER(e.name) = 'pencak silat'
+        ON CONFLICT (extracurricular_id, coach_user_id) DO NOTHING;
+
+        INSERT INTO dashboard_data_migrations (migration_key)
+        VALUES ('20261016_add_setila_to_pencak_silat');
+    END IF;
+END
+$$;
+"""
+
 _EXTRACURRICULAR_MEMBERS_SQL = """
 CREATE TABLE IF NOT EXISTS extracurricular_members (
     id SERIAL PRIMARY KEY,
@@ -590,6 +654,11 @@ def ensure_dashboard_schema() -> None:
         _ATTENDANCE_LATE_CLASS_INDEX_SQL,
         _EXTRACURRICULARS_SQL,
         _EXTRACURRICULARS_ACTIVE_INDEX_SQL,
+        _EXTRACURRICULAR_COACHES_SQL,
+        _EXTRACURRICULAR_COACHES_USER_INDEX_SQL,
+        _MIGRATE_LEGACY_EXTRACURRICULAR_COACHES_SQL,
+        _DASHBOARD_DATA_MIGRATIONS_SQL,
+        _SEED_PENCAK_SILAT_COACH_SQL,
         _EXTRACURRICULAR_MEMBERS_SQL,
         _EXTRACURRICULAR_MEMBERS_ACTIVITY_INDEX_SQL,
         _EXTRACURRICULAR_MEMBERS_STUDENT_INDEX_SQL,
