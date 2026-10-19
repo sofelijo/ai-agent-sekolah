@@ -247,7 +247,7 @@
             }
         }
 
-        function populateTopicFilter(mapelId) {
+        function populateTopicFilter(mapelId, testSubjectEntry = null) {
             if (!filterTopic) return;
             const isSelect = filterTopic.tagName === 'SELECT';
             if (!isSelect) {
@@ -276,12 +276,23 @@
             filterTopic.appendChild(placeholder);
             filterTopic.disabled = false;
             const mapel = getMapelById(mapelId);
-            const topics = mapel && Array.isArray(mapel.topics) ? mapel.topics : [];
+            // Topik utama dikonfigurasi per mapel di dalam sebuah tes. Data
+            // mapel umum hanya menjadi fallback untuk mapel yang belum
+            // dihubungkan ke tes.
+            const topics = testSubjectEntry && Array.isArray(testSubjectEntry.topics)
+                ? testSubjectEntry.topics
+                : (mapel && Array.isArray(mapel.topics) ? mapel.topics : []);
             topics.forEach((topic) => {
                 const opt = document.createElement('option');
                 const topicName = topic.topic || topic.name || '';
+                if (!topicName) return;
                 opt.value = topicName;
-                const count = topic.question_count ?? topic.count ?? topic.total ?? 0;
+                const count = topic.question_count_actual
+                    ?? topic.question_count
+                    ?? topic.question_count_target
+                    ?? topic.count
+                    ?? topic.total
+                    ?? 0;
                 opt.textContent = count ? `${topicName} (${count})` : topicName;
                 filterTopic.appendChild(opt);
             });
@@ -314,6 +325,23 @@
             if (!testId || !testSubjectId) return null;
             const list = TEST_SUBJECT_CACHE[testId] || [];
             return list.find((item) => String(item.id) === String(testSubjectId)) || null;
+        }
+
+        function getSelectedFilterSubjectEntry() {
+            const opt = subjectSelect && subjectSelect.selectedOptions && subjectSelect.selectedOptions[0]
+                ? subjectSelect.selectedOptions[0]
+                : null;
+            if (!opt) return null;
+            const testId = opt.dataset.testId || (filterTestSelect ? filterTestSelect.value : null);
+            return findTestSubjectEntry(testId, opt.dataset.testSubjectId);
+        }
+
+        function syncTopicFilter(mapelId = null) {
+            const subjectEntry = getSelectedFilterSubjectEntry();
+            const resolvedMapelId = mapelId
+                || (subjectEntry && (subjectEntry.mapel_id || subjectEntry.subject_id))
+                || (filterCategory ? filterCategory.value : '');
+            populateTopicFilter(resolvedMapelId, subjectEntry);
         }
 
         function populateManualTopicOptions(subjectEntry) {
@@ -404,7 +432,21 @@
                 populateTopicFilter('');
                 return;
             }
-            const mapping = findTestSubjectByMapelId(mapelId);
+            const selectedTestId = filterTestSelect ? filterTestSelect.value : null;
+            const currentTestMatch = selectedTestId
+                ? (TEST_SUBJECT_CACHE[selectedTestId] || []).find(
+                    item => String(item.mapel_id || item.subject_id) === String(mapelId)
+                )
+                : null;
+            const mapping = currentTestMatch
+                ? {
+                    testId: selectedTestId,
+                    testSubjectId: currentTestMatch.id,
+                    subjectId: currentTestMatch.subject_id,
+                    mapelId,
+                    grade: currentTestMatch.grade_level || currentTestMatch.mapel_grade_level || '',
+                }
+                : findTestSubjectByMapelId(mapelId);
             if (mapping) {
                 document.dispatchEvent(new CustomEvent('tka:mapel-selected', { detail: mapping }));
             } else {
@@ -1837,6 +1879,7 @@
                 subjectSelect.value = subjectSelect.options[0].value;
             }
             updateSelectedGradeBadge();
+            syncTopicFilter();
             if (!suppressLoad) {
                 loadQuestions();
             }
@@ -2753,6 +2796,7 @@
         if (subjectSelect) {
             subjectSelect.addEventListener('change', () => {
                 updateSelectedGradeBadge();
+                syncTopicFilter();
                 loadQuestions();
                 if (stimulusSearchInput) stimulusSearchInput.value = '';
                 refreshStimulusDropdown();
@@ -2767,7 +2811,7 @@
             if (!event || !event.detail) return;
             window.MAPEL_CACHE = event.detail.mapel || [];
             populateMapelFilter(window.MAPEL_CACHE);
-            populateTopicFilter(filterCategory ? filterCategory.value : '');
+            syncTopicFilter();
         });
 
         document.addEventListener('tka:mapel-selected', async (event) => {
@@ -2795,10 +2839,10 @@
                     if (filterCategory.value !== mapelIdValue) {
                         suppressMapelFocus = true;
                         filterCategory.value = mapelIdValue;
-                        populateTopicFilter(mapelIdValue);
+                        syncTopicFilter(mapelIdValue);
                         suppressMapelFocus = false;
                     } else {
-                        populateTopicFilter(mapelIdValue);
+                        syncTopicFilter(mapelIdValue);
                     }
                 }
             }

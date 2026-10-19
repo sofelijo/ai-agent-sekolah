@@ -58,6 +58,7 @@ from .queries import (
     fetch_tka_test_subject,
     fetch_tka_test_subjects,
     fetch_tka_tests,
+    has_tka_question_with_prompt,
     set_tka_test_grade_level,
     update_tka_test_subject_topics,
     delete_tka_question,
@@ -270,6 +271,15 @@ def _repair_bare_fields(text: str) -> str:
     return text
 
 
+def _repair_split_question_arrays(text: str) -> str:
+    """Gabungkan array soal yang kadang dipecah oleh keluaran model."""
+    if not text:
+        return text
+    text = re.sub(r"}\s*],\s*\[{", "},{", text)
+    text = re.sub(r"]\s*,\s*\[{", ",{", text)
+    return text
+
+
 
 
 
@@ -337,6 +347,90 @@ def _repair_unterminated_strings(text: str) -> str:
     if unescaped_quotes % 2 != 0:
         text += '"'
     return text
+
+
+def _salvage_questions_from_text(text: str) -> list[dict]:
+    """Ambil objek soal lengkap dari respons JSON yang terpotong."""
+    if not text:
+        return []
+    anchor = text.find('"questions"')
+    if anchor == -1:
+        return []
+    start = text.find("[", anchor)
+    if start == -1:
+        return []
+
+    items: list[str] = []
+    in_string = False
+    escape = False
+    depth = 0
+    obj_start = None
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth += 1
+            if depth == 1:
+                obj_start = idx
+        elif ch == "}":
+            if depth == 1 and obj_start is not None:
+                items.append(text[obj_start : idx + 1])
+                obj_start = None
+            if depth > 0:
+                depth -= 1
+        elif ch == "]" and depth == 0:
+            break
+
+    recovered: list[dict] = []
+    for raw in items:
+        normalized = _close_unbalanced_json(
+            _repair_trailing_commas(
+                _repair_unterminated_strings(_normalize_jsonish_text(raw))
+            )
+        )
+        try:
+            parsed = json.loads(normalized)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            recovered.append(parsed)
+    return recovered
+
+
+def _salvage_stimulus_from_text(text: str) -> Optional[dict]:
+    """Ambil stimulus pertama dari respons JSON yang terpotong."""
+    if not text:
+        return None
+    anchor = text.find('"stimulus"')
+    if anchor == -1:
+        return None
+    obj_start = text.find("{", anchor)
+    if obj_start == -1:
+        return None
+    questions_anchor = text.find('"questions"', obj_start)
+    block = text[obj_start : questions_anchor if questions_anchor != -1 else None].rstrip()
+    if block.endswith(","):
+        block = block[:-1]
+    normalized = _close_unbalanced_json(
+        _repair_trailing_commas(
+            _repair_unterminated_strings(_normalize_jsonish_text(block))
+        )
+    )
+    try:
+        parsed = json.loads(normalized)
+    except (TypeError, ValueError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 
@@ -407,6 +501,7 @@ def _build_generated_question(
     fallback_topic: str,
     fallback_difficulty: str,
     generator_mode: str,
+    answer_mode: str = "mix",
 ) -> Optional[dict]:
     if not isinstance(item, dict):
         return None
@@ -473,18 +568,36 @@ def _build_generated_question(
                     tf_entries.append({"text": text_value, "answer": "benar"})
                 elif answer_value in {"salah", "false"}:
                     tf_entries.append({"text": text_value, "answer": "salah"})
-    if tf_entries:
+    normalized_answer_mode = (answer_mode or "mix").strip().lower()
+    force_multiple_choice = normalized_answer_mode in {"multiple_choice", "pg", "pg_only"}
+    force_true_false = normalized_answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}
+    if force_multiple_choice:
+        # Model kadang tetap mengirim `statements` meskipun user memilih PG.
+        # Pilihan user harus menjadi sumber kebenaran format soal.
+        tf_entries = []
+        metadata.pop("true_false_statements", None)
+    elif tf_entries:
         metadata["true_false_statements"] = tf_entries
     raw_mode = (item.get("generator_mode") or item.get("question_mode") or item.get("question_type") or "").strip().lower()
-    if raw_mode in {"truefalse", "true_false", "tf"} or tf_entries:
+    if force_multiple_choice:
+        question_format = "multiple_choice"
+        resolved_mode = generator_mode
+    elif force_true_false:
+        question_format = "true_false"
+        resolved_mode = "truefalse"
+    elif raw_mode in {"truefalse", "true_false", "tf"} or tf_entries:
+        question_format = "true_false"
         resolved_mode = "truefalse"
     elif raw_mode in {"image", "gambar"}:
+        question_format = "multiple_choice"
         resolved_mode = "image"
     elif raw_mode:
+        question_format = "multiple_choice"
         resolved_mode = raw_mode
     else:
+        question_format = "multiple_choice"
         resolved_mode = generator_mode
-    if tf_entries and len(options) < 2:
+    if question_format == "true_false" and len(options) < 2:
         # Lengkapi opsi default agar backend tidak menolak true/false tanpa pilihan
         options = [
             {"key": "A", "text": "Pernyataan benar"},
@@ -502,6 +615,8 @@ def _build_generated_question(
         "correct_key": answer_key,
         "explanation": explanation,
         "generator_mode": resolved_mode,
+        "question_type": question_format,
+        "answer_format": question_format,
     }
     if metadata:
         metadata.setdefault("generator_mode", resolved_mode)
@@ -525,6 +640,7 @@ def _normalize_generated_questions(
     fallback_difficulty: str,
     generator_mode: str = "normal",
     target_children: Optional[int] = None,
+    answer_mode: str = "mix",
 ) -> list[dict]:
     questions: list[dict] = []
     if isinstance(payload, dict):
@@ -546,7 +662,13 @@ def _normalize_generated_questions(
             rows = stim.get("questions") or stim.get("items") or []
             normalized_rows: list[dict] = []
             for row in rows:
-                normalized = _build_generated_question(row, fallback_topic, fallback_difficulty, generator_mode)
+                normalized = _build_generated_question(
+                    row,
+                    fallback_topic,
+                    fallback_difficulty,
+                    generator_mode,
+                    answer_mode,
+                )
                 if normalized:
                     normalized_rows.append(normalized)
             if len(normalized_rows) < MIN_GENERATED_CHILDREN:
@@ -560,7 +682,13 @@ def _normalize_generated_questions(
     if not isinstance(raw_items, list):
         return questions
     for item in raw_items:
-        normalized = _build_generated_question(item, fallback_topic, fallback_difficulty, generator_mode)
+        normalized = _build_generated_question(
+            item,
+            fallback_topic,
+            fallback_difficulty,
+            generator_mode,
+            answer_mode,
+        )
         if normalized:
             questions.append(normalized)
     return questions
@@ -1251,29 +1379,27 @@ def latihan_tka_check_duplicate():
     raw_mapel_id = payload.get("mapel_id")
     prompt = (payload.get("prompt") or "").strip()
     try:
-        subject_id = int(raw_subject_id)
-    except (TypeError, ValueError):
-        subject_id = None
-    try:
         test_subject_id = int(raw_test_subject_id)
     except (TypeError, ValueError):
         test_subject_id = None
     try:
         mapel_id = int(raw_mapel_id)
     except (TypeError, ValueError):
-        mapel_id = None
+        try:
+            # Kompatibilitas klien lama: `subject_id` saat ini berisi ID mapel.
+            mapel_id = int(raw_subject_id)
+        except (TypeError, ValueError):
+            mapel_id = None
     if not prompt:
         return jsonify({"success": False, "message": "Prompt wajib diisi."}), 400
-    resolved_subject_id = subject_id
-    if not resolved_subject_id and mapel_id:
-        try:
-            resolved_subject_id = ensure_tka_subject_from_mapel(mapel_id)
-        except Exception:
-            resolved_subject_id = None
-    if not resolved_subject_id and not test_subject_id:
+    if not mapel_id and not test_subject_id:
         return jsonify({"success": False, "message": "Pilih mapel pada tes sebelum cek duplikat."}), 400
     try:
-        exists = has_tka_question_with_prompt(prompt, test_subject_id=test_subject_id)
+        exists = has_tka_question_with_prompt(
+            prompt,
+            test_subject_id=test_subject_id,
+            mapel_id=mapel_id,
+        )
     except Exception as exc:
         current_app.logger.error("Gagal mengecek duplikat soal: %s", exc)
         return jsonify({"success": False, "message": "Gagal mengecek duplikat."}), 500
@@ -1457,52 +1583,29 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
     grade_level = (grade_level or "").strip().lower()
     if grade_level not in VALID_TKA_GRADE_LEVELS:
         grade_level = DEFAULT_TKA_GRADE_LEVEL
-    ensured_subject_id = None
-    if not subject_id and mapel_id:
-        try:
-            ensured_subject_id = ensure_tka_subject_from_mapel(mapel_id)
-        except Exception:
-            ensured_subject_id = None
-        subject_id = ensured_subject_id or subject_id
-    subject = fetch_tka_subject(subject_id) if subject_id else None
     subject_name_hint = (
         subject_label_hint
         or (mapel_record and mapel_record.get("name"))
         or (test_payload and test_payload.get("name"))
         or f"Mapel #{mapel_id or subject_id or '-'}"
     )
-    if not subject:
-        current_app.logger.warning(
-            "[TKA][generate] mapel tidak ditemukan | subject_id=%s test_id=%s test_subject_id=%s payload=%s",
-            subject_id,
-            test_id,
-            test_subject_id,
-            {
-                "topic": topic,
-                "difficulty": difficulty,
-                "generator_mode": generator_mode,
-            },
-        )
-        if mapel_id and not ensured_subject_id:
-            try:
-                ensured_subject_id = ensure_tka_subject_from_mapel(mapel_id)
-            except Exception:
-                ensured_subject_id = None
-            if ensured_subject_id:
-                subject_id = ensured_subject_id
-                subject = fetch_tka_subject(subject_id)
-    if not subject:
-        if not return_stimulus or generator_mode in {"lite", "bundle"}:
-            subject = {
-                "id": subject_id,
-                "name": subject_name_hint,
-                "grade_level": grade_level or (test_payload and test_payload.get("grade_level")) or DEFAULT_TKA_GRADE_LEVEL,
-            }
-        else:
-            return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
-    else:
-        subject["name"] = subject_name_hint or subject.get("name") or f"Mapel #{mapel_id or subject.get('id') or '-'}"
-        subject["grade_level"] = grade_level or (subject.get("grade_level") or DEFAULT_TKA_GRADE_LEVEL)
+    if test_subject_payload and not mapel_record:
+        return jsonify({"success": False, "message": "Mapel pada tes belum tersedia."}), 404
+    if not mapel_record and not subject_label_hint:
+        return jsonify({"success": False, "message": "Mapel belum tersedia."}), 404
+
+    # Struktur baru menyimpan mapel di tka_mata_pelajaran. Hindari konversi ke
+    # tka_subjects (struktur lama) yang sudah tidak digunakan oleh generator.
+    subject = {
+        "id": mapel_id or subject_id,
+        "name": subject_name_hint,
+        "grade_level": (
+            grade_level
+            or (mapel_record and mapel_record.get("grade_level"))
+            or (test_payload and test_payload.get("grade_level"))
+            or DEFAULT_TKA_GRADE_LEVEL
+        ),
+    }
 
     if not topic:
         return jsonify({"success": False, "message": "Topik wajib diisi untuk generator."}), 400
@@ -1599,6 +1702,31 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
         )
     if reference_image_data:
         image_clause += " Sistem akan menambahkan file gambar secara otomatis, jadi cukup pastikan field `image_data` ada namun boleh dikosongkan."
+    if answer_mode in {"multiple_choice", "pg", "pg_only"}:
+        question_output_schema = (
+            '{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", '
+            '"question_type":"multiple_choice", "options":[{"key":"A","text":"..."},'
+            '{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}], '
+            '"answer":"A", "explanation":"..."}'
+        )
+    elif answer_mode in {"true_false", "tf", "truefalse", "benar_salah"}:
+        question_output_schema = (
+            '{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", '
+            '"question_type":"true_false", "options":[], "answer":"", "explanation":"...", '
+            '"statements":[{"text":"...", "answer":"benar|salah"}]}'
+        )
+    else:
+        question_output_schema = (
+            '{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", '
+            '"question_type":"multiple_choice|true_false", '
+            '"options":[{"key":"A","text":"..."}], "answer":"A", "explanation":"...", '
+            '"statements":[{"text":"...", "answer":"benar|salah"}]}'
+        )
+    questions_output_schema = '{"questions":[' + question_output_schema + ']}'
+    stimulus_output_schema = (
+        '{"stimulus":[{"title":"Judul Stimulus","narrative":"...", "image_prompt":"...", '
+        '"questions":[' + question_output_schema + ']}]}'
+    )
     if generator_mode == "pro" and selected_stimulus:
         stimulus_title = (selected_stimulus.get("title") or f"Stimulus #{selected_stimulus_id}").strip()
         stimulus_story = (selected_stimulus.get("narrative") or "").strip() or "Narasi belum tersedia. Gunakan deskripsi gambar atau konteks umum."
@@ -1635,9 +1763,7 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
         prompt_rows.append(f"Akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.")
         prompt_rows.append(
             "Format keluaran harus berupa JSON valid (tanpa teks lain) mengikuti contoh berikut:\n"
-            '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
-            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
-            '"statements":[{"text":"...", "answer":"benar"}]}]}]'
+            + questions_output_schema
         )
         prompt = "\n".join(prompt_rows)
     elif generator_mode == "lite":
@@ -1656,9 +1782,7 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
             f"{style_block}{manual_clause}{image_clause}"
             f"Tutup setiap pembahasan dengan kalimat \\\"Kode: {uniqueness_hint}\\\".\n"
             "Keluaran hanya JSON valid:\n"
-            '{"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
-            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
-            '"statements":[{"text":"...", "answer":"benar"}]}]}'
+            + questions_output_schema
         )
     else:
         pg_clause = "Format PG: sertakan 4 opsi A-D dan pembahasan singkat."
@@ -1687,10 +1811,7 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
             f"{style_block}{manual_clause}{image_clause}"
             f"Pastikan setiap stimulus unik dan akhiri pembahasan setiap soal dengan kalimat \\\"Kode: {uniqueness_hint}\\\" agar mudah dilacak.\n"
             "Format keluaran harus berupa JSON valid (tanpa teks lain) mengikuti contoh berikut:\n"
-            '{"stimulus":[{"title":"Judul Stimulus","narrative":"...", "image_prompt":"...", '
-            '"questions":[{"prompt":"...", "topic":"...", "difficulty":"easy|medium|hard", "question_type":"multiple_choice|true_false", '
-            '"options":[{"key":"A","text":"..."},...], "answer":"A", "explanation":"...", '
-            '"statements":[{"text":"...", "answer":"benar"}]}]}]}'
+            + stimulus_output_schema
         )
     if preview_only:
         return jsonify({"success": True, "prompt": prompt})
@@ -1767,6 +1888,7 @@ def _handle_tka_generate_request(return_stimulus: bool = True):
         difficulty,
         generator_mode=generator_mode,
         target_children=bundle_size,
+        answer_mode=answer_mode,
     )
     if generator_mode == "bundle":
         forced_type = "table" if stimulus_style == "table" else "text"

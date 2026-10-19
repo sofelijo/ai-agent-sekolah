@@ -876,7 +876,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="d-flex align-items-center gap-2">
                     <span class="fw-semibold">Soal ${ordinal}</span>
                     <span class="badge text-bg-light text-uppercase">${escapeHtml(question?.difficulty || 'easy')}</span>
-                    ${questionType === 'true_false' ? '<span class="badge text-bg-info">Benar/Salah</span>' : ''}
+                    ${questionType === 'true_false'
+                        ? '<span class="badge text-bg-info">Benar/Salah</span>'
+                        : '<span class="badge text-bg-primary">Pilihan Ganda</span>'}
                 </div>
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-outline-info" data-action="check-duplicate">Cek duplikat</button>
@@ -931,7 +933,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ` : `
                 <div class="option-grid option-grid-4 mb-2">
                     ${opts.map(opt => `
-                        <input type="text" class="form-control" data-option="${opt.key || ''}" value="${opt.text || ''}" placeholder="Opsi ${opt.key || ''}">
+                        <div class="input-group">
+                            <span class="input-group-text fw-semibold">${escapeHtml(opt.key || '')}</span>
+                            <input type="text" class="form-control" data-option="${escapeHtml(opt.key || '')}" value="${escapeHtml(opt.text || '')}" placeholder="Opsi ${escapeHtml(opt.key || '')}">
+                        </div>
                     `).join('')}
                 </div>
                 <label class="form-label small">Pembahasan</label>

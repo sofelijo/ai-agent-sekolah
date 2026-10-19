@@ -1250,8 +1250,13 @@ def create_tka_questions(
     return inserted
 
 
-def has_tka_question_with_prompt(prompt: str, *, test_subject_id: Optional[int] = None) -> bool:
-    if not test_subject_id or not prompt:
+def has_tka_question_with_prompt(
+    prompt: str,
+    *,
+    test_subject_id: Optional[int] = None,
+    mapel_id: Optional[int] = None,
+) -> bool:
+    if not (test_subject_id or mapel_id) or not prompt:
         return False
     normalized = prompt.strip().lower()
     if not normalized:
@@ -1262,6 +1267,9 @@ def has_tka_question_with_prompt(prompt: str, *, test_subject_id: Optional[int] 
     if test_subject_id:
         clauses.append("test_subject_id = %s")
         params.append(test_subject_id)
+    elif mapel_id:
+        clauses.append("mapel_id = %s")
+        params.append(mapel_id)
     if not clauses:
         return False
     with get_cursor() as cur:
