@@ -1,0 +1,119 @@
+{% extends "attendance/base.html" %}
+{% block title %}Konfigurasi Poin Siswa{% endblock %}
+{% block head_extra %}
+<style>
+    .config-list details { border-bottom: 1px solid var(--bs-border-color); }
+    .config-list details:last-child { border-bottom: 0; }
+    .config-list summary { cursor: pointer; list-style: none; padding: 1rem 0; }
+    .config-list summary::-webkit-details-marker { display: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div><a class="small text-decoration-none" href="{{ url_for('student_points.index') }}"><i class="bi bi-arrow-left"></i> Kembali</a><h1 class="h3 mt-2 mb-1">Konfigurasi Poin Siswa</h1><p class="text-muted mb-0">Ubah jenis pelanggaran, bobot poin, dan level tindak lanjut tanpa mengubah kode.</p></div>
+</div>
+<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Perubahan bobot hanya berlaku untuk catatan baru. Riwayat lama tetap memakai bobot saat kejadian agar audit konsisten.</div>
+
+<div class="card border-0 shadow-sm mb-4"><div class="card-body">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3"><div><h2 class="h5 mb-1">Master Kategori</h2><p class="small text-muted mb-0">Tambah kategori di sini agar tersedia pada dropdown jenis pelanggaran.</p></div><span class="badge text-bg-primary align-self-start">{{ category_records|length }} kategori</span></div>
+    <div class="row g-4">
+        <div class="col-lg-7"><div class="config-list">
+            {% for item in category_records %}<details><summary class="d-flex justify-content-between align-items-center gap-3"><div><strong>{{ item.name }}</strong>{% if item.description %}<div class="small text-muted">{{ item.description }}</div>{% endif %}</div><div><span class="badge text-bg-{{ 'success' if item.active else 'secondary' }}">{{ 'Aktif' if item.active else 'Nonaktif' }}</span><i class="bi bi-chevron-down ms-2"></i></div></summary>
+                <form class="row g-3 pb-4" method="post" action="{{ url_for('student_points.save_category') }}"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ item.id }}">
+                    <div class="col-md-6"><label class="form-label">Nama kategori</label><input class="form-control" name="name" value="{{ item.name }}" required></div>
+                    <div class="col-md-3"><label class="form-label">Urutan</label><input class="form-control" type="number" min="0" name="sort_order" value="{{ item.sort_order }}"></div>
+                    <div class="col-md-3 d-flex align-items-end"><div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="active" id="categoryActive{{ item.id }}" {% if item.active %}checked{% endif %}><label class="form-check-label" for="categoryActive{{ item.id }}">Aktif</label></div></div>
+                    <div class="col-12"><label class="form-label">Deskripsi</label><textarea class="form-control" name="description" rows="2">{{ item.description or '' }}</textarea></div>
+                    <div class="col-12"><div class="alert alert-light small py-2 mb-2">Jika nama diubah, seluruh jenis pelanggaran dalam kategori ini ikut diperbarui. Riwayat lama tidak berubah.</div><button class="btn btn-primary">Simpan Kategori</button></div>
+                </form>
+            </details>{% else %}<div class="text-muted">Belum ada kategori.</div>{% endfor %}
+        </div></div>
+        <div class="col-lg-5"><div class="border rounded p-3"><h3 class="h6 mb-3"><i class="bi bi-plus-circle text-primary me-1"></i>Tambah Kategori</h3><form class="row g-3" method="post" action="{{ url_for('student_points.save_category') }}"><input type="hidden" name="action" value="create"><div class="col-md-8"><label class="form-label">Nama kategori</label><input class="form-control" name="name" placeholder="Contoh: Kebersihan" required></div><div class="col-md-4"><label class="form-label">Urutan</label><input class="form-control" type="number" min="0" name="sort_order" value="0"></div><div class="col-12"><label class="form-label">Deskripsi</label><textarea class="form-control" name="description" rows="2" placeholder="Keterangan singkat kategori"></textarea></div><div class="col-12"><button class="btn btn-primary w-100">Tambah Kategori</button></div></form></div></div>
+    </div>
+</div></div>
+
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="card border-0 shadow-sm"><div class="card-body">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3"><div><h2 class="h5 mb-1">Master Jenis Pelanggaran</h2><p class="small text-muted mb-0">Klik baris untuk mengedit, menonaktifkan, atau mengubah tindak lanjut.</p></div><span class="badge text-bg-primary">{{ violation_types|length }} jenis</span></div>
+            <div class="row g-2 align-items-end mb-2">
+                <div class="col-md-6"><label class="form-label fw-semibold" for="masterCategoryFilter">Filter kategori</label><select class="form-select" id="masterCategoryFilter"><option value="">Semua kategori</option>{% for category in categories %}<option value="{{ category }}">{{ category }}</option>{% endfor %}</select></div>
+                <div class="col-auto"><button class="btn btn-light" type="button" id="resetCategoryFilter"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button></div>
+            </div>
+            <div class="small text-muted mb-2" id="categoryFilterResult"></div>
+            <div class="config-list">
+                {% for item in violation_types %}
+                <details class="violation-config-item" data-category="{{ item.category }}"><summary class="d-flex align-items-center justify-content-between gap-3"><div><span class="fw-semibold">{{ item.name }}</span><div class="small text-muted">{{ item.code }} • {{ item.category }}</div></div><div class="d-flex align-items-center gap-2"><span class="badge text-bg-danger">{{ item.points }} poin</span>{% if item.active %}<span class="badge text-bg-success">Aktif</span>{% else %}<span class="badge text-bg-secondary">Nonaktif</span>{% endif %}<i class="bi bi-chevron-down"></i></div></summary>
+                    <form class="row g-3 pb-4" method="post" action="{{ url_for('student_points.save_violation_type') }}">
+                        <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ item.id }}">
+                        <div class="col-md-4"><label class="form-label">Kode</label><input class="form-control" name="code" value="{{ item.code }}" required></div>
+                        <div class="col-md-8"><label class="form-label">Nama pelanggaran</label><input class="form-control" name="name" value="{{ item.name }}" required></div>
+                        <div class="col-md-5"><label class="form-label">Kategori</label><select class="form-select" name="category" required>{% for category in category_records %}<option value="{{ category.name }}" {% if category.name == item.category %}selected{% endif %} {% if not category.active and category.name != item.category %}disabled{% endif %}>{{ category.name }}{% if not category.active %} (nonaktif){% endif %}</option>{% endfor %}</select></div>
+                        <div class="col-md-3"><label class="form-label">Bobot poin</label><input class="form-control" type="number" min="1" name="points" value="{{ item.points }}" required></div>
+                        <div class="col-md-2"><label class="form-label">Urutan</label><input class="form-control" type="number" min="0" name="sort_order" value="{{ item.sort_order }}"></div>
+                        <div class="col-md-2 d-flex align-items-end"><div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="active" id="violationActive{{ item.id }}" {% if item.active %}checked{% endif %}><label class="form-check-label" for="violationActive{{ item.id }}">Aktif</label></div></div>
+                        <div class="col-12"><label class="form-label">Deskripsi/kriteria</label><textarea class="form-control" name="description" rows="2">{{ item.description or '' }}</textarea></div>
+                        <div class="col-12"><label class="form-label">Rekomendasi tindak lanjut</label><textarea class="form-control" name="recommended_action" rows="2">{{ item.recommended_action or '' }}</textarea></div>
+                        <div class="col-12 text-end"><button class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Perubahan</button></div>
+                    </form>
+                </details>
+                {% else %}<div class="text-muted text-center py-4">Belum ada jenis pelanggaran.</div>{% endfor %}
+            </div>
+        </div></div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card border-0 shadow-sm mb-4"><div class="card-body"><h2 class="h5 mb-3"><i class="bi bi-plus-circle text-primary me-2"></i>Tambah Pelanggaran</h2>
+            <form class="row g-3" method="post" action="{{ url_for('student_points.save_violation_type') }}"><input type="hidden" name="action" value="create">
+                <div class="col-12"><label class="form-label">Kode unik</label><input class="form-control" name="code" placeholder="CONTOH_PELANGGARAN" required><div class="form-text">Huruf, angka, dan garis bawah.</div></div>
+                <div class="col-12"><label class="form-label">Nama pelanggaran</label><input class="form-control" name="name" required></div>
+                <div class="col-8"><label class="form-label">Kategori</label><select class="form-select" name="category" required><option value="">-- Pilih kategori --</option>{% for category in active_categories %}<option value="{{ category }}">{{ category }}</option>{% endfor %}</select></div>
+                <div class="col-4"><label class="form-label">Poin</label><input class="form-control" type="number" min="1" name="points" required></div>
+                <div class="col-12"><label class="form-label">Deskripsi/kriteria</label><textarea class="form-control" name="description" rows="2"></textarea></div>
+                <div class="col-12"><label class="form-label">Rekomendasi tindak lanjut</label><textarea class="form-control" name="recommended_action" rows="2"></textarea></div>
+                <input type="hidden" name="sort_order" value="0"><div class="col-12"><button class="btn btn-primary w-100">Tambah Jenis Pelanggaran</button></div>
+            </form>
+        </div></div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4"><div class="card-body"><div class="row g-4">
+    <div class="col-lg-8"><h2 class="h5 mb-1">Level Akumulasi & Tindak Lanjut</h2><p class="small text-muted">Sistem memilih level aktif dengan batas poin tertinggi yang sudah dicapai siswa.</p><div class="config-list">
+        {% for item in thresholds %}<details><summary class="d-flex justify-content-between align-items-center"><div><span class="badge text-bg-{{ item.color }} me-2">Mulai {{ item.min_points }} poin</span><strong>{{ item.label }}</strong></div><span class="small text-muted">{{ 'Aktif' if item.active else 'Nonaktif' }} <i class="bi bi-chevron-down ms-1"></i></span></summary>
+            <form class="row g-3 pb-4" method="post" action="{{ url_for('student_points.save_threshold') }}"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ item.id }}">
+                <div class="col-md-3"><label class="form-label">Mulai poin</label><input class="form-control" type="number" min="0" name="min_points" value="{{ item.min_points }}" required></div>
+                <div class="col-md-4"><label class="form-label">Nama level</label><input class="form-control" name="label" value="{{ item.label }}" required></div>
+                <div class="col-md-3"><label class="form-label">Warna</label><select class="form-select" name="color">{% for color in allowed_colors %}<option value="{{ color }}" {% if color == item.color %}selected{% endif %}>{{ color|title }}</option>{% endfor %}</select></div>
+                <div class="col-md-2 d-flex align-items-end"><div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" name="active" id="levelActive{{ item.id }}" {% if item.active %}checked{% endif %}><label class="form-check-label" for="levelActive{{ item.id }}">Aktif</label></div></div>
+                <div class="col-12"><label class="form-label">Tindak lanjut</label><textarea class="form-control" name="recommended_action" rows="2">{{ item.recommended_action or '' }}</textarea></div><div class="col-12 text-end"><button class="btn btn-primary">Simpan Level</button></div>
+            </form>
+        </details>{% endfor %}
+    </div>
+    <div class="col-lg-4"><h3 class="h6 mb-3">Tambah Level Baru</h3><form class="row g-3" method="post" action="{{ url_for('student_points.save_threshold') }}"><input type="hidden" name="action" value="create"><div class="col-5"><label class="form-label">Mulai poin</label><input class="form-control" type="number" min="0" name="min_points" required></div><div class="col-7"><label class="form-label">Nama level</label><input class="form-control" name="label" required></div><div class="col-12"><label class="form-label">Warna</label><select class="form-select" name="color">{% for color in allowed_colors %}<option value="{{ color }}">{{ color|title }}</option>{% endfor %}</select></div><div class="col-12"><label class="form-label">Tindak lanjut</label><textarea class="form-control" name="recommended_action" rows="3"></textarea></div><div class="col-12"><button class="btn btn-primary w-100">Tambah Level</button></div></form></div>
+</div></div></div>
+<script>
+(() => {
+    const filter = document.getElementById('masterCategoryFilter');
+    const reset = document.getElementById('resetCategoryFilter');
+    const result = document.getElementById('categoryFilterResult');
+    const items = Array.from(document.querySelectorAll('.violation-config-item'));
+    const applyFilter = () => {
+        const selected = filter.value;
+        let visible = 0;
+        items.forEach((item) => {
+            const show = !selected || item.dataset.category === selected;
+            item.hidden = !show;
+            if (show) visible += 1;
+        });
+        result.textContent = selected
+            ? `Menampilkan ${visible} jenis pelanggaran dalam kategori ${selected}.`
+            : `Menampilkan seluruh ${visible} jenis pelanggaran.`;
+    };
+    filter?.addEventListener('change', applyFilter);
+    reset?.addEventListener('click', () => {
+        filter.value = '';
+        applyFilter();
+    });
+    applyFilter();
+})();
+</script>
+{% endblock %}

@@ -644,6 +644,7 @@ def dashboard() -> str:
                 "key": month_key,
                 "date": month_date,
                 "totals": month_totals,
+                "recorded_days": len(month_rows),
             }
         )
     monthly_chart_default_key = monthly_chart_options[0]["value"] if monthly_chart_options else None
@@ -659,9 +660,11 @@ def dashboard() -> str:
                 "start_year": start_year,
                 "labels": _build_academic_year_labels(start_year),
                 "series": {status: [0] * len(ACADEMIC_MONTH_SEQUENCE) for status in ATTENDANCE_STATUSES},
+                "recorded_days": [0] * len(ACADEMIC_MONTH_SEQUENCE),
             },
         )
         month_index = ACADEMIC_MONTH_SEQUENCE.index(month_date.month)
+        bucket["recorded_days"][month_index] = entry["recorded_days"]
         for status in ATTENDANCE_STATUSES:
             bucket["series"][status][month_index] = entry["totals"][status]
 
@@ -673,6 +676,7 @@ def dashboard() -> str:
             "start_year": current_start_year,
             "labels": _build_academic_year_labels(current_start_year),
             "series": {status: [0] * len(ACADEMIC_MONTH_SEQUENCE) for status in ATTENDANCE_STATUSES},
+            "recorded_days": [0] * len(ACADEMIC_MONTH_SEQUENCE),
         }
 
     academic_year_options_raw = sorted(
@@ -686,8 +690,11 @@ def dashboard() -> str:
     academic_year_options: List[Dict[str, str]] = [
         {"value": item["value"], "label": item["label"]} for item in academic_year_options_raw
     ]
+    from attendance_trends import average_academic_series
     academic_year_chart_data = {
-        key: {"labels": bucket["labels"], "series": bucket["series"]}
+        key: {"labels": bucket["labels"],
+              "series": average_academic_series(bucket["series"], bucket["recorded_days"]),
+              "totals": bucket["series"], "recorded_days": bucket["recorded_days"], "normalized": True}
         for key, bucket in academic_year_buckets.items()
     }
     academic_year_default_key = (
@@ -799,7 +806,7 @@ def absen() -> str:
                 "level": "warning",
                 "message": f"Format tanggal tidak valid. Sistem menampilkan data {selected_date_label}.",
             }
-    class_options = list_school_classes()
+    class_options = list_school_classes(as_of=selected_date)
     teacher_class = fetch_teacher_assigned_class(user["id"]) or {}
     assigned_class_id = teacher_class.get("assigned_class_id")
     selected_class_id: Optional[int] = int(assigned_class_id) if assigned_class_id else None
@@ -813,7 +820,7 @@ def absen() -> str:
     latest_submission_at: Optional[datetime] = None
 
     if selected_class_id:
-        students = fetch_students_for_class(selected_class_id)
+        students = fetch_students_for_class(selected_class_id, as_of=selected_date)
         attendance_map = fetch_attendance_for_date(selected_class_id, selected_date)
         for student in students:
             student_id = int(student["id"])
@@ -1185,6 +1192,10 @@ def laporan_harian() -> str:
     teacher_absences = fetch_teacher_absence_for_date(selected_date)
     late_students = fetch_late_students_for_date(selected_date)
     school_identity = fetch_school_identity()
+    from ..data_mode import dummy_requested
+    if dummy_requested():
+        from academic_cohorts import academic_year_for
+        school_identity["academic_year"] = academic_year_for(selected_date)
     def _compose_with_degree(name: Optional[str], prefix: Optional[str], suffix: Optional[str]) -> Optional[str]:
         parts: List[str] = []
         for v in (prefix, name):
@@ -1389,6 +1400,10 @@ def laporan_bulanan() -> str:
     total_hari_tercatat = len(monthly_rows)
     total_absen = sum(monthly_totals.values())
     school_identity = fetch_school_identity()
+    from ..data_mode import dummy_requested
+    if dummy_requested():
+        from academic_cohorts import academic_year_for
+        school_identity["academic_year"] = academic_year_for(month_reference)
 
     return render_template(
         "attendance/report_monthly.html",
@@ -1420,7 +1435,7 @@ def lembar_bulanan() -> str:
     selected_month_label = _format_month_label(month_reference)
 
     # Resolve class selection
-    class_options = list_school_classes()
+    class_options = list_school_classes(as_of=month_reference)
     class_lookup = {int(c["id"]): c for c in class_options}
     raw_class_id = request.args.get("class_id")
     selected_class_id: Optional[int] = None
@@ -1433,8 +1448,12 @@ def lembar_bulanan() -> str:
         teacher_class = fetch_teacher_assigned_class(user["id"]) or {}
         selected_class_id = int(teacher_class.get("assigned_class_id") or 0) or None
 
-    students = fetch_students_for_class(selected_class_id) if selected_class_id else []
+    students = fetch_students_for_class(selected_class_id, as_of=month_reference) if selected_class_id else []
     school_identity = fetch_school_identity()
+    from ..data_mode import dummy_requested
+    if dummy_requested():
+        from academic_cohorts import academic_year_for
+        school_identity["academic_year"] = academic_year_for(month_reference)
 
     # Build matrix only if class selected
     days_in_month = calendar.monthrange(month_reference.year, month_reference.month)[1]
@@ -2376,7 +2395,7 @@ def ekskul_absen() -> str:
                     edit="1",
                 )
             )
-        members = fetch_extracurricular_members(selected_activity_id, include_inactive=False)
+        members = fetch_extracurricular_members(selected_activity_id, include_inactive=False, as_of=selected_date)
         if not members:
             flash("Belum ada anggota aktif untuk ekskul ini.", "warning")
             return redirect(
@@ -2519,7 +2538,7 @@ def ekskul_absen() -> str:
     existing_evidence: Optional[Dict[str, Any]] = None
     material_value: Optional[str] = None
     if selected_activity_id:
-        members = fetch_extracurricular_members(selected_activity_id, include_inactive=False)
+        members = fetch_extracurricular_members(selected_activity_id, include_inactive=False, as_of=selected_date)
         attendance_map = fetch_extracurricular_attendance_for_date(selected_activity_id, selected_date)
         has_existing = bool(attendance_map)
         existing_evidence = fetch_extracurricular_evidence_for_date(selected_activity_id, selected_date)

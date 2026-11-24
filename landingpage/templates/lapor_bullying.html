@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Lapor Perundungan · {{ content.get('site_name', 'Sekolah') }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/bullying.css') }}">
+</head>
+<body class="report-body">
+<main class="report-page">
+<div class="report-top"><a href="{{ url_for('landing_home') }}">← Beranda sekolah</a><span>{{ content.get('site_name', 'Sekolah') }}</span></div>
+<header class="report-header"><span class="report-kicker">SEKOLAH AMAN, BERSAMA</span><h1>Kamu berhak merasa aman.</h1><p>Ceritakan perundungan yang kamu alami atau saksikan. Guru dan admin sekolah akan menerima laporan ini untuk ditindaklanjuti.</p></header>
+{% if receipt %}
+<section class="report-card" aria-live="polite"><span class="report-kicker">LAPORAN TERKIRIM</span><h2>Terima kasih sudah bercerita.</h2><p>Simpan kode laporan ini jika ingin menghubungi pihak sekolah:</p><p class="receipt">{{ receipt }}</p><p>Laporan sudah masuk ke antrean guru/admin. Nama dan isi laporan tidak ditampilkan kepada publik.</p><a class="report-button" href="{{ url_for('landing_home') }}">Kembali ke beranda</a><p><a href="{{ url_for('public_bullying.report') }}">Buat laporan lain</a></p></section>
+{% else %}
+<aside class="report-notice">Jika kamu sedang tidak aman, segera cari guru atau orang dewasa tepercaya di dekatmu. Jangan menunggu balasan formulir ini.</aside>
+{% if errors %}<div class="report-errors" role="alert"><strong>Laporan belum terkirim.</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+<form class="report-card" method="post" enctype="multipart/form-data" action="{{ url_for('public_bullying.report') }}">
+<input type="hidden" name="csrf_token" value="{{ session.get('bullying_csrf','') }}"><input type="hidden" name="submission_id" value="{{ session.get('bullying_submission','') }}">
+<div class="report-trap" aria-hidden="true"><label for="website">Biarkan kosong</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+<h2>Tentang pelapor</h2><p class="report-help">Nama boleh dikosongkan jika ingin melapor tanpa nama. Kolom bertanda * wajib diisi.</p>
+<div class="report-grid"><div><label for="reporter_name">Nama pelapor <small>(opsional)</small></label><input id="reporter_name" name="reporter_name" maxlength="100" value="{{ values.get('reporter_name','') }}" autocomplete="off"></div>
+<div><label for="reporter_role">Saya adalah *</label><select id="reporter_role" name="reporter_role" required><option value="">Pilih hubungan dengan sekolah</option>{% for key,label in roles.items() %}<option value="{{ key }}" {% if values.get('reporter_role')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+<label for="contact">Nomor telepon / email <small>(opsional)</small></label><input id="contact" name="contact" maxlength="150" value="{{ values.get('contact','') }}" autocomplete="off"><p class="report-help">Isi jika bersedia dihubungi guru untuk tindak lanjut. Tidak perlu mencantumkan alamat rumah atau NIK.</p>
+<h2>Tentang kejadian</h2><div class="report-grid"><div><label for="victim">Nama korban <small>(opsional)</small></label><input id="victim" name="victim" maxlength="150" value="{{ values.get('victim','') }}"></div><div><label for="student_class">Kelas korban <small>(opsional)</small></label><input id="student_class" name="student_class" maxlength="60" placeholder="Contoh: 4 D" value="{{ values.get('student_class','') }}"></div></div>
+<label for="offender">Orang yang terlibat <small>(opsional)</small></label><input id="offender" name="offender" maxlength="200" value="{{ values.get('offender','') }}"><div class="report-grid"><div><label for="category">Jenis perundungan *</label><select id="category" name="category" required><option value="">Pilih jenis kejadian</option>{% for key,label in categories.items() %}<option value="{{ key }}" {% if values.get('category')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div><label for="incident_date">Tanggal kejadian <small>(opsional)</small></label><input id="incident_date" name="incident_date" type="date" max="{{ today }}" value="{{ values.get('incident_date','') }}"></div></div>
+<label for="location">Lokasi kejadian *</label><input id="location" name="location" required minlength="3" maxlength="200" placeholder="Contoh: halaman sekolah atau grup kelas" value="{{ values.get('location','') }}">
+<label for="description">Ceritakan yang terjadi *</label><textarea id="description" name="description" required minlength="20" maxlength="6000" rows="7" placeholder="Apa yang terjadi, kapan, dan siapa yang melihat? Ceritakan sebisamu.">{{ values.get('description','') }}</textarea>
+<label for="evidence">Foto / video pendukung <small>(opsional)</small></label>
+<input id="evidence" name="evidence" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm">
+<p class="report-help">Maksimal 3 berkas, 20 MB per berkas, total 40 MB. Foto JPG/PNG/WebP (maks. 20 megapiksel) atau video MP4/MOV/WebM (maks. 3 menit). Bukti hanya dapat diunduh guru/admin. Jika pengiriman gagal, pilih ulang berkas sebelum mengirim lagi.</p>
+<label class="report-check"><input type="checkbox" name="urgent" value="yes" {% if values.get('urgent') %}checked{% endif %}><span>Kejadian masih berlangsung atau membutuhkan perhatian segera.</span></label>
+<label class="report-check"><input type="checkbox" name="consent" value="yes" required><span>Saya menyampaikan laporan sesuai yang saya ketahui dan memahami laporan akan dibaca guru/admin untuk ditindaklanjuti. *</span></label>
+<button class="report-button" type="submit">Kirim laporan</button><p class="report-help">Isi laporan tidak ditampilkan kepada publik. Jangan sertakan kata sandi atau data pribadi yang tidak berkaitan dengan kejadian.</p>
+</form>
+{% endif %}
+</main>
+</body></html>

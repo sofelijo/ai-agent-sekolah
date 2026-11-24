@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="{{ 'noindex,nofollow' if student else 'index,follow' }}">
+    <title>Cek Kelulusan · {{ content.get('site_name', 'Sekolah') }}</title>
+    <meta name="description" content="Cek pengumuman kelulusan dan unduh Surat Keterangan Lulus menggunakan NISN.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='landingpage/css/graduation.css') }}">
+</head>
+<body class="student-check-body">
+<main class="student-check-page">
+    <div class="container">
+        <div class="student-check-topbar">
+            <a class="student-check-back" href="{{ url_for('landing_home') }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19l-7-7 7-7"/></svg>
+                Kembali
+            </a>
+            <div class="student-check-school">{{ content.get('site_name', 'Sekolah') }}</div>
+        </div>
+        <div class="student-check-shell">
+            <header class="student-check-heading">
+                <h1>Cek Kelulusan</h1>
+                <p>Masukkan NISN untuk melihat hasil kelulusan dan mengunduh Surat Keterangan Lulus.</p>
+            </header>
+            <section class="student-check-card" aria-labelledby="graduation-form-label">
+                <form class="student-check-form" method="post" action="{{ url_for('graduation.check') }}">
+                    <label id="graduation-form-label" for="nisn">NISN Siswa</label>
+                    <div class="student-check-input-row">
+                        <input class="student-check-input" id="nisn" name="nisn" type="text" inputmode="numeric"
+                            pattern="[0-9]{10}" minlength="10" maxlength="10" value="{{ nisn }}"
+                            placeholder="Masukkan 10 digit NISN" autocomplete="off" required autofocus>
+                        <button class="student-check-submit" type="submit">Cek Kelulusan</button>
+                    </div>
+                    <p class="student-check-help">Gunakan NISN yang terdaftar di sekolah.</p>
+                </form>
+                {% if error %}<div class="student-check-error" role="alert">{{ error }}</div>{% endif %}
+            </section>
+            {% if student %}
+            <section class="student-result-card" aria-live="polite">
+                <div class="student-result-header">
+                    <div>
+                        <div class="student-result-kicker">Hasil kelulusan</div>
+                        <h2 class="student-result-name">{{ student.name }}</h2>
+                    </div>
+                    <span class="student-status-badge {{ 'student-status-lulus' if student.status == 'lulus' else 'student-status-nonaktif' }}">{{ student.status_label }}</span>
+                </div>
+                <div class="student-result-grid">
+                    <div class="student-result-field"><span>NISN</span><strong>{{ student.masked_nisn }}</strong></div>
+                    <div class="student-result-field"><span>Kelas</span><strong>{{ student.class_name or 'Belum tersedia' }}</strong></div>
+                    <div class="student-result-field"><span>Tahun Kelulusan</span><strong>{{ student.year or 'Belum tersedia' }}</strong></div>
+                    <div class="student-result-field"><span>Tanggal Pengumuman</span><strong>{{ student.announcement_date.strftime('%d-%m-%Y') if student.announcement_date else 'Belum tersedia' }}</strong></div>
+                </div>
+                <div class="graduation-documents">
+                    {% if student.message %}<p class="graduation-message">{{ student.message }}</p>{% endif %}
+                    {% if has_document %}
+                    <h2>Surat Keterangan Lulus</h2>
+                    <div class="graduation-document-actions">
+                        <a class="student-check-submit" href="{{ url_for('graduation.document_download') }}">Unduh SKL</a>
+                        <a class="graduation-preview-link" href="{{ url_for('graduation.document_preview') }}" target="_blank" rel="noopener">Lihat Surat</a>
+                    </div>
+                    <p class="student-check-help">Jika tautan kedaluwarsa, masukkan kembali NISN untuk membuka surat.</p>
+                    {% else %}
+                    <p>Surat Keterangan Lulus belum tersedia. Silakan menghubungi sekolah.</p>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+            <p class="student-privacy-note">Jika data tidak sesuai, silakan menghubungi operator sekolah.</p>
+        </div>
+    </div>
+</main>
+</body>
+</html>

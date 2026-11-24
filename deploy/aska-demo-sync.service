@@ -1,0 +1,15 @@
+[Unit]
+Description=Original-to-demo durable synchronization
+After=network.target postgresql.service
+[Service]
+WorkingDirectory=/opt/ai-agent-sekolah
+EnvironmentFile=/opt/ai-agent-sekolah/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ai-agent-sekolah/venv/bin/python /opt/ai-agent-sekolah/deploy/sync_demo.py --project /opt/ai-agent-sekolah
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=3
+MemoryMax=128M
+[Install]
+WantedBy=multi-user.target

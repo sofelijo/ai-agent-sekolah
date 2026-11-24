@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from flask import Flask, render_template, Response, request, send_file, abort, jsonify, redirect, url_for
 
-from dashboard.queries import fetch_landingpage_content, fetch_landingpage_teachers
+from dashboard.queries import (
+    fetch_landingpage_content, fetch_landingpage_teachers,
+    fetch_landingpage_graduation_by_nisn, fetch_landingpage_graduation_by_id,
+)
+from .graduation import register_graduation
+from .bullying import register_bullying
+from bullying_intake import save_public_report
 from dashboard.attendance.queries import (
     fetch_public_student_status,
     list_extracurriculars,
@@ -31,14 +36,17 @@ def create_app() -> Flask:
         template_folder="templates",
         static_folder="static",
     )
+    if os.getenv("LANDINGPAGE_TRUST_PROXY") == "1":
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     data_path = Path(__file__).resolve().parent / "static" / "landingpage" / "data" / "guru_full.json"
     dashboard_static = Path(__file__).resolve().parent.parent / "dashboard" / "static"
     default_ekskul_image = "landingpage/images/ekstra-pramuka.jpg"
-    base_web_aska_url = (os.getenv("ASKA_WEB_URL") or "http://127.0.0.1:5001").rstrip("/")
-    graduation_target_url = (
-        os.getenv("ASKA_WEB_GRADUATION_URL")
-        or f"{base_web_aska_url}/kelulusan"
-    )
+    register_graduation(app, fetch_content=fetch_landingpage_content,
+        lookup_by_nisn=fetch_landingpage_graduation_by_nisn,
+        lookup_by_id=fetch_landingpage_graduation_by_id, resolve_site_key=_resolve_site_key)
+
+    register_bullying(app, save_report=save_public_report, fetch_content=fetch_landingpage_content, resolve_site_key=_resolve_site_key)
 
     def _normalize_guru_photo(item: dict) -> dict:
         foto = (item.get("foto") or "").strip()
@@ -205,7 +213,7 @@ def create_app() -> Flask:
             content=content,
             site_key=site_key,
             extracurriculars=extracurriculars,
-            graduation_target_url=url_for("landing_graduation_redirect"),
+            graduation_target_url=url_for("graduation.check"),
             student_check_url=url_for("landing_student_check"),
         )
 
@@ -237,24 +245,6 @@ def create_app() -> Flask:
             200,
             {"Cache-Control": "no-store, max-age=0"},
         )
-
-    # Waktu pengumuman kelulusan: 2 Juni 2026 jam 10:00 WIB (UTC+7)
-    GRADUATION_ANNOUNCEMENT_TIME = datetime(
-        2026, 6, 2, 10, 0, 0,
-        tzinfo=timezone(timedelta(hours=7))
-    )
-
-    @app.route("/kelulusan")
-    @app.route("/cek-kelulusan")
-    def landing_graduation_redirect():
-        now_wib = datetime.now(tz=timezone(timedelta(hours=7)))
-        if now_wib < GRADUATION_ANNOUNCEMENT_TIME:
-            return render_template(
-                "countdown.html",
-                graduation_url=graduation_target_url,
-                announcement_iso=GRADUATION_ANNOUNCEMENT_TIME.isoformat(),
-            )
-        return redirect(graduation_target_url)
 
     @app.route("/ekskul/<int:activity_id>")
     def landing_extracurricular_detail(activity_id: int):
@@ -349,7 +339,7 @@ def create_app() -> Flask:
     @app.route("/sitemap.xml")
     def sitemap() -> Response:
         base = request.url_root.rstrip("/")
-        urls = [f"{base}/", f"{base}/guru", f"{base}/cek-siswa"]
+        urls = [f"{base}/", f"{base}/guru", f"{base}/cek-siswa", f"{base}/kelulusan"]
         try:
             content = fetch_landingpage_content(site_key=_resolve_site_key())
             for item in _build_extracurricular_list(content):

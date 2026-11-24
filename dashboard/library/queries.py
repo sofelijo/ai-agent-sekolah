@@ -247,6 +247,12 @@ def get_borrowings(student_id: Optional[int] = None, search_query: str = "", sta
             LEFT JOIN dashboard_users ur ON br.returned_by = ur.id
             WHERE 1=1
         """
+        from ..data_mode import dummy_requested
+        if dummy_requested():
+            from ..academic_roster import history_join
+            query = query.replace("c.name as class_name", "COALESCE(academic_history.class_name,c.name) as class_name")
+            query = query.replace("s.full_name as student_name", "COALESCE(academic_history.full_name,s.full_name) as student_name")
+            query = query.replace("LEFT JOIN dashboard_users u", history_join("s.id", "br.borrow_date") + "LEFT JOIN dashboard_users u", 1)
         params = []
         
         if status:

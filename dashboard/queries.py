@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from flask import has_request_context, session
 from psycopg2.extras import DictRow, Json
 
-from .db_access import get_cursor
+from .db_access import get_cursor, original_cursor, original_write_cursor
 from db import (
     DEFAULT_TKA_PRESETS,
     DEFAULT_TKA_PRESET_KEY,
@@ -1948,7 +1948,7 @@ def fetch_bullying_summary() -> Dict[str, int]:
     summary = {status: 0 for status in BULLYING_STATUSES}
     total = 0
     escalated_total = 0
-    with get_cursor() as cur:
+    with original_cursor() as cur:
         clause, clause_params = _tester_condition("user_id")
         query = [
             "SELECT status, COUNT(*) AS total",
@@ -2105,7 +2105,7 @@ def fetch_bullying_reports(
         + " ORDER BY br.escalated DESC, br.priority DESC, br.created_at DESC LIMIT %s OFFSET %s"
     )
 
-    with get_cursor() as cur:
+    with original_cursor() as cur:
         cur.execute(query, (*params, limit, offset))
         rows = cur.fetchall()
         cur.execute(
@@ -2433,7 +2433,7 @@ def update_bullying_report_status(
     escalated: Optional[bool] = None,
 ) -> bool:
     """Update bullying report fields and append an audit trail entry."""
-    with get_cursor(commit=True) as cur:
+    with original_write_cursor() as cur:
         cur.execute(
             """
             SELECT status, notes, assigned_to, due_at, escalated
@@ -2558,23 +2558,23 @@ def bulk_update_bullying_report_status(
 
     target_status = "pending" if normalized_status == "undo" else normalized_status
 
-    with get_cursor(commit=True) as cur:
-        cur.execute(
-            """
-            UPDATE bullying_reports
-            SET status = %s,
-                last_updated_by = %s,
-                updated_at = NOW()
-            WHERE id = ANY(%s::int[])
-            """,
-            (target_status, updated_by, report_ids),
-        )
-        return cur.rowcount > 0
+    with original_write_cursor() as cur:
+        cur.execute("SELECT id,status FROM bullying_reports WHERE id=ANY(%s::int[]) FOR UPDATE",(report_ids,))
+        rows=cur.fetchall()
+        for row in rows:
+            old=row['status']
+            if old==target_status:continue
+            cur.execute("""UPDATE bullying_reports SET status=%s,last_updated_by=%s,updated_at=NOW(),
+                resolved_at=CASE WHEN %s='resolved' THEN NOW() ELSE NULL END WHERE id=%s""",
+                (target_status,updated_by,target_status,row['id']))
+            cur.execute("INSERT INTO bullying_report_events(report_id,event_type,actor,payload) VALUES(%s,'status_changed',%s,%s)",
+                (row['id'],updated_by,Json({'changes':{'status':{'from':old,'to':target_status}}})))
+        return bool(rows)
 
 
 def fetch_bullying_report_detail(report_id: int) -> Optional[Dict[str, Any]]:
     tester_clause, tester_params = _tester_condition("br.user_id")
-    with get_cursor() as cur:
+    with original_cursor() as cur:
         query_parts = [
             "SELECT",
             "    br.id,",
@@ -2637,7 +2637,7 @@ def fetch_bullying_report_basic(report_id: int) -> Optional[Dict[str, Any]]:
         query.append(f"  AND {clause}")
         params.extend(clause_params)
     query.append("LIMIT 1")
-    with get_cursor() as cur:
+    with original_cursor() as cur:
         cur.execute("\n".join(query), tuple(params))
         row = cur.fetchone()
     return dict(row) if row else None

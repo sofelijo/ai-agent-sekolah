@@ -13,6 +13,7 @@ from pathlib import Path
 
 from flask import (
     Blueprint,
+    abort,
     Response,
     flash,
     jsonify,
@@ -391,7 +392,9 @@ def _extract_graduation_form_payload() -> Dict[str, Any]:
 @main_bp.before_request
 def restrict_teacher_access():
     user = current_user()
-    if user and user.get("role") == "staff":
+    staff_allowed_endpoints = {"main.dashboard", "main.app_hub", "main.toggle_no_tester",
+        "main.bullying_reports", "main.bullying_report_detail", "main.update_bullying_status", "main.bulk_update_bullying_status"}
+    if user and user.get("role") == "staff" and request.endpoint not in staff_allowed_endpoints:
         return redirect(url_for("attendance.dashboard"))
     if user and user.get("role") == "ekskul":
         return redirect(url_for("attendance.ekskul_dashboard"))
@@ -1465,13 +1468,15 @@ def bullying_report_detail(report_id: int) -> Response:
 @main_bp.route("/bullying-reports/bulk-status", methods=["POST"])
 @role_required("admin", "staff")
 def bulk_update_bullying_status() -> Response:
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"success": False, "message": "Format data tidak valid"}), 400
     report_ids = data.get("report_ids")
     status = data.get("status")
     user = current_user()
     updated_by = user.get("full_name") or user.get("email") if user else None
 
-    if not report_ids or not isinstance(report_ids, list):
+    if not isinstance(report_ids, list) or not report_ids or len(report_ids)>100 or any(not str(x).isdigit() for x in report_ids):
         return jsonify({"success": False, "message": "Invalid report IDs"}), 400
 
     if status not in BULLYING_STATUSES and status != "undo":
@@ -1483,8 +1488,9 @@ def bulk_update_bullying_status() -> Response:
         else:
             bulk_update_bullying_report_status(report_ids, status, updated_by)
         return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    except Exception:
+        current_app.logger.error("Bullying bulk update failed; report contents omitted")
+        return jsonify({"success": False, "message": "Perubahan belum tersimpan. Coba lagi."}), 500
 
 
 @main_bp.route("/bullying-reports/<int:report_id>/status", methods=["POST"])
@@ -1493,10 +1499,14 @@ def update_bullying_status(report_id: int) -> Response:
     action = (request.form.get("action") or "save").strip().lower()
     status_value = request.form.get("status")
     notes = request.form.get("notes") or ""
+    if len(notes)>10000 or len(request.form.get("assigned_to", ""))>200:
+        abort(400)
     assigned_to = request.form.get("assigned_to")
     due_at_raw = request.form.get("due_at")
     escalate_values = request.form.getlist("escalate")
     next_url = request.form.get("next") or url_for("main.bullying_reports")
+    if not next_url.startswith("/bullying-reports") or next_url.startswith("//"):
+        next_url = url_for("main.bullying_reports")
 
     user = current_user()
     updated_by = None
@@ -1525,6 +1535,10 @@ def update_bullying_status(report_id: int) -> Response:
         assigned_to = ""
 
     try:
+        if isinstance(due_at_param, str) and due_at_param:
+            due_at_param = datetime.fromisoformat(due_at_param)
+            if due_at_param.tzinfo is None:
+                due_at_param = due_at_param.replace(tzinfo=timezone(timedelta(hours=7)))
         updated = update_bullying_report_status(
             report_id,
             status=status_value,

@@ -1,0 +1,204 @@
+{% extends "attendance/base.html" %}
+{% block title %}Poin Siswa{% endblock %}
+
+{% block head_extra %}
+<style>
+    .point-stat { border: 0; box-shadow: var(--bs-box-shadow-sm); }
+    .point-stat .stat-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; }
+    .point-table th { white-space: nowrap; }
+    .point-table td { vertical-align: middle; }
+    .student-select option[hidden] { display: none; }
+    .config-hint { border-left: 3px solid var(--bs-primary); }
+    .record-void { opacity: .62; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Poin Siswa</h1>
+        <p class="text-muted mb-0">Catat, pantau, dan tindak lanjuti pelanggaran siswa secara transparan.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-success" href="{{ url_for('student_points.export_csv', class_id=filters.class_id or '', category=filters.category or '', status=filters.status, start_date=filters.start_date.isoformat() if filters.start_date else '', end_date=filters.end_date.isoformat() if filters.end_date else '') }}">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        </a>
+        <a class="btn btn-outline-primary" href="{{ url_for('student_points.config') }}">
+            <i class="bi bi-sliders me-1"></i>Konfigurasi
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recordModal">
+            <i class="bi bi-plus-circle me-1"></i>Catat Pelanggaran
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="card point-stat h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon text-bg-primary-subtle text-primary"><i class="bi bi-journal-text fs-5"></i></span>
+            <div><div class="h4 mb-0">{{ overview.total_records }}</div><div class="small text-muted">Catatan aktif</div></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card point-stat h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon text-bg-danger-subtle text-danger"><i class="bi bi-exclamation-diamond fs-5"></i></span>
+            <div><div class="h4 mb-0">{{ overview.total_points }}</div><div class="small text-muted">Total poin</div></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card point-stat h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon text-bg-warning-subtle text-warning"><i class="bi bi-people fs-5"></i></span>
+            <div><div class="h4 mb-0">{{ overview.affected_students }}</div><div class="small text-muted">Siswa tercatat</div></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card point-stat h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon text-bg-info-subtle text-info"><i class="bi bi-calendar-day fs-5"></i></span>
+            <div><div class="h4 mb-0">{{ overview.records_today }}</div><div class="small text-muted">Hari ini</div></div>
+        </div></div>
+    </div>
+    <div class="col-12 col-lg">
+        <div class="card point-stat h-100"><div class="card-body d-flex align-items-center gap-3">
+            <span class="stat-icon text-bg-secondary-subtle text-secondary"><i class="bi bi-calendar3 fs-5"></i></span>
+            <div><div class="h4 mb-0">{{ overview.points_this_month }}</div><div class="small text-muted">Poin bulan ini</div></div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0"><i class="bi bi-person-lines-fill text-primary me-2"></i>Rekap Siswa</h2>
+            <span class="small text-muted">Diurutkan dari poin tertinggi</span>
+        </div>
+        <form class="row g-2 mb-3" method="get">
+            <div class="col-md-4">
+                <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Cari nama, NIS, atau NISN">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="class_id">
+                    <option value="">Semua kelas</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}" {% if filters.class_id == class.id %}selected{% endif %}>{{ class.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto"><button class="btn btn-primary"><i class="bi bi-search"></i> Cari</button></div>
+            <div class="col-auto"><a class="btn btn-light" href="{{ url_for('student_points.index') }}">Reset</a></div>
+        </form>
+        <div class="table-responsive">
+            <table class="table point-table align-middle mb-0">
+                <thead class="table-light"><tr><th>Siswa</th><th>Kelas</th><th>Jumlah</th><th>Total Poin</th><th>Level</th><th>Terakhir</th><th></th></tr></thead>
+                <tbody>
+                    {% for item in summaries %}
+                    <tr>
+                        <td><div class="fw-semibold">{{ item.full_name }}</div><div class="small text-muted">{{ item.student_number or item.nisn or '-' }}</div></td>
+                        <td>{{ item.class_name }}</td>
+                        <td>{{ item.record_count }} catatan</td>
+                        <td><span class="fw-bold text-danger">{{ item.total_points }}</span></td>
+                        <td><span class="badge text-bg-{{ item.level_color }}">{{ item.level_label }}</span></td>
+                        <td>{{ item.last_violation_at|jakarta('%d/%m/%Y') if item.last_violation_at else '-' }}</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('student_points.student_detail', student_id=item.id) }}">Riwayat</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada siswa dengan catatan poin. Gunakan pencarian untuk membuka riwayat siswa tertentu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
+            <div><h2 class="h5 mb-1"><i class="bi bi-clock-history text-primary me-2"></i>Riwayat Pelanggaran</h2><div class="small text-muted">Maksimal 250 catatan terbaru sesuai filter.</div></div>
+        </div>
+        <form class="row g-2 mb-3" method="get">
+            <div class="col-md-2"><select class="form-select" name="class_id"><option value="">Semua kelas</option>{% for class in classes %}<option value="{{ class.id }}" {% if filters.class_id == class.id %}selected{% endif %}>{{ class.name }}</option>{% endfor %}</select></div>
+            <div class="col-md-2"><select class="form-select" name="category"><option value="">Semua kategori</option>{% for category in categories %}<option value="{{ category }}" {% if filters.category == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></div>
+            <div class="col-md-2"><select class="form-select" name="status"><option value="active" {% if filters.status == 'active' %}selected{% endif %}>Aktif</option><option value="void" {% if filters.status == 'void' %}selected{% endif %}>Dibatalkan</option><option value="all" {% if filters.status == 'all' %}selected{% endif %}>Semua status</option></select></div>
+            <div class="col-md-2"><input type="date" class="form-control" name="start_date" value="{{ filters.start_date.isoformat() if filters.start_date else '' }}" title="Tanggal mulai"></div>
+            <div class="col-md-2"><input type="date" class="form-control" name="end_date" value="{{ filters.end_date.isoformat() if filters.end_date else '' }}" title="Tanggal akhir"></div>
+            <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Terapkan</button></div>
+        </form>
+        <div class="table-responsive">
+            <table class="table point-table mb-0">
+                <thead class="table-light"><tr><th>Waktu</th><th>Siswa</th><th>Pelanggaran</th><th>Poin</th><th>Tindak Lanjut</th><th>Pencatat</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for item in records %}
+                    <tr class="{% if item.status == 'void' %}record-void{% endif %}">
+                        <td class="text-nowrap">{{ item.occurred_at|jakarta('%d/%m/%Y %H:%M') }}</td>
+                        <td><a class="fw-semibold text-decoration-none" href="{{ url_for('student_points.student_detail', student_id=item.student_id) }}">{{ item.student_name }}</a><div class="small text-muted">{{ item.class_name }}</div></td>
+                        <td><div>{{ item.violation_name }}</div><span class="badge text-bg-light">{{ item.category }}</span>{% if item.note %}<div class="small text-muted mt-1">{{ item.note }}</div>{% endif %}</td>
+                        <td><span class="badge text-bg-danger">+{{ item.points }}</span></td>
+                        <td><div class="small">{{ item.action_taken or '-' }}</div>{% if item.parent_notified %}<span class="badge text-bg-info mt-1">Orang tua dihubungi</span>{% endif %}</td>
+                        <td>{{ item.recorded_by_name or '-' }}</td>
+                        <td>{% if item.status == 'active' %}<span class="badge text-bg-success">Aktif</span>{% else %}<span class="badge text-bg-secondary">Dibatalkan</span><div class="small text-muted">{{ item.void_reason }}</div>{% endif %}</td>
+                        <td class="text-end">{% if item.status == 'active' %}<button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#voidModal{{ item.id }}" title="Batalkan"><i class="bi bi-x-circle"></i></button>{% endif %}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Belum ada catatan sesuai filter.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="recordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><form method="post" action="{{ url_for('student_points.record') }}">
+        <div class="modal-header"><div><h2 class="modal-title h5 mb-1">Catat Pelanggaran Siswa</h2><div class="small text-muted">Bobot poin mengikuti konfigurasi saat catatan dibuat.</div></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <div class="alert alert-light config-hint small">Jenis dan bobot poin dapat diubah kapan saja melalui menu <a href="{{ url_for('student_points.config') }}">Konfigurasi</a>.</div>
+            <div class="row g-3">
+                <div class="col-md-5"><label class="form-label fw-semibold">Filter kelas</label><select class="form-select" id="recordClass"><option value="">Semua kelas</option>{% for class in classes %}<option value="{{ class.id }}">{{ class.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-7"><label class="form-label fw-semibold">Cari siswa</label><input class="form-control" id="recordStudentSearch" placeholder="Ketik nama, NIS, atau NISN"></div>
+                <div class="col-12"><label class="form-label fw-semibold">Siswa</label><select class="form-select student-select" id="recordStudent" name="student_id" required><option value="">-- Pilih siswa --</option>{% for student in students %}<option value="{{ student.id }}" data-class-id="{{ student.class_id }}" data-search="{{ (student.full_name ~ ' ' ~ (student.student_number or '') ~ ' ' ~ (student.nisn or ''))|lower }}">{{ student.class_name }} • {{ student.full_name }}{% if student.student_number %} • {{ student.student_number }}{% endif %}</option>{% endfor %}</select></div>
+                <div class="col-md-7"><label class="form-label fw-semibold">Jenis pelanggaran</label><select class="form-select" id="violationType" name="violation_type_id" required><option value="">-- Pilih pelanggaran --</option>{% for group in violation_types|groupby('category') %}<optgroup label="{{ group.grouper }}">{% for violation in group.list %}<option value="{{ violation.id }}" data-points="{{ violation.points }}" data-action="{{ violation.recommended_action or '' }}">{{ violation.name }} (+{{ violation.points }})</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+                <div class="col-md-5"><label class="form-label fw-semibold">Tanggal dan waktu</label><input class="form-control" type="datetime-local" name="occurred_at" value="{{ now_local.strftime('%Y-%m-%dT%H:%M') }}" required></div>
+                <div class="col-md-5"><label class="form-label">Lokasi kejadian</label><input class="form-control" name="location" placeholder="Contoh: Gerbang sekolah"></div>
+                <div class="col-md-7"><label class="form-label">Tindak lanjut awal</label><input class="form-control" id="actionTaken" name="action_taken" placeholder="Teguran, pembinaan, komunikasi wali kelas, dll."></div>
+                <div class="col-12"><label class="form-label">Catatan/kronologi</label><textarea class="form-control" name="note" rows="3" placeholder="Tuliskan informasi faktual yang diperlukan."></textarea></div>
+                <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="parent_notified" id="parentNotified"><label class="form-check-label" for="parentNotified">Orang tua/wali sudah diberi tahu</label></div></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Catatan</button></div>
+    </form></div></div>
+</div>
+
+{% for item in records %}{% if item.status == 'active' %}
+<div class="modal fade" id="voidModal{{ item.id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><form method="post" action="{{ url_for('student_points.void_record', record_id=item.id) }}">
+    <div class="modal-header"><h2 class="modal-title h5">Batalkan Catatan</h2><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><p class="small">Catatan <strong>{{ item.violation_name }}</strong> milik <strong>{{ item.student_name }}</strong> tidak akan dihitung lagi, tetapi tetap tersimpan untuk audit.</p><label class="form-label fw-semibold">Alasan pembatalan</label><textarea class="form-control" name="reason" required rows="3"></textarea><input type="hidden" name="next" value="{{ request.full_path }}"></div>
+    <div class="modal-footer"><button class="btn btn-light" type="button" data-bs-dismiss="modal">Kembali</button><button class="btn btn-danger">Batalkan Catatan</button></div>
+</form></div></div></div>
+{% endif %}{% endfor %}
+
+<script>
+(() => {
+    const classSelect = document.getElementById('recordClass');
+    const studentSelect = document.getElementById('recordStudent');
+    const studentSearch = document.getElementById('recordStudentSearch');
+    const filterStudents = () => {
+        const classId = classSelect.value;
+        const query = (studentSearch.value || '').trim().toLowerCase();
+        Array.from(studentSelect.options).forEach((option, index) => {
+            if (index === 0) return;
+            const wrongClass = classId && option.dataset.classId !== classId;
+            const wrongQuery = query && !(option.dataset.search || '').includes(query);
+            option.hidden = Boolean(wrongClass || wrongQuery);
+        });
+        if (studentSelect.selectedOptions[0]?.hidden) studentSelect.value = '';
+    };
+    classSelect?.addEventListener('change', filterStudents);
+    studentSearch?.addEventListener('input', filterStudents);
+    const violationSelect = document.getElementById('violationType');
+    const actionInput = document.getElementById('actionTaken');
+    violationSelect?.addEventListener('change', () => {
+        const selected = violationSelect.selectedOptions[0];
+        if (selected?.dataset.action && !actionInput.value) actionInput.value = selected.dataset.action;
+    });
+})();
+</script>
+{% endblock %}

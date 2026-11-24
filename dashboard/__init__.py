@@ -12,7 +12,10 @@ from .routes import main_bp
 from .attendance import attendance_bp
 from .library import library_bp
 from .TKA import tka_bp
+from .student_points import student_points_bp
 from .db_access import shutdown_pool
+from .data_mode import init_data_mode
+from .bullying import init_bullying_dashboard
 from .queries import fetch_pending_bullying_count, fetch_pending_psych_count, fetch_pending_corruption_count
 from .schema import ensure_dashboard_schema
 from utils import to_jakarta
@@ -39,7 +42,10 @@ def create_app() -> Flask:
     app.register_blueprint(attendance_bp)
     app.register_blueprint(library_bp)
     app.register_blueprint(tka_bp)
+    app.register_blueprint(student_points_bp)
     init_oauth(app)
+    init_data_mode(app)
+    init_bullying_dashboard(app)
 
     try:
         ensure_dashboard_schema()

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Mode Data - ASKA{% endblock %}
+{% block content %}
+<div class="card shadow-sm mx-auto" style="max-width: 580px;">
+    <div class="card-body p-4">
+        <h1 class="h4">Mode Data</h1>
+        <p class="text-muted">Pengaturan global untuk seluruh pengguna dashboard. Hanya admin yang diizinkan dapat mengubahnya.</p>
+        <p>Mode dummy menampilkan transaksi contoh pada laporan. Formulir pengisian memakai data asli. Setiap penyimpanan guru masuk ke database asli dan disinkronkan ke database dummy melalui antrean yang dapat dicoba ulang.</p>
+        <p class="small text-muted">Menunggu sinkronisasi: <strong>{{ sync_pending }}</strong> perubahan.</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ data_mode_token }}">
+            <label class="form-label" for="dataMode">Sumber data</label>
+            <select class="form-select mb-3" name="mode" id="dataMode">
+                <option value="original" {% if not global_dummy_enabled %}selected{% endif %}>Data asli</option>
+                <option value="dummy" {% if global_dummy_enabled %}selected{% endif %}>Data dummy</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Aktifkan</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

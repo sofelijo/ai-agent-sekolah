@@ -20,6 +20,7 @@
             <i class="bi bi-arrow-repeat me-2"></i>Reopen cepat
         </a>
         <form id="quick-reopen-form" method="post" action="{{ url_for('main.update_bullying_status', report_id=report.id) }}" class="d-none">
+<input type="hidden" name="bullying_csrf" value="{{ bullying_csrf }}">
             <input type="hidden" name="action" value="reopen">
             <input type="hidden" name="next" value="{{ request.full_path }}">
 </form>
@@ -78,12 +79,27 @@
                     <hr>
                     <h2 class="h6 fw-bold">Deskripsi laporan</h2>
                     <p style="white-space: pre-wrap;">{{ report.description }}</p>
+                    {% if report.metadata and report.metadata.get('attachments') %}
+                    <h3 class="h6 fw-bold mt-4">Bukti pendukung</h3>
+                    <ul class="list-unstyled">
+                    {% for item in report.metadata.get('attachments',[]) %}
+                    <li class="mb-2"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('bullying_files.evidence',report_id=report.id,file_id=item.id) }}">Unduh {{ 'video' if item.mime.startswith('video/') else 'foto' }} · {{ item.name }}</a> <span class="small text-muted">{{ (item.size / 1048576)|round(2) }} MB</span></li>
+                    {% endfor %}
+                    </ul>
+                    {% endif %}
                     {% if report.notes %}
                     <h3 class="h6 fw-bold mt-4">Catatan tindak lanjut</h3>
                     <p class="small text-muted" style="white-space: pre-wrap;">{{ report.notes }}</p>
                     {% endif %}
-                    {% if report.metadata %}
-                    <h3 class="h6 fw-bold mt-4">Metadata tambahan</h3>
+                    {% if report.metadata and report.metadata.get('source') == 'public_landingpage' %}
+                    <h3 class="h6 fw-bold mt-4">Informasi dari formulir publik</h3>
+                    <dl class="row small">
+                    {% for key,label in [('receipt','Kode laporan'),('reporter_role','Hubungan pelapor'),('contact','Kontak pelapor'),('victim','Korban'),('student_class','Kelas'),('offender','Pihak terlibat'),('incident_date','Tanggal kejadian'),('location','Lokasi')] %}
+                    {% if report.metadata.get(key) %}<dt class="col-sm-3 text-muted">{{ label }}</dt><dd class="col-sm-9" style="overflow-wrap:anywhere">{{ report.metadata.get(key) }}</dd>{% endif %}
+                    {% endfor %}
+                    </dl>
+                    {% elif report.metadata %}
+                    <h3 class="h6 fw-bold mt-4">Informasi tambahan</h3>
                     <pre class="bg-light rounded p-3 small">{{ report.metadata | tojson(indent=2) }}</pre>
                     {% endif %}
                 </div>
@@ -92,6 +108,7 @@
                 <div class="card-body">
                     <h2 class="h6 fw-bold mb-3">Perbarui Laporan</h2>
                     <form method="post" action="{{ url_for('main.update_bullying_status', report_id=report.id) }}" class="row g-3">
+<input type="hidden" name="bullying_csrf" value="{{ bullying_csrf }}">
                         <input type="hidden" name="next" value="{{ request.full_path }}">
                         <input type="hidden" name="escalate" value="off">
                         <div class="col-md-6">

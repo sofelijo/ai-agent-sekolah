@@ -11,3 +11,9 @@ dari `web_aska/static/aska-moved/index.html` yang mengarahkan pengguna ke:
 
 Konfigurasi Nginx untuk mode nonaktif disimpan di
 `deploy/nginx/aska-webapp-disabled.conf`.
+
+Layanan cek kelulusan kini berjalan mandiri di
+`https://sdnsembar01.sch.id/kelulusan` melalui aplikasi `landingpage/`, dengan
+alur formulir NISN, hasil kelulusan, serta unduh/lihat SKL. URL lama
+`/kelulusan`, `/cek-kelulusan`, dan `/lp/kelulusan` pada domain ASKA diarahkan
+ke halaman sekolah tersebut. Aplikasi chat ASKA lama tetap nonaktif.

@@ -21,3 +21,18 @@ __pycache__/
 
 # Ignore test files
 test*
+!tests/
+!tests/test_data_mode.py
+!tests/test_academic_cohorts.py
+!tests/test_landing_graduation.py
+!tests/test_public_bullying.py
+!tests/test_bullying_access.py
+
+# Private bullying evidence (never publish or commit)
+instance/private/
+!tests/test_bullying_evidence.py
+
+# Operational photos, private uploads and original-photo backups stay outside Git
+/Foto Ekskul Juli-November 2026/
+/backup/foto-*/
+/dashboard/static/uploads/

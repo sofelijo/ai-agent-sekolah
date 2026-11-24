@@ -1,0 +1,30 @@
+.graduation-documents {
+    padding: 0 1.5rem 1.5rem;
+}
+.graduation-documents h2 {
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+}
+.graduation-message {
+    white-space: pre-line;
+    line-height: 1.7;
+    margin: 0 0 1.5rem;
+}
+.graduation-document-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: .75rem;
+}
+.graduation-document-actions .student-check-submit {
+    display: inline-block;
+    text-align: center;
+}
+.graduation-preview-link {
+    color: var(--accent-strong);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: .2em;
+}

@@ -11,6 +11,7 @@
     {% set can_tka = role == 'admin' %}
     {% set can_landingpage = role == 'admin' %}
     {% set can_kelulusan = role == 'admin' %}
+    {% set can_student_points = role in ['admin', 'staff'] %}
 
     <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-between gap-2 mb-4">
         <div>
@@ -154,6 +155,47 @@
                     <h2 class="h5 mt-3 mb-1 text-body">TKA</h2>
                     <p class="text-muted small mb-2">Manajemen bank soal & ujian.</p>
                     <span class="badge text-bg-light">Khusus admin</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if can_student_points %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('student_points.index') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-person-exclamation"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Poin Siswa</h2>
+                    <p class="text-muted small mb-0">Catat dan pantau pelanggaran siswa.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-person-exclamation"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Poin Siswa</h2>
+                    <p class="text-muted small mb-2">Catat dan pantau pelanggaran siswa.</p>
+                    <span class="badge text-bg-light">Admin & guru</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            {% if role in ['admin', 'staff'] %}
+            <a class="card app-hub-card h-100 text-decoration-none" href="{{ url_for('main.bullying_reports') }}">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-shield-exclamation"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Laporan Bullying</h2>
+                    <p class="text-muted small mb-0">Kelola laporan, bukti, dan tindak lanjut perundungan.</p>
+                </div>
+            </a>
+            {% else %}
+            <div class="card app-hub-card disabled h-100">
+                <div class="card-body">
+                    <span class="icon-badge text-danger"><i class="bi bi-shield-exclamation"></i></span>
+                    <h2 class="h5 mt-3 mb-1 text-body">Laporan Bullying</h2>
+                    <p class="text-muted small mb-2">Kelola laporan, bukti, dan tindak lanjut perundungan.</p>
+                    <span class="badge text-bg-light">Admin & guru</span>
                 </div>
             </div>
             {% endif %}

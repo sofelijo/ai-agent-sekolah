@@ -2,6 +2,12 @@
 {% block title %}Manajemen User - ASKA Insights{% endblock %}
 
 {% block content %}
+{% if can_manage_data_mode %}
+<details class="mb-3 text-muted small">
+    <summary>Pengaturan lanjutan</summary>
+    <a class="d-inline-block mt-2" href="{{ url_for('data_mode.settings') }}">Mode data dummy / asli</a>
+</details>
+{% endif %}
 <section class="page-header">
     <div class="page-title-group">
         <span class="icon-badge feature-icon text-primary">

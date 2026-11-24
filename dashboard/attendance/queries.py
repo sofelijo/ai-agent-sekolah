@@ -8,12 +8,16 @@ from psycopg2 import errors
 from psycopg2.extras import DictRow, Json
 
 from ..db_access import get_cursor
+from ..data_mode import dummy_requested
+from .. import academic_roster
 
 ATTENDANCE_STATUSES: Tuple[str, ...] = ("masuk", "alpa", "izin", "sakit")
 DEFAULT_ATTENDANCE_STATUS = "masuk"
 
 
-def list_school_classes() -> List[Dict[str, Any]]:
+def list_school_classes(*, as_of=None) -> List[Dict[str, Any]]:
+    if dummy_requested() and as_of is not None:
+        return academic_roster.classes_for(as_of)
     with get_cursor() as cur:
         cur.execute(
             """
@@ -233,7 +237,9 @@ def fetch_teacher_assigned_class(user_id: int) -> Optional[Dict[str, Any]]:
     return dict(row) if row else None
 
 
-def fetch_students_for_class(class_id: int, *, include_inactive: bool = False) -> List[Dict[str, Any]]:
+def fetch_students_for_class(class_id: int, *, include_inactive: bool = False, as_of=None) -> List[Dict[str, Any]]:
+    if dummy_requested() and as_of is not None:
+        return academic_roster.roster_for(as_of, class_id=class_id)
     conditions: List[str] = ["s.class_id = %s"]
     params: List[Any] = [class_id]
     if not include_inactive:
@@ -1135,6 +1141,8 @@ def fetch_most_missing_attendance_classes(
 
 def fetch_class_attendance_breakdown(attendance_date: date) -> List[Dict[str, Any]]:
     """Berikan rekap jumlah status per kelas untuk tanggal tertentu."""
+    if dummy_requested():
+        return academic_roster.class_breakdown(attendance_date)
     with get_cursor() as cur:
         cur.execute(
             """
@@ -1305,6 +1313,8 @@ def fetch_school_identity() -> Dict[str, Optional[str]]:
 
 
 def list_attendance_months(limit: int = 12) -> List[date]:
+    if dummy_requested():
+        limit = max(limit, 24)
     """Daftar bulan yang memiliki data absensi (untuk pilihan filter)."""
     limit = max(1, limit)
     with get_cursor() as cur:
@@ -1768,7 +1778,10 @@ def fetch_extracurricular_members(
     activity_id: int,
     *,
     include_inactive: bool = False,
+    as_of=None,
 ) -> List[Dict[str, Any]]:
+    if dummy_requested() and as_of is not None:
+        return academic_roster.roster_for(as_of, activity_id=activity_id)
     conditions = ["em.extracurricular_id = %s"]
     params: List[Any] = [activity_id]
     if not include_inactive:
@@ -2007,6 +2020,8 @@ def fetch_extracurricular_attendance_detail(
     activity_id: int,
     attendance_date: date,
 ) -> List[Dict[str, Any]]:
+    if dummy_requested():
+        return academic_roster.activity_detail(activity_id, attendance_date)
     with get_cursor() as cur:
         cur.execute(
             """
@@ -2073,7 +2088,8 @@ def fetch_extracurricular_attendance_export_rows(
             """,
             params,
         )
-        return [dict(row) for row in cur.fetchall()]
+        rows = [dict(row) for row in cur.fetchall()]
+    return academic_roster.historical_export_labels(rows) if dummy_requested() else rows
 
 
 def fetch_extracurricular_evidence_for_date(

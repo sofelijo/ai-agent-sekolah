@@ -13,6 +13,7 @@
         </div>
     </div>
     <div class="page-header-actions">
+        <a class="btn btn-outline-primary btn-sm" href="https://sdnsembar01.sch.id/lapor-bullying" target="_blank" rel="noopener">Formulir publik ↗</a>
         <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.dashboard') }}">
             <i class="bi bi-bar-chart-steps me-2"></i>Kembali ke Dashboard
         </a>
@@ -115,6 +116,7 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <form id="bulk-action-form">
+<input type="hidden" name="bullying_csrf" value="{{ bullying_csrf }}">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
@@ -261,6 +263,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-Bullying-CSRF': {{ bullying_csrf|tojson }},
                     },
                     body: JSON.stringify({
                         report_ids: reportIds,
@@ -305,6 +308,7 @@
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
+                        'X-Bullying-CSRF': {{ bullying_csrf|tojson }},
                                         },
                                         body: JSON.stringify({
                                             report_ids: reportIds,

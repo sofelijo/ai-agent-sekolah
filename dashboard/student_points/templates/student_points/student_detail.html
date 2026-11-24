@@ -1,0 +1,12 @@
+{% extends "attendance/base.html" %}
+{% block title %}Riwayat Poin {{ student.full_name }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div><a class="small text-decoration-none" href="{{ url_for('student_points.index') }}"><i class="bi bi-arrow-left"></i> Kembali ke Poin Siswa</a><h1 class="h3 mt-2 mb-1">{{ student.full_name }}</h1><p class="text-muted mb-0">{{ student.class_name }} • NIS/NISN: {{ student.student_number or student.nisn or '-' }}</p></div>
+    <div class="text-md-end"><div class="display-6 fw-bold text-danger">{{ total.total_points }}</div><div class="small text-muted">Total poin aktif</div><span class="badge text-bg-{{ total.level_color }} mt-1">{{ total.level_label }}</span></div>
+</div>
+{% if total.level_action %}<div class="alert alert-{{ total.level_color }}"><strong>Rekomendasi tindak lanjut:</strong> {{ total.level_action }}</div>{% endif %}
+<div class="card border-0 shadow-sm"><div class="card-body"><div class="d-flex justify-content-between mb-3"><h2 class="h5 mb-0">Riwayat Lengkap</h2><span class="text-muted small">{{ total.record_count }} catatan aktif</span></div><div class="table-responsive"><table class="table align-middle"><thead class="table-light"><tr><th>Waktu</th><th>Pelanggaran</th><th>Poin</th><th>Detail</th><th>Pencatat</th><th>Status</th></tr></thead><tbody>
+{% for item in records %}<tr class="{% if item.status == 'void' %}opacity-50{% endif %}"><td class="text-nowrap">{{ item.occurred_at|jakarta('%d/%m/%Y %H:%M') }}</td><td><div class="fw-semibold">{{ item.violation_name }}</div><span class="badge text-bg-light">{{ item.category }}</span></td><td><span class="badge text-bg-danger">+{{ item.points }}</span></td><td><div>{{ item.note or '-' }}</div>{% if item.location %}<div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ item.location }}</div>{% endif %}{% if item.action_taken %}<div class="small mt-1"><strong>Tindak lanjut:</strong> {{ item.action_taken }}</div>{% endif %}</td><td>{{ item.recorded_by_name or '-' }}</td><td>{% if item.status == 'active' %}<span class="badge text-bg-success">Aktif</span>{% else %}<span class="badge text-bg-secondary">Dibatalkan</span><div class="small">{{ item.void_reason }}</div>{% endif %}</td></tr>{% else %}<tr><td colspan="6" class="text-center text-muted py-4">Belum ada riwayat pelanggaran.</td></tr>{% endfor %}
+</tbody></table></div></div></div>
+{% endblock %}

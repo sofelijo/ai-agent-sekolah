@@ -47,6 +47,9 @@
 
                     {% set can_absen_kelas = current_user and current_user.role in ['staff', 'admin'] %}
                     {% set can_absen_ekskul = current_user and current_user.role in ['admin', 'ekskul'] %}
+                    {% if current_user and current_user.role in ['staff','admin'] %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.bullying_reports') }}"><i class="bi bi-shield-exclamation nav-icon"></i>Lapor Bullying{% if pending_bullying_count %}<span class="badge text-bg-danger ms-1">{{ pending_bullying_count }}</span>{% endif %}</a></li>
+                    {% endif %}
                     {% set show_absensi_menu = can_absen_kelas or (current_user and current_user.role == 'admin') %}
                     {% set absensi_active = attendance_active_tab in ['kelas', 'staff'] %}
                     {% if show_absensi_menu %}
@@ -104,6 +107,22 @@
                                     Lembar Bulanan (Kelas)
                                 </a>
                             </li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                    {% if can_absen_kelas %}
+                    {% set student_points_active = attendance_active_tab in ['student_points', 'student_points_config'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if student_points_active %}active{% endif %}" href="#"
+                            id="navStudentPointsDropdown" role="button" data-bs-toggle="dropdown"
+                            aria-expanded="{{ 'true' if student_points_active else 'false' }}">
+                            <i class="bi bi-person-exclamation nav-icon"></i>Poin Siswa
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navStudentPointsDropdown">
+                            <li><a class="dropdown-item {% if attendance_active_tab == 'student_points' %}active{% endif %}"
+                                href="{{ url_for('student_points.index') }}">Dashboard & Pencatatan</a></li>
+                            <li><a class="dropdown-item {% if attendance_active_tab == 'student_points_config' %}active{% endif %}"
+                                href="{{ url_for('student_points.config') }}">Konfigurasi Poin</a></li>
                         </ul>
                     </li>
                     {% endif %}
@@ -278,6 +297,7 @@
     </nav>
 
     <main class="container my-4">
+        {% include '_data_mode_banner.html' %}
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1200;">

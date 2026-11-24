@@ -114,6 +114,7 @@
                         🔎 Cek Status Siswa
                     </a>
                     {% endif %}
+                    <a class="hero-cta hero-cta-secondary" href="{{ url_for('public_bullying.report') }}">Lapor Perundungan</a>
                 </div>
                 <div class="hero-social">
                     {% for link in content.get('hero', {}).get('social_links', []) %}

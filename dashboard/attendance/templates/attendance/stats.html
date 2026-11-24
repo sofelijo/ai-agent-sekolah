@@ -297,6 +297,7 @@
                     </div>
                 </div>
                 <canvas id="attendanceTrendChart" height="220"></canvas>
+                <p id="academicComparisonNote" class="text-muted small mt-2 mb-0" hidden>Rata-rata per hari yang memiliki absensi. Juli dimulai saat sekolah masuk; bulan berjalan belum penuh. Bulan tanpa data ditampilkan sebagai jeda.</p>
             </div>
         </div>
     </div>
@@ -687,10 +688,18 @@ document.addEventListener("DOMContentLoaded", function () {
         STATUS_CONFIG.forEach(function (config, datasetIndex) {
             var values = (dataset.series && dataset.series[config.key]) ? dataset.series[config.key] : [];
             var filtered = indexes.map(function (idx) {
-                return values[idx] || 0;
+                return values[idx] == null ? null : values[idx];
             });
             chart.data.datasets[datasetIndex].data = filtered;
         });
+        chart.options.scales.y.title = {display: true, text: dataset.normalized ? "Rata-rata siswa per hari terisi" : "Jumlah catatan siswa"};
+        chart.options.plugins.tooltip = {callbacks: {afterBody: function(items) {
+            if (!dataset.normalized || !items.length) return [];
+            var i = indexes[items[0].dataIndex];
+            return [dataset.recorded_days[i] + " hari terisi", "Perbandingan menggunakan rata-rata harian."];
+        }}};
+        var note = document.getElementById('academicComparisonNote');
+        if (note) note.hidden = !dataset.normalized;
         chart.update();
     }
     function updateRangeVisibility() {

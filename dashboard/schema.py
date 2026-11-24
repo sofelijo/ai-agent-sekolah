@@ -323,6 +323,164 @@ CREATE TABLE IF NOT EXISTS extracurricular_attendance_records (
 );
 """
 
+_STUDENT_VIOLATION_TYPES_SQL = """
+CREATE TABLE IF NOT EXISTS student_violation_types (
+    id SERIAL PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    points INTEGER NOT NULL CHECK (points > 0),
+    description TEXT,
+    recommended_action TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    updated_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_STUDENT_VIOLATION_CATEGORIES_SQL = """
+CREATE TABLE IF NOT EXISTS student_violation_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    updated_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_STUDENT_VIOLATION_CATEGORIES_NAME_INDEX_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_student_violation_categories_name_lower
+ON student_violation_categories (LOWER(name));
+"""
+
+_SEED_STUDENT_VIOLATION_CATEGORIES_SQL = """
+DO $$
+BEGIN
+IF NOT EXISTS (
+    SELECT 1 FROM dashboard_data_migrations
+    WHERE migration_key = '20261016_seed_student_violation_categories'
+) THEN
+    INSERT INTO student_violation_categories (name, sort_order)
+    SELECT category, ROW_NUMBER() OVER (ORDER BY category) * 10
+    FROM (SELECT DISTINCT category FROM student_violation_types) categories
+    ON CONFLICT (name) DO NOTHING;
+
+    INSERT INTO dashboard_data_migrations (migration_key)
+    VALUES ('20261016_seed_student_violation_categories');
+END IF;
+END
+$$;
+"""
+
+_STUDENT_POINT_THRESHOLDS_SQL = """
+CREATE TABLE IF NOT EXISTS student_point_thresholds (
+    id SERIAL PRIMARY KEY,
+    min_points INTEGER UNIQUE NOT NULL CHECK (min_points >= 0),
+    label TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT 'secondary',
+    recommended_action TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    updated_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_STUDENT_POINT_RECORDS_SQL = """
+CREATE TABLE IF NOT EXISTS student_point_records (
+    id SERIAL PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
+    violation_type_id INTEGER REFERENCES student_violation_types(id) ON DELETE SET NULL,
+    violation_code TEXT NOT NULL,
+    violation_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    points INTEGER NOT NULL CHECK (points > 0),
+    occurred_at TIMESTAMPTZ NOT NULL,
+    location TEXT,
+    note TEXT,
+    action_taken TEXT,
+    parent_notified BOOLEAN NOT NULL DEFAULT FALSE,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'void')),
+    recorded_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    voided_by INTEGER REFERENCES dashboard_users(id) ON DELETE SET NULL,
+    voided_at TIMESTAMPTZ,
+    void_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+_STUDENT_POINT_RECORDS_STUDENT_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_student_point_records_student
+ON student_point_records (student_id, occurred_at DESC);
+"""
+
+_STUDENT_POINT_RECORDS_DATE_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_student_point_records_date
+ON student_point_records (occurred_at DESC);
+"""
+
+_STUDENT_POINT_RECORDS_STATUS_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_student_point_records_status
+ON student_point_records (status);
+"""
+
+_SEED_STUDENT_POINT_CONFIG_SQL = """
+DO $$
+BEGIN
+IF NOT EXISTS (
+    SELECT 1 FROM dashboard_data_migrations
+    WHERE migration_key = '20261016_seed_student_point_config'
+) THEN
+    INSERT INTO student_violation_types
+    (code, name, category, points, description, recommended_action, sort_order)
+VALUES
+    ('TERLAMBAT', 'Terlambat datang ke sekolah', 'Kedisiplinan', 5, 'Datang setelah waktu masuk tanpa alasan yang dapat diterima.', 'Teguran dan pembinaan disiplin waktu.', 10),
+    ('ATRIBUT_TIDAK_LENGKAP', 'Atribut seragam tidak lengkap', 'Kerapian', 5, 'Atribut wajib seperti dasi, topi, ikat pinggang, atau tanda lokasi tidak lengkap.', 'Melengkapi atribut dan teguran.', 20),
+    ('SERAGAM_TIDAK_SESUAI', 'Seragam tidak sesuai ketentuan', 'Kerapian', 5, 'Jenis seragam, sepatu, atau kelengkapan berpakaian tidak sesuai jadwal.', 'Pembinaan kerapian dan pemberitahuan kepada wali kelas.', 30),
+    ('TIDAK_MENGERJAKAN_TUGAS', 'Tidak mengerjakan tugas', 'Akademik', 5, 'Tidak menyelesaikan tugas tanpa alasan yang dapat diterima.', 'Menyelesaikan tugas susulan.', 40),
+    ('MENGGANGGU_PEMBELAJARAN', 'Mengganggu kegiatan pembelajaran', 'Perilaku', 10, 'Mengganggu ketertiban kelas atau proses belajar.', 'Teguran, refleksi, dan pembinaan wali kelas.', 50),
+    ('KELUAR_TANPA_IZIN', 'Keluar kelas/sekolah tanpa izin', 'Kedisiplinan', 10, 'Meninggalkan kelas atau lingkungan sekolah tanpa izin petugas.', 'Pembinaan dan konfirmasi kepada wali kelas.', 60),
+    ('MEMBAWA_HP_TANPA_IZIN', 'Membawa/menggunakan gawai tanpa izin', 'Kedisiplinan', 10, 'Membawa atau menggunakan gawai tidak sesuai aturan sekolah.', 'Pengamanan sementara sesuai tata tertib dan pemberitahuan orang tua.', 70),
+    ('BERKATA_KASAR', 'Berkata kasar atau tidak sopan', 'Perilaku', 10, 'Menggunakan bahasa kasar, menghina, atau tidak santun.', 'Permintaan maaf dan pembinaan karakter.', 80),
+    ('MEMBOLOS', 'Membolos', 'Kedisiplinan', 15, 'Tidak mengikuti pelajaran atau kegiatan wajib tanpa izin.', 'Panggilan wali kelas dan konfirmasi orang tua.', 90),
+    ('TIDAK_HORMAT', 'Tidak menghormati guru/staf/teman', 'Perilaku', 15, 'Bersikap tidak patut terhadap warga sekolah.', 'Mediasi, permintaan maaf, dan pembinaan.', 100),
+    ('MENYONTEK', 'Menyontek atau kecurangan akademik', 'Akademik', 20, 'Melakukan kecurangan dalam tugas, ulangan, atau ujian.', 'Pembinaan integritas dan tindak lanjut akademik.', 110),
+    ('PELANGGARAN_MEDSOS', 'Pelanggaran etika media sosial', 'Digital', 20, 'Mengunggah atau menyebarkan konten yang merugikan warga/sekolah.', 'Edukasi literasi digital dan pemberitahuan orang tua.', 120),
+    ('BERKELAHI', 'Berkelahi', 'Perilaku', 25, 'Terlibat perkelahian fisik di dalam atau terkait kegiatan sekolah.', 'Mediasi, pemanggilan orang tua, dan pembinaan.', 130),
+    ('MERUSAK_FASILITAS', 'Merusak fasilitas sekolah', 'Lingkungan', 25, 'Merusak sarana, prasarana, atau barang milik warga sekolah.', 'Ganti rugi sesuai ketentuan dan pembinaan.', 140),
+    ('PERUNDUNGAN', 'Perundungan', 'Perilaku', 30, 'Melakukan perundungan verbal, fisik, sosial, atau psikologis.', 'Penanganan tim sekolah, pemanggilan orang tua, dan pendampingan.', 150),
+    ('CYBERBULLYING', 'Perundungan digital', 'Digital', 30, 'Melakukan intimidasi atau perundungan melalui media digital.', 'Penanganan tim sekolah, literasi digital, dan pemanggilan orang tua.', 160),
+    ('MEROKOK', 'Merokok atau membawa rokok/vape', 'Barang Terlarang', 40, 'Merokok atau membawa produk rokok dan vape di lingkungan/kegiatan sekolah.', 'Pemanggilan orang tua dan pembinaan intensif.', 170),
+    ('PENCURIAN', 'Pencurian', 'Pelanggaran Berat', 50, 'Mengambil barang atau uang tanpa hak.', 'Pemeriksaan, pemanggilan orang tua, dan tindak lanjut sekolah.', 180),
+    ('SENJATA_BERBAHAYA', 'Membawa senjata/barang berbahaya', 'Pelanggaran Berat', 75, 'Membawa benda yang dapat membahayakan warga sekolah.', 'Pengamanan barang, pemanggilan orang tua, dan tindak lanjut pimpinan.', 190),
+    ('NAPZA', 'Membawa/menggunakan NAPZA', 'Pelanggaran Berat', 100, 'Membawa, menggunakan, atau mengedarkan zat terlarang.', 'Penanganan pimpinan sekolah dan pihak terkait sesuai ketentuan.', 200)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO student_point_thresholds (min_points, label, color, recommended_action)
+VALUES
+    (0, 'Terpantau', 'success', 'Pemantauan dan penguatan perilaku positif.'),
+    (25, 'Pembinaan Wali Kelas', 'info', 'Pembinaan oleh wali kelas dan refleksi siswa.'),
+    (50, 'Peringatan', 'warning', 'Surat peringatan dan komunikasi dengan orang tua/wali.'),
+    (75, 'Pendampingan Intensif', 'danger', 'Pemanggilan orang tua dan konferensi kasus.'),
+    (100, 'Tindak Lanjut Pimpinan', 'dark', 'Evaluasi oleh pimpinan/tim kesiswaan sesuai tata tertib.')
+    ON CONFLICT (min_points) DO NOTHING;
+
+    INSERT INTO dashboard_data_migrations (migration_key)
+    VALUES ('20261016_seed_student_point_config');
+END IF;
+END
+$$;
+"""
+
 _EXTRACURRICULAR_ATTENDANCE_ACTIVITY_DATE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_extracurricular_attendance_activity_date
 ON extracurricular_attendance_records (extracurricular_id, attendance_date);
@@ -652,12 +810,22 @@ def ensure_dashboard_schema() -> None:
         _ATTENDANCE_LATE_STUDENTS_SQL,
         _ATTENDANCE_LATE_DATE_INDEX_SQL,
         _ATTENDANCE_LATE_CLASS_INDEX_SQL,
+        _DASHBOARD_DATA_MIGRATIONS_SQL,
+        _STUDENT_VIOLATION_CATEGORIES_SQL,
+        _STUDENT_VIOLATION_CATEGORIES_NAME_INDEX_SQL,
+        _STUDENT_VIOLATION_TYPES_SQL,
+        _STUDENT_POINT_THRESHOLDS_SQL,
+        _STUDENT_POINT_RECORDS_SQL,
+        _STUDENT_POINT_RECORDS_STUDENT_INDEX_SQL,
+        _STUDENT_POINT_RECORDS_DATE_INDEX_SQL,
+        _STUDENT_POINT_RECORDS_STATUS_INDEX_SQL,
+        _SEED_STUDENT_POINT_CONFIG_SQL,
+        _SEED_STUDENT_VIOLATION_CATEGORIES_SQL,
         _EXTRACURRICULARS_SQL,
         _EXTRACURRICULARS_ACTIVE_INDEX_SQL,
         _EXTRACURRICULAR_COACHES_SQL,
         _EXTRACURRICULAR_COACHES_USER_INDEX_SQL,
         _MIGRATE_LEGACY_EXTRACURRICULAR_COACHES_SQL,
-        _DASHBOARD_DATA_MIGRATIONS_SQL,
         _SEED_PENCAK_SILAT_COACH_SQL,
         _EXTRACURRICULAR_MEMBERS_SQL,
         _EXTRACURRICULAR_MEMBERS_ACTIVITY_INDEX_SQL,
@@ -786,6 +954,10 @@ def ensure_sequences_integrity(cur) -> None:
         "attendance_records",
         "teacher_attendance_records",
         "attendance_late_students",
+        "student_violation_types",
+        "student_violation_categories",
+        "student_point_thresholds",
+        "student_point_records",
         "extracurriculars",
         "extracurricular_members",
         "extracurricular_attendance_records",
