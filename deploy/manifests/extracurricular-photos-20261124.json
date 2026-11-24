@@ -466,5 +466,273 @@
     }
   ],
   "applied_at": "2026-11-24T14:36:56+07:00",
-  "verified_idempotent": true
+  "verified_idempotent": true,
+  "reused_original_photos": [
+    {
+      "activity_id": 2,
+      "date": "2026-10-31",
+      "photo_path": "uploads/ekskul/2/2026-10-31/ekskul_2_20261031_015214_46fdd178.jpg",
+      "sha256": "9ea1406766e54f5f3f52081fbd757b1da176678da922cad6860a1a942f8f077a",
+      "status": "linked",
+      "rows": 7
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-07-15",
+      "photo_path": "uploads/ekskul/3/2026-07-15/ekskul_3_20260715_030333_095e4e2e.jpg",
+      "sha256": "9b76b5e8be2991a03df584b9afe5e7e5751a1f64907cfd0e8213a226e106b7ee",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-07-22",
+      "photo_path": "uploads/ekskul/3/2026-07-22/ekskul_3_20260722_031555_2381e062.jpg",
+      "sha256": "689f8a070e3cd2f2e34e48986004b561b0618931984d9083da74bef5b2b718f4",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-07-29",
+      "photo_path": "uploads/ekskul/3/2026-07-29/ekskul_3_20260729_033447_5c852905.jpg",
+      "sha256": "0d2cf03f34a41f320fb80a8d70dc526a79b81f01650297b482639d0ee32168c9",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-08-05",
+      "photo_path": "uploads/ekskul/3/2026-08-05/ekskul_3_20260805_033316_9375d30e.jpg",
+      "sha256": "bb02e465b2d5b7e47b5b8dfc3321ee9bf5c6b9cd65a2c27679519a2b81ad2cdb",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-08-12",
+      "photo_path": "uploads/ekskul/3/2026-08-12/ekskul_3_20260812_040436_952527e4.jpg",
+      "sha256": "5a2f1aed6220609df8097bdb51bab78ad382057c702ddf21dda33a65fb8646b4",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-08-26",
+      "photo_path": "uploads/ekskul/3/2026-08-26/ekskul_3_20260826_031352_8573521b.jpg",
+      "sha256": "26584544578a75177af5b832682a9a7185fc0e650c7f829ded80c027c1747161",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-09-02",
+      "photo_path": "uploads/ekskul/3/2026-09-02/ekskul_3_20260902_032053_f1b87f20.jpg",
+      "sha256": "edd3fc55c2e8858cdce1da35e2d79de62b3a599a7c8be13fb58c4e85d6c63249",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-09-09",
+      "photo_path": "uploads/ekskul/3/2026-09-09/ekskul_3_20260909_032337_334e151b.jpg",
+      "sha256": "8baf966111b06ef64b8aba9df1d7bc132a661ae51dd74580431569badd40a8e9",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-09-16",
+      "photo_path": "uploads/ekskul/3/2026-09-16/ekskul_3_20260916_031905_44574751.jpg",
+      "sha256": "ce4e86c4991f8acc5711d26ecb227cf1a1a474f8b7102f6e18e7cf350f167fb7",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-09-23",
+      "photo_path": "uploads/ekskul/3/2026-09-23/ekskul_3_20260923_032412_28abc38f.jpg",
+      "sha256": "85fd36d9db6dde921ff353187a90d074ab8423bc2c38da4a786e968839e7eef2",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-10-07",
+      "photo_path": "uploads/ekskul/3/2026-10-07/ekskul_3_20261007_030405_1b70b0a4.jpg",
+      "sha256": "50254e54da184887026211b164327d16a21f1a9864488ce6b0b5d333dfaca15f",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-10-14",
+      "photo_path": "uploads/ekskul/3/2026-10-14/ekskul_3_20261014_032651_bcf1d076.jpg",
+      "sha256": "4aa996a957be9d98afd9fe32a394691beef664a58ae0fa1ecc77d9c0dc42d515",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-10-21",
+      "photo_path": "uploads/ekskul/3/2026-10-21/ekskul_3_20261021_025904_bf4b111e.jpg",
+      "sha256": "60aa35d5aed021324e3bd823045e067b5fb9db1d9afd4c5978b75e7025aad7dc",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-11-04",
+      "photo_path": "uploads/ekskul/3/2026-11-04/ekskul_3_20261104_031840_4b4d76d0.jpg",
+      "sha256": "0348bff294c0082c0731650a88535389208baa49288b4a5903c71669dbc7d770",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-11-11",
+      "photo_path": "uploads/ekskul/3/2026-11-11/ekskul_3_20261111_032314_b1d13bc9.jpg",
+      "sha256": "2010ffb3e6d3685184fde8b09d12b6ecc69fbf0c81020f555d3d1347d40d6516",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 3,
+      "date": "2026-11-18",
+      "photo_path": "uploads/ekskul/3/2026-11-18/ekskul_3_20261118_032952_cd1c5cfe.jpg",
+      "sha256": "d8f3b4de7e4de49d37b5ed450d96554777399ea0945961aa615929b017bdbe21",
+      "status": "linked",
+      "rows": 93
+    },
+    {
+      "activity_id": 4,
+      "date": "2026-11-21",
+      "photo_path": "uploads/ekskul/4/2026-11-21/ekskul_4_20261121_014900_03d9b081.jpg",
+      "sha256": "5b56fbcecfba80383735d2b1d026a0da0a4fc24da7c8e007213181ba157daaaa",
+      "status": "linked",
+      "rows": 41
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-07-16",
+      "photo_path": "uploads/ekskul/5/2026-07-16/ekskul_5_20260716_033321_99b0aca5.jpg",
+      "sha256": "2335031272ff460947f4e405ef8115631547371f127558cf2369f45fd172d1ff",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-07-23",
+      "photo_path": "uploads/ekskul/5/2026-07-23/ekskul_5_20260723_033044_7a1208e4.jpg",
+      "sha256": "a46162755fe179e6f2975a6bcbf79237a2bb350766d4e0f5fe63dc401b7480ed",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-07-30",
+      "photo_path": "uploads/ekskul/5/2026-07-30/ekskul_5_20260730_034454_a85c2139.jpg",
+      "sha256": "336b3f20c5c488b56c953eddc64a56c85a88dae40da0381f9a13098374dbfc94",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-08-06",
+      "photo_path": "uploads/ekskul/5/2026-08-06/ekskul_5_20260806_033439_539783a9.jpg",
+      "sha256": "647adcbe37fbb37a75c8c5384334f997210d1ccdfed052d25934d18949c72d5f",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-08-13",
+      "photo_path": "uploads/ekskul/5/2026-08-13/ekskul_5_20260813_032721_40c1dba8.jpg",
+      "sha256": "926e55f481f74b3926ab7f4b8b1d938c80b1dd413e09f4c78b435bf9c312660d",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-08-20",
+      "photo_path": "uploads/ekskul/5/2026-08-20/ekskul_5_20260820_031008_fca74e8b.jpg",
+      "sha256": "0a4346d405441d5a6d154f29eb1fbb75cb2bec1c7ecbae7022a4e29eccf6fb48",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-08-27",
+      "photo_path": "uploads/ekskul/5/2026-08-27/ekskul_5_20260827_035154_24a7d1e7.jpg",
+      "sha256": "d82123476819f1817dfec46df9159905a6b01a3ac71aaf40b86fc09b629541fe",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-09-17",
+      "photo_path": "uploads/ekskul/5/2026-09-17/ekskul_5_20260917_035800_9f8f58ec.jpg",
+      "sha256": "4956eb0e8989ef3a0cb385e6ac2b8d0b36c76d51d9b06f66b53b3daf7e637f0d",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-10-08",
+      "photo_path": "uploads/ekskul/5/2026-10-08/ekskul_5_20261008_030934_7a75d61b.jpg",
+      "sha256": "3d0d59157a27eb15199d649ec9e13764d679bb2741ebfd2b8c04ada689a5b2fa",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-10-15",
+      "photo_path": "uploads/ekskul/5/2026-10-15/ekskul_5_20261015_035938_21298538.jpg",
+      "sha256": "db4342a61fcdfee7c548ddc949d851af4a796ed064d5fea9e0a597b67706a4b4",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-10-22",
+      "photo_path": "uploads/ekskul/5/2026-10-22/ekskul_5_20261022_034050_2dc15c4e.jpg",
+      "sha256": "03c6f9370f946aba4cb34172ce373b93dd0450ac08f7bd1afc6c27297de29341",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-10-29",
+      "photo_path": "uploads/ekskul/5/2026-10-29/ekskul_5_20261029_040303_9f49c6f3.jpg",
+      "sha256": "65a0dea205bf10b64ca3e77ae4ad7b173f017f34f62c01fcd703ba3129e077fb",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-11-05",
+      "photo_path": "uploads/ekskul/5/2026-11-05/ekskul_5_20261105_033939_dc15aa3a.jpg",
+      "sha256": "08115881d3d453516866b83b1d6dd6a48860e0b4a84d649b8a7ff1dac454df4b",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-11-12",
+      "photo_path": "uploads/ekskul/5/2026-11-12/ekskul_5_20261112_033217_ffac6ad3.jpg",
+      "sha256": "011a015060c2da1d693c671111c9234a6d8d5fe9f9397ea56fe2d6e420a4a8ff",
+      "status": "linked",
+      "rows": 31
+    },
+    {
+      "activity_id": 5,
+      "date": "2026-11-19",
+      "photo_path": "uploads/ekskul/5/2026-11-19/ekskul_5_20261119_040028_38254c80.jpg",
+      "sha256": "c8e1e0574f5c2f821d6eaf6dc373041c7b2ddfd2030c551949249cb5169465bf",
+      "status": "linked",
+      "rows": 31
+    }
+  ],
+  "covered_sessions": 75,
+  "remaining_sessions": 56
 }
